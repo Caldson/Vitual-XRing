@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>我的账户 | Vitual XRing</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            color: #172033;
+            background: #f4f7fb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            background: #f4f7fb;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 18px max(24px, calc((100% - 1080px) / 2));
+            border-bottom: 1px solid #e8edf4;
+            background: #fff;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #172033;
+            font-weight: 750;
+            text-decoration: none;
+        }
+
+        .brand-mark {
+            width: 38px;
+            height: 38px;
+            display: grid;
+            place-items: center;
+            border-radius: 12px;
+            color: white;
+            background: linear-gradient(135deg, #3867e8, #6c8cff);
+            font-weight: 800;
+        }
+
+        .logout-button {
+            padding: 9px 14px;
+            border: 1px solid #dfe5ee;
+            border-radius: 10px;
+            color: #536179;
+            background: white;
+            font: inherit;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .logout-button:hover {
+            border-color: #b9c7df;
+            color: #3158d1;
+        }
+
+        main {
+            width: min(100% - 40px, 920px);
+            margin: 56px auto;
+        }
+
+        .welcome {
+            margin-bottom: 28px;
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: #6e7c93;
+            font-size: 14px;
+            font-weight: 650;
+            letter-spacing: 0.04em;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(28px, 5vw, 38px);
+            letter-spacing: -0.03em;
+        }
+
+        .welcome-copy {
+            margin: 10px 0 0;
+            color: #738097;
+        }
+
+        .balance-card {
+            position: relative;
+            overflow: hidden;
+            padding: clamp(26px, 5vw, 42px);
+            border-radius: 24px;
+            color: #fff;
+            background: linear-gradient(120deg, #3157cb, #5279ed 65%, #6b8cff);
+            box-shadow: 0 20px 46px rgba(55, 91, 202, 0.2);
+        }
+
+        .balance-card::after {
+            position: absolute;
+            top: -100px;
+            right: -40px;
+            width: 280px;
+            height: 280px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            box-shadow: 0 0 0 36px rgba(255, 255, 255, 0.04), 0 0 0 72px rgba(255, 255, 255, 0.035);
+            content: "";
+            pointer-events: none;
+        }
+
+        .balance-label {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 15px;
+        }
+
+        .balance {
+            position: relative;
+            z-index: 1;
+            margin: 14px 0 0;
+            font-size: clamp(42px, 9vw, 64px);
+            font-weight: 750;
+            letter-spacing: -0.04em;
+            line-height: 1.1;
+            overflow-wrap: anywhere;
+        }
+
+        .currency {
+            margin-left: 10px;
+            font-size: 20px;
+            font-weight: 650;
+            letter-spacing: 0;
+        }
+
+        .account-card {
+            margin-top: 22px;
+            padding: 26px 30px;
+            border: 1px solid #e7ebf2;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(30, 50, 90, 0.05);
+        }
+
+        .account-card h2 {
+            margin: 0 0 20px;
+            font-size: 18px;
+        }
+
+        .detail-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 0;
+            border-top: 1px solid #eef1f6;
+        }
+
+        .detail-label {
+            color: #738097;
+        }
+
+        .detail-value {
+            color: #27344a;
+            font-weight: 650;
+            overflow-wrap: anywhere;
+            text-align: right;
+        }
+
+        .records-card {
+            margin-top: 22px;
+            padding: 26px 30px;
+            border: 1px solid #e7ebf2;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(30, 50, 90, 0.05);
+        }
+
+        .records-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .records-header h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .records-count {
+            color: #8994a7;
+            font-size: 13px;
+        }
+
+        .records-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .record {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 16px 0;
+            border-top: 1px solid #eef1f6;
+        }
+
+        .record-main {
+            min-width: 0;
+        }
+
+        .record-title {
+            margin: 0;
+            color: #27344a;
+            font-weight: 650;
+            overflow-wrap: anywhere;
+        }
+
+        .record-description {
+            margin: 6px 0 0;
+            color: #738097;
+            font-size: 14px;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+
+        .record-meta {
+            margin: 8px 0 0;
+            color: #9aa4b6;
+            font-size: 12.5px;
+        }
+
+        .record-price {
+            flex: none;
+            color: #1f8a5b;
+            font-size: 17px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .record-price.negative {
+            color: #c0392b;
+        }
+
+        .records-empty {
+            padding: 18px 0 4px;
+            border-top: 1px solid #eef1f6;
+            color: #8994a7;
+        }
+
+        .status {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 22px;
+            padding: 15px 18px;
+            border: 1px solid #e3eaf8;
+            border-radius: 14px;
+            color: #536179;
+            background: #f8faff;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .status[hidden] {
+            display: none;
+        }
+
+        .status.error {
+            border-color: #f2d4d7;
+            color: #a4313c;
+            background: #fff8f8;
+        }
+
+        footer {
+            padding: 0 20px 32px;
+            color: #8994a7;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        @media (max-width: 520px) {
+            .topbar {
+                padding: 14px 20px;
+            }
+
+            .brand {
+                font-size: 14px;
+            }
+
+            main {
+                width: min(100% - 32px, 920px);
+                margin: 36px auto;
+            }
+
+            .account-card {
+                padding: 22px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="index.html">
+            <span class="brand-mark" aria-hidden="true">V</span>
+            <span>Vitual XRing</span>
+        </a>
+        <button id="logout-button" class="logout-button" type="button">退出登录</button>
+    </header>
+
+    <main>
+        <section class="welcome" aria-labelledby="welcome-title">
+            <p class="eyebrow">账户总览</p>
+            <h1 id="welcome-title">你好，<span id="account-name">…</span></h1>
+            <p class="welcome-copy">这里是你的 Vitual XRing 账户信息。</p>
+        </section>
+
+        <section class="balance-card" aria-label="账户余额">
+            <p class="balance-label">当前余额</p>
+            <p class="balance"><span id="account-balance">—</span><span class="currency">VTX</span></p>
+        </section>
+
+        <section class="account-card" aria-labelledby="account-details-title">
+            <h2 id="account-details-title">账户信息</h2>
+            <div class="detail-row">
+                <span class="detail-label">账户名称</span>
+                <span id="account-name-detail" class="detail-value">加载中…</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">账户状态</span>
+                <span class="detail-value">正常</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">货币单位</span>
+                <span class="detail-value">VTX</span>
+            </div>
+        </section>
+
+        <section class="records-card" aria-labelledby="records-title">
+            <div class="records-header">
+                <h2 id="records-title">交易记录</h2>
+                <span id="records-count" class="records-count"></span>
+            </div>
+            <div id="records-list" class="records-list"></div>
+            <p id="records-empty" class="records-empty" hidden>暂无交易记录。</p>
+        </section>
+
+        <p id="account-message" class="status" role="status" aria-live="polite" hidden></p>
+    </main>
+
+    <footer>Vitual XRing · 账户余额以账户数据为准</footer>
+
+    <script>
+        const accountName = sessionStorage.getItem("vtxAccount");
+        const message = document.getElementById("account-message");
+
+        document.getElementById("logout-button").addEventListener("click", () => {
+            sessionStorage.removeItem("vtxAccount");
+            window.location.replace("login.html");
+        });
+
+        function showError(text) {
+            message.textContent = text;
+            message.classList.add("error");
+            message.hidden = false;
+        }
+
+        function formatPrice(price) {
+            const text = String(price ?? "").trim();
+            const negative = text.startsWith("-");
+            const value = Number(text.replace(/^[+-]/, ""));
+            if (!Number.isFinite(value)) {
+                return { text: text || "—", negative };
+            }
+            const amount = new Intl.NumberFormat("zh-CN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value);
+            return { text: (negative ? "-" : "+") + amount, negative };
+        }
+
+        function renderRecords(trades) {
+            const list = document.getElementById("records-list");
+            const empty = document.getElementById("records-empty");
+            const count = document.getElementById("records-count");
+            const records = Array.isArray(trades) ? trades : [];
+
+            list.textContent = "";
+            count.textContent = records.length ? `共 ${records.length} 条` : "";
+
+            if (!records.length) {
+                empty.hidden = false;
+                return;
+            }
+
+            empty.hidden = true;
+
+            for (const record of records) {
+                const item = document.createElement("article");
+                item.className = "record";
+
+                const main = document.createElement("div");
+                main.className = "record-main";
+
+                const title = document.createElement("p");
+                title.className = "record-title";
+                title.textContent = record.name || "未命名交易";
+                main.appendChild(title);
+
+                if (record.description) {
+                    const description = document.createElement("p");
+                    description.className = "record-description";
+                    description.textContent = record.description;
+                    main.appendChild(description);
+                }
+
+                const metaParts = [];
+                if (record.time) {
+                    metaParts.push(String(record.time));
+                }
+                if (record.from) {
+                    metaParts.push(`来自 ${record.from}`);
+                }
+                if (metaParts.length) {
+                    const meta = document.createElement("p");
+                    meta.className = "record-meta";
+                    meta.textContent = metaParts.join(" · ");
+                    main.appendChild(meta);
+                }
+
+                const price = document.createElement("span");
+                const formatted = formatPrice(record.price);
+                price.className = formatted.negative ? "record-price negative" : "record-price";
+                price.textContent = `${formatted.text} VTX`;
+
+                item.appendChild(main);
+                item.appendChild(price);
+                list.appendChild(item);
+            }
+        }
+
+        async function loadAccount() {
+            if (!accountName) {
+                window.location.replace("login.html");
+                return;
+            }
+
+            try {
+                const response = await fetch("account.json", { cache: "no-store" });
+                if (!response.ok) {
+                    throw new Error(`读取账户数据失败（HTTP ${response.status}）`);
+                }
+
+                const accounts = await response.json();
+                const account = accounts[accountName];
+                const balance = Number(account && account.money);
+
+                if (!account || account.name !== accountName || !Number.isFinite(balance) || balance < 0) {
+                    sessionStorage.removeItem("vtxAccount");
+                    showError("账户数据不存在或格式无效，请重新登录或检查账户数据文件。");
+                    return;
+                }
+
+                document.getElementById("account-name").textContent = account.name;
+                document.getElementById("account-name-detail").textContent = account.name;
+                document.getElementById("account-balance").textContent = new Intl.NumberFormat("zh-CN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(balance);
+
+                renderRecords(account.trades);
+            } catch (error) {
+                showError(error instanceof TypeError
+                    ? "无法读取账户数据。请通过本地服务器或网站打开此页面，不要直接以 file:// 打开。"
+                    : error.message);
+            }
+        }
+
+        loadAccount();
+    </script>
+</body>
+</html>

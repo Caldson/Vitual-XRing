@@ -1,0 +1,56 @@
+{
+    "Kitawaga": {
+        "name": "Kitawaga",
+        "password": "100%Security",
+        "money": "0.00",
+        "trades": [
+        ]
+    },
+    "Fanjiayue": {
+        "name": "Fanjiayue",
+        "password": "XSvtx001",
+        "money": "0.00",
+        "trades": [
+        ]
+    },
+    "Kuyibo": {
+        "name": "Kuyibo",
+        "password": "XKuinder",
+        "money": "20.00",
+        "trades": [
+            {"name": "官方福利", "description": "因为您是第1~5个注册账号的，您将获得福利。", "price": "+20.00", "time": "2026/10/16", "from": "Kitawaga"}
+        ]
+    },
+    "Huangshumeng": {
+        "name": "Huangshumeng",
+        "password": "X606CaFr",
+        "money": "20.00",
+        "trades": [
+            {"name": "官方福利", "description": "因为您是第1~5个注册账号的，您将获得福利。", "price": "+20.00", "time": "2026/10/16", "from": "Kitawaga"}
+        ]
+    },
+    "Huayihan": {
+        "name": "Huayihan",
+        "password": "X6b32Bog",
+        "money": "20.00",
+        "trades": [
+            {"name": "官方福利", "description": "因为您是第1~5个注册账号的，您将获得福利。", "price": "+20.00", "time": "2026/10/16", "from": "Kitawaga"}
+        ]
+    },
+    "Zhangshenshen": {
+        "name": "Zhangshenshen",
+        "password": "XStud0gm",
+        "money": "20.00",
+        "trades": [
+            {"name": "官方福利", "description": "因为您是第1~5个注册账号的，您将获得福利。", "price": "+20.00", "time": "2026/10/16", "from": "Kitawaga"}
+        ]
+    },
+    "Xiaoyuluoyi": {
+        "name": "Xiaoyuluoyi",
+        "password": "Xgm76BxT",
+        "money": "20.00",
+        "trades": [
+            {"name": "官方福利", "description": "因为您是第1~5个注册账号的，您将获得福利。", "price": "+20.00", "time": "2026/10/16", "from": "Kitawaga"}
+        ]
+    }
+}

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>登录 | Vitual XRing</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            color: #172033;
+            background: #f4f7fb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background:
+                radial-gradient(circle at 15% 15%, #e2edff 0, transparent 34%),
+                radial-gradient(circle at 90% 85%, #e4f5f0 0, transparent 30%),
+                #f4f7fb;
+        }
+
+        .login-card {
+            width: min(100%, 420px);
+            padding: 40px;
+            border: 1px solid #e7ebf2;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 24px 70px rgba(30, 50, 90, 0.12);
+        }
+
+        .brand-mark {
+            width: 52px;
+            height: 52px;
+            display: grid;
+            place-items: center;
+            border-radius: 16px;
+            color: #fff;
+            background: linear-gradient(135deg, #3867e8, #6c8cff);
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        h1 {
+            margin: 24px 0 8px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            margin: 0 0 28px;
+            color: #738097;
+            line-height: 1.6;
+        }
+
+        .field {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 650;
+        }
+
+        input {
+            width: 100%;
+            min-height: 48px;
+            padding: 0 14px;
+            border: 1px solid #dce2ec;
+            border-radius: 12px;
+            outline: none;
+            background: #fff;
+            color: #172033;
+            font: inherit;
+            transition: border-color 150ms, box-shadow 150ms;
+        }
+
+        input:focus {
+            border-color: #5478ed;
+            box-shadow: 0 0 0 3px rgba(84, 120, 237, 0.14);
+        }
+
+        button {
+            width: 100%;
+            min-height: 50px;
+            margin-top: 6px;
+            border: 0;
+            border-radius: 12px;
+            color: white;
+            background: #4169e1;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 150ms, transform 150ms;
+        }
+
+        button:hover {
+            background: #3158d1;
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            cursor: wait;
+            opacity: 0.7;
+            transform: none;
+        }
+
+        .message {
+            min-height: 22px;
+            margin: 14px 0 0;
+            color: #bd3545;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #68768d;
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            color: #3158d1;
+        }
+
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 30px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="login-card">
+        <div class="brand-mark" aria-hidden="true">V</div>
+        <h1>欢迎回来</h1>
+        <p class="subtitle">登录 Vitual XRing，查看你的账户与 VTX 余额。</p>
+
+        <form id="login-form">
+            <div class="field">
+                <label for="account-name">账户名称</label>
+                <input id="account-name" name="name" type="text" autocomplete="username" required autofocus>
+            </div>
+            <div class="field">
+                <label for="account-password">密码</label>
+                <input id="account-password" name="password" type="password" autocomplete="current-password" required>
+            </div>
+            <button id="login-button" type="submit">登录账户</button>
+            <p id="login-message" class="message" role="alert" aria-live="polite"></p>
+        </form>
+
+        <a class="back-link" href="index.html">← 返回首页</a>
+    </main>
+
+    <script>
+        const form = document.getElementById("login-form");
+        const message = document.getElementById("login-message");
+        const button = document.getElementById("login-button");
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            message.textContent = "";
+            button.disabled = true;
+            button.textContent = "正在登录…";
+
+            try {
+                const response = await fetch("account.json", { cache: "no-store" });
+                if (!response.ok) {
+                    throw new Error(`读取账户数据失败（HTTP ${response.status}）`);
+                }
+
+                const accounts = await response.json();
+                const name = form.elements.name.value.trim();
+                const password = form.elements.password.value;
+                const account = accounts[name];
+
+                if (!account || account.name !== name || account.password !== password) {
+                    message.textContent = "账户名称或密码不正确。";
+                    return;
+                }
+
+                sessionStorage.setItem("vtxAccount", name);
+                window.location.href = "manager.html";
+            } catch (error) {
+                message.textContent = error instanceof TypeError
+                    ? "无法读取账户数据。请通过本地服务器或网站打开此页面，不要直接以 file:// 打开。"
+                    : error.message;
+            } finally {
+                button.disabled = false;
+                button.textContent = "登录账户";
+            }
+        });
+    </script>
+</body>
+</html>
