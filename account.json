@@ -91,23 +91,23 @@
                 "charts": {
                     "official-neon-afterglow": {
                         "title": "Neon Afterglow",
-                        "best": 25692,
-                        "last": 25692,
+                        "best": 29792,
+                        "last": 29792,
                         "bestCombo": 32,
-                        "grade": "B",
-                        "plays": 1,
+                        "grade": "A",
+                        "plays": 2,
                         "boost": true,
-                        "updatedAt": "2026-10-17T10:42:57.248Z"
+                        "updatedAt": "2026-10-17T10:43:28.464Z"
                     }
                 },
                 "last": {
                     "chartId": "official-neon-afterglow",
                     "title": "Neon Afterglow",
-                    "score": 25692,
+                    "score": 29792,
                     "combo": 32,
-                    "grade": "B",
+                    "grade": "A",
                     "boost": true,
-                    "time": "2026-10-17T10:42:57.248Z"
+                    "time": "2026-10-17T10:43:28.464Z"
                 }
             }
         }
