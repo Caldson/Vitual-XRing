@@ -156,6 +156,34 @@
         return request(`/api/me/data/${encodeURIComponent(key)}`, { method: "DELETE" });
     }
 
+    /**
+     * 记账：type 为 payment（付款，扣余额）或 receipt（收款，加余额）。
+     * @param {{ type: "payment"|"receipt", amount: string|number, party: string,
+     *           description?: string, name?: string, password: string }} options
+     */
+    async function trade(options) {
+        const payload = options || {};
+        return request("/api/me/trades", {
+            method: "POST",
+            body: {
+                type: payload.type,
+                amount: payload.amount,
+                party: payload.party,
+                description: payload.description,
+                name: payload.name,
+                password: payload.password
+            }
+        });
+    }
+
+    function pay(options) {
+        return trade({ ...options, type: "payment" });
+    }
+
+    function receive(options) {
+        return trade({ ...options, type: "receipt" });
+    }
+
     global.VTX = {
         configure,
         login,
@@ -166,6 +194,9 @@
         account,
         setData,
         deleteData,
+        trade,
+        pay,
+        receive,
         getToken: currentToken,
         get baseUrl() {
             return resolveBase();

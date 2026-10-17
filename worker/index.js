@@ -12,7 +12,7 @@
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  */
 
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -25,9 +25,16 @@ const WRITE_MAX_ATTEMPTS = 60;
 const MAX_DATA_BYTES = 32 * 1024;
 const MAX_KEYS_PER_WRITE = 20;
 const KEY_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
+const TRADE_WINDOW_MS = 60 * 1000;
+const TRADE_MAX_ATTEMPTS = 20;
+const MAX_TRADE_CENTS = 100000000;
+const MAX_PARTY_LENGTH = 40;
+const MAX_DESCRIPTION_LENGTH = 200;
+const MAX_TRADE_NAME_LENGTH = 20;
 
 const loginAttempts = new Map();
 const writeAttempts = new Map();
+const tradeAttempts = new Map();
 
 class HttpError extends Error {
     constructor(status, code, message) {
@@ -331,6 +338,29 @@ function throttled(store, ip, windowMs, max) {
     return entry.count > max;
 }
 
+function toCents(value) {
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? Math.round(value * 100) : null;
+    }
+
+    const text = String(value ?? "").trim().replace(/,/g, "");
+    if (!/^\d+(\.\d{1,2})?$/.test(text)) {
+        return null;
+    }
+    return Math.round(Number(text) * 100);
+}
+
+function fromCents(cents) {
+    return (cents / 100).toFixed(2);
+}
+
+function shanghaiTimestamp() {
+    const now = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${now.getUTCFullYear()}/${pad(now.getUTCMonth() + 1)}/${pad(now.getUTCDate())} `
+        + `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
+}
+
 async function handleLogin(request, env, cors) {
     const ip = clientIp(request);
 
@@ -560,6 +590,121 @@ async function handleDeleteData(request, env, cors, login, key) {
     }, 200, cors);
 }
 
+async function handleTrade(request, env, cors, login) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+
+    const target = login || session.payload.sub;
+
+    if (session.payload.sub !== target) {
+        return jsonResponse({ error: "forbidden", message: "只能给自己的账户记账" }, 403, cors);
+    }
+
+    if (!env.GITHUB_TOKEN) {
+        return jsonResponse({ error: "write_unavailable", message: "服务端未配置 GITHUB_TOKEN，无法写入" }, 503, cors);
+    }
+
+    if (throttled(tradeAttempts, clientIp(request), TRADE_WINDOW_MS, TRADE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "记账过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const body = await readJsonBody(request);
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return jsonResponse({ error: "bad_request", message: "请求体必须是一个 JSON 对象" }, 400, cors);
+    }
+
+    const type = String(body.type || "").trim().toLowerCase();
+
+    if (type !== "payment" && type !== "receipt") {
+        return jsonResponse({ error: "bad_request", message: "type 必须是 payment（付款）或 receipt（收款）" }, 400, cors);
+    }
+
+    const amountCents = toCents(body.amount);
+
+    if (amountCents === null || amountCents <= 0) {
+        return jsonResponse({ error: "bad_request", message: "amount 必须是大于 0 的数字，最多两位小数" }, 400, cors);
+    }
+    if (amountCents > MAX_TRADE_CENTS) {
+        return jsonResponse({ error: "bad_request", message: `单笔金额不能超过 ${fromCents(MAX_TRADE_CENTS)} VTX` }, 400, cors);
+    }
+
+    const password = String(body.password ?? "");
+
+    if (!password) {
+        return jsonResponse({ error: "bad_request", message: "缺少 password：记账需要密码确认" }, 400, cors);
+    }
+
+    const party = String(body.party ?? body.counterparty ?? "").trim();
+
+    if (!party) {
+        return jsonResponse({ error: "bad_request", message: "缺少 party：付款填去向，收款填来源" }, 400, cors);
+    }
+    if (party.length > MAX_PARTY_LENGTH) {
+        return jsonResponse({ error: "bad_request", message: `party 最长 ${MAX_PARTY_LENGTH} 个字符` }, 400, cors);
+    }
+
+    const description = String(body.description ?? "").trim();
+
+    if (description.length > MAX_DESCRIPTION_LENGTH) {
+        return jsonResponse({ error: "bad_request", message: `description 最长 ${MAX_DESCRIPTION_LENGTH} 个字符` }, 400, cors);
+    }
+
+    const name = String(body.name ?? (type === "payment" ? "付款" : "收款")).trim();
+
+    if (!name || name.length > MAX_TRADE_NAME_LENGTH) {
+        return jsonResponse({ error: "bad_request", message: `name 必须为 1-${MAX_TRADE_NAME_LENGTH} 个字符` }, 400, cors);
+    }
+
+    const isPayment = type === "payment";
+    let trade = null;
+
+    const accounts = await commitAccounts(env, (data) => {
+        const account = data[target];
+
+        if (!account) {
+            throw new HttpError(404, "not_found", "账户不存在");
+        }
+
+        if (!timingSafeEqual(String(account.password || ""), password)) {
+            throw new HttpError(400, "invalid_password", "密码不正确，记账已取消");
+        }
+
+        const balanceCents = toCents(account.money) ?? 0;
+
+        if (isPayment && balanceCents < amountCents) {
+            throw new HttpError(400, "insufficient_funds", `余额不足，当前余额 ${fromCents(balanceCents)} VTX`);
+        }
+
+        const username = String(account.username || target);
+        const signed = `${isPayment ? "-" : "+"}${fromCents(amountCents)}`;
+
+        trade = {
+            name,
+            description,
+            time: shanghaiTimestamp(),
+            from: isPayment ? username : party,
+            to: isPayment ? party : username,
+            price: signed
+        };
+
+        account.trades = Array.isArray(account.trades) ? account.trades : [];
+        account.trades.push(trade);
+        account.money = fromCents(isPayment ? balanceCents - amountCents : balanceCents + amountCents);
+
+        return `${name}：${username} ${signed} VTX`;
+    });
+
+    return jsonResponse({
+        ok: true,
+        login: target,
+        trade,
+        account: publicAccount(accounts[target])
+    }, 200, cors);
+}
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
@@ -601,6 +746,15 @@ export default {
                     return session.error;
                 }
                 return await handleDeleteData(request, env, cors, session.payload.sub, decodeURIComponent(meDelete[1]));
+            }
+
+            if (url.pathname === "/api/me/trades" && request.method === "POST") {
+                return await handleTrade(request, env, cors, null);
+            }
+
+            const tradeRoute = url.pathname.match(/^\/api\/accounts\/([^/]+)\/trades$/);
+            if (tradeRoute && request.method === "POST") {
+                return await handleTrade(request, env, cors, decodeURIComponent(tradeRoute[1]));
             }
 
             if (url.pathname === "/api/accounts" && request.method === "GET") {
