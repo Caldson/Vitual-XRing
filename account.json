@@ -2,8 +2,9 @@
     "Kitawaga": {
         "name": "Kitawaga",
         "password": "100%Security",
-        "money": "100.00",
+        "money": "50.00",
         "trades": [
+            {"name": "转账", "description": "bro", "price": "-50.00", "time": "2026/10/17", "from": "Kitawaga", "to": "Zhangshenshen"}
         ]
     },
     "Fanjiayue": {
@@ -40,9 +41,10 @@
     "Zhangshenshen": {
         "name": "Zhangshenshen",
         "password": "XStud0gm",
-        "money": "20.00",
+        "money": "70.00",
         "trades": [
-            {"name": "官方福利", "description": "因为您是第1~5个注册账号的，您将获得福利。", "price": "+20.00", "time": "2026/10/16", "from": "Kitawaga", "to": "Zhangshenshen"}
+            {"name": "官方福利", "description": "因为您是第1~5个注册账号的，您将获得福利。", "price": "+20.00", "time": "2026/10/16", "from": "Kitawaga", "to": "Zhangshenshen"},
+            {"name": "转账", "description": "bro", "price": "+50.00", "time": "2026/10/17", "from": "Kitawaga", "to": "Zhangshenshen"}
         ]
     },
     "Xiaoyuluoyi": {

@@ -135,6 +135,63 @@
             color: #3158d1;
         }
 
+        .version-badge {
+            position: fixed;
+            top: 18px;
+            right: 20px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            color: #3158d1;
+            background: #eef2ff;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
+            padding: 4px;
+            border-radius: 12px;
+            background: #f1f4fa;
+        }
+
+        .tab {
+            flex: 1;
+            min-height: 38px;
+            border: 0;
+            border-radius: 9px;
+            color: #66748c;
+            background: transparent;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 650;
+            cursor: pointer;
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.6);
+            transform: none;
+        }
+
+        .tab.active {
+            color: #1f2b45;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(30, 50, 90, 0.08);
+        }
+
+        .tabs + button {
+            border-radius: 9px;
+        }
+
+        form[hidden] {
+            display: none;
+        }
+
+        .message.success {
+            color: #1f7a52;
+        }
+
         @media (max-width: 480px) {
             .login-card {
                 padding: 30px 24px;
@@ -143,10 +200,16 @@
     </style>
 </head>
 <body>
+    <span class="version-badge">v3.0</span>
     <main class="login-card">
         <div class="brand-mark" aria-hidden="true">V</div>
         <h1>欢迎回来</h1>
         <p class="subtitle">登录 Vitual XRing，查看你的账户与 VTX 余额。</p>
+
+        <div class="tabs" role="tablist">
+            <button id="login-tab" class="tab active" type="button" role="tab" aria-selected="true">登录</button>
+            <button id="register-tab" class="tab" type="button" role="tab" aria-selected="false">创建账户</button>
+        </div>
 
         <form id="login-form">
             <div class="field">
@@ -161,45 +224,152 @@
             <p id="login-message" class="message" role="alert" aria-live="polite"></p>
         </form>
 
+        <form id="register-form" hidden>
+            <div class="field">
+                <label for="register-name">账户名称</label>
+                <input id="register-name" type="text" maxlength="20" autocomplete="username" required placeholder="2-20 个字符">
+            </div>
+            <div class="field">
+                <label for="register-password">密码</label>
+                <input id="register-password" type="password" minlength="6" autocomplete="new-password" required>
+            </div>
+            <div class="field">
+                <label for="register-confirm">确认密码</label>
+                <input id="register-confirm" type="password" minlength="6" autocomplete="new-password" required>
+            </div>
+            <button id="register-button" type="submit">创建账户</button>
+            <p id="register-message" class="message" role="alert" aria-live="polite"></p>
+        </form>
+
         <a class="back-link" href="index.html">← 返回首页</a>
     </main>
 
-    <script>
-        const form = document.getElementById("login-form");
-        const message = document.getElementById("login-message");
-        const button = document.getElementById("login-button");
+    <script src="vtx-crypto.js?v=3.0"></script>
+    <script src="vtx-api.js?v=3.0"></script>
 
-        form.addEventListener("submit", async (event) => {
+    <script>
+        const loginForm = document.getElementById("login-form");
+        const registerForm = document.getElementById("register-form");
+        const loginMessage = document.getElementById("login-message");
+        const registerMessage = document.getElementById("register-message");
+        const loginTab = document.getElementById("login-tab");
+        const registerTab = document.getElementById("register-tab");
+
+        function selectTab(name) {
+            const isLogin = name === "login";
+            loginForm.hidden = !isLogin;
+            registerForm.hidden = isLogin;
+            loginTab.classList.toggle("active", isLogin);
+            registerTab.classList.toggle("active", !isLogin);
+            loginTab.setAttribute("aria-selected", String(isLogin));
+            registerTab.setAttribute("aria-selected", String(!isLogin));
+            loginMessage.textContent = "";
+            registerMessage.textContent = "";
+        }
+
+        loginTab.addEventListener("click", () => selectTab("login"));
+        registerTab.addEventListener("click", () => selectTab("register"));
+
+        async function readAccounts() {
+            const response = await fetch("account.json", { cache: "no-store" });
+            if (!response.ok) {
+                throw new Error(`读取账户数据失败（HTTP ${response.status}）`);
+            }
+            return response.json();
+        }
+
+        function networkMessage(error, fallback) {
+            return error instanceof TypeError ? fallback : error.message;
+        }
+
+        loginForm.addEventListener("submit", async (event) => {
             event.preventDefault();
-            message.textContent = "";
+
+            const button = document.getElementById("login-button");
+            loginMessage.textContent = "";
             button.disabled = true;
             button.textContent = "正在登录…";
 
             try {
-                const response = await fetch("account.json", { cache: "no-store" });
-                if (!response.ok) {
-                    throw new Error(`读取账户数据失败（HTTP ${response.status}）`);
-                }
+                const name = loginForm.elements.name.value.trim();
+                const password = loginForm.elements.password.value;
 
-                const accounts = await response.json();
-                const name = form.elements.name.value.trim();
-                const password = form.elements.password.value;
-                const account = accounts[name];
+                let accounts = await readAccounts();
+                let account = accounts[name];
 
                 if (!account || account.name !== name || account.password !== password) {
-                    message.textContent = "账户名称或密码不正确。";
+                    accounts = await window.VTXApi.readAll();
+                    account = accounts[name];
+                }
+
+                if (!account || account.name !== name || account.password !== password) {
+                    loginMessage.textContent = "账户名称或密码不正确。";
                     return;
                 }
 
                 sessionStorage.setItem("vtxAccount", name);
                 window.location.href = "manager.html";
             } catch (error) {
-                message.textContent = error instanceof TypeError
-                    ? "无法读取账户数据。请通过本地服务器或网站打开此页面，不要直接以 file:// 打开。"
-                    : error.message;
+                loginMessage.textContent = networkMessage(
+                    error,
+                    "无法读取账户数据。请通过本地服务器或网站打开此页面，不要直接以 file:// 打开。"
+                );
             } finally {
                 button.disabled = false;
                 button.textContent = "登录账户";
+            }
+        });
+
+        registerForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const button = document.getElementById("register-button");
+            const nameInput = document.getElementById("register-name");
+            const passwordInput = document.getElementById("register-password");
+            const confirmInput = document.getElementById("register-confirm");
+
+            const name = nameInput.value.trim();
+            const password = passwordInput.value;
+
+            registerMessage.textContent = "";
+            registerMessage.classList.remove("success");
+
+            if (!/^\S{2,20}$/.test(name)) {
+                registerMessage.textContent = "账户名称需要 2-20 个字符，且不能包含空格。";
+                return;
+            }
+            if (password.length < 6) {
+                registerMessage.textContent = "密码至少 6 个字符。";
+                return;
+            }
+            if (password !== confirmInput.value) {
+                registerMessage.textContent = "两次输入的密码不一致。";
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "正在创建…";
+
+            try {
+                await window.VTXApi.commit((accounts) => {
+                    if (accounts[name]) {
+                        throw new Error(`账户名称 ${name} 已被占用。`);
+                    }
+
+                    accounts[name] = { name, password, money: "0.00", trades: [] };
+                    return `创建账户：${name}`;
+                });
+
+                sessionStorage.setItem("vtxAccount", name);
+                window.location.href = "manager.html";
+            } catch (error) {
+                registerMessage.textContent = networkMessage(
+                    error,
+                    "无法连接 GitHub。请确认网络与 secure.json 配置正常。"
+                );
+            } finally {
+                button.disabled = false;
+                button.textContent = "创建账户";
             }
         });
     </script>
