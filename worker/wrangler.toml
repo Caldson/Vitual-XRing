@@ -1,6 +1,9 @@
 name = "vtx-api"
 main = "index.js"
 compatibility_date = "2024-11-01"
+# 保留 workers.dev 地址：zone 的安全策略（质询 / Bot Fight）对它不生效，
+# 程序或其它站点跨域调用时用 https://vtx-api.minecraftcaldson.workers.dev 更省事
+workers_dev = true
 
 # 只把 /api/* 交给 Worker，其余路径（页面、account.json）继续由 GitHub Pages 提供
 # 前提：xsmmc.caldson.us.ci 这条 DNS 记录必须是「已代理」（橙色云朵）
