@@ -4,7 +4,7 @@
     "path": "account.json",
     "kdf": "PBKDF2-SHA256",
     "iterations": 310000,
-    "salt": "",
-    "iv": "",
-    "ciphertext": ""
+    "salt": "tqwzlwhyOgAGaaVB0GkCCA==",
+    "iv": "cQlbSW8i7aRtemSf",
+    "ciphertext": "cVni8mJ4WsVDMkcAjxNE4FekHd5vVsnqMWwxmfU330+xNtgmYxjngSz+Zw+oLTAlubjPEyDxIj/ELnLvPiFUWvCyIsD8bZ6I1ZaWVHhjvH35IF1QnsTmlvJ0/x50a+VCqZJ0UcYcoldxidf90Q=="
 }
