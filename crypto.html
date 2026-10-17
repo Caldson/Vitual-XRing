@@ -63,6 +63,15 @@
             color: #3158d1;
         }
 
+        .version {
+            padding: 5px 10px;
+            border-radius: 999px;
+            color: #3158d1;
+            background: #eef2ff;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
         main {
             width: min(100% - 40px, 880px);
             margin: 44px auto 60px;
@@ -287,7 +296,10 @@
             <span class="brand-mark" aria-hidden="true">V</span>
             <span>Vitual XRing</span>
         </a>
-        <a class="back" href="manager.html">返回账户</a>
+        <div class="topbar-actions" style="display: flex; align-items: center; gap: 12px;">
+            <span class="version">v3.0</span>
+            <a class="back" href="manager.html">返回账户</a>
+        </div>
     </header>
 
     <main>
@@ -348,7 +360,7 @@
         </section>
     </main>
 
-    <script src="vtx-crypto.js?v=2.3"></script>
+    <script src="vtx-crypto.js?v=3.0"></script>
     <script>
         const form = document.getElementById("encrypt-form");
         const message = document.getElementById("encrypt-message");

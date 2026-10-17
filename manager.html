@@ -361,6 +361,51 @@
             font-size: 12.5px;
         }
 
+        .withdraw-card {
+            margin-top: 22px;
+            padding: 26px 30px;
+            border: 1px solid #e7ebf2;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(30, 50, 90, 0.05);
+        }
+
+        .withdraw-card h2 {
+            margin: 0 0 6px;
+            font-size: 18px;
+        }
+
+        .receipt {
+            margin-top: 20px;
+            padding: 22px 24px;
+            border: 2px dashed #f0b95f;
+            border-radius: 16px;
+            background: #fffaf0;
+        }
+
+        .receipt[hidden] {
+            display: none;
+        }
+
+        .receipt-text {
+            margin: 0;
+            color: #6b4a12;
+            font-size: 16px;
+            font-weight: 650;
+            line-height: 1.9;
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 520px) {
+            .withdraw-card {
+                padding: 22px 20px;
+            }
+
+            .receipt-text {
+                font-size: 15px;
+            }
+        }
+
         .status {
             display: flex;
             align-items: flex-start;
@@ -406,6 +451,120 @@
             color: #3158d1;
         }
 
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .version {
+            padding: 5px 10px;
+            border-radius: 999px;
+            color: #3158d1;
+            background: #eef2ff;
+            font-size: 12.5px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .balance-footer {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-top: 22px;
+            flex-wrap: wrap;
+        }
+
+        .checkin-button {
+            min-height: 40px;
+            padding: 0 18px;
+            border: 0;
+            border-radius: 10px;
+            color: #3157cb;
+            background: #fff;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .checkin-button:hover {
+            background: #f2f5ff;
+        }
+
+        .checkin-button:disabled {
+            color: rgba(255, 255, 255, 0.75);
+            background: rgba(255, 255, 255, 0.18);
+            cursor: default;
+        }
+
+        .checkin-hint {
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 13.5px;
+        }
+
+        .settings-card {
+            margin-top: 22px;
+            padding: 26px 30px;
+            border: 1px solid #e7ebf2;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(30, 50, 90, 0.05);
+        }
+
+        .settings-card h2 {
+            margin: 0 0 6px;
+            font-size: 18px;
+        }
+
+        .settings-block + .settings-block {
+            margin-top: 26px;
+            padding-top: 22px;
+            border-top: 1px solid #eef1f6;
+        }
+
+        .settings-block h3 {
+            margin: 0 0 14px;
+            color: #4a576d;
+            font-size: 14.5px;
+        }
+
+        .settings-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .settings-row .field {
+            flex: 1 1 200px;
+        }
+
+        .secondary-button {
+            min-height: 44px;
+            padding: 0 20px;
+            border: 1px solid #dce2ec;
+            border-radius: 10px;
+            color: #3f4b5f;
+            background: #fff;
+            font: inherit;
+            font-weight: 650;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .secondary-button:hover {
+            border-color: #5478ed;
+            color: #3158d1;
+        }
+
+        .secondary-button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
         @media (max-width: 520px) {
             .topbar {
                 padding: 14px 20px;
@@ -440,7 +599,10 @@
             <span class="brand-mark" aria-hidden="true">V</span>
             <span>Vitual XRing</span>
         </a>
-        <button id="logout-button" class="logout-button" type="button">退出登录</button>
+        <div class="topbar-actions">
+            <span class="version">v3.0</span>
+            <button id="logout-button" class="logout-button" type="button">退出登录</button>
+        </div>
     </header>
 
     <main>
@@ -453,6 +615,10 @@
         <section class="balance-card" aria-label="账户余额">
             <p class="balance-label">当前余额</p>
             <p class="balance"><span id="account-balance">—</span><span class="currency">VTX</span></p>
+            <div class="balance-footer">
+                <button id="checkin-button" class="checkin-button" type="button">每日签到 +5 VTX</button>
+                <span id="checkin-hint" class="checkin-hint"></span>
+            </div>
         </section>
 
         <section class="account-card" aria-labelledby="account-details-title">
@@ -469,6 +635,39 @@
                 <span class="detail-label">货币单位</span>
                 <span class="detail-value">VTX</span>
             </div>
+        </section>
+
+        <section class="settings-card" aria-labelledby="settings-title">
+            <h2 id="settings-title">账户设置</h2>
+            <p class="transfer-hint">修改会直接写入 account.json，并新增一条 Git 提交。</p>
+
+            <div class="settings-block">
+                <h3>更改账户名称</h3>
+                <form id="rename-form" class="settings-row">
+                    <div class="field">
+                        <label for="rename-value">新名称</label>
+                        <input id="rename-value" type="text" maxlength="20" required placeholder="2-20 个字符">
+                    </div>
+                    <button id="rename-button" class="secondary-button" type="submit">更改名称</button>
+                </form>
+            </div>
+
+            <div class="settings-block">
+                <h3>更改密码</h3>
+                <form id="password-form" class="settings-row">
+                    <div class="field">
+                        <label for="password-value">新密码</label>
+                        <input id="password-value" type="password" minlength="6" autocomplete="new-password" required>
+                    </div>
+                    <div class="field">
+                        <label for="password-confirm">确认新密码</label>
+                        <input id="password-confirm" type="password" minlength="6" autocomplete="new-password" required>
+                    </div>
+                    <button id="password-button" class="secondary-button" type="submit">更改密码</button>
+                </form>
+            </div>
+
+            <p id="settings-message" class="status" role="status" aria-live="polite" hidden></p>
         </section>
 
         <section id="transfer-card" class="transfer-card" aria-labelledby="transfer-title" hidden>
@@ -500,6 +699,25 @@
             </form>
         </section>
 
+        <section id="withdraw-card" class="withdraw-card" aria-labelledby="withdraw-title">
+            <h2 id="withdraw-title">提款</h2>
+            <p class="transfer-hint">输入要提款的 VTX 数量，提交后余额立即扣除；请按提示把凭证截图发给群主，次日线下领取纸币。</p>
+
+            <form id="withdraw-form" class="settings-row">
+                <div class="field">
+                    <label for="withdraw-amount">提款金额（VTX）</label>
+                    <input id="withdraw-amount" type="number" min="0.01" step="0.01" required>
+                </div>
+                <button id="withdraw-button" class="primary-button" type="submit">提款</button>
+            </form>
+
+            <div id="withdraw-receipt" class="receipt" hidden>
+                <p id="withdraw-receipt-text" class="receipt-text"></p>
+            </div>
+
+            <p id="withdraw-message" class="status" role="status" aria-live="polite" hidden></p>
+        </section>
+
         <section class="records-card" aria-labelledby="records-title">
             <div class="records-header">
                 <h2 id="records-title">交易记录</h2>
@@ -514,26 +732,28 @@
 
     <footer>Vitual XRing · 账户余额以账户数据为准 · <a href="crypto.html">加密工具</a></footer>
 
-    <script src="vtx-crypto.js?v=2.3"></script>
+    <script src="vtx-crypto.js?v=3.0"></script>
+    <script src="vtx-api.js?v=3.0"></script>
 
     <script>
-        const accountName = sessionStorage.getItem("vtxAccount");
+        let accountName = sessionStorage.getItem("vtxAccount");
         const message = document.getElementById("account-message");
-        const SECURE_FILE = "secure.json";
-        const SECURE_DEFAULTS = { repo: "Caldson/Vitual-XRing", branch: "main", path: "account.json" };
 
         let accountsData = null;
-        let secureConfig = null;
 
         document.getElementById("logout-button").addEventListener("click", () => {
             sessionStorage.removeItem("vtxAccount");
             window.location.replace("login.html");
         });
 
-        function showError(text) {
+        function setAccountMessage(text, kind) {
             message.textContent = text;
-            message.classList.add("error");
+            message.className = `status ${kind}`;
             message.hidden = false;
+        }
+
+        function showError(text) {
+            setAccountMessage(text, "error");
         }
 
         function renderAccount(account) {
@@ -544,6 +764,170 @@
                 maximumFractionDigits: 2
             }).format(Number(account.money));
             renderRecords(account.trades);
+            renderCheckin(account);
+
+            const withdrawInput = document.getElementById("withdraw-amount");
+            if (withdrawInput) {
+                withdrawInput.max = Number(account.money);
+            }
+        }
+
+        function checkedInToday(account) {
+            const trades = Array.isArray(account.trades) ? account.trades : [];
+            const now = today();
+            return trades.some((trade) => trade.name === "每日签到" && trade.time === now);
+        }
+
+        function renderCheckin(account) {
+            const button = document.getElementById("checkin-button");
+            const hint = document.getElementById("checkin-hint");
+            const done = checkedInToday(account);
+
+            button.disabled = done;
+            button.textContent = done ? "今日已签到" : "每日签到 +5 VTX";
+            hint.textContent = done ? "明天再来可以再领 5 VTX。" : "每天可领取一次 5 VTX。";
+        }
+
+        function setSettingsMessage(text, kind) {
+            const feedback = document.getElementById("settings-message");
+            feedback.textContent = text;
+            feedback.className = `status ${kind}`;
+            feedback.hidden = false;
+        }
+
+        async function handleCheckin() {
+            const button = document.getElementById("checkin-button");
+            button.disabled = true;
+            button.textContent = "签到中…";
+
+            try {
+                const accounts = await window.VTXApi.commit((data) => {
+                    const account = data[accountName];
+                    if (!account) {
+                        throw new Error("当前账户在 account.json 中不存在。");
+                    }
+                    if (checkedInToday(account)) {
+                        throw new Error("今天已经签到过了。");
+                    }
+
+                    account.trades = Array.isArray(account.trades) ? account.trades : [];
+                    account.money = fromCents(toCents(account.money) + 500);
+                    account.trades.push({
+                        name: "每日签到",
+                        description: "每日签到奖励",
+                        price: "+5.00",
+                        time: today(),
+                        from: "官方",
+                        to: accountName
+                    });
+
+                    return `签到：${accountName} +5.00 VTX`;
+                });
+
+                accountsData = accounts;
+                renderAccount(accounts[accountName]);
+                populateRecipients();
+                setAccountMessage("签到成功，+5.00 VTX。", "success");
+            } catch (error) {
+                renderCheckin(accountsData[accountName]);
+                setAccountMessage(error instanceof TypeError ? "网络请求失败，请稍后再试。" : error.message, "error");
+            }
+        }
+
+        async function handleRename(event) {
+            event.preventDefault();
+
+            const button = document.getElementById("rename-button");
+            const input = document.getElementById("rename-value");
+            const newName = input.value.trim();
+
+            document.getElementById("settings-message").hidden = true;
+
+            if (newName.length < 2 || newName.length > 20) {
+                setSettingsMessage("名称需要 2-20 个字符。", "error");
+                return;
+            }
+            if (newName === accountName) {
+                setSettingsMessage("新名称与当前名称相同。", "error");
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "处理中…";
+
+            try {
+                const accounts = await window.VTXApi.commit((data) => {
+                    const account = data[accountName];
+                    if (!account) {
+                        throw new Error("当前账户在 account.json 中不存在。");
+                    }
+                    if (data[newName]) {
+                        throw new Error(`账户名称 ${newName} 已被占用。`);
+                    }
+
+                    data[newName] = { ...account, name: newName };
+                    delete data[accountName];
+
+                    return `重命名账户：${accountName} → ${newName}`;
+                });
+
+                accountsData = accounts;
+                sessionStorage.setItem("vtxAccount", newName);
+                accountName = newName;
+                renderAccount(accounts[accountName]);
+                populateRecipients();
+                input.value = "";
+                setSettingsMessage(`账户名称已更改为 ${newName}。`, "success");
+            } catch (error) {
+                setSettingsMessage(error instanceof TypeError ? "网络请求失败，请稍后再试。" : error.message, "error");
+            } finally {
+                button.disabled = false;
+                button.textContent = "更改名称";
+            }
+        }
+
+        async function handlePasswordChange(event) {
+            event.preventDefault();
+
+            const button = document.getElementById("password-button");
+            const value = document.getElementById("password-value");
+            const confirm = document.getElementById("password-confirm");
+
+            document.getElementById("settings-message").hidden = true;
+
+            if (value.value.length < 6) {
+                setSettingsMessage("密码至少 6 个字符。", "error");
+                return;
+            }
+            if (value.value !== confirm.value) {
+                setSettingsMessage("两次输入的密码不一致。", "error");
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "处理中…";
+
+            try {
+                const accounts = await window.VTXApi.commit((data) => {
+                    const account = data[accountName];
+                    if (!account) {
+                        throw new Error("当前账户在 account.json 中不存在。");
+                    }
+
+                    account.password = value.value;
+                    return `修改密码：${accountName}`;
+                });
+
+                accountsData = accounts;
+                value.value = "";
+                confirm.value = "";
+                setSettingsMessage("密码已更新。", "success");
+            } catch (error) {
+                setSettingsMessage(error instanceof TypeError ? "网络请求失败，请稍后再试。" : error.message, "error");
+            } finally {
+                button.disabled = false;
+                button.textContent = "更改密码";
+            }
         }
 
         function populateRecipients() {
@@ -590,111 +974,6 @@
             feedback.hidden = false;
         }
 
-        function bytesToBase64(bytes) {
-            let binary = "";
-            for (const byte of bytes) {
-                binary += String.fromCharCode(byte);
-            }
-            return btoa(binary);
-        }
-
-        function base64ToText(value) {
-            const binary = atob(String(value).replace(/\s/g, ""));
-            const bytes = new Uint8Array(binary.length);
-            for (let index = 0; index < binary.length; index += 1) {
-                bytes[index] = binary.charCodeAt(index);
-            }
-            return new TextDecoder().decode(bytes);
-        }
-
-        function githubErrorMessage(status) {
-            if (status === 401) {
-                return "GitHub token 无效或已过期。";
-            }
-            if (status === 403) {
-                return "GitHub token 权限不足或被限流。请确认 token 对该仓库有 Contents 读写权限。";
-            }
-            if (status === 404) {
-                return `找不到仓库或文件（${secureConfig.repo}/${secureConfig.path}），或 token 无权访问。`;
-            }
-            return `GitHub API 请求失败（HTTP ${status}）。`;
-        }
-
-        async function githubFetch(token, url, options = {}) {
-            const response = await fetch(url, {
-                cache: "no-store",
-                ...options,
-                headers: {
-                    Accept: "application/vnd.github+json",
-                    Authorization: `Bearer ${token}`,
-                    "X-GitHub-Api-Version": "2022-11-28",
-                    ...(options.headers || {})
-                }
-            });
-
-            if (response.ok) {
-                return response.json();
-            }
-
-            const error = new Error(githubErrorMessage(response.status));
-            error.status = response.status;
-            throw error;
-        }
-
-        async function loadSecureConfig() {
-            const response = await fetch(SECURE_FILE, { cache: "no-store" });
-            if (!response.ok) {
-                throw new Error("找不到 secure.json。请先用 crypto.html 生成并提交到仓库根目录。");
-            }
-            secureConfig = { ...SECURE_DEFAULTS, ...(await response.json()) };
-            return secureConfig;
-        }
-
-        async function readAccountFile(token, config) {
-            const url = `https://api.github.com/repos/${config.repo}/contents/${encodeURIComponent(config.path)}?ref=${encodeURIComponent(config.branch)}`;
-            const file = await githubFetch(token, url);
-            if (file.type !== "file") {
-                throw new Error(`${config.path} 不是文件。`);
-            }
-            return { sha: file.sha, accounts: JSON.parse(base64ToText(file.content)) };
-        }
-
-        async function writeAccountFile(token, config, accounts, sha, commitMessage) {
-            const url = `https://api.github.com/repos/${config.repo}/contents/${encodeURIComponent(config.path)}`;
-            const text = `${JSON.stringify(accounts, null, 4)}\n`;
-
-            await githubFetch(token, url, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    message: commitMessage,
-                    content: bytesToBase64(new TextEncoder().encode(text)),
-                    sha,
-                    branch: config.branch
-                })
-            });
-        }
-
-        async function commitTransfer(token, config, apply) {
-            let lastError;
-
-            for (let attempt = 0; attempt < 3; attempt += 1) {
-                const { sha, accounts } = await readAccountFile(token, config);
-                const commitMessage = apply(accounts);
-                try {
-                    await writeAccountFile(token, config, accounts, sha, commitMessage);
-                    return accounts;
-                } catch (error) {
-                    if (error.status !== 409 && error.status !== 422) {
-                        throw error;
-                    }
-                    lastError = error;
-                }
-            }
-
-            throw lastError || new Error("写入冲突，请重试。");
-        }
-
         async function handleTransfer(event) {
             event.preventDefault();
 
@@ -718,10 +997,7 @@
             button.textContent = "处理中…";
 
             try {
-                const config = await loadSecureConfig();
-                const token = await window.VTXCrypto.decrypt(config);
-
-                const accounts = await commitTransfer(token, config, (data) => {
+                const accounts = await window.VTXApi.commit((data) => {
                     const sender = data[accountName];
                     const target = data[recipient];
 
@@ -771,6 +1047,93 @@
         }
 
         document.getElementById("transfer-form").addEventListener("submit", handleTransfer);
+
+        function timestamp() {
+            const now = new Date();
+            const pad = (value) => String(value).padStart(2, "0");
+            return `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} `
+                + `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        }
+
+        function setWithdrawMessage(text, kind) {
+            const feedback = document.getElementById("withdraw-message");
+            feedback.textContent = text;
+            feedback.className = `status ${kind}`;
+            feedback.hidden = false;
+        }
+
+        async function handleWithdraw(event) {
+            event.preventDefault();
+
+            const button = document.getElementById("withdraw-button");
+            const input = document.getElementById("withdraw-amount");
+            const amountCents = toCents(input.value);
+            const receipt = document.getElementById("withdraw-receipt");
+
+            document.getElementById("withdraw-message").hidden = true;
+
+            if (!Number.isFinite(amountCents) || amountCents <= 0) {
+                setWithdrawMessage("请输入大于 0 的提款金额。", "error");
+                return;
+            }
+            if (toCents(accountsData[accountName].money) < amountCents) {
+                setWithdrawMessage("余额不足。", "error");
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "处理中…";
+            receipt.hidden = true;
+
+            try {
+                const amount = fromCents(amountCents);
+                let receiptText = "";
+
+                const accounts = await window.VTXApi.commit((data) => {
+                    const account = data[accountName];
+                    if (!account) {
+                        throw new Error("当前账户在 account.json 中不存在。");
+                    }
+                    if (toCents(account.money) < amountCents) {
+                        throw new Error("余额不足。");
+                    }
+
+                    const time = timestamp();
+                    account.money = fromCents(toCents(account.money) - amountCents);
+                    account.trades = Array.isArray(account.trades) ? account.trades : [];
+                    account.trades.push({
+                        name: "提款",
+                        description: "线下提款",
+                        price: `-${amount}`,
+                        time,
+                        from: accountName,
+                        to: "XRingCR"
+                    });
+
+                    receiptText = `提款成功：${amount}VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给您纸币。提款时间：${time}`;
+                    return `提款：${accountName} -${amount} VTX`;
+                });
+
+                accountsData = accounts;
+                renderAccount(accounts[accountName]);
+                populateRecipients();
+                input.value = "";
+                document.getElementById("withdraw-receipt-text").textContent = receiptText;
+                receipt.hidden = false;
+            } catch (error) {
+                setWithdrawMessage(
+                    error instanceof TypeError
+                        ? "网络请求失败。请确认页面通过 https 打开，且能访问 api.github.com。"
+                        : error.message,
+                    "error"
+                );
+            } finally {
+                button.disabled = false;
+                button.textContent = "提款";
+            }
+        }
+
+        document.getElementById("withdraw-form").addEventListener("submit", handleWithdraw);
 
         function formatPrice(price) {
             const text = String(price ?? "").trim();
@@ -853,6 +1216,19 @@
             }
         }
 
+        function isValidAccount(account, name) {
+            return Boolean(account) && account.name === name
+                && Number.isFinite(Number(account.money)) && Number(account.money) >= 0;
+        }
+
+        async function readAccountSnapshot() {
+            const response = await fetch("account.json", { cache: "no-store" });
+            if (!response.ok) {
+                throw new Error(`读取账户数据失败（HTTP ${response.status}）`);
+            }
+            return response.json();
+        }
+
         async function loadAccount() {
             if (!accountName) {
                 window.location.replace("login.html");
@@ -860,16 +1236,15 @@
             }
 
             try {
-                const response = await fetch("account.json", { cache: "no-store" });
-                if (!response.ok) {
-                    throw new Error(`读取账户数据失败（HTTP ${response.status}）`);
+                let accounts = await readAccountSnapshot();
+                let account = accounts[accountName];
+
+                if (!isValidAccount(account, accountName)) {
+                    accounts = await window.VTXApi.readAll();
+                    account = accounts[accountName];
                 }
 
-                const accounts = await response.json();
-                const account = accounts[accountName];
-                const balance = Number(account && account.money);
-
-                if (!account || account.name !== accountName || !Number.isFinite(balance) || balance < 0) {
+                if (!isValidAccount(account, accountName)) {
                     sessionStorage.removeItem("vtxAccount");
                     showError("账户数据不存在或格式无效，请重新登录或检查账户数据文件。");
                     return;
@@ -884,6 +1259,10 @@
                     : error.message);
             }
         }
+
+        document.getElementById("checkin-button").addEventListener("click", handleCheckin);
+        document.getElementById("rename-form").addEventListener("submit", handleRename);
+        document.getElementById("password-form").addEventListener("submit", handlePasswordChange);
 
         loadAccount();
     </script>
