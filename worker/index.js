@@ -12,7 +12,7 @@
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  */
 
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -27,6 +27,12 @@ const MAX_KEYS_PER_WRITE = 20;
 const KEY_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
 const TRADE_WINDOW_MS = 60 * 1000;
 const TRADE_MAX_ATTEMPTS = 20;
+const REGISTER_WINDOW_MS = 60 * 1000;
+const REGISTER_MAX_ATTEMPTS = 5;
+const MAX_ACCOUNTS = 500;
+const LOGIN_NAME_PATTERN = /^\S{2,20}$/;
+const MIN_PASSWORD_LENGTH = 6;
+const MAX_USERNAME_LENGTH = 24;
 const MAX_TRADE_CENTS = 100000000;
 const MAX_PARTY_LENGTH = 40;
 const MAX_DESCRIPTION_LENGTH = 200;
@@ -35,6 +41,7 @@ const MAX_TRADE_NAME_LENGTH = 20;
 const loginAttempts = new Map();
 const writeAttempts = new Map();
 const tradeAttempts = new Map();
+const registerAttempts = new Map();
 
 class HttpError extends Error {
     constructor(status, code, message) {
@@ -590,6 +597,72 @@ async function handleDeleteData(request, env, cors, login, key) {
     }, 200, cors);
 }
 
+async function handleRegister(request, env, cors) {
+    const ip = clientIp(request);
+
+    if (throttled(registerAttempts, ip, REGISTER_WINDOW_MS, REGISTER_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "注册过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    if (!env.GITHUB_TOKEN) {
+        return jsonResponse({ error: "write_unavailable", message: "服务端未配置 GITHUB_TOKEN，无法创建账户" }, 503, cors);
+    }
+
+    if (!env.SIGNING_SECRET) {
+        return jsonResponse({ error: "server_misconfigured", message: "服务端未配置 SIGNING_SECRET" }, 500, cors);
+    }
+
+    const body = await readJsonBody(request);
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return jsonResponse({ error: "bad_request", message: "请求体必须是一个 JSON 对象" }, 400, cors);
+    }
+
+    const login = String(body.login || "").trim();
+    const password = String(body.password || "");
+    const username = String(body.username || "").trim();
+
+    if (!LOGIN_NAME_PATTERN.test(login)) {
+        return jsonResponse({ error: "bad_request", message: "登录账户名需要 2-20 个字符，且不能包含空格" }, 400, cors);
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+        return jsonResponse({ error: "bad_request", message: `密码至少 ${MIN_PASSWORD_LENGTH} 个字符` }, 400, cors);
+    }
+    if (username.length > MAX_USERNAME_LENGTH) {
+        return jsonResponse({ error: "bad_request", message: `显示名称最长 ${MAX_USERNAME_LENGTH} 个字符` }, 400, cors);
+    }
+
+    const accounts = await commitAccounts(env, (data) => {
+        if (data[login]) {
+            throw new HttpError(409, "account_exists", `账户名称 ${login} 已被占用`);
+        }
+        if (Object.keys(data).length >= MAX_ACCOUNTS) {
+            throw new HttpError(403, "forbidden", `账户数量已达上限（${MAX_ACCOUNTS}）`);
+        }
+
+        data[login] = {
+            username: username || login,
+            password,
+            money: "0.00",
+            trades: []
+        };
+
+        return `创建账户：${login}`;
+    });
+
+    const now = Math.floor(Date.now() / 1000);
+    const ttl = Number(env.TOKEN_TTL_SECONDS || DEFAULT_TTL);
+    const token = await signToken({ sub: login, iat: now, exp: now + ttl, iss: "vtx-api" }, env.SIGNING_SECRET);
+
+    return jsonResponse({
+        token,
+        expiresAt: new Date((now + ttl) * 1000).toISOString(),
+        login,
+        created: true,
+        account: publicAccount(accounts[login])
+    }, 201, cors);
+}
+
 async function handleTrade(request, env, cors, login) {
     const session = await requireSession(request, env, cors);
     if (session.error) {
@@ -725,6 +798,10 @@ export default {
 
             if (url.pathname === "/api/login" && request.method === "POST") {
                 return await handleLogin(request, env, cors);
+            }
+
+            if (url.pathname === "/api/register" && request.method === "POST") {
+                return await handleRegister(request, env, cors);
             }
 
             if (url.pathname === "/api/me" && request.method === "GET") {

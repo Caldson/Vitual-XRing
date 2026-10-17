@@ -127,6 +127,40 @@
         return data;
     }
 
+    /**
+     * 创建账户（成功后自动登录，返回结构与 login 相同，并带 created: true）。
+     * @param {{ login: string, password: string, username?: string }} options
+     */
+    async function register(options) {
+        const payload = options || {};
+        const data = await request("/api/register", {
+            method: "POST",
+            body: {
+                login: payload.login,
+                password: payload.password,
+                username: payload.username
+            }
+        });
+
+        if (data && data.token) {
+            memoryToken = data.token;
+            writeStorage(TOKEN_KEY, data.token);
+        }
+        return data;
+    }
+
+    /** 采纳别处（例如 API_LOGIN.html 弹窗）拿到的 token */
+    function setToken(token) {
+        const value = String(token || "").trim();
+        if (!value) {
+            logout();
+            return "";
+        }
+        memoryToken = value;
+        writeStorage(TOKEN_KEY, value);
+        return value;
+    }
+
     function logout() {
         memoryToken = null;
         writeStorage(TOKEN_KEY, null);
@@ -187,6 +221,8 @@
     global.VTX = {
         configure,
         login,
+        register,
+        setToken,
         logout,
         isLoggedIn,
         me,
