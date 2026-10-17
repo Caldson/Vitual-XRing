@@ -100,12 +100,12 @@
                     "official-neon-afterglow": {
                         "title": "Neon Afterglow",
                         "best": 29792,
-                        "last": 22770,
+                        "last": 16140,
                         "bestCombo": 32,
-                        "grade": "B",
-                        "plays": 3,
+                        "grade": "C",
+                        "plays": 4,
                         "boost": false,
-                        "updatedAt": "2026-10-17T13:51:26.340Z"
+                        "updatedAt": "2026-10-17T16:02:04.456Z"
                     },
                     "official-crazy-world": {
                         "title": "クレイジー・ワールド",
@@ -121,11 +121,11 @@
                 "last": {
                     "chartId": "official-neon-afterglow",
                     "title": "Neon Afterglow",
-                    "score": 22770,
+                    "score": 16140,
                     "combo": 32,
-                    "grade": "B",
+                    "grade": "C",
                     "boost": false,
-                    "time": "2026-10-17T13:51:26.340Z"
+                    "time": "2026-10-17T16:02:04.456Z"
                 }
             }
         }
