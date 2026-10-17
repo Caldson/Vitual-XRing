@@ -1,0 +1,4 @@
+# 本地联调用：复制成 worker/.dev.vars 后填入真实值（.dev.vars 已被 .gitignore 忽略，不要提交）
+# 生成签名密钥：openssl rand -base64 48
+GITHUB_TOKEN = "github_pat_在这里填你的_PAT"
+SIGNING_SECRET = "在这里填一个足够长的随机字符串"

@@ -1,0 +1,27 @@
+name = "vtx-api"
+main = "index.js"
+compatibility_date = "2024-11-01"
+
+# 只把 /api/* 交给 Worker，其余路径（页面、account.json）继续由 GitHub Pages 提供
+# 前提：xsmmc.caldson.us.ci 这条 DNS 记录必须是「已代理」（橙色云朵）
+#
+# 如果暂时不想动 DNS / 路由，把下面这两行注释掉即可，
+# 部署后会得到一个 https://vtx-api.<你的账号>.workers.dev 地址，SDK 里填它就行。
+[[routes]]
+pattern = "xsmmc.caldson.us.ci/api/*"
+zone_name = "caldson.us.ci"
+
+[vars]
+REPO = "Caldson/Vitual-XRing"
+BRANCH = "main"
+PATH = "account.json"
+# 允许调用 API 的站点，多个用英文逗号分隔；"*" 表示任意站点（同域名站点无需配置）
+ALLOWED_ORIGINS = "*"
+# 登录 token 有效期（秒），默认 12 小时
+TOKEN_TTL_SECONDS = "43200"
+# 数据缓存时间（秒），减少 GitHub API 调用
+CACHE_TTL_SECONDS = "20"
+
+# 需要提前设置的机密（不要写进这个文件）：
+#   wrangler secret put GITHUB_TOKEN
+#   wrangler secret put SIGNING_SECRET
