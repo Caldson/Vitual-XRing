@@ -1,122 +1,186 @@
 {
     "Kitawaga": {
-        "name": "Kitawaga",
+        "username": "刘浩天（站主）",
         "password": "100%Security",
-        "money": "45.00",
+        "money": "10045.00",
         "trades": [
+            {
+                "name": "Developments",
+                "description": "",
+                "time": "2026/10/16",
+                "from": "刘浩天（站主）",
+                "to": "刘浩天（站主）",
+                "price": "+100.00"
+            },
             {
                 "name": "转账",
                 "description": "测试，你不用还我",
                 "time": "2026/10/17",
-                "from": "Kitawaga",
-                "to": "Fanjiayue",
+                "from": "刘浩天（站主）",
+                "to": "范佳玥",
                 "price": "-5.00"
             },
             {
                 "name": "转账",
                 "description": "好兄弟送你了",
                 "time": "2026/10/17",
-                "from": "Kitawaga",
-                "to": "Zhangshenshen",
+                "from": "刘浩天（站主）",
+                "to": "张深深",
                 "price": "-50.00"
+            },
+            {
+                "name": "Developments",
+                "description": "",
+                "time": "2026/10/17",
+                "from": "刘浩天（站主）",
+                "to": "刘浩天（站主）",
+                "price": "+10000.00"
             }
         ]
     },
     "Fanjiayue": {
-        "name": "Fanjiayue",
+        "username": "范佳玥",
         "password": "XSvtx001",
-        "money": "5.00",
+        "money": "205.00",
         "trades": [
             {
                 "name": "转账",
                 "description": "测试，你不用还我",
                 "time": "2026/10/17",
-                "from": "Kitawaga",
-                "to": "Fanjiayue",
+                "from": "刘浩天（站主）",
+                "to": "范佳玥",
                 "price": "+5.00"
+            },
+            {
+                "name": "官方福利",
+                "description": "为了确保正常使用AI功能，系统为每位用户发放200.00 VTX。",
+                "time": "2026/10/17",
+                "from": "系统",
+                "to": "范佳玥",
+                "price": "+200.00"
             }
         ]
     },
     "Kuyibo": {
-        "name": "Kuyibo",
+        "username": "库一博",
         "password": "XKuinder",
-        "money": "20.00",
+        "money": "220.00",
         "trades": [
             {
                 "name": "官方福利",
                 "description": "因为您是第1~5个注册账号的，您将获得福利。",
                 "price": "+20.00",
                 "time": "2026/10/16",
-                "from": "Kitawaga",
-                "to": "Kuyibo"
+                "from": "刘浩天（站主）",
+                "to": "库一博"
+            },
+            {
+                "name": "官方福利",
+                "description": "为了确保正常使用AI功能，系统为每位用户发放200.00 VTX。",
+                "time": "2026/10/17",
+                "from": "系统",
+                "to": "库一博",
+                "price": "+200.00"
             }
         ]
     },
     "Huangshumeng": {
-        "name": "Huangshumeng",
+        "username": "黄姝萌",
         "password": "X606CaFr",
-        "money": "20.00",
+        "money": "220.00",
         "trades": [
             {
                 "name": "官方福利",
                 "description": "因为您是第1~5个注册账号的，您将获得福利。",
                 "price": "+20.00",
                 "time": "2026/10/16",
-                "from": "Kitawaga",
-                "to": "Huangshumeng"
+                "from": "刘浩天（站主）",
+                "to": "黄姝萌"
+            },
+            {
+                "name": "官方福利",
+                "description": "为了确保正常使用AI功能，系统为每位用户发放200.00 VTX。",
+                "time": "2026/10/17",
+                "from": "系统",
+                "to": "黄姝萌",
+                "price": "+200.00"
             }
         ]
     },
     "Huayihan": {
-        "name": "Huayihan",
+        "username": "花艺涵",
         "password": "X6b32Bog",
-        "money": "20.00",
+        "money": "220.00",
         "trades": [
             {
                 "name": "官方福利",
                 "description": "因为您是第1~5个注册账号的，您将获得福利。",
                 "price": "+20.00",
                 "time": "2026/10/16",
-                "from": "Kitawaga",
-                "to": "Huayihan"
+                "from": "刘浩天（站主）",
+                "to": "花艺涵"
+            },
+            {
+                "name": "官方福利",
+                "description": "为了确保正常使用AI功能，系统为每位用户发放200.00 VTX。",
+                "time": "2026/10/17",
+                "from": "系统",
+                "to": "花艺涵",
+                "price": "+200.00"
             }
         ]
     },
     "Zhangshenshen": {
-        "name": "Zhangshenshen",
+        "username": "张深深",
         "password": "XStud0gm",
-        "money": "70.00",
+        "money": "270.00",
         "trades": [
             {
                 "name": "官方福利",
                 "description": "因为您是第1~5个注册账号的，您将获得福利。",
                 "price": "+20.00",
                 "time": "2026/10/16",
-                "from": "Kitawaga",
-                "to": "Zhangshenshen"
+                "from": "刘浩天（站主）",
+                "to": "张深深"
             },
             {
                 "name": "转账",
                 "description": "好兄弟送你了",
                 "time": "2026/10/17",
-                "from": "Kitawaga",
-                "to": "Zhangshenshen",
+                "from": "刘浩天（站主）",
+                "to": "张深深",
                 "price": "+50.00"
+            },
+            {
+                "name": "官方福利",
+                "description": "为了确保正常使用AI功能，系统为每位用户发放200.00 VTX。",
+                "time": "2026/10/17",
+                "from": "系统",
+                "to": "张深深",
+                "price": "+200.00"
             }
         ]
     },
     "Xiaoyuluoyi": {
-        "name": "Xiaoyuluoyi",
+        "username": "肖余洛伊",
         "password": "Xgm76BxT",
-        "money": "20.00",
+        "money": "220.00",
         "trades": [
             {
                 "name": "官方福利",
                 "description": "因为您是第1~5个注册账号的，您将获得福利。",
                 "price": "+20.00",
                 "time": "2026/10/16",
-                "from": "Kitawaga",
-                "to": "Xiaoyuluoyi"
+                "from": "刘浩天（站主）",
+                "to": "肖余洛伊"
+            },
+            {
+                "name": "官方福利",
+                "description": "为了确保正常使用AI功能，系统为每位用户发放200.00 VTX。",
+                "time": "2026/10/17",
+                "from": "系统",
+                "to": "肖余洛伊",
+                "price": "+200.00"
             }
         ]
     }

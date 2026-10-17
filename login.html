@@ -200,7 +200,7 @@
     </style>
 </head>
 <body>
-    <span class="version-badge">v3.0</span>
+    <span class="version-badge">v4.0</span>
     <main class="login-card">
         <div class="brand-mark" aria-hidden="true">V</div>
         <h1>欢迎回来</h1>
@@ -213,7 +213,7 @@
 
         <form id="login-form">
             <div class="field">
-                <label for="account-name">账户名称</label>
+                <label for="account-name">登录账户名</label>
                 <input id="account-name" name="name" type="text" autocomplete="username" required autofocus>
             </div>
             <div class="field">
@@ -226,8 +226,8 @@
 
         <form id="register-form" hidden>
             <div class="field">
-                <label for="register-name">账户名称</label>
-                <input id="register-name" type="text" maxlength="20" autocomplete="username" required placeholder="2-20 个字符">
+                <label for="register-name">登录账户名</label>
+                <input id="register-name" type="text" maxlength="20" autocomplete="username" required placeholder="2-20 个字符，登录时使用">
             </div>
             <div class="field">
                 <label for="register-password">密码</label>
@@ -244,8 +244,8 @@
         <a class="back-link" href="index.html">← 返回首页</a>
     </main>
 
-    <script src="vtx-crypto.js?v=3.0"></script>
-    <script src="vtx-api.js?v=3.0"></script>
+    <script src="vtx-crypto.js?v=4.0"></script>
+    <script src="vtx-api.js?v=4.0"></script>
 
     <script>
         const loginForm = document.getElementById("login-form");
@@ -297,12 +297,12 @@
                 let accounts = await readAccounts();
                 let account = accounts[name];
 
-                if (!account || account.name !== name || account.password !== password) {
+                if (!account || account.password !== password) {
                     accounts = await window.VTXApi.readAll();
                     account = accounts[name];
                 }
 
-                if (!account || account.name !== name || account.password !== password) {
+                if (!account || account.password !== password) {
                     loginMessage.textContent = "账户名称或密码不正确。";
                     return;
                 }
@@ -356,7 +356,7 @@
                         throw new Error(`账户名称 ${name} 已被占用。`);
                     }
 
-                    accounts[name] = { name, password, money: "0.00", trades: [] };
+                    accounts[name] = { username: name, password, money: "0.00", trades: [] };
                     return `创建账户：${name}`;
                 });
 
