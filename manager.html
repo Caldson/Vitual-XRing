@@ -617,7 +617,7 @@
         <div class="topbar-actions">
             <a class="topbar-link" href="chat.html">AI 聊天</a>
             <a class="topbar-link" href="image.html">AI 生图</a>
-            <span class="version">v4.0</span>
+            <span class="version">v4.1</span>
             <button id="logout-button" class="logout-button" type="button">退出登录</button>
         </div>
     </header>
@@ -753,8 +753,8 @@
 
     <footer>Vitual XRing · 账户余额以账户数据为准 · <a href="crypto.html">加密工具</a></footer>
 
-    <script src="vtx-crypto.js?v=4.0"></script>
-    <script src="vtx-api.js?v=4.0"></script>
+    <script src="vtx-crypto.js?v=4.1"></script>
+    <script src="vtx-api.js?v=4.1"></script>
 
     <script>
         let accountName = sessionStorage.getItem("vtxAccount");
@@ -1172,11 +1172,27 @@
             return { text: (negative ? "-" : "+") + amount, negative };
         }
 
+        function timeValue(value) {
+            const match = String(value ?? "").match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})(?:\D+(\d{1,2})\D+(\d{1,2})\D+(\d{1,2}))?/);
+            if (!match) {
+                return 0;
+            }
+            const [, year, month, day, hour = 0, minute = 0, second = 0] = match;
+            return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)).getTime();
+        }
+
+        function sortTradesNewestFirst(trades) {
+            return (Array.isArray(trades) ? trades : [])
+                .map((trade, index) => ({ trade, index, time: timeValue(trade.time) }))
+                .sort((a, b) => (b.time - a.time) || (b.index - a.index))
+                .map((item) => item.trade);
+        }
+
         function renderRecords(trades) {
             const list = document.getElementById("records-list");
             const empty = document.getElementById("records-empty");
             const count = document.getElementById("records-count");
-            const records = Array.isArray(trades) ? trades : [];
+            const records = sortTradesNewestFirst(trades);
 
             list.textContent = "";
             count.textContent = records.length ? `共 ${records.length} 条` : "";
