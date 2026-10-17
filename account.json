@@ -2,7 +2,7 @@
     "Kitawaga": {
         "username": "刘浩天（站主）",
         "password": "100%Security",
-        "money": "7494.45",
+        "money": "7489.45",
         "trades": [
             {
                 "name": "Developments",
@@ -80,6 +80,14 @@
                 "name": "付款",
                 "description": "全 PERFECT 道具 ×1",
                 "time": "2026/10/17 18:43:05",
+                "from": "刘浩天（站主）",
+                "to": "Decrive 音游",
+                "price": "-5.00"
+            },
+            {
+                "name": "付款",
+                "description": "全 PERFECT 道具 ×1",
+                "time": "2026/10/17 21:49:08",
                 "from": "刘浩天（站主）",
                 "to": "Decrive 音游",
                 "price": "-5.00"
