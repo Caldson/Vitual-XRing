@@ -86,7 +86,7 @@
             }
         ],
         "data": {
-            "decriveBoost": 0,
+            "decriveBoost": 1,
             "decriveStats": {
                 "charts": {
                     "official-neon-afterglow": {
