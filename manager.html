@@ -262,6 +262,105 @@
             color: #8994a7;
         }
 
+        .transfer-card {
+            margin-top: 22px;
+            padding: 26px 30px;
+            border: 1px solid #e7ebf2;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(30, 50, 90, 0.05);
+        }
+
+        .transfer-card[hidden] {
+            display: none;
+        }
+
+        .transfer-card h2 {
+            margin: 0 0 6px;
+            font-size: 18px;
+        }
+
+        .transfer-hint {
+            margin: 0 0 20px;
+            color: #8994a7;
+            font-size: 13.5px;
+            line-height: 1.6;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        .field label {
+            color: #4a576d;
+            font-size: 13.5px;
+            font-weight: 650;
+        }
+
+        .field input,
+        .field select {
+            min-height: 44px;
+            padding: 0 12px;
+            border: 1px solid #dce2ec;
+            border-radius: 10px;
+            background: #fff;
+            color: #172033;
+            font: inherit;
+            outline: none;
+        }
+
+        .field input:focus,
+        .field select:focus {
+            border-color: #5478ed;
+            box-shadow: 0 0 0 3px rgba(84, 120, 237, 0.14);
+        }
+
+        .transfer-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .primary-button {
+            min-height: 46px;
+            padding: 0 22px;
+            border: 0;
+            border-radius: 11px;
+            color: #fff;
+            background: #4169e1;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .primary-button:hover {
+            background: #3158d1;
+        }
+
+        .primary-button:disabled {
+            opacity: 0.65;
+            cursor: wait;
+        }
+
+        .transfer-note {
+            color: #8994a7;
+            font-size: 12.5px;
+        }
+
         .status {
             display: flex;
             align-items: flex-start;
@@ -286,11 +385,25 @@
             background: #fff8f8;
         }
 
+        .status.success {
+            border-color: #cfe8da;
+            color: #1f7a52;
+            background: #f6fdf9;
+        }
+
         footer {
             padding: 0 20px 32px;
             color: #8994a7;
             font-size: 13px;
             text-align: center;
+        }
+
+        footer a {
+            color: #68768d;
+        }
+
+        footer a:hover {
+            color: #3158d1;
         }
 
         @media (max-width: 520px) {
@@ -309,6 +422,14 @@
 
             .account-card {
                 padding: 22px 20px;
+            }
+
+            .transfer-card {
+                padding: 22px 20px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -350,6 +471,39 @@
             </div>
         </section>
 
+        <section id="transfer-card" class="transfer-card" aria-labelledby="transfer-title" hidden>
+            <h2 id="transfer-title">转账</h2>
+            <p class="transfer-hint">转账会直接写入仓库里的 account.json，需要口令解密 secure.json 中的 GitHub token。</p>
+
+            <form id="transfer-form">
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="transfer-to">收款人</label>
+                        <select id="transfer-to" required></select>
+                    </div>
+                    <div class="field">
+                        <label for="transfer-amount">金额（VTX）</label>
+                        <input id="transfer-amount" type="number" min="0.01" step="0.01" required>
+                    </div>
+                    <div class="field full">
+                        <label for="transfer-note">备注（可选）</label>
+                        <input id="transfer-note" type="text" maxlength="80" placeholder="例如：还款">
+                    </div>
+                    <div class="field full">
+                        <label for="transfer-passphrase">口令</label>
+                        <input id="transfer-passphrase" type="password" autocomplete="off" required>
+                    </div>
+                </div>
+
+                <div class="transfer-actions">
+                    <button id="transfer-submit" class="primary-button" type="submit">确认转账</button>
+                    <span class="transfer-note">口令只用于本次解密，不会被保存或上传。</span>
+                </div>
+
+                <p id="transfer-message" class="status" role="status" aria-live="polite" hidden></p>
+            </form>
+        </section>
+
         <section class="records-card" aria-labelledby="records-title">
             <div class="records-header">
                 <h2 id="records-title">交易记录</h2>
@@ -362,11 +516,18 @@
         <p id="account-message" class="status" role="status" aria-live="polite" hidden></p>
     </main>
 
-    <footer>Vitual XRing · 账户余额以账户数据为准</footer>
+    <footer>Vitual XRing · 账户余额以账户数据为准 · <a href="crypto.html">加密工具</a></footer>
+
+    <script src="vtx-crypto.js"></script>
 
     <script>
         const accountName = sessionStorage.getItem("vtxAccount");
         const message = document.getElementById("account-message");
+        const SECURE_FILE = "secure.json";
+        const SECURE_DEFAULTS = { repo: "Caldson/Vitual-XRing", branch: "main", path: "account.json" };
+
+        let accountsData = null;
+        let secureConfig = null;
 
         document.getElementById("logout-button").addEventListener("click", () => {
             sessionStorage.removeItem("vtxAccount");
@@ -378,6 +539,247 @@
             message.classList.add("error");
             message.hidden = false;
         }
+
+        function renderAccount(account) {
+            document.getElementById("account-name").textContent = account.name;
+            document.getElementById("account-name-detail").textContent = account.name;
+            document.getElementById("account-balance").textContent = new Intl.NumberFormat("zh-CN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(Number(account.money));
+            renderRecords(account.trades);
+        }
+
+        function populateRecipients() {
+            const select = document.getElementById("transfer-to");
+            const amountInput = document.getElementById("transfer-amount");
+            const current = select.value;
+
+            select.textContent = "";
+            const names = Object.keys(accountsData).filter((key) => key !== accountName);
+
+            for (const name of names) {
+                const option = document.createElement("option");
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            }
+
+            if (names.includes(current)) {
+                select.value = current;
+            }
+
+            amountInput.max = toCents(accountsData[accountName].money) / 100;
+            document.getElementById("transfer-card").hidden = names.length === 0;
+        }
+
+        function toCents(value) {
+            const amount = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+            return Number.isFinite(amount) ? Math.round(amount * 100) : NaN;
+        }
+
+        function fromCents(cents) {
+            return (cents / 100).toFixed(2);
+        }
+
+        function today() {
+            const now = new Date();
+            return `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
+        }
+
+        function setTransferMessage(text, kind) {
+            const feedback = document.getElementById("transfer-message");
+            feedback.textContent = text;
+            feedback.className = `status ${kind}`;
+            feedback.hidden = false;
+        }
+
+        function bytesToBase64(bytes) {
+            let binary = "";
+            for (const byte of bytes) {
+                binary += String.fromCharCode(byte);
+            }
+            return btoa(binary);
+        }
+
+        function base64ToText(value) {
+            const binary = atob(String(value).replace(/\s/g, ""));
+            const bytes = new Uint8Array(binary.length);
+            for (let index = 0; index < binary.length; index += 1) {
+                bytes[index] = binary.charCodeAt(index);
+            }
+            return new TextDecoder().decode(bytes);
+        }
+
+        function githubErrorMessage(status) {
+            if (status === 401) {
+                return "GitHub token 无效或已过期。";
+            }
+            if (status === 403) {
+                return "GitHub token 权限不足或被限流。请确认 token 对该仓库有 Contents 读写权限。";
+            }
+            if (status === 404) {
+                return `找不到仓库或文件（${secureConfig.repo}/${secureConfig.path}），或 token 无权访问。`;
+            }
+            return `GitHub API 请求失败（HTTP ${status}）。`;
+        }
+
+        async function githubFetch(token, url, options = {}) {
+            const response = await fetch(url, {
+                cache: "no-store",
+                ...options,
+                headers: {
+                    Accept: "application/vnd.github+json",
+                    Authorization: `Bearer ${token}`,
+                    "X-GitHub-Api-Version": "2022-11-28",
+                    ...(options.headers || {})
+                }
+            });
+
+            if (response.ok) {
+                return response.json();
+            }
+
+            const error = new Error(githubErrorMessage(response.status));
+            error.status = response.status;
+            throw error;
+        }
+
+        async function loadSecureConfig() {
+            const response = await fetch(SECURE_FILE, { cache: "no-store" });
+            if (!response.ok) {
+                throw new Error("找不到 secure.json。请先用 crypto.html 生成并提交到仓库根目录。");
+            }
+            secureConfig = { ...SECURE_DEFAULTS, ...(await response.json()) };
+            return secureConfig;
+        }
+
+        async function readAccountFile(token, config) {
+            const url = `https://api.github.com/repos/${config.repo}/contents/${encodeURIComponent(config.path)}?ref=${encodeURIComponent(config.branch)}`;
+            const file = await githubFetch(token, url);
+            if (file.type !== "file") {
+                throw new Error(`${config.path} 不是文件。`);
+            }
+            return { sha: file.sha, accounts: JSON.parse(base64ToText(file.content)) };
+        }
+
+        async function writeAccountFile(token, config, accounts, sha, commitMessage) {
+            const url = `https://api.github.com/repos/${config.repo}/contents/${encodeURIComponent(config.path)}`;
+            const text = `${JSON.stringify(accounts, null, 4)}\n`;
+
+            await githubFetch(token, url, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: commitMessage,
+                    content: bytesToBase64(new TextEncoder().encode(text)),
+                    sha,
+                    branch: config.branch
+                })
+            });
+        }
+
+        async function commitTransfer(token, config, apply) {
+            let lastError;
+
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                const { sha, accounts } = await readAccountFile(token, config);
+                const commitMessage = apply(accounts);
+                try {
+                    await writeAccountFile(token, config, accounts, sha, commitMessage);
+                    return accounts;
+                } catch (error) {
+                    if (error.status !== 409 && error.status !== 422) {
+                        throw error;
+                    }
+                    lastError = error;
+                }
+            }
+
+            throw lastError || new Error("写入冲突，请重试。");
+        }
+
+        async function handleTransfer(event) {
+            event.preventDefault();
+
+            const button = document.getElementById("transfer-submit");
+            const recipient = document.getElementById("transfer-to").value;
+            const amountCents = toCents(document.getElementById("transfer-amount").value);
+            const note = document.getElementById("transfer-note").value.trim();
+            const passphrase = document.getElementById("transfer-passphrase").value;
+
+            document.getElementById("transfer-message").hidden = true;
+
+            if (!recipient) {
+                setTransferMessage("请选择收款人。", "error");
+                return;
+            }
+            if (!Number.isFinite(amountCents) || amountCents <= 0) {
+                setTransferMessage("请输入大于 0 的金额。", "error");
+                return;
+            }
+            if (!passphrase) {
+                setTransferMessage("请输入口令。", "error");
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = "处理中…";
+
+            try {
+                const config = await loadSecureConfig();
+                const token = await window.VTXCrypto.decrypt(config, passphrase);
+
+                const accounts = await commitTransfer(token, config, (data) => {
+                    const sender = data[accountName];
+                    const target = data[recipient];
+
+                    if (!sender) {
+                        throw new Error("当前账户在 account.json 中不存在。");
+                    }
+                    if (!target) {
+                        throw new Error(`收款账户 ${recipient} 不存在。`);
+                    }
+                    if (toCents(sender.money) < amountCents) {
+                        throw new Error("余额不足。");
+                    }
+
+                    const time = today();
+                    const description = note || "账户转账";
+                    const common = { name: "转账", description, time, from: accountName, to: recipient };
+
+                    sender.money = fromCents(toCents(sender.money) - amountCents);
+                    target.money = fromCents(toCents(target.money) + amountCents);
+                    sender.trades = Array.isArray(sender.trades) ? sender.trades : [];
+                    target.trades = Array.isArray(target.trades) ? target.trades : [];
+                    sender.trades.push({ ...common, price: `-${fromCents(amountCents)}` });
+                    target.trades.push({ ...common, price: `+${fromCents(amountCents)}` });
+
+                    return `转账：${accountName} → ${recipient} ${fromCents(amountCents)} VTX`;
+                });
+
+                accountsData = accounts;
+                renderAccount(accounts[accountName]);
+                populateRecipients();
+                document.getElementById("transfer-form").reset();
+                setTransferMessage(
+                    `已转账 ${fromCents(amountCents)} VTX 给 ${recipient}。GitHub Pages 更新可能需要几分钟，届时刷新即可看到最新余额。`,
+                    "success"
+                );
+            } catch (error) {
+                setTransferMessage(
+                    error instanceof TypeError
+                        ? "网络请求失败。请确认页面通过 https 打开，且能访问 api.github.com。"
+                        : error.message,
+                    "error"
+                );
+            } finally {
+                button.disabled = false;
+                button.textContent = "确认转账";
+            }
+        }
+
+        document.getElementById("transfer-form").addEventListener("submit", handleTransfer);
 
         function formatPrice(price) {
             const text = String(price ?? "").trim();
@@ -432,8 +834,15 @@
                 if (record.time) {
                     metaParts.push(String(record.time));
                 }
-                if (record.from) {
-                    metaParts.push(`来自 ${record.from}`);
+                const flow = record.from && record.to
+                    ? `来自 ${record.from} 入账 ${record.to}`
+                    : record.from
+                        ? `来自 ${record.from}`
+                        : record.to
+                            ? `入账 ${record.to}`
+                            : "";
+                if (flow) {
+                    metaParts.push(flow);
                 }
                 if (metaParts.length) {
                     const meta = document.createElement("p");
@@ -475,14 +884,9 @@
                     return;
                 }
 
-                document.getElementById("account-name").textContent = account.name;
-                document.getElementById("account-name-detail").textContent = account.name;
-                document.getElementById("account-balance").textContent = new Intl.NumberFormat("zh-CN", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }).format(balance);
-
-                renderRecords(account.trades);
+                accountsData = accounts;
+                renderAccount(account);
+                populateRecipients();
             } catch (error) {
                 showError(error instanceof TypeError
                     ? "无法读取账户数据。请通过本地服务器或网站打开此页面，不要直接以 file:// 打开。"
