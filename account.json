@@ -2,7 +2,7 @@
     "Kitawaga": {
         "username": "刘浩天（站主）",
         "password": "100%Security",
-        "money": "7514.45",
+        "money": "7504.45",
         "trades": [
             {
                 "name": "Developments",
@@ -59,6 +59,14 @@
                 "time": "2026/10/17 15:56:29",
                 "from": "刘浩天（站主）",
                 "to": "AI"
+            },
+            {
+                "name": "提款",
+                "description": "线下提款",
+                "price": "-10.00",
+                "time": "2026/10/17 15:58:41",
+                "from": "刘浩天（站主）",
+                "to": "XRingCR"
             }
         ]
     },
