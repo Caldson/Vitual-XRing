@@ -69,6 +69,21 @@
             color: #3158d1;
         }
 
+        .topbar-link {
+            padding: 9px 14px;
+            border: 1px solid #dfe5ee;
+            border-radius: 10px;
+            color: #536179;
+            background: #fff;
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .topbar-link:hover {
+            border-color: #b9c7df;
+            color: #3158d1;
+        }
+
         main {
             width: min(100% - 40px, 920px);
             margin: 56px auto;
@@ -600,7 +615,9 @@
             <span>Vitual XRing</span>
         </a>
         <div class="topbar-actions">
-            <span class="version">v3.0</span>
+            <a class="topbar-link" href="chat.html">AI 聊天</a>
+            <a class="topbar-link" href="image.html">AI 生图</a>
+            <span class="version">v4.0</span>
             <button id="logout-button" class="logout-button" type="button">退出登录</button>
         </div>
     </header>
@@ -624,8 +641,12 @@
         <section class="account-card" aria-labelledby="account-details-title">
             <h2 id="account-details-title">账户信息</h2>
             <div class="detail-row">
-                <span class="detail-label">账户名称</span>
+                <span class="detail-label">用户名</span>
                 <span id="account-name-detail" class="detail-value">加载中…</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">登录账户名</span>
+                <span id="account-login" class="detail-value">—</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">账户状态</span>
@@ -642,13 +663,13 @@
             <p class="transfer-hint">修改会直接写入 account.json，并新增一条 Git 提交。</p>
 
             <div class="settings-block">
-                <h3>更改账户名称</h3>
+                <h3>更改用户名</h3>
                 <form id="rename-form" class="settings-row">
                     <div class="field">
-                        <label for="rename-value">新名称</label>
-                        <input id="rename-value" type="text" maxlength="20" required placeholder="2-20 个字符">
+                        <label for="rename-value">新用户名</label>
+                        <input id="rename-value" type="text" maxlength="20" required placeholder="2-20 个字符，仅影响显示">
                     </div>
-                    <button id="rename-button" class="secondary-button" type="submit">更改名称</button>
+                    <button id="rename-button" class="secondary-button" type="submit">更改用户名</button>
                 </form>
             </div>
 
@@ -732,8 +753,8 @@
 
     <footer>Vitual XRing · 账户余额以账户数据为准 · <a href="crypto.html">加密工具</a></footer>
 
-    <script src="vtx-crypto.js?v=3.0"></script>
-    <script src="vtx-api.js?v=3.0"></script>
+    <script src="vtx-crypto.js?v=4.0"></script>
+    <script src="vtx-api.js?v=4.0"></script>
 
     <script>
         let accountName = sessionStorage.getItem("vtxAccount");
@@ -756,9 +777,16 @@
             setAccountMessage(text, "error");
         }
 
+        function displayName(key) {
+            const account = accountsData && accountsData[key];
+            return (account && account.username) || key;
+        }
+
         function renderAccount(account) {
-            document.getElementById("account-name").textContent = account.name;
-            document.getElementById("account-name-detail").textContent = account.name;
+            const label = account.username || accountName;
+            document.getElementById("account-name").textContent = label;
+            document.getElementById("account-name-detail").textContent = label;
+            document.getElementById("account-login").textContent = accountName;
             document.getElementById("account-balance").textContent = new Intl.NumberFormat("zh-CN", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
@@ -818,7 +846,7 @@
                         price: "+5.00",
                         time: today(),
                         from: "官方",
-                        to: accountName
+                        to: account.username || accountName
                     });
 
                     return `签到：${accountName} +5.00 VTX`;
@@ -844,11 +872,11 @@
             document.getElementById("settings-message").hidden = true;
 
             if (newName.length < 2 || newName.length > 20) {
-                setSettingsMessage("名称需要 2-20 个字符。", "error");
+                setSettingsMessage("用户名需要 2-20 个字符。", "error");
                 return;
             }
-            if (newName === accountName) {
-                setSettingsMessage("新名称与当前名称相同。", "error");
+            if (newName === (accountsData[accountName] && accountsData[accountName].username)) {
+                setSettingsMessage("新用户名与当前用户名相同。", "error");
                 return;
             }
 
@@ -861,28 +889,21 @@
                     if (!account) {
                         throw new Error("当前账户在 account.json 中不存在。");
                     }
-                    if (data[newName]) {
-                        throw new Error(`账户名称 ${newName} 已被占用。`);
-                    }
 
-                    data[newName] = { ...account, name: newName };
-                    delete data[accountName];
-
-                    return `重命名账户：${accountName} → ${newName}`;
+                    account.username = newName;
+                    return `更改用户名：${accountName} → ${newName}`;
                 });
 
                 accountsData = accounts;
-                sessionStorage.setItem("vtxAccount", newName);
-                accountName = newName;
                 renderAccount(accounts[accountName]);
                 populateRecipients();
                 input.value = "";
-                setSettingsMessage(`账户名称已更改为 ${newName}。`, "success");
+                setSettingsMessage(`用户名已更改为 ${newName}（登录名仍为 ${accountName}）。`, "success");
             } catch (error) {
                 setSettingsMessage(error instanceof TypeError ? "网络请求失败，请稍后再试。" : error.message, "error");
             } finally {
                 button.disabled = false;
-                button.textContent = "更改名称";
+                button.textContent = "更改用户名";
             }
         }
 
@@ -936,21 +957,21 @@
             const current = select.value;
 
             select.textContent = "";
-            const names = Object.keys(accountsData).filter((key) => key !== accountName);
+            const keys = Object.keys(accountsData).filter((key) => key !== accountName);
 
-            for (const name of names) {
+            for (const key of keys) {
                 const option = document.createElement("option");
-                option.value = name;
-                option.textContent = name;
+                option.value = key;
+                option.textContent = displayName(key);
                 select.appendChild(option);
             }
 
-            if (names.includes(current)) {
+            if (keys.includes(current)) {
                 select.value = current;
             }
 
             amountInput.max = toCents(accountsData[accountName].money) / 100;
-            document.getElementById("transfer-card").hidden = names.length === 0;
+            document.getElementById("transfer-card").hidden = keys.length === 0;
         }
 
         function toCents(value) {
@@ -1013,7 +1034,9 @@
 
                     const time = today();
                     const description = note || "账户转账";
-                    const common = { name: "转账", description, time, from: accountName, to: recipient };
+                    const senderName = sender.username || accountName;
+                    const targetName = target.username || recipient;
+                    const common = { name: "转账", description, time, from: senderName, to: targetName };
 
                     sender.money = fromCents(toCents(sender.money) - amountCents);
                     target.money = fromCents(toCents(target.money) + amountCents);
@@ -1022,7 +1045,7 @@
                     sender.trades.push({ ...common, price: `-${fromCents(amountCents)}` });
                     target.trades.push({ ...common, price: `+${fromCents(amountCents)}` });
 
-                    return `转账：${accountName} → ${recipient} ${fromCents(amountCents)} VTX`;
+                    return `转账：${senderName} → ${targetName} ${fromCents(amountCents)} VTX`;
                 });
 
                 accountsData = accounts;
@@ -1106,12 +1129,12 @@
                         description: "线下提款",
                         price: `-${amount}`,
                         time,
-                        from: accountName,
+                        from: account.username || accountName,
                         to: "XRingCR"
                     });
 
                     receiptText = `提款成功：${amount}VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给您纸币。提款时间：${time}`;
-                    return `提款：${accountName} -${amount} VTX`;
+                    return `提款：${account.username || accountName} -${amount} VTX`;
                 });
 
                 accountsData = accounts;
@@ -1216,8 +1239,8 @@
             }
         }
 
-        function isValidAccount(account, name) {
-            return Boolean(account) && account.name === name
+        function isValidAccount(account) {
+            return Boolean(account)
                 && Number.isFinite(Number(account.money)) && Number(account.money) >= 0;
         }
 
@@ -1239,12 +1262,12 @@
                 let accounts = await readAccountSnapshot();
                 let account = accounts[accountName];
 
-                if (!isValidAccount(account, accountName)) {
+                if (!isValidAccount(account)) {
                     accounts = await window.VTXApi.readAll();
                     account = accounts[accountName];
                 }
 
-                if (!isValidAccount(account, accountName)) {
+                if (!isValidAccount(account)) {
                     sessionStorage.removeItem("vtxAccount");
                     showError("账户数据不存在或格式无效，请重新登录或检查账户数据文件。");
                     return;
