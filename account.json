@@ -76,7 +76,10 @@
                 "to": "Decrive 音游",
                 "price": "-5.00"
             }
-        ]
+        ],
+        "data": {
+            "decriveBoost": 1
+        }
     },
     "Fanjiayue": {
         "username": "范佳玥",
