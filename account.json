@@ -2,7 +2,7 @@
     "Kitawaga": {
         "username": "刘浩天（站主）",
         "password": "100%Security",
-        "money": "7550.00",
+        "money": "7514.45",
         "trades": [
             {
                 "name": "Developments",
@@ -51,6 +51,14 @@
                 "from": "刘浩天（站主）",
                 "to": "张深深",
                 "price": "-2500.00"
+            },
+            {
+                "name": "AI 生图",
+                "description": "GPT Image 2 · 提示词 44 字符",
+                "price": "-35.55",
+                "time": "2026/10/17 15:56:29",
+                "from": "刘浩天（站主）",
+                "to": "AI"
             }
         ]
     },
