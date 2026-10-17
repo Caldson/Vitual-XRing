@@ -78,7 +78,30 @@
             }
         ],
         "data": {
-            "decriveBoost": 1
+            "decriveBoost": 1,
+            "decriveStats": {
+                "charts": {
+                    "official-neon-afterglow": {
+                        "title": "Neon Afterglow",
+                        "best": 25692,
+                        "last": 25692,
+                        "bestCombo": 32,
+                        "grade": "B",
+                        "plays": 1,
+                        "boost": true,
+                        "updatedAt": "2026-10-17T10:42:57.248Z"
+                    }
+                },
+                "last": {
+                    "chartId": "official-neon-afterglow",
+                    "title": "Neon Afterglow",
+                    "score": 25692,
+                    "combo": 32,
+                    "grade": "B",
+                    "boost": true,
+                    "time": "2026-10-17T10:42:57.248Z"
+                }
+            }
         }
     },
     "Fanjiayue": {
