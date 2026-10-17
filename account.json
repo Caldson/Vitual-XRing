@@ -116,16 +116,26 @@
                         "plays": 1,
                         "boost": true,
                         "updatedAt": "2026-10-17T13:51:02.425Z"
+                    },
+                    "official-life-just-like-short-2": {
+                        "title": "Life just like Short 2",
+                        "best": 315064,
+                        "last": 315064,
+                        "bestCombo": 43,
+                        "grade": "C",
+                        "plays": 1,
+                        "boost": false,
+                        "updatedAt": "2026-10-17T16:05:15.869Z"
                     }
                 },
                 "last": {
-                    "chartId": "official-neon-afterglow",
-                    "title": "Neon Afterglow",
-                    "score": 16140,
-                    "combo": 32,
+                    "chartId": "official-life-just-like-short-2",
+                    "title": "Life just like Short 2",
+                    "score": 315064,
+                    "combo": 43,
                     "grade": "C",
                     "boost": false,
-                    "time": "2026-10-17T16:02:04.456Z"
+                    "time": "2026-10-17T16:05:15.869Z"
                 }
             }
         }
