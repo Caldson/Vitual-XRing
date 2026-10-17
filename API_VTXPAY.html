@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>收款 / 付款 | Vitual XRing</title>
+    <style>
+        :root {
+            color-scheme: light;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 18px;
+            background: linear-gradient(160deg, #eef3ff 0%, #f8fafc 45%, #eef6f4 100%);
+            font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+            color: #1f2937;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 430px;
+            padding: 34px 30px 28px;
+            border-radius: 20px;
+            background: #ffffff;
+            box-shadow: 0 24px 60px rgba(31, 58, 118, 0.13);
+        }
+
+        .brand-mark {
+            width: 46px;
+            height: 46px;
+            margin: 0 auto 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 14px;
+            color: #ffffff;
+            background: linear-gradient(140deg, #4f7ef7, #3158d1);
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        h1 {
+            margin: 0 0 6px;
+            font-size: 21px;
+            text-align: center;
+            letter-spacing: -0.01em;
+        }
+
+        .subtitle {
+            margin: 0 0 22px;
+            color: #7d8899;
+            font-size: 13.5px;
+            text-align: center;
+        }
+
+        .field {
+            margin-bottom: 14px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #55617a;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px 13px;
+            border: 1px solid #dbe2ee;
+            border-radius: 11px;
+            background: #fbfcfe;
+            color: #1f2937;
+            font-size: 14.5px;
+            font-family: inherit;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #6b8ff5;
+            box-shadow: 0 0 0 3px rgba(107, 143, 245, 0.16);
+        }
+
+        .type-switch {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 18px;
+            padding: 5px;
+            border-radius: 13px;
+            background: #f1f4fa;
+        }
+
+        .type-switch button {
+            padding: 9px 0;
+            border: none;
+            border-radius: 9px;
+            background: transparent;
+            color: #64708a;
+            font-size: 14px;
+            font-weight: 650;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+        }
+
+        .type-switch button[aria-pressed="true"] {
+            background: #ffffff;
+            color: #3158d1;
+            box-shadow: 0 2px 10px rgba(49, 88, 209, 0.14);
+        }
+
+        .type-switch button[aria-pressed="true"][data-kind="receipt"] {
+            color: #12855d;
+        }
+
+        button.primary {
+            width: 100%;
+            margin-top: 6px;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #4f7ef7, #3158d1);
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: transform 0.12s, box-shadow 0.15s, opacity 0.15s;
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 10px 22px rgba(49, 88, 209, 0.24);
+        }
+
+        button.primary:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        button.primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        button.primary[data-kind="receipt"] {
+            background: linear-gradient(135deg, #35c389, #12855d);
+        }
+
+        button.ghost {
+            padding: 9px 15px;
+            border: 1px solid #dbe2ee;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #4a5568;
+            font-size: 13.5px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .message {
+            min-height: 20px;
+            margin: 12px 0 0;
+            color: #d64545;
+            font-size: 13px;
+            line-height: 1.55;
+            text-align: center;
+        }
+
+        .message.ok {
+            color: #12855d;
+        }
+
+        .balance-card {
+            margin-bottom: 18px;
+            padding: 14px 16px;
+            border: 1px solid #e7ecf6;
+            border-radius: 13px;
+            background: #f7f9fe;
+            text-align: center;
+        }
+
+        .balance-card span {
+            display: block;
+            color: #7d8899;
+            font-size: 12.5px;
+        }
+
+        .balance-card strong {
+            display: block;
+            margin-top: 3px;
+            color: #3158d1;
+            font-size: 25px;
+            font-weight: 750;
+            letter-spacing: -0.02em;
+        }
+
+        .record {
+            padding: 14px 16px;
+            border: 1px solid #e2ecff;
+            border-radius: 13px;
+            background: #f6f9ff;
+            font-size: 13.5px;
+            line-height: 1.75;
+            color: #46536b;
+        }
+
+        .record dl {
+            margin: 0;
+            display: grid;
+            grid-template-columns: 68px 1fr;
+            gap: 2px 10px;
+        }
+
+        .record dt {
+            color: #8b95a8;
+        }
+
+        .record dd {
+            margin: 0;
+            word-break: break-all;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .result-actions button {
+            flex: 1;
+        }
+
+        .hint {
+            margin: 18px 0 0;
+            color: #9aa4b6;
+            font-size: 12px;
+            line-height: 1.6;
+            text-align: center;
+            word-break: break-all;
+        }
+
+        .version-badge {
+            position: fixed;
+            top: 18px;
+            right: 20px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            color: #3158d1;
+            background: #eef2ff;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <span class="version-badge">v4.2</span>
+
+    <main class="card">
+        <div class="brand-mark" aria-hidden="true">V</div>
+        <h1>收款 / 付款</h1>
+        <p class="subtitle">记账需要输入账户密码确认。</p>
+
+        <section id="login-view" hidden>
+            <div class="field">
+                <label for="login-name">登录账户名</label>
+                <input id="login-name" type="text" autocomplete="username" required>
+            </div>
+            <div class="field">
+                <label for="login-password">密码</label>
+                <input id="login-password" type="password" autocomplete="current-password" required>
+            </div>
+            <button id="login-button" class="primary" type="button">登录</button>
+            <p id="login-message" class="message" role="alert" aria-live="polite"></p>
+        </section>
+
+        <section id="pay-view" hidden>
+            <div class="balance-card">
+                <span id="account-name">—</span>
+                <strong id="account-money">0.00 VTX</strong>
+            </div>
+
+            <div class="type-switch" role="group" aria-label="记账类型">
+                <button id="type-payment" type="button" data-kind="payment" aria-pressed="true">付款</button>
+                <button id="type-receipt" type="button" data-kind="receipt" aria-pressed="false">收款</button>
+            </div>
+
+            <div class="field">
+                <label id="party-label" for="party">收款方</label>
+                <input id="party" type="text" maxlength="40" placeholder="账户显示名或网站名">
+            </div>
+
+            <div class="field">
+                <label for="amount">金额（VTX）</label>
+                <input id="amount" type="text" inputmode="decimal" placeholder="0.00">
+            </div>
+
+            <div class="field">
+                <label for="description">描述（选填）</label>
+                <input id="description" type="text" maxlength="200" placeholder="例如：购买道具">
+            </div>
+
+            <div class="field">
+                <label for="confirm-password">密码（确认支付）</label>
+                <input id="confirm-password" type="password" autocomplete="current-password">
+            </div>
+
+            <button id="submit-button" class="primary" type="button" data-kind="payment">确认付款</button>
+            <p id="pay-message" class="message" role="alert" aria-live="polite"></p>
+        </section>
+
+        <section id="result-view" hidden>
+            <div class="balance-card">
+                <span>最新余额</span>
+                <strong id="result-money">0.00 VTX</strong>
+            </div>
+            <div class="record">
+                <dl>
+                    <dt>名称</dt><dd id="record-name">—</dd>
+                    <dt>金额</dt><dd id="record-price">—</dd>
+                    <dt>流向</dt><dd id="record-flow">—</dd>
+                    <dt>描述</dt><dd id="record-description">—</dd>
+                    <dt>时间</dt><dd id="record-time">—</dd>
+                </dl>
+            </div>
+            <div class="result-actions">
+                <button class="ghost" type="button" id="again-button">再记一笔</button>
+                <button class="ghost" type="button" id="logout-button">退出登录</button>
+            </div>
+        </section>
+
+        <p id="api-hint" class="hint"></p>
+    </main>
+
+    <script src="vtx-sdk.js?v=4.2.1"></script>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const PRODUCTION_API = "https://xsmmc.caldson.us.ci";
+        const isLocalPreview = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/.test(window.location.hostname);
+        const apiBase = (params.get("api") || (isLocalPreview ? PRODUCTION_API : window.location.origin)).replace(/\/+$/, "");
+
+        const elements = {
+            loginView: document.getElementById("login-view"),
+            payView: document.getElementById("pay-view"),
+            resultView: document.getElementById("result-view"),
+            loginName: document.getElementById("login-name"),
+            loginPassword: document.getElementById("login-password"),
+            loginButton: document.getElementById("login-button"),
+            loginMessage: document.getElementById("login-message"),
+            accountName: document.getElementById("account-name"),
+            accountMoney: document.getElementById("account-money"),
+            typePayment: document.getElementById("type-payment"),
+            typeReceipt: document.getElementById("type-receipt"),
+            partyLabel: document.getElementById("party-label"),
+            party: document.getElementById("party"),
+            amount: document.getElementById("amount"),
+            description: document.getElementById("description"),
+            confirmPassword: document.getElementById("confirm-password"),
+            submitButton: document.getElementById("submit-button"),
+            payMessage: document.getElementById("pay-message"),
+            resultMoney: document.getElementById("result-money"),
+            recordName: document.getElementById("record-name"),
+            recordPrice: document.getElementById("record-price"),
+            recordFlow: document.getElementById("record-flow"),
+            recordDescription: document.getElementById("record-description"),
+            recordTime: document.getElementById("record-time"),
+            againButton: document.getElementById("again-button"),
+            logoutButton: document.getElementById("logout-button"),
+            hint: document.getElementById("api-hint")
+        };
+
+        let account = null;
+        let kind = params.get("type") === "receipt" ? "receipt" : "payment";
+
+        function formatMoney(value) {
+            const amount = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+            if (!Number.isFinite(amount)) {
+                return String(value ?? "—");
+            }
+            return new Intl.NumberFormat("zh-CN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(amount);
+        }
+
+        function setMessage(element, text, ok) {
+            element.textContent = text || "";
+            element.className = ok ? "message ok" : "message";
+        }
+
+        function show(view) {
+            elements.loginView.hidden = view !== "login";
+            elements.payView.hidden = view !== "pay";
+            elements.resultView.hidden = view !== "result";
+        }
+
+        function applyKind() {
+            const isPayment = kind === "payment";
+            elements.typePayment.setAttribute("aria-pressed", String(isPayment));
+            elements.typeReceipt.setAttribute("aria-pressed", String(!isPayment));
+            elements.partyLabel.textContent = isPayment ? "付款给" : "收款来自";
+            elements.party.placeholder = isPayment ? "账户显示名或网站名" : "账户显示名或网站名";
+            elements.submitButton.textContent = isPayment ? "确认付款" : "确认收款";
+            elements.submitButton.dataset.kind = kind;
+            elements.amount.value = "";
+            setMessage(elements.payMessage, "", false);
+        }
+
+        function renderAccount() {
+            elements.accountName.textContent = `${account.username || "账户"}（${account.login}）`;
+            elements.accountMoney.textContent = `${formatMoney(account.money)} VTX`;
+        }
+
+        function describeError(error) {
+            if (!error) {
+                return "操作失败，请重试。";
+            }
+            if (error instanceof TypeError) {
+                return `无法连接 API（${apiBase}），请确认 Worker 已部署且地址正确。`;
+            }
+            if (error.code === "not_json" || error.status === 404) {
+                return `${apiBase} 没有 /api 接口。本地静态服务器不含 Worker，请先部署 Worker，或用 ?api=<Worker地址> 指定。`;
+            }
+            if (error.code === "invalid_password") {
+                return "密码不正确，记账已取消。";
+            }
+            if (error.code === "insufficient_funds") {
+                return error.message || "余额不足。";
+            }
+            if (error.code === "invalid_credentials") {
+                return "登录名或密码不正确。";
+            }
+            return error.message || "操作失败，请重试。";
+        }
+
+        async function loadSession() {
+            if (!window.VTX.isLoggedIn()) {
+                show("login");
+                elements.loginName.focus();
+                return;
+            }
+
+            try {
+                const result = await window.VTX.me();
+                account = {
+                    login: result.login,
+                    username: result.account.username,
+                    money: result.account.money
+                };
+                renderAccount();
+                applyKind();
+                show("pay");
+                elements.party.focus();
+            } catch (error) {
+                window.VTX.logout();
+                show("login");
+                setMessage(elements.loginMessage, describeError(error), false);
+            }
+        }
+
+        async function handleLogin() {
+            const login = elements.loginName.value.trim();
+            const password = elements.loginPassword.value;
+
+            if (!login || !password) {
+                setMessage(elements.loginMessage, "请填写登录账户名和密码。", false);
+                return;
+            }
+
+            elements.loginButton.disabled = true;
+            setMessage(elements.loginMessage, "", false);
+
+            try {
+                const result = await window.VTX.login(login, password);
+                account = {
+                    login: result.login,
+                    username: result.account.username,
+                    money: result.account.money
+                };
+                elements.loginPassword.value = "";
+                renderAccount();
+                applyKind();
+                show("pay");
+                elements.party.focus();
+            } catch (error) {
+                setMessage(elements.loginMessage, describeError(error), false);
+            } finally {
+                elements.loginButton.disabled = false;
+            }
+        }
+
+        function validate() {
+            const party = elements.party.value.trim();
+            const amount = elements.amount.value.trim();
+            const password = elements.confirmPassword.value;
+
+            if (!party) {
+                return kind === "payment" ? "请填写付款给谁。" : "请填写收款来自谁。";
+            }
+            if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) {
+                return "金额必须是大于 0 的数字，最多两位小数。";
+            }
+            if (!password) {
+                return "请输入密码确认。";
+            }
+            return "";
+        }
+
+        async function handleSubmit() {
+            const problem = validate();
+
+            if (problem) {
+                setMessage(elements.payMessage, problem, false);
+                return;
+            }
+
+            const payload = {
+                amount: elements.amount.value.trim(),
+                party: elements.party.value.trim(),
+                description: elements.description.value.trim(),
+                password: elements.confirmPassword.value
+            };
+
+            elements.submitButton.disabled = true;
+            setMessage(elements.payMessage, "正在提交…", true);
+
+            try {
+                const result = kind === "payment"
+                    ? await window.VTX.pay(payload)
+                    : await window.VTX.receive(payload);
+
+                const trade = result.trade || {};
+                account.money = result.account.money;
+
+                elements.resultMoney.textContent = `${formatMoney(result.account.money)} VTX`;
+                elements.recordName.textContent = trade.name || (kind === "payment" ? "付款" : "收款");
+                elements.recordPrice.textContent = trade.price || "";
+                elements.recordFlow.textContent = trade.from && trade.to
+                    ? `来自 ${trade.from} 入账 ${trade.to}`
+                    : (trade.from || trade.to || "—");
+                elements.recordDescription.textContent = trade.description || "（无）";
+                elements.recordTime.textContent = trade.time || "—";
+
+                elements.confirmPassword.value = "";
+                elements.amount.value = "";
+                elements.description.value = "";
+                show("result");
+            } catch (error) {
+                setMessage(elements.payMessage, describeError(error), false);
+            } finally {
+                elements.submitButton.disabled = false;
+            }
+        }
+
+        elements.typePayment.addEventListener("click", () => {
+            kind = "payment";
+            applyKind();
+        });
+        elements.typeReceipt.addEventListener("click", () => {
+            kind = "receipt";
+            applyKind();
+        });
+
+        elements.loginButton.addEventListener("click", handleLogin);
+        elements.loginPassword.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                handleLogin();
+            }
+        });
+        elements.submitButton.addEventListener("click", handleSubmit);
+        elements.confirmPassword.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                handleSubmit();
+            }
+        });
+        elements.againButton.addEventListener("click", () => {
+            renderAccount();
+            applyKind();
+            show("pay");
+            elements.party.focus();
+        });
+        elements.logoutButton.addEventListener("click", () => {
+            window.VTX.logout();
+            account = null;
+            elements.loginName.value = "";
+            elements.loginPassword.value = "";
+            setMessage(elements.loginMessage, "", false);
+            show("login");
+            elements.loginName.focus();
+        });
+
+        window.VTX.configure({ baseUrl: apiBase });
+        elements.hint.textContent = `API：${apiBase}${isLocalPreview ? "（本地预览，默认连线上 Worker；可用 ?api=覆盖）" : ""}`;
+
+        loadSession();
+    </script>
+</body>
+</html>

@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.1.0`
+- API 版本：`1.2.0`
 
 ---
 
@@ -122,6 +122,8 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | DELETE | `/api/me/data/{键}` | 是 | 删除自己的某个自定义键 |
 | PUT | `/api/accounts/{登录名}/data` | 是 | 同上，显式指定账户（只能是自己） |
 | DELETE | `/api/accounts/{登录名}/data/{键}` | 是 | 同上 |
+| POST | `/api/me/trades` | 是 | 记一笔收款 / 付款（需密码确认） |
+| POST | `/api/accounts/{登录名}/trades` | 是 | 同上，显式指定账户（只能是自己） |
 
 `GET /` 与 `GET /api` 同样返回健康检查结果。
 
@@ -307,6 +309,82 @@ DELETE /api/accounts/{登录名}/data/{键}
 
 ---
 
+### 4.8 记一笔收款 / 付款
+
+给自己的账户追加一条交易记录，并同步修改余额。**必须携带账户密码**（二次确认，防止 token 被盗后被刷）。
+
+```
+POST /api/me/trades
+authorization: Bearer <token>
+content-type: application/json
+
+{
+    "type": "payment",
+    "amount": "12.34",
+    "party": "示例网站",
+    "description": "购买道具",
+    "password": "账户密码"
+}
+```
+
+也可用显式账户路径（`{登录名}` 必须是自己）：
+
+```
+POST /api/accounts/{登录名}/trades
+```
+
+**请求字段**
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `type` | 是 | `payment`（付款，扣余额）或 `receipt`（收款，加余额） |
+| `amount` | 是 | 正数字符串或数字，最多两位小数，单笔上限 `1000000.00` |
+| `party` | 是 | 付款填**去向**，收款填**来源**（账户显示名或网站名），最长 40 字符 |
+| `description` | 否 | 备注，最长 200 字符 |
+| `name` | 否 | 记录名称，默认 `付款` / `收款`，最长 20 字符 |
+| `password` | 是 | 当前账户的登录密码 |
+
+**生成的记录**
+
+| `type` | `name` | `price` | `from` | `to` |
+|---|---|---|---|---|
+| `payment` | `付款` | `-12.34` | 本人显示名 | `party` |
+| `receipt` | `收款` | `+12.34` | `party` | 本人显示名 |
+
+`time` 为北京时间 `YYYY/MM/DD HH:mm:ss`。
+
+**响应 `200`**
+
+```json
+{
+    "ok": true,
+    "login": "账户名称",
+    "trade": {
+        "name": "付款",
+        "description": "购买道具",
+        "time": "2026/10/17 18:30:12",
+        "from": "用户名",
+        "to": "示例网站",
+        "price": "-12.34"
+    },
+    "account": { "username": "用户名", "money": "87.66", "trades": [], "data": {} }
+}
+```
+
+**约束**
+
+| 项目 | 限制 |
+|---|---|
+| 密码 | 必须与账户当前密码一致，否则 `400 invalid_password`（不会产生记录） |
+| 余额 | `payment` 时余额必须足够，否则 `400 insufficient_funds` |
+| 权限 | 只能给自己记账（token 的 `sub` 必须等于 `{登录名}`），否则 `403 forbidden` |
+| 频率 | 每 IP 每分钟 20 次，超出 `429 too_many_requests` |
+| 并发 | 余额校验与写入在同一次提交内完成，服务端冲突自动重试 3 次 |
+
+> 这条接口只做**记账**：`party` 是自由文本，不会给对方账户加减钱。需要账户间真实转账，请在站内 `manager.html` 操作。
+
+---
+
 ## 5. 错误响应格式
 
 所有错误统一为：
@@ -318,6 +396,8 @@ DELETE /api/accounts/{登录名}/data/{键}
 | 状态码 | `error` | 含义 |
 |---|---|---|
 | 400 | `bad_request` | 参数缺失、格式错误、键名不合法 |
+| 400 | `invalid_password` | 记账时密码不正确 |
+| 400 | `insufficient_funds` | 付款金额超过当前余额 |
 | 401 | `unauthorized` | 缺少 / 无效 / 过期的 Bearer token |
 | 401 | `invalid_credentials` | 登录名或密码错误 |
 | 403 | `origin_not_allowed` | 请求来源不在 CORS 白名单 |
@@ -366,6 +446,9 @@ DELETE /api/accounts/{登录名}/data/{键}
 | `VTX.account(login)` | 单个账户 |
 | `VTX.setData(values)` | 写入自己的自定义数据（合并），返回 `{ ok, login, keys, data }` |
 | `VTX.deleteData(key)` | 删除自己的某个数据键 |
+| `VTX.pay({ amount, party, description, password })` | 记一笔付款（扣余额） |
+| `VTX.receive({ amount, party, description, password })` | 记一笔收款（加余额） |
+| `VTX.trade({ type, amount, party, description, name, password })` | 上面两个的通用形式 |
 | `VTX.getToken()` | 当前 token（无则空字符串） |
 | `VTX.baseUrl` | 当前生效的 API 地址 |
 
@@ -396,6 +479,24 @@ console.log(me.account.data.gameScore);
 
 // 删除某个键
 await VTX.deleteData("level");
+```
+
+**记账示例**
+
+```js
+await VTX.login("账户名称", "密码");
+
+// 付款 12.34 VTX 给某个网站
+const paid = await VTX.pay({
+    amount: "12.34",
+    party: "示例网站",
+    description: "购买道具",   // 选填
+    password: "账户密码"       // 必填：二次确认
+});
+console.log(paid.trade.price, paid.account.money);   // -12.34  87.66
+
+// 收款 5.00 VTX 来自某个网站
+await VTX.receive({ amount: "5.00", party: "游戏站", password: "账户密码" });
 ```
 
 ---
@@ -466,6 +567,38 @@ https://example.com/callback?vtx_login=账户名称&vtx_token=<token>&vtx_money=
 若该 JSON 过长（> 6000 字符），退化为 `vtx_login`、`vtx_token`、`vtx_money` 三个参数。
 
 > `redirect` 会把 token 拼进 URL，注意它可能出现在浏览器历史与服务器日志中。对安全性要求高的场景，建议改用弹窗 + `postMessage` 方式。
+
+---
+
+## 9.1 记账页（API_VTXPAY.html）
+
+给其它站点用的收款 / 付款页面，背后调用 `POST /api/me/trades`。
+
+**地址**
+
+```
+https://xsmmc.caldson.us.ci/API_VTXPAY.html
+```
+
+**可选参数**
+
+| 参数 | 说明 |
+|---|---|
+| `api` | API 地址，规则与 `API_LOGIN.html` 相同 |
+| `type` | `payment`（默认）或 `receipt`，决定打开时的初始页签 |
+
+**流程**
+
+1. 已有有效 token 时调 `GET /api/me` 自动登录，否则显示登录表单
+2. 选择「付款 / 收款」，填对方、金额、描述（选填）、**密码**
+3. 提交后页面展示记录详情（名称 / 金额 / 流向 / 描述 / 时间）与最新余额
+
+站内也可用 iframe 嵌它，把 `type=payment` 直接落到付款页签：
+
+```html
+<iframe src="https://xsmmc.caldson.us.ci/API_VTXPAY.html?type=payment"
+        style="width:440px;height:640px;border:0"></iframe>
+```
 
 ---
 
