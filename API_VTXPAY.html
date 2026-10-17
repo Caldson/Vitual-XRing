@@ -269,7 +269,7 @@
     </style>
 </head>
 <body>
-    <span class="version-badge">v4.2</span>
+    <span class="version-badge">v4.3</span>
 
     <main class="card">
         <div class="brand-mark" aria-hidden="true">V</div>
@@ -347,13 +347,23 @@
         <p id="api-hint" class="hint"></p>
     </main>
 
-    <script src="vtx-sdk.js?v=4.2.1"></script>
+    <script src="vtx-sdk.js?v=4.3"></script>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const PRODUCTION_API = "https://xsmmc.caldson.us.ci";
         const isLocalPreview = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/.test(window.location.hostname);
         const apiBase = (params.get("api") || (isLocalPreview ? PRODUCTION_API : window.location.origin)).replace(/\/+$/, "");
+
+        // 由其它站点调用时可预填字段，并在付款成功后回传结果
+        const preset = {
+            party: params.get("party") || "",
+            amount: params.get("amount") || "",
+            description: params.get("description") || "",
+            name: params.get("name") || "",
+            lock: params.get("lock") === "1",
+            close: params.get("close") === "1"
+        };
 
         const elements = {
             loginView: document.getElementById("login-view"),
@@ -418,7 +428,21 @@
             elements.party.placeholder = isPayment ? "账户显示名或网站名" : "账户显示名或网站名";
             elements.submitButton.textContent = isPayment ? "确认付款" : "确认收款";
             elements.submitButton.dataset.kind = kind;
-            elements.amount.value = "";
+
+            if (preset.party) elements.party.value = preset.party;
+            if (preset.amount) elements.amount.value = preset.amount;
+            if (preset.description) elements.description.value = preset.description;
+
+            if (preset.lock) {
+                elements.typePayment.disabled = true;
+                elements.typeReceipt.disabled = true;
+                elements.party.readOnly = true;
+                elements.amount.readOnly = true;
+                elements.description.readOnly = true;
+            } else {
+                elements.amount.value = "";
+            }
+
             setMessage(elements.payMessage, "", false);
         }
 
@@ -558,9 +582,38 @@
                 elements.recordTime.textContent = trade.time || "—";
 
                 elements.confirmPassword.value = "";
-                elements.amount.value = "";
-                elements.description.value = "";
+                if (!preset.lock) {
+                    elements.amount.value = "";
+                    elements.description.value = "";
+                }
                 show("result");
+
+                const message = {
+                    type: "vtx-pay",
+                    ok: true,
+                    kind,
+                    trade: result.trade || null,
+                    account: result.account || null
+                };
+
+                if (window.opener && !window.opener.closed) {
+                    try {
+                        window.opener.postMessage(message, "*");
+                    } catch (error) {
+                        /* 忽略跨窗口错误 */
+                    }
+                }
+                if (window.parent && window.parent !== window) {
+                    try {
+                        window.parent.postMessage(message, "*");
+                    } catch (error) {
+                        /* 忽略跨窗口错误 */
+                    }
+                }
+
+                if (preset.close) {
+                    window.setTimeout(() => window.close(), 1200);
+                }
             } catch (error) {
                 setMessage(elements.payMessage, describeError(error), false);
             } finally {

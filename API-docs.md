@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.2.0`
+- API 版本：`1.3.0`
 
 ---
 
@@ -115,6 +115,7 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 |---|---|---|---|
 | GET | `/api/health` | 否 | 健康检查 |
 | POST | `/api/login` | 否 | 登录，换取 token |
+| POST | `/api/register` | 否 | 创建账户并直接登录 |
 | GET | `/api/me` | 是 | 当前登录账户信息 |
 | GET | `/api/accounts` | 是 | 全部账户 |
 | GET | `/api/accounts/{登录名}` | 是 | 单个账户 |
@@ -177,6 +178,49 @@ content-type: application/json
 | 500 | `server_misconfigured` | 服务端未配置 `SIGNING_SECRET` |
 
 > 登录名 = `account.json` 的键；**用显示用户名（nickname）登录会失败**，除非两者相同。
+
+---
+
+### 4.2.1 创建账户
+
+创建新账户并**直接返回 token**（相当于注册后自动登录）。
+
+```
+POST /api/register
+content-type: application/json
+
+{
+    "login": "账户名称",
+    "password": "至少 6 位",
+    "username": "显示名称（选填）"
+}
+```
+
+**响应 `201`**
+
+```json
+{
+    "token": "eyJzdWIiOi...",
+    "expiresAt": "2026-10-18T04:00:00.000Z",
+    "login": "账户名称",
+    "created": true,
+    "account": { "username": "显示名称", "money": "0.00", "trades": [], "data": {} }
+}
+```
+
+**约束**
+
+| 项目 | 限制 |
+|---|---|
+| 登录名 | 2–20 个字符，**不能包含空格**，全局唯一 |
+| 密码 | 至少 6 个字符 |
+| 显示名称 | 最多 24 个字符，留空则与登录名相同 |
+| 初始余额 | `0.00` VTX |
+| 频率 | 每 IP 每分钟 5 次 |
+| 账户上限 | 500 个 |
+| 服务端 | 必须配置 `GITHUB_TOKEN`，否则返回 `503 write_unavailable` |
+
+登录名已被占用时返回 `409 account_exists`。
 
 ---
 
@@ -398,6 +442,7 @@ POST /api/accounts/{登录名}/trades
 | 400 | `bad_request` | 参数缺失、格式错误、键名不合法 |
 | 400 | `invalid_password` | 记账时密码不正确 |
 | 400 | `insufficient_funds` | 付款金额超过当前余额 |
+| 409 | `account_exists` | 创建账户时登录名已被占用 |
 | 401 | `unauthorized` | 缺少 / 无效 / 过期的 Bearer token |
 | 401 | `invalid_credentials` | 登录名或密码错误 |
 | 403 | `origin_not_allowed` | 请求来源不在 CORS 白名单 |
@@ -439,6 +484,8 @@ POST /api/accounts/{登录名}/trades
 |---|---|
 | `VTX.configure({ baseUrl })` | 设置 API 地址（必需，末尾斜杠会自动去除并持久化） |
 | `VTX.login(login, password)` | 登录，成功后自动保存 token，返回登录响应 |
+| `VTX.register({ login, password, username })` | 创建账户并自动登录，返回带 `created: true` 的响应 |
+| `VTX.setToken(token)` | 采纳外部（如 `API_LOGIN.html` 弹窗）拿到的 token |
 | `VTX.logout()` | 清除本地 token |
 | `VTX.isLoggedIn()` | 是否有 token |
 | `VTX.me()` | 当前账户 |
@@ -517,11 +564,14 @@ https://xsmmc.caldson.us.ci/API_LOGIN.html
 |---|---|
 | `api` | API 地址，默认当前域名；本地静态预览（`localhost` / `127.0.0.1`）时默认 `https://xsmmc.caldson.us.ci`，跨域或本地 Worker 时用它覆盖 |
 | `redirect` | 登录成功后跳回的地址，会附带 `vtx_*` 参数 |
+| `tab` | `register` 时直接打开「创建账户」标签页 |
+| `embed` | `1` 表示被 iframe 嵌入：**跳过自动登录**，始终显示表单 |
 
 **示例**
 
 ```
 https://xsmmc.caldson.us.ci/API_LOGIN.html?redirect=https://example.com/callback
+https://xsmmc.caldson.us.ci/API_LOGIN.html?tab=register
 ```
 
 登录成功后跳转到：
@@ -538,9 +588,9 @@ https://example.com/callback?vtx_login=账户名称&vtx_token=<token>&vtx_money=
 
 **行为**
 
-1. 若浏览器中已有有效 token（`VTX.isLoggedIn()`），调用 `GET /api/me` 自动登录
-2. 自动登录失败或没有 token 时，显示「登录账户名 + 密码」表单
-3. 成功后页面返回 **`VTX.login()` 的完整结果**（与 SDK 返回值一致），并提供「复制完整结果」「复制 token」「退出」
+1. 若浏览器中已有有效 token（`VTX.isLoggedIn()`）且未带 `embed=1`，调用 `GET /api/me` 自动登录
+2. 否则显示「登录 / 创建账户」两个标签页
+3. 成功后页面返回 **`VTX.login()` 的完整结果**（创建账户时额外带 `created: true`），并提供「复制完整结果」「复制 token」「退出」
 
 **返回值（与 `VTX.login()` 相同）**
 
@@ -557,7 +607,7 @@ https://example.com/callback?vtx_login=账户名称&vtx_token=<token>&vtx_money=
 }
 ```
 
-**弹窗方式**：向 `window.opener` 发送
+**弹窗 / 内嵌方式**：向 `window.opener` 以及 `window.parent`（iframe 嵌入时）发送
 
 ```js
 { type: "vtx-login", ok: true, result: /* 上面这个对象 */ }
@@ -586,6 +636,24 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html
 |---|---|
 | `api` | API 地址，规则与 `API_LOGIN.html` 相同 |
 | `type` | `payment`（默认）或 `receipt`，决定打开时的初始页签 |
+| `party` | 预填对方（付款去向 / 收款来源） |
+| `amount` | 预填金额，如 `5.00` |
+| `description` | 预填描述 |
+| `lock` | `1` 时锁定上述字段且禁止切换付款/收款（用于固定商品） |
+| `close` | `1` 时付款成功后自动关闭窗口（仅对弹窗有效） |
+| `embed` | `1` 表示被 iframe 嵌入 |
+
+**示例（固定商品付款）**
+
+```
+https://xsmmc.caldson.us.ci/API_VTXPAY.html?party=Decrive%20音游&amount=5.00&description=全%20PERFECT%20道具&lock=1
+```
+
+**成功回调**：向 `window.opener` 与 `window.parent` 发送
+
+```js
+{ type: "vtx-pay", ok: true, kind: "payment", trade: { /* Trade */ }, account: { /* Account */ } }
+```
 
 **流程**
 

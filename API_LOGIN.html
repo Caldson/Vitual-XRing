@@ -142,6 +142,37 @@
             color: #1f7a52;
         }
 
+        .tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 22px;
+            padding: 5px;
+            border-radius: 14px;
+            background: #eef2f9;
+        }
+
+        .tabs button {
+            min-height: 40px;
+            margin: 0;
+            border-radius: 10px;
+            background: transparent;
+            color: #64708a;
+            font-size: 14px;
+            font-weight: 650;
+        }
+
+        .tabs button:hover {
+            background: rgba(255, 255, 255, 0.6);
+            color: #3158d1;
+        }
+
+        .tabs button.active {
+            background: #fff;
+            color: #3158d1;
+            box-shadow: 0 2px 10px rgba(49, 88, 209, 0.14);
+        }
+
         .auto-note {
             display: flex;
             align-items: center;
@@ -244,16 +275,21 @@
     </style>
 </head>
 <body>
-    <span class="version-badge">v4.2</span>
+    <span class="version-badge">v4.3</span>
 
     <main class="card">
         <div class="brand-mark" aria-hidden="true">V</div>
         <h1>API 登录</h1>
-        <p class="subtitle">登录 Vitual XRing 账户，返回 VTX 余额。</p>
+        <p class="subtitle">登录或创建 Vitual XRing 账户，返回 VTX 余额。</p>
 
         <div id="auto-login-note" class="auto-note" hidden>
             <span id="auto-login-text">正在自动登录…</span>
             <button id="switch-account" class="ghost-button" type="button">切换账户</button>
+        </div>
+
+        <div class="tabs" id="auth-tabs" role="tablist">
+            <button id="tab-login" class="active" type="button" role="tab" aria-selected="true">登录</button>
+            <button id="tab-register" type="button" role="tab" aria-selected="false">创建账户</button>
         </div>
 
         <form id="login-form">
@@ -269,11 +305,31 @@
             <p id="login-message" class="message" role="alert" aria-live="polite"></p>
         </form>
 
+        <form id="register-form" hidden>
+            <div class="field">
+                <label for="register-name">登录账户名</label>
+                <input id="register-name" type="text" maxlength="20" autocomplete="username" required placeholder="2-20 个字符，不能有空格">
+            </div>
+            <div class="field">
+                <label for="register-display">显示名称（选填）</label>
+                <input id="register-display" type="text" maxlength="24" autocomplete="nickname" placeholder="留空则与登录账户名相同">
+            </div>
+            <div class="field">
+                <label for="register-password">密码</label>
+                <input id="register-password" type="password" minlength="6" autocomplete="new-password" required placeholder="至少 6 个字符">
+            </div>
+            <div class="field">
+                <label for="register-confirm">确认密码</label>
+                <input id="register-confirm" type="password" minlength="6" autocomplete="new-password" required>
+            </div>
+            <button id="register-button" type="submit">创建并登录</button>
+            <p id="register-message" class="message" role="alert" aria-live="polite"></p>
+        </form>
+
         <div id="result" class="result" hidden>
             <h2>VTX 余额</h2>
             <p class="balance"><span id="result-money">—</span><span class="currency">VTX</span></p>
-            <p id="result-meta" class="result-meta"></p>
-            <pre id="result-json" class="token-box"></pre>
+            <p id="result-meta" class="result-meta"></p>            <pre id="result-json" class="token-box"></pre>
             <div class="result-actions">
                 <button id="copy-json" class="ghost-button" type="button">复制完整结果</button>
                 <button id="copy-token" class="ghost-button" type="button">复制 token</button>
@@ -284,7 +340,7 @@
         <p id="api-hint" class="hint"></p>
     </main>
 
-    <script src="vtx-sdk.js?v=4.2.1"></script>
+    <script src="vtx-sdk.js?v=4.3"></script>
 
     <script>
         const params = new URLSearchParams(window.location.search);
@@ -300,6 +356,16 @@
             password: document.getElementById("login-password"),
             button: document.getElementById("login-button"),
             message: document.getElementById("login-message"),
+            registerForm: document.getElementById("register-form"),
+            registerName: document.getElementById("register-name"),
+            registerDisplay: document.getElementById("register-display"),
+            registerPassword: document.getElementById("register-password"),
+            registerConfirm: document.getElementById("register-confirm"),
+            registerButton: document.getElementById("register-button"),
+            registerMessage: document.getElementById("register-message"),
+            tabs: document.getElementById("auth-tabs"),
+            tabLogin: document.getElementById("tab-login"),
+            tabRegister: document.getElementById("tab-register"),
             note: document.getElementById("auto-login-note"),
             noteText: document.getElementById("auto-login-text"),
             result: document.getElementById("result"),
@@ -332,6 +398,39 @@
             elements.message.textContent = text;
         }
 
+        function setRegisterMessage(text, ok) {
+            elements.registerMessage.className = ok ? "message ok" : "message";
+            elements.registerMessage.textContent = text || "";
+        }
+
+        function selectTab(name) {
+            const isLogin = name !== "register";
+            elements.form.hidden = !isLogin;
+            elements.registerForm.hidden = isLogin;
+            elements.tabs.hidden = false;
+            elements.tabLogin.classList.toggle("active", isLogin);
+            elements.tabRegister.classList.toggle("active", !isLogin);
+            elements.tabLogin.setAttribute("aria-selected", String(isLogin));
+            elements.tabRegister.setAttribute("aria-selected", String(!isLogin));
+            showError("");
+            setRegisterMessage("");
+            const focus = isLogin ? elements.name : elements.registerName;
+            if (focus) focus.focus();
+        }
+
+        function postResult(payload) {
+            const targets = [];
+            if (window.opener && !window.opener.closed) targets.push(window.opener);
+            if (window.parent && window.parent !== window) targets.push(window.parent);
+            for (const target of targets) {
+                try {
+                    target.postMessage(payload, "*");
+                } catch (error) {
+                    /* 忽略跨窗口错误 */
+                }
+            }
+        }
+
         /**
          * @param {object} result 与 VTX.login() 的返回值一致：
          *        { token, expiresAt, login, account: { username, money, trades } }
@@ -342,19 +441,15 @@
             const account = result.account || {};
 
             elements.form.hidden = true;
+            elements.registerForm.hidden = true;
+            elements.tabs.hidden = true;
             elements.note.hidden = true;
             elements.result.hidden = false;
             elements.money.textContent = formatMoney(account.money);
             elements.meta.textContent = `${account.username || result.login}（登录名 ${result.login}）`;
             elements.json.textContent = JSON.stringify(result, null, 2);
 
-            if (window.opener && !window.opener.closed) {
-                try {
-                    window.opener.postMessage({ type: "vtx-login", ok: true, result }, "*");
-                } catch (error) {
-                    /* 忽略跨窗口错误 */
-                }
-            }
+            postResult({ type: "vtx-login", ok: true, result });
 
             if (redirectUrl) {
                 try {
@@ -385,6 +480,8 @@
             elements.note.hidden = false;
             elements.noteText.textContent = "正在使用上次的登录状态…";
             elements.form.hidden = true;
+            elements.registerForm.hidden = true;
+            elements.tabs.hidden = true;
 
             try {
                 const data = await window.VTX.me();
@@ -398,6 +495,7 @@
             } catch (error) {
                 window.VTX.logout();
                 elements.note.hidden = true;
+                elements.tabs.hidden = false;
                 elements.form.hidden = false;
                 showError(error.status === 401 ? "登录状态已过期，请重新登录。" : error.message);
             }
@@ -410,11 +508,11 @@
             session = null;
             elements.note.hidden = true;
             elements.result.hidden = true;
-            elements.form.hidden = false;
+            elements.tabs.hidden = false;
             elements.name.value = "";
             elements.password.value = "";
             showError("");
-            elements.name.focus();
+            selectTab("login");
         });
 
         document.getElementById("copy-json").addEventListener("click", async () => {
@@ -444,9 +542,61 @@
             window.VTX.logout();
             session = null;
             elements.result.hidden = true;
-            elements.form.hidden = false;
+            elements.tabs.hidden = false;
             elements.password.value = "";
-            elements.name.focus();
+            selectTab("login");
+        });
+
+        elements.tabLogin.addEventListener("click", () => selectTab("login"));
+        elements.tabRegister.addEventListener("click", () => selectTab("register"));
+
+        elements.registerForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const login = elements.registerName.value.trim();
+            const display = elements.registerDisplay.value.trim();
+            const password = elements.registerPassword.value;
+            const confirm = elements.registerConfirm.value;
+
+            setRegisterMessage("");
+
+            if (!/^\S{2,20}$/.test(login)) {
+                setRegisterMessage("登录账户名需要 2-20 个字符，且不能包含空格。");
+                return;
+            }
+            if (password.length < 6) {
+                setRegisterMessage("密码至少 6 个字符。");
+                return;
+            }
+            if (password !== confirm) {
+                setRegisterMessage("两次输入的密码不一致。");
+                return;
+            }
+
+            elements.registerButton.disabled = true;
+            elements.registerButton.textContent = "正在创建…";
+
+            try {
+                const data = await window.VTX.register({ login, password, username: display });
+                elements.registerPassword.value = "";
+                elements.registerConfirm.value = "";
+                complete(data);
+            } catch (error) {
+                if (error.code === "account_exists") {
+                    setRegisterMessage("这个登录账户名已被占用，换一个试试。");
+                } else if (error.code === "write_unavailable") {
+                    setRegisterMessage("服务端暂不支持创建账户（未配置写入权限）。");
+                } else if (error instanceof TypeError) {
+                    setRegisterMessage(`无法连接 API（${apiBase}），请确认 Worker 已部署且地址正确。`);
+                } else if (error.code === "not_json" || error.status === 404) {
+                    setRegisterMessage(`${apiBase} 没有 /api 接口，请先部署 Worker。`);
+                } else {
+                    setRegisterMessage(error.message || "创建失败，请重试。");
+                }
+            } finally {
+                elements.registerButton.disabled = false;
+                elements.registerButton.textContent = "创建并登录";
+            }
         });
 
         elements.form.addEventListener("submit", async (event) => {
@@ -481,7 +631,12 @@
         window.VTX.configure({ baseUrl: apiBase });
         elements.hint.textContent = `API：${apiBase}${isLocalPreview ? "（本地预览，默认连线上 Worker；可用 ?api=覆盖）" : ""}`;
 
-        tryAutoLogin();
+        if (params.get("tab") === "register") selectTab("register");
+
+        // 被其它站点以 iframe 嵌入时不做自动登录，交给宿主页面自己管理会话
+        if (params.get("embed") !== "1") {
+            tryAutoLogin();
+        }
     </script>
 </body>
 </html>
