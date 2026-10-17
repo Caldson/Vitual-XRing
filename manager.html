@@ -473,7 +473,7 @@
 
         <section id="transfer-card" class="transfer-card" aria-labelledby="transfer-title" hidden>
             <h2 id="transfer-title">转账</h2>
-            <p class="transfer-hint">转账会直接写入仓库里的 account.json，需要口令解密 secure.json 中的 GitHub token。</p>
+            <p class="transfer-hint">转账会直接写入仓库里的 account.json，使用 secure.json 中保存的 token 自动完成。</p>
 
             <form id="transfer-form">
                 <div class="form-grid">
@@ -489,15 +489,11 @@
                         <label for="transfer-note">备注（可选）</label>
                         <input id="transfer-note" type="text" maxlength="80" placeholder="例如：还款">
                     </div>
-                    <div class="field full">
-                        <label for="transfer-passphrase">口令</label>
-                        <input id="transfer-passphrase" type="password" autocomplete="off" required>
-                    </div>
                 </div>
 
                 <div class="transfer-actions">
                     <button id="transfer-submit" class="primary-button" type="submit">确认转账</button>
-                    <span class="transfer-note">口令只用于本次解密，不会被保存或上传。</span>
+                    <span class="transfer-note">提交后会新增一条 Git 提交，余额改动即时生效。</span>
                 </div>
 
                 <p id="transfer-message" class="status" role="status" aria-live="polite" hidden></p>
@@ -706,7 +702,6 @@
             const recipient = document.getElementById("transfer-to").value;
             const amountCents = toCents(document.getElementById("transfer-amount").value);
             const note = document.getElementById("transfer-note").value.trim();
-            const passphrase = document.getElementById("transfer-passphrase").value;
 
             document.getElementById("transfer-message").hidden = true;
 
@@ -718,17 +713,13 @@
                 setTransferMessage("请输入大于 0 的金额。", "error");
                 return;
             }
-            if (!passphrase) {
-                setTransferMessage("请输入口令。", "error");
-                return;
-            }
 
             button.disabled = true;
             button.textContent = "处理中…";
 
             try {
                 const config = await loadSecureConfig();
-                const token = await window.VTXCrypto.decrypt(config, passphrase);
+                const token = await window.VTXCrypto.decrypt(config);
 
                 const accounts = await commitTransfer(token, config, (data) => {
                     const sender = data[accountName];
