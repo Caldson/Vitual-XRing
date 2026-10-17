@@ -1,0 +1,10 @@
+{
+    "repo": "Caldson/Vitual-XRing",
+    "branch": "main",
+    "path": "account.json",
+    "kdf": "PBKDF2-SHA256",
+    "iterations": 310000,
+    "salt": "nUAPEEtfEtsajPRxJHms5w==",
+    "iv": "bvSrElPH3HEvAvas",
+    "ciphertext": "WABvoJu9lCJjcw9G/F5L9WBu3qbssDdWueY8k46srT7XlDQMtcI0ky0FJeSmEOWNgmcdvkIRZwC/oKVacYSZPVx+simY6h09irM+95CU342PYwv+zqhDWJQahkSUBTos9uhe8yeMyS42B34g6w=="
+}
