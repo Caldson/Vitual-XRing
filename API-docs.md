@@ -590,9 +590,12 @@ https://example.com/callback?vtx_login=账户名称&vtx_token=<token>&vtx_money=
 
 1. 若浏览器中已有有效 token（`VTX.isLoggedIn()`）且未带 `embed=1`，调用 `GET /api/me` 自动登录
 2. 否则显示「登录 / 创建账户」两个标签页
-3. 成功后页面返回 **`VTX.login()` 的完整结果**（创建账户时额外带 `created: true`），并提供「复制完整结果」「复制 token」「退出」
+3. 成功后页面显示 **「登录成功，如果没有自动跳转，请刷新并重试。」**，并同时向 `window.opener` / `window.parent` 回传完整结果
 
-**返回值（与 `VTX.login()` 相同）**
+> 页面本身不再展示 VTX 余额；需要余额的站点请从回传结果或 `GET /api/me` 读取。
+> 「开发者信息」折叠区里仍保留完整 JSON 与复制按钮，供手动联调使用。
+
+**回传的返回值**
 
 ```json
 {

@@ -188,6 +188,7 @@
         }
 
         .auto-note[hidden],
+        .tabs[hidden],
         form[hidden],
         .result[hidden] {
             display: none;
@@ -197,28 +198,61 @@
             text-align: center;
         }
 
+        .success-mark {
+            width: 56px;
+            height: 56px;
+            margin: 4px auto 14px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            color: #fff;
+            background: linear-gradient(135deg, #23a06a, #1f7a52);
+            font-size: 27px;
+            font-weight: 800;
+            box-shadow: 0 8px 20px rgba(31, 122, 82, 0.28);
+        }
+
         .result h2 {
-            margin: 0 0 6px;
-            font-size: 15px;
-            color: #738097;
-            font-weight: 600;
+            margin: 0 0 8px;
+            font-size: 19px;
+            color: #172033;
+            font-weight: 700;
         }
 
-        .balance {
-            margin: 0 0 4px;
-            color: #3158d1;
-            font-size: 46px;
-            font-weight: 750;
-            letter-spacing: -0.03em;
-            line-height: 1.15;
-            overflow-wrap: anywhere;
+        .success-text {
+            margin: 0 0 18px;
+            color: #55617a;
+            font-size: 14px;
+            line-height: 1.65;
         }
 
-        .currency {
-            margin-left: 8px;
-            font-size: 18px;
-            font-weight: 650;
-            letter-spacing: 0;
+        .result-details {
+            margin-bottom: 14px;
+            text-align: left;
+        }
+
+        .result-details summary {
+            cursor: pointer;
+            color: #8d95a8;
+            font-size: 12px;
+            list-style: none;
+        }
+
+        .result-details summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .result-details summary::before {
+            content: "▸ ";
+        }
+
+        .result-details[open] summary::before {
+            content: "▾ ";
+        }
+
+        .result-switch {
+            margin: 0 auto;
+            display: block;
         }
 
         .result-meta {
@@ -280,7 +314,7 @@
     <main class="card">
         <div class="brand-mark" aria-hidden="true">V</div>
         <h1>API 登录</h1>
-        <p class="subtitle">登录或创建 Vitual XRing 账户，返回 VTX 余额。</p>
+        <p class="subtitle">登录或创建 Vitual XRing 账户。</p>
 
         <div id="auto-login-note" class="auto-note" hidden>
             <span id="auto-login-text">正在自动登录…</span>
@@ -301,7 +335,7 @@
                 <label for="login-password">密码</label>
                 <input id="login-password" type="password" autocomplete="current-password" required>
             </div>
-            <button id="login-button" type="submit">登录并获取 VTX</button>
+            <button id="login-button" type="submit">登录</button>
             <p id="login-message" class="message" role="alert" aria-live="polite"></p>
         </form>
 
@@ -327,14 +361,19 @@
         </form>
 
         <div id="result" class="result" hidden>
-            <h2>VTX 余额</h2>
-            <p class="balance"><span id="result-money">—</span><span class="currency">VTX</span></p>
-            <p id="result-meta" class="result-meta"></p>            <pre id="result-json" class="token-box"></pre>
-            <div class="result-actions">
-                <button id="copy-json" class="ghost-button" type="button">复制完整结果</button>
-                <button id="copy-token" class="ghost-button" type="button">复制 token</button>
-                <button id="logout-button" class="ghost-button" type="button">退出</button>
-            </div>
+            <div class="success-mark" aria-hidden="true">✓</div>
+            <h2 id="result-title">登录成功</h2>
+            <p id="result-message" class="success-text">登录成功，如果没有自动跳转，请刷新并重试。</p>
+            <details class="result-details">
+                <summary>开发者信息</summary>
+                <p id="result-meta" class="result-meta"></p>
+                <pre id="result-json" class="token-box"></pre>
+                <div class="result-actions">
+                    <button id="copy-json" class="ghost-button" type="button">复制完整结果</button>
+                    <button id="copy-token" class="ghost-button" type="button">复制 token</button>
+                </div>
+            </details>
+            <button id="logout-button" class="ghost-button result-switch" type="button">切换账户</button>
         </div>
 
         <p id="api-hint" class="hint"></p>
@@ -369,24 +408,14 @@
             note: document.getElementById("auto-login-note"),
             noteText: document.getElementById("auto-login-text"),
             result: document.getElementById("result"),
-            money: document.getElementById("result-money"),
+            resultTitle: document.getElementById("result-title"),
+            resultMessage: document.getElementById("result-message"),
             meta: document.getElementById("result-meta"),
             json: document.getElementById("result-json"),
             hint: document.getElementById("api-hint")
         };
 
         let session = null;
-
-        function formatMoney(value) {
-            const amount = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
-            if (!Number.isFinite(amount)) {
-                return String(value ?? "—");
-            }
-            return new Intl.NumberFormat("zh-CN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(amount);
-        }
 
         function showError(text) {
             elements.message.className = "message";
@@ -445,7 +474,13 @@
             elements.tabs.hidden = true;
             elements.note.hidden = true;
             elements.result.hidden = false;
-            elements.money.textContent = formatMoney(account.money);
+
+            if (elements.resultTitle) {
+                elements.resultTitle.textContent = "登录成功";
+            }
+            if (elements.resultMessage) {
+                elements.resultMessage.textContent = "登录成功，如果没有自动跳转，请刷新并重试。";
+            }
             elements.meta.textContent = `${account.username || result.login}（登录名 ${result.login}）`;
             elements.json.textContent = JSON.stringify(result, null, 2);
 
@@ -624,7 +659,7 @@
                 }
             } finally {
                 elements.button.disabled = false;
-                elements.button.textContent = "登录并获取 VTX";
+                elements.button.textContent = "登录";
             }
         });
 
