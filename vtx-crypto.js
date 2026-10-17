@@ -1,5 +1,7 @@
 (function () {
     const ITERATIONS = 310000;
+    const STATIC_SECRET = "Vitual-XRing/secure.json/v1";
+
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
 
@@ -26,17 +28,17 @@
         }
     }
 
-    async function deriveKey(passphrase, salt, iterations) {
+    async function deriveKey(salt) {
         const baseKey = await crypto.subtle.importKey(
             "raw",
-            encoder.encode(passphrase),
+            encoder.encode(STATIC_SECRET),
             "PBKDF2",
             false,
             ["deriveKey"]
         );
 
         return crypto.subtle.deriveKey(
-            { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+            { name: "PBKDF2", salt, iterations: ITERATIONS, hash: "SHA-256" },
             baseKey,
             { name: "AES-GCM", length: 256 },
             false,
@@ -44,11 +46,11 @@
         );
     }
 
-    async function encrypt(token, passphrase) {
+    async function encrypt(token) {
         assertSupported();
         const salt = crypto.getRandomValues(new Uint8Array(16));
         const iv = crypto.getRandomValues(new Uint8Array(12));
-        const key = await deriveKey(passphrase, salt, ITERATIONS);
+        const key = await deriveKey(salt);
         const ciphertext = await crypto.subtle.encrypt(
             { name: "AES-GCM", iv },
             key,
@@ -64,15 +66,14 @@
         };
     }
 
-    async function decrypt(config, passphrase) {
+    async function decrypt(config) {
         assertSupported();
 
         if (!config || !config.ciphertext) {
-            throw new Error("secure.json 里还没有加密 token，请先用 crypto.html 生成。");
+            throw new Error("secure.json 里还没有 token，请先用 crypto.html 生成。");
         }
 
-        const iterations = Number(config.iterations) || ITERATIONS;
-        const key = await deriveKey(passphrase, fromBase64(config.salt), iterations);
+        const key = await deriveKey(fromBase64(config.salt));
 
         let plaintext;
         try {
@@ -82,11 +83,11 @@
                 fromBase64(config.ciphertext)
             );
         } catch (error) {
-            throw new Error("口令错误，或 secure.json 已损坏，无法解密 token。");
+            throw new Error("无法解密 token，请用 crypto.html 重新生成 secure.json。");
         }
 
         return decoder.decode(plaintext).trim();
     }
 
-    window.VTXCrypto = { encrypt, decrypt, ITERATIONS };
+    window.VTXCrypto = { encrypt, decrypt };
 })();
