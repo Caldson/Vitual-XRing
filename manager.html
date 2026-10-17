@@ -617,7 +617,7 @@
         <div class="topbar-actions">
             <a class="topbar-link" href="chat.html">AI 聊天</a>
             <a class="topbar-link" href="image.html">AI 生图</a>
-            <span class="version">v4.1</span>
+            <span class="version">v4.2</span>
             <button id="logout-button" class="logout-button" type="button">退出登录</button>
         </div>
     </header>
@@ -753,8 +753,8 @@
 
     <footer>Vitual XRing · 账户余额以账户数据为准 · <a href="crypto.html">加密工具</a></footer>
 
-    <script src="vtx-crypto.js?v=4.1"></script>
-    <script src="vtx-api.js?v=4.1"></script>
+    <script src="vtx-crypto.js?v=4.2"></script>
+    <script src="vtx-api.js?v=4.2"></script>
 
     <script>
         let accountName = sessionStorage.getItem("vtxAccount");
@@ -764,6 +764,11 @@
 
         document.getElementById("logout-button").addEventListener("click", () => {
             sessionStorage.removeItem("vtxAccount");
+            try {
+                localStorage.removeItem("vtxRemembered");
+            } catch (error) {
+                /* 忽略 */
+            }
             window.location.replace("login.html");
         });
 
