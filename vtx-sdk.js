@@ -182,12 +182,41 @@
         return request(`/api/accounts/${encodeURIComponent(loginName)}`);
     }
 
-    async function setData(values) {
-        return request("/api/me/data", { method: "PUT", body: values });
+    /**
+     * 写入某个游戏的数据（合并，不覆盖其它键）。
+     * @param {string} game 游戏名称，例如 "Decrive"
+     * @param {object} values 该游戏的数据
+     */
+    async function setData(game, values) {
+        const name = String(game ?? "").trim();
+        if (!name) {
+            throw new Error('VTX.setData 需要游戏名称：VTX.setData("游戏名称", { ... })');
+        }
+        return request(`/api/me/data/${encodeURIComponent(name)}`, { method: "PUT", body: values || {} });
     }
 
-    async function deleteData(key) {
-        return request(`/api/me/data/${encodeURIComponent(key)}`, { method: "DELETE" });
+    /** 读取某个游戏的数据 */
+    async function getData(game) {
+        const name = String(game ?? "").trim();
+        if (!name) {
+            throw new Error('VTX.getData 需要游戏名称：VTX.getData("游戏名称")');
+        }
+        return request(`/api/me/data/${encodeURIComponent(name)}`);
+    }
+
+    /**
+     * 删除数据：传 game 删整个游戏命名空间，再传 key 只删其中一个键
+     * @param {string} game 游戏名称
+     * @param {string} [key] 该游戏下的键名
+     */
+    async function deleteData(game, key) {
+        const name = String(game ?? "").trim();
+        if (!name) {
+            throw new Error('VTX.deleteData 需要游戏名称：VTX.deleteData("游戏名称"[, "键"])');
+        }
+        const base = `/api/me/data/${encodeURIComponent(name)}`;
+        const suffix = key === undefined || key === null || key === "" ? "" : `/${encodeURIComponent(key)}`;
+        return request(`${base}${suffix}`, { method: "DELETE" });
     }
 
     /**
@@ -229,6 +258,7 @@
         accounts,
         account,
         setData,
+        getData,
         deleteData,
         trade,
         pay,

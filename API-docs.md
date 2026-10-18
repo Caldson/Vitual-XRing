@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.3.0`
+- API 版本：`1.4.0`（`data` 改为按游戏名分区，见第 3.1 节）
 
 ---
 
@@ -81,18 +81,26 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
         }
     ],
     "data": {
-        "gameScore": 1234,
-        "level": "boss"
+        "Decrive": {
+            "boost": 1,
+            "stats": { "charts": {}, "last": null }
+        },
+        "另一个游戏": {
+            "自定义键": "值"
+        }
     }
 }
 ```
+
+`data` 的第一层键是**游戏名称**（调用方自定义，允许中英文、数字、空格、`_`、`.`、`-`，1–32 字符），
+第二层才是该游戏自己的数据。不同游戏互不干扰，删除某个游戏的数据不会影响其它游戏。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `username` | string | 显示用用户名（可修改，不唯一） |
 | `money` | string | 余额，保留两位小数的字符串，单位 VTX |
 | `trades` | array | 交易记录，按追加顺序；展示时按 `time` 倒序 |
-| `data` | object | 自定义数据（游戏成绩等），默认 `{}`，只能由本人通过 API 写入 |
+| `data` | object | 按游戏名分区的自定义数据（`data["游戏名称"] = {...}`），默认 `{}`，只能由本人通过 API 写入 |
 
 > 任何接口都**不会返回密码**。
 
@@ -119,12 +127,18 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | GET | `/api/me` | 是 | 当前登录账户信息 |
 | GET | `/api/accounts` | 是 | 全部账户 |
 | GET | `/api/accounts/{登录名}` | 是 | 单个账户 |
-| PUT | `/api/me/data` | 是 | 写入自己的自定义数据（合并） |
-| DELETE | `/api/me/data/{键}` | 是 | 删除自己的某个自定义键 |
-| PUT | `/api/accounts/{登录名}/data` | 是 | 同上，显式指定账户（只能是自己） |
-| DELETE | `/api/accounts/{登录名}/data/{键}` | 是 | 同上 |
+| PUT | `/api/me/data/{游戏名称}` | 是 | 写入某个游戏的数据（合并） |
+| GET | `/api/me/data/{游戏名称}` | 是 | 读取某个游戏的数据 |
+| DELETE | `/api/me/data/{游戏名称}` | 是 | 删除某个游戏的全部数据 |
+| DELETE | `/api/me/data/{游戏名称}/{键}` | 是 | 删除某个游戏下的单个键 |
+| PUT | `/api/accounts/{登录名}/data/{游戏名称}` | 是 | 同上，显式指定账户（只能是自己） |
+| GET | `/api/accounts/{登录名}/data/{游戏名称}` | 是 | 同上 |
+| DELETE | `/api/accounts/{登录名}/data/{游戏名称}[/{键}]` | 是 | 同上 |
 | POST | `/api/me/trades` | 是 | 记一笔收款 / 付款（需密码确认） |
 | POST | `/api/accounts/{登录名}/trades` | 是 | 同上，显式指定账户（只能是自己） |
+
+> **破坏性变更（1.4.0）**：`/api/me/data`（不带游戏名）现在返回 `400 bad_request`，并提示新用法。
+> 旧版平铺的 `data` 会被视为「键不是对象」，请把数据搬到 `data[游戏名称]` 下。
 
 `GET /` 与 `GET /api` 同样返回健康检查结果。
 
@@ -289,22 +303,22 @@ authorization: Bearer <token>
 
 ---
 
-### 4.6 写入自定义数据
+### 4.6 写入游戏数据
 
-把游戏成绩、进度之类的数据写进自己的账户，**只会合并（merge），不会覆盖其它键**。
+把游戏成绩、进度之类的数据写进自己账户的某个游戏分区，**只会合并（merge），不会覆盖其它键或其它游戏**。
 
 ```
-PUT /api/me/data
-authorization: Bearer <token>
+PUT /api/me/data/{游戏名称}
+authorization: ******
 content-type: application/json
 
-{ "gameScore": 1234, "level": "boss" }
+{ "boost": 1, "stats": { "charts": {} } }
 ```
 
 也可以用显式账户路径（值必须是自己）：
 
 ```
-PUT /api/accounts/{登录名}/data
+PUT /api/accounts/{登录名}/data/{游戏名称}
 ```
 
 **响应 `200`**
@@ -313,43 +327,76 @@ PUT /api/accounts/{登录名}/data
 {
     "ok": true,
     "login": "账户名称",
-    "keys": ["gameScore", "level"],
-    "data": { "gameScore": 1234, "level": "boss" }
+    "game": "Decrive",
+    "keys": ["boost", "stats"],
+    "gameData": { "boost": 1, "stats": { "charts": {} } },
+    "data": { "Decrive": { "boost": 1, "stats": { "charts": {} } } }
 }
 ```
+
+`gameData` 是该游戏合并后的完整数据，`data` 是账户里全部分区的数据。
 
 **约束**
 
 | 项目 | 限制 |
 |---|---|
+| 游戏名称 | 只能包含中英文、数字、空格、`_`、`.`、`-`，长度 1–32 |
+| 单账户游戏数 | 最多 20 个分区 |
 | 键名 | 只能包含字母、数字、`_`、`.`、`-`，长度 1–64 |
 | 单次键数 | 最多 20 个 |
-| 单账户数据总量 | 32 KB（`JSON.stringify(data)` 的 UTF-8 字节数） |
+| 单账户数据总量 | 32 KB（整个 `data` 的 `JSON.stringify(...)` UTF-8 字节数） |
 | 写入频率 | 每 IP 每分钟 60 次 |
 | 权限 | 只能写自己的账户（token 的 `sub` 必须等于 `{登录名}`） |
 
 ---
 
-### 4.7 删除自定义数据
+### 4.6.1 读取游戏数据
 
 ```
-DELETE /api/me/data/{键}
-authorization: Bearer <token>
+GET /api/me/data/{游戏名称}
+authorization: ******
 ```
 
 或
 
 ```
-DELETE /api/accounts/{登录名}/data/{键}
+GET /api/accounts/{登录名}/data/{游戏名称}
 ```
 
 **响应 `200`**
 
 ```json
-{ "ok": true, "login": "账户名称", "removed": "level", "data": { "gameScore": 1234 } }
+{ "ok": true, "login": "账户名称", "game": "Decrive", "gameData": { "boost": 1 } }
 ```
 
-键不存在时返回 `404 not_found`。
+从未写过的游戏返回 `gameData: {}`。
+
+---
+
+### 4.7 删除游戏数据
+
+删单个键：
+
+```
+DELETE /api/me/data/{游戏名称}/{键}
+authorization: ******
+```
+
+删掉整个分区：
+
+```
+DELETE /api/me/data/{游戏名称}
+```
+
+也可以换成 `/api/accounts/{登录名}/data/...`。
+
+**响应 `200`**
+
+```json
+{ "ok": true, "login": "账户名称", "game": "Decrive", "removed": "boost", "data": { "Decrive": { "stats": {} } } }
+```
+
+游戏分区或键不存在时返回 `404 not_found`；删整个分区时 `removed` 就是该游戏名称。
 
 ---
 
@@ -491,8 +538,10 @@ POST /api/accounts/{登录名}/trades
 | `VTX.me()` | 当前账户 |
 | `VTX.accounts()` | 全部账户 |
 | `VTX.account(login)` | 单个账户 |
-| `VTX.setData(values)` | 写入自己的自定义数据（合并），返回 `{ ok, login, keys, data }` |
-| `VTX.deleteData(key)` | 删除自己的某个数据键 |
+| `VTX.setData(game, values)` | 写入某个游戏的分区数据（合并），返回 `{ ok, login, game, keys, gameData, data }` |
+| `VTX.getData(game)` | 读取某个游戏的分区数据，返回 `{ ok, login, game, gameData }` |
+| `VTX.deleteData(game)` | 删除某个游戏的全部分区数据 |
+| `VTX.deleteData(game, key)` | 删除某个游戏分区下的单个键 |
 | `VTX.pay({ amount, party, description, password })` | 记一笔付款（扣余额） |
 | `VTX.receive({ amount, party, description, password })` | 记一笔收款（加余额） |
 | `VTX.trade({ type, amount, party, description, name, password })` | 上面两个的通用形式 |
@@ -512,20 +561,25 @@ try {
 }
 ```
 
-**写入自定义数据示例**
+**写入游戏数据示例**
 
 ```js
 await VTX.login("账户名称", "密码");
 
-// 合并写入（不会覆盖其它键）
-await VTX.setData({ gameScore: 1234, level: "boss" });
+// 第一个参数是游戏名称，第二个才是数据；合并写入，不会覆盖其它键或其它游戏
+await VTX.setData("Decrive", { boost: 1 });
 
-// 读取（登录后返回的账户里就带 data）
+// 读回来
+const mine = await VTX.getData("Decrive");
+console.log(mine.gameData.boost);        // 1
+
+// 登录后返回的账户里也带全部分区
 const me = await VTX.me();
-console.log(me.account.data.gameScore);
+console.log(me.account.data.Decrive.boost);
 
-// 删除某个键
-await VTX.deleteData("level");
+// 删除某个键 / 删除整个游戏分区
+await VTX.deleteData("Decrive", "boost");
+await VTX.deleteData("Decrive");
 ```
 
 **记账示例**
