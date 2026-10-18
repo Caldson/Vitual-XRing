@@ -12,7 +12,7 @@
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  */
 
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -25,6 +25,8 @@ const WRITE_MAX_ATTEMPTS = 60;
 const MAX_DATA_BYTES = 32 * 1024;
 const MAX_KEYS_PER_WRITE = 20;
 const KEY_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
+const GAME_PATTERN = /^[A-Za-z0-9_.\-\u4e00-\u9fff ]{1,32}$/;
+const MAX_GAMES = 20;
 const TRADE_WINDOW_MS = 60 * 1000;
 const TRADE_MAX_ATTEMPTS = 20;
 const REGISTER_WINDOW_MS = 60 * 1000;
@@ -488,7 +490,18 @@ async function readJsonBody(request) {
     }
 }
 
-async function handleSetData(request, env, cors, login) {
+function plainObject(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function validateGameName(game) {
+    if (!GAME_PATTERN.test(game)) {
+        throw new HttpError(400, "bad_request", "游戏名称不合法（1-32 个字符，可用中英文、数字、空格、_ . -）");
+    }
+    return game;
+}
+
+async function handleSetData(request, env, cors, login, game) {
     const session = await requireSession(request, env, cors);
     if (session.error) {
         return session.error;
@@ -506,10 +519,16 @@ async function handleSetData(request, env, cors, login) {
         return jsonResponse({ error: "too_many_requests", message: "写入过于频繁，请稍后再试" }, 429, cors);
     }
 
+    try {
+        validateGameName(game);
+    } catch (error) {
+        return jsonResponse({ error: error.code, message: error.message }, error.status, cors);
+    }
+
     const patch = await readJsonBody(request);
 
-    if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
-        return jsonResponse({ error: "bad_request", message: "请求体必须是一个 JSON 对象" }, 400, cors);
+    if (!plainObject(patch) || Array.isArray(patch)) {
+        return jsonResponse({ error: "bad_request", message: "请求体必须是该游戏的 JSON 对象" }, 400, cors);
     }
 
     const keys = Object.keys(patch);
@@ -527,6 +546,8 @@ async function handleSetData(request, env, cors, login) {
         }
     }
 
+    let gameData = null;
+
     const accounts = await commitAccounts(env, (data) => {
         const account = data[login];
 
@@ -534,29 +555,65 @@ async function handleSetData(request, env, cors, login) {
             throw new HttpError(404, "not_found", "账户不存在");
         }
 
-        account.data = account.data && typeof account.data === "object" && !Array.isArray(account.data)
-            ? account.data
-            : {};
+        account.data = plainObject(account.data);
 
-        Object.assign(account.data, patch);
+        if (!(game in account.data) && Object.keys(account.data).length >= MAX_GAMES) {
+            throw new HttpError(400, "bad_request", `每个账户最多保存 ${MAX_GAMES} 个游戏的数据`);
+        }
+
+        gameData = { ...plainObject(account.data[game]), ...patch };
+        account.data[game] = gameData;
 
         const size = new TextEncoder().encode(JSON.stringify(account.data)).length;
         if (size > MAX_DATA_BYTES) {
             throw new HttpError(413, "payload_too_large", `数据总量超过 ${MAX_DATA_BYTES} 字节上限`);
         }
 
-        return `更新账户数据：${login}（${keys.join(", ")}）`;
+        return `更新账户数据：${login}（${game} → ${keys.join(", ")}）`;
     });
 
     return jsonResponse({
         ok: true,
         login,
+        game,
         keys,
+        gameData,
         data: publicAccount(accounts[login]).data
     }, 200, cors);
 }
 
-async function handleDeleteData(request, env, cors, login, key) {
+async function handleGetData(request, env, cors, login, game) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+
+    if (session.payload.sub !== login) {
+        return jsonResponse({ error: "forbidden", message: "只能读取自己的账户数据" }, 403, cors);
+    }
+
+    try {
+        validateGameName(game);
+    } catch (error) {
+        return jsonResponse({ error: error.code, message: error.message }, error.status, cors);
+    }
+
+    const accounts = await loadAccounts(env);
+    const account = accounts[login];
+
+    if (!account) {
+        return jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors);
+    }
+
+    return jsonResponse({
+        ok: true,
+        login,
+        game,
+        gameData: plainObject(plainObject(account.data)[game])
+    }, 200, cors);
+}
+
+async function handleDeleteData(request, env, cors, login, game, key) {
     const session = await requireSession(request, env, cors);
     if (session.error) {
         return session.error;
@@ -574,6 +631,12 @@ async function handleDeleteData(request, env, cors, login, key) {
         return jsonResponse({ error: "too_many_requests", message: "写入过于频繁，请稍后再试" }, 429, cors);
     }
 
+    try {
+        validateGameName(game);
+    } catch (error) {
+        return jsonResponse({ error: error.code, message: error.message }, error.status, cors);
+    }
+
     const accounts = await commitAccounts(env, (data) => {
         const account = data[login];
 
@@ -581,18 +644,34 @@ async function handleDeleteData(request, env, cors, login, key) {
             throw new HttpError(404, "not_found", "账户不存在");
         }
 
-        if (!account.data || typeof account.data !== "object" || !(key in account.data)) {
-            throw new HttpError(404, "not_found", `键不存在：${key}`);
+        account.data = plainObject(account.data);
+
+        if (!(game in account.data)) {
+            throw new HttpError(404, "not_found", `没有这个游戏的数据：${game}`);
         }
 
-        delete account.data[key];
-        return `删除账户数据：${login}（${key}）`;
+        if (!key) {
+            delete account.data[game];
+            return `删除账户数据：${login}（${game} 全部）`;
+        }
+
+        const ns = plainObject(account.data[game]);
+
+        if (!(key in ns)) {
+            throw new HttpError(404, "not_found", `键不存在：${game}.${key}`);
+        }
+
+        delete ns[key];
+        account.data[game] = ns;
+
+        return `删除账户数据：${login}（${game}.${key}）`;
     });
 
     return jsonResponse({
         ok: true,
         login,
-        removed: key,
+        game,
+        removed: key || game,
         data: publicAccount(accounts[login]).data
     }, 200, cors);
 }
@@ -808,21 +887,33 @@ export default {
                 return await handleMe(request, env, cors);
             }
 
-            if (url.pathname === "/api/me/data" && request.method === "PUT") {
-                const session = await requireSession(request, env, cors);
-                if (session.error) {
-                    return session.error;
-                }
-                return await handleSetData(request, env, cors, session.payload.sub);
-            }
+            const mePath = url.pathname.match(/^\/api\/me\/data(?:\/([^/]+))?(?:\/([^/]+))?$/);
+            if (mePath) {
+                const game = mePath[1] ? decodeURIComponent(mePath[1]) : "";
+                const key = mePath[2] ? decodeURIComponent(mePath[2]) : "";
+                const method = request.method;
 
-            const meDelete = url.pathname.match(/^\/api\/me\/data\/([^/]+)$/);
-            if (meDelete && request.method === "DELETE") {
+                if (!game) {
+                    return jsonResponse({
+                        error: "bad_request",
+                        message: "写入数据需要指定游戏名称：PUT /api/me/data/{游戏名称}，body 为该游戏的 JSON 对象"
+                    }, 400, cors);
+                }
+
                 const session = await requireSession(request, env, cors);
                 if (session.error) {
                     return session.error;
                 }
-                return await handleDeleteData(request, env, cors, session.payload.sub, decodeURIComponent(meDelete[1]));
+
+                if (method === "PUT" && !key) {
+                    return await handleSetData(request, env, cors, session.payload.sub, game);
+                }
+                if (method === "GET" && !key) {
+                    return await handleGetData(request, env, cors, session.payload.sub, game);
+                }
+                if (method === "DELETE") {
+                    return await handleDeleteData(request, env, cors, session.payload.sub, game, key);
+                }
             }
 
             if (url.pathname === "/api/me/trades" && request.method === "POST") {
@@ -838,14 +929,29 @@ export default {
                 return await handleAccounts(request, env, cors);
             }
 
-            const dataRoute = url.pathname.match(/^\/api\/accounts\/([^/]+)\/data$/);
-            if (dataRoute && request.method === "PUT") {
-                return await handleSetData(request, env, cors, decodeURIComponent(dataRoute[1]));
-            }
+            const accountDataPath = url.pathname.match(/^\/api\/accounts\/([^/]+)\/data(?:\/([^/]+))?(?:\/([^/]+))?$/);
+            if (accountDataPath) {
+                const login = decodeURIComponent(accountDataPath[1]);
+                const game = accountDataPath[2] ? decodeURIComponent(accountDataPath[2]) : "";
+                const key = accountDataPath[3] ? decodeURIComponent(accountDataPath[3]) : "";
+                const method = request.method;
 
-            const dataDelete = url.pathname.match(/^\/api\/accounts\/([^/]+)\/data\/([^/]+)$/);
-            if (dataDelete && request.method === "DELETE") {
-                return await handleDeleteData(request, env, cors, decodeURIComponent(dataDelete[1]), decodeURIComponent(dataDelete[2]));
+                if (!game) {
+                    return jsonResponse({
+                        error: "bad_request",
+                        message: `写入数据需要指定游戏名称：PUT /api/accounts/${login}/data/{游戏名称}`
+                    }, 400, cors);
+                }
+
+                if (method === "PUT" && !key) {
+                    return await handleSetData(request, env, cors, login, game);
+                }
+                if (method === "GET" && !key) {
+                    return await handleGetData(request, env, cors, login, game);
+                }
+                if (method === "DELETE") {
+                    return await handleDeleteData(request, env, cors, login, game, key);
+                }
             }
 
             const accountRoute = url.pathname.match(/^\/api\/accounts\/([^/]+)$/);
