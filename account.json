@@ -2,7 +2,7 @@
     "Kitawaga": {
         "username": "刘浩天（站主）",
         "password": "100%Security",
-        "money": "9469.45",
+        "money": "9464.45",
         "trades": [
             {
                 "name": "Developments",
@@ -139,6 +139,14 @@
                 "from": "Kitawaga",
                 "to": "刘浩天（站主）",
                 "price": "+1000.00"
+            },
+            {
+                "name": "付款",
+                "description": "Vitual XRing 官方福利",
+                "time": "2026/10/18 19:07:35",
+                "from": "刘浩天（站主）",
+                "to": "Kitawaga",
+                "price": "-5.00"
             }
         ],
         "data": {
