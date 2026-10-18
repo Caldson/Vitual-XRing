@@ -2,7 +2,7 @@
     "Kitawaga": {
         "username": "刘浩天（站主）",
         "password": "100%Security",
-        "money": "7504.45",
+        "money": "7509.45",
         "trades": [
             {
                 "name": "Developments",
@@ -112,6 +112,14 @@
                 "name": "收款",
                 "description": "FocusTimer",
                 "time": "2026/10/18 15:15:52",
+                "from": "FocusTimer",
+                "to": "刘浩天（站主）",
+                "price": "+5.00"
+            },
+            {
+                "name": "收款",
+                "description": "FocusTimer",
+                "time": "2026/10/18 15:16:22",
                 "from": "FocusTimer",
                 "to": "刘浩天（站主）",
                 "price": "+5.00"
