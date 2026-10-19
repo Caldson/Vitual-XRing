@@ -185,6 +185,12 @@
             font-size: 13px;
         }
 
+        .code-exit {
+            width: 100%;
+            margin-top: 14px;
+            padding: 10px 0;
+        }
+
         button.primary {
             width: 100%;
             margin-top: 6px;
@@ -329,7 +335,7 @@
     </style>
 </head>
 <body>
-    <span class="version-badge">v5.1</span>
+    <span class="version-badge">v5.2</span>
 
     <main class="card">
         <div class="brand-mark" aria-hidden="true">V</div>
@@ -355,7 +361,7 @@
                 <strong id="account-money">0.00 VTX</strong>
             </div>
 
-            <div class="type-switch" role="group" aria-label="记账类型">
+            <div class="type-switch" id="type-switch" role="group" aria-label="记账类型">
                 <button id="type-payment" type="button" data-kind="payment" aria-pressed="true">付款</button>
                 <button id="type-receipt" type="button" data-kind="receipt" aria-pressed="false">收款</button>
                 <button id="type-code" type="button" data-kind="code" aria-pressed="false">收款码</button>
@@ -407,6 +413,8 @@
                 </div>
 
                 <p class="qr-small" id="code-hint" hidden>只有点「刷新收款码」才会生成新的码，旧码会立即失效。手机上长按上面的图片即可保存到相册。</p>
+
+                <button id="code-exit" class="ghost code-exit" type="button">退出收款码</button>
             </div>
 
             <p id="pay-message" class="message" role="alert" aria-live="polite"></p>
@@ -463,8 +471,8 @@
         <p id="api-hint" class="hint"></p>
     </main>
 
-    <script src="vtx-qr.js?v=5.1"></script>
-    <script src="vtx-sdk.js?v=5.1"></script>
+    <script src="vtx-qr.js?v=5.2"></script>
+    <script src="vtx-sdk.js?v=5.2"></script>
 
     <script>
         const params = new URLSearchParams(window.location.search);
@@ -495,6 +503,7 @@
             typePayment: document.getElementById("type-payment"),
             typeReceipt: document.getElementById("type-receipt"),
             typeCode: document.getElementById("type-code"),
+            typeSwitch: document.getElementById("type-switch"),
             formPanel: document.getElementById("form-panel"),
             codePanel: document.getElementById("code-panel"),
             codeAmount: document.getElementById("code-amount"),
@@ -508,6 +517,7 @@
             codeSave: document.getElementById("code-save"),
             codeRefresh: document.getElementById("code-refresh"),
             codeRevoke: document.getElementById("code-revoke"),
+            codeExit: document.getElementById("code-exit"),
             scanView: document.getElementById("scan-view"),
             scanPayee: document.getElementById("scan-payee"),
             scanPayeeName: document.getElementById("scan-payee-name"),
@@ -574,6 +584,10 @@
         function applyKind() {
             const isPayment = kind === "payment";
             const isCode = kind === "code";
+
+            // 收款码是独立界面：进去后整排页签隐藏，只能点「退出收款码」回来
+            elements.typeSwitch.hidden = isCode;
+            elements.codeExit.hidden = !isCode;
 
             elements.typePayment.setAttribute("aria-pressed", String(isPayment));
             elements.typeReceipt.setAttribute("aria-pressed", String(kind === "receipt"));
@@ -1074,14 +1088,14 @@
         }
 
         elements.typePayment.addEventListener("click", () => {
-            if (preset.lock) {
+            if (preset.lock || kind === "code") {
                 return;
             }
             kind = "payment";
             applyKind();
         });
         elements.typeReceipt.addEventListener("click", () => {
-            if (preset.lock) {
+            if (preset.lock || kind === "code") {
                 return;
             }
             kind = "receipt";
@@ -1093,6 +1107,11 @@
             }
             kind = "code";
             applyKind();
+        });
+        elements.codeExit.addEventListener("click", () => {
+            kind = "payment";
+            applyKind();
+            elements.party.focus();
         });
 
         elements.codeGenerate.addEventListener("click", generateReceiptCode);
