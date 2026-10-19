@@ -12,7 +12,7 @@
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  */
 
-const VERSION = "1.5.0";
+const VERSION = "5.0.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -27,6 +27,7 @@ const MAX_KEYS_PER_WRITE = 20;
 const KEY_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
 const GAME_PATTERN = /^[A-Za-z0-9_.\-\u4e00-\u9fff ]{1,32}$/;
 const MAX_GAMES = 20;
+const RECEIPT_CODE_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
 const TRADE_WINDOW_MS = 60 * 1000;
 const TRADE_MAX_ATTEMPTS = 20;
 const REGISTER_WINDOW_MS = 60 * 1000;
@@ -368,6 +369,309 @@ function shanghaiTimestamp() {
     const pad = (value) => String(value).padStart(2, "0");
     return `${now.getUTCFullYear()}/${pad(now.getUTCMonth() + 1)}/${pad(now.getUTCDate())} `
         + `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
+}
+
+function randomCode(bytes = 16) {
+    const buffer = new Uint8Array(bytes);
+    crypto.getRandomValues(buffer);
+    return encodeBase64Url(buffer);
+}
+
+function siteOrigin(request, env) {
+    const configured = String(env.PUBLIC_BASE || "").trim().replace(/\/+$/, "");
+    return configured || new URL(request.url).origin;
+}
+
+function receiptCodeUrl(request, env, code) {
+    return `${siteOrigin(request, env)}/API_VTXPAY.html?rc=${encodeURIComponent(code)}`;
+}
+
+function receiptView(request, env, login, account) {
+    const receipt = plainObject(account.receipt);
+    if (!receipt.id) {
+        return { code: null, amount: null, createdAt: null, url: null };
+    }
+    return {
+        code: String(receipt.id),
+        amount: receipt.amount === null || receipt.amount === undefined ? null : String(receipt.amount),
+        createdAt: receipt.createdAt || null,
+        url: receiptCodeUrl(request, env, String(receipt.id))
+    };
+}
+
+function findReceiptOwner(accounts, code) {
+    for (const [login, account] of Object.entries(accounts)) {
+        const receipt = plainObject(account && account.receipt);
+        if (receipt.id && String(receipt.id) === code) {
+            return { login, account };
+        }
+    }
+    return null;
+}
+
+async function handleCreateReceiptCode(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+
+    if (!env.GITHUB_TOKEN) {
+        return jsonResponse({ error: "write_unavailable", message: "服务端未配置 GITHUB_TOKEN，无法生成收款码" }, 503, cors);
+    }
+
+    if (throttled(writeAttempts, clientIp(request), WRITE_WINDOW_MS, WRITE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "操作过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const login = session.payload.sub;
+    const raw = await readJsonBody(request);
+    const body = plainObject(raw);
+    const hasAmount = body.amount !== undefined && body.amount !== null && String(body.amount).trim() !== "";
+
+    let amountCents = null;
+
+    if (hasAmount) {
+        amountCents = toCents(body.amount);
+        if (amountCents === null || amountCents <= 0) {
+            return jsonResponse({ error: "bad_request", message: "amount 必须是大于 0 的数字，最多两位小数" }, 400, cors);
+        }
+        if (amountCents > MAX_TRADE_CENTS) {
+            return jsonResponse({ error: "bad_request", message: `单笔金额不能超过 ${fromCents(MAX_TRADE_CENTS)} VTX` }, 400, cors);
+        }
+    }
+
+    let created = null;
+
+    const accounts = await commitAccounts(env, (data) => {
+        const account = data[login];
+
+        if (!account) {
+            throw new HttpError(404, "not_found", "账户不存在");
+        }
+
+        account.receipt = {
+            id: randomCode(),
+            amount: amountCents === null ? null : fromCents(amountCents),
+            createdAt: shanghaiTimestamp()
+        };
+        created = account.receipt;
+
+        return `生成收款码：${login}`;
+    });
+
+    const view = receiptView(request, env, login, accounts[login]);
+
+    return jsonResponse({
+        ok: true,
+        login,
+        payeeName: publicAccount(accounts[login]).username,
+        ...view,
+        url: view.url || receiptCodeUrl(request, env, created.id)
+    }, 200, cors);
+}
+
+async function handleGetReceiptCode(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const account = accounts[login];
+
+    if (!account) {
+        return jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors);
+    }
+
+    return jsonResponse({
+        ok: true,
+        login,
+        payeeName: publicAccount(account).username,
+        ...receiptView(request, env, login, account)
+    }, 200, cors);
+}
+
+async function handleDeleteReceiptCode(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+
+    if (!env.GITHUB_TOKEN) {
+        return jsonResponse({ error: "write_unavailable", message: "服务端未配置 GITHUB_TOKEN，无法撤销收款码" }, 503, cors);
+    }
+
+    const login = session.payload.sub;
+
+    const accounts = await commitAccounts(env, (data) => {
+        const account = data[login];
+
+        if (!account) {
+            throw new HttpError(404, "not_found", "账户不存在");
+        }
+
+        const receipt = plainObject(account.receipt);
+        if (!receipt.id) {
+            throw new HttpError(404, "not_found", "当前没有有效的收款码");
+        }
+
+        delete account.receipt;
+        return `撤销收款码：${login}`;
+    });
+
+    return jsonResponse({
+        ok: true,
+        login,
+        removed: login,
+        code: null,
+        amount: null,
+        createdAt: null,
+        url: null,
+        payeeName: publicAccount(accounts[login]).username
+    }, 200, cors);
+}
+
+async function handleResolveReceiptCode(request, env, cors, code) {
+    const accounts = await loadAccounts(env);
+    const found = findReceiptOwner(accounts, code);
+
+    if (!found) {
+        return jsonResponse({ error: "not_found", message: "收款码不存在或已失效" }, 404, cors);
+    }
+
+    const view = receiptView(request, env, found.login, found.account);
+
+    return jsonResponse({
+        ok: true,
+        code: view.code,
+        payee: found.login,
+        payeeName: publicAccount(found.account).username,
+        amount: view.amount,
+        createdAt: view.createdAt,
+        url: view.url
+    }, 200, cors);
+}
+
+async function handlePayReceiptCode(request, env, cors, code) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+
+    if (!env.GITHUB_TOKEN) {
+        return jsonResponse({ error: "write_unavailable", message: "服务端未配置 GITHUB_TOKEN，无法付款" }, 503, cors);
+    }
+
+    if (throttled(tradeAttempts, clientIp(request), TRADE_WINDOW_MS, TRADE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "记账过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const payer = session.payload.sub;
+    const raw = await readJsonBody(request);
+    const body = plainObject(raw);
+
+    const password = String(body.password ?? "");
+    if (!password) {
+        return jsonResponse({ error: "bad_request", message: "缺少 password：付款需要密码确认" }, 400, cors);
+    }
+
+    const description = String(body.description ?? "").trim();
+    if (description.length > MAX_DESCRIPTION_LENGTH) {
+        return jsonResponse({ error: "bad_request", message: `description 最长 ${MAX_DESCRIPTION_LENGTH} 个字符` }, 400, cors);
+    }
+
+    let payerTrade = null;
+    let payeeInfo = null;
+
+    const accounts = await commitAccounts(env, (data) => {
+        const found = findReceiptOwner(data, code);
+
+        if (!found) {
+            throw new HttpError(404, "not_found", "收款码不存在或已失效");
+        }
+
+        const payeeAccount = found.account;
+
+        if (found.login === payer) {
+            throw new HttpError(400, "bad_request", "不能扫自己的收款码付款");
+        }
+
+        const payerAccount = data[payer];
+        if (!payerAccount) {
+            throw new HttpError(404, "not_found", "付款账户不存在");
+        }
+
+        if (!timingSafeEqual(String(payerAccount.password || ""), password)) {
+            throw new HttpError(400, "invalid_password", "密码不正确，付款已取消");
+        }
+
+        const receipt = plainObject(payeeAccount.receipt);
+        let amountCents = receipt.amount === null || receipt.amount === undefined ? null : toCents(receipt.amount);
+
+        if (amountCents === null) {
+            amountCents = toCents(body.amount);
+            if (amountCents === null || amountCents <= 0) {
+                throw new HttpError(400, "bad_request", "该收款码没有预设金额，请填写 amount");
+            }
+        }
+
+        if (amountCents > MAX_TRADE_CENTS) {
+            throw new HttpError(400, "bad_request", `单笔金额不能超过 ${fromCents(MAX_TRADE_CENTS)} VTX`);
+        }
+
+        const payerBalance = toCents(payerAccount.money) ?? 0;
+        if (payerBalance < amountCents) {
+            throw new HttpError(400, "insufficient_funds", `余额不足，当前余额 ${fromCents(payerBalance)} VTX`);
+        }
+
+        const payeeBalance = toCents(payeeAccount.money) ?? 0;
+        const payerName = String(payerAccount.username || payer);
+        const payeeName = String(payeeAccount.username || found.login);
+        const price = fromCents(amountCents);
+        const time = shanghaiTimestamp();
+
+        payerTrade = {
+            name: "付款",
+            description,
+            time,
+            from: payerName,
+            to: payeeName,
+            price: `-${price}`
+        };
+        const payeeTrade = {
+            name: "收款",
+            description,
+            time,
+            from: payerName,
+            to: payeeName,
+            price: `+${price}`
+        };
+
+        payerAccount.trades = Array.isArray(payerAccount.trades) ? payerAccount.trades : [];
+        payerAccount.trades.push(payerTrade);
+        payerAccount.money = fromCents(payerBalance - amountCents);
+
+        payeeAccount.trades = Array.isArray(payeeAccount.trades) ? payeeAccount.trades : [];
+        payeeAccount.trades.push(payeeTrade);
+        payeeAccount.money = fromCents(payeeBalance + amountCents);
+
+        payeeInfo = { login: found.login, username: payeeName };
+
+        return `收款码付款：${payerName} → ${payeeName} ${price} VTX`;
+    });
+
+    return jsonResponse({
+        ok: true,
+        login: payer,
+        trade: payerTrade,
+        payee: payeeInfo,
+        account: publicAccount(accounts[payer]),
+        payeeAccount: {
+            login: payeeInfo ? payeeInfo.login : "",
+            money: payeeInfo ? publicAccount(accounts[payeeInfo.login]).money : ""
+        }
+    }, 200, cors);
 }
 
 async function handleLogin(request, env, cors) {
@@ -919,6 +1223,34 @@ export default {
 
             if (url.pathname === "/api/me/trades" && request.method === "POST") {
                 return await handleTrade(request, env, cors, null);
+            }
+
+            if (url.pathname === "/api/me/receipt-code") {
+                if (request.method === "POST") {
+                    return await handleCreateReceiptCode(request, env, cors);
+                }
+                if (request.method === "GET") {
+                    return await handleGetReceiptCode(request, env, cors);
+                }
+                if (request.method === "DELETE") {
+                    return await handleDeleteReceiptCode(request, env, cors);
+                }
+            }
+
+            const receiptRoute = url.pathname.match(/^\/api\/receipt-codes\/([^/]+)(\/pay)?$/);
+            if (receiptRoute) {
+                const code = decodeURIComponent(receiptRoute[1]);
+
+                if (!RECEIPT_CODE_PATTERN.test(code)) {
+                    return jsonResponse({ error: "bad_request", message: "收款码格式不正确" }, 400, cors);
+                }
+
+                if (receiptRoute[2] && request.method === "POST") {
+                    return await handlePayReceiptCode(request, env, cors, code);
+                }
+                if (!receiptRoute[2] && request.method === "GET") {
+                    return await handleResolveReceiptCode(request, env, cors, code);
+                }
             }
 
             const tradeRoute = url.pathname.match(/^\/api\/accounts\/([^/]+)\/trades$/);
