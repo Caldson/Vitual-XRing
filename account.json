@@ -593,7 +593,16 @@
     "武卿卿": {
         "username": "武卿卿",
         "password": "123123",
-        "money": "0.00",
-        "trades": []
+        "money": "5.00",
+        "trades": [
+            {
+                "name": "每日签到",
+                "description": "每日签到奖励",
+                "price": "+5.00",
+                "time": "2026/10/19",
+                "from": "官方",
+                "to": "武卿卿"
+            }
+        ]
     }
 }
