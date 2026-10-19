@@ -221,8 +221,9 @@
 
     /**
      * 记账：type 为 payment（付款，扣余额）或 receipt（收款，加余额）。
+     * 付款必须带 password；收款不需要密码。
      * @param {{ type: "payment"|"receipt", amount: string|number, party: string,
-     *           description?: string, name?: string, password: string }} options
+     *           description?: string, name?: string, password?: string }} options
      */
     async function trade(options) {
         const payload = options || {};
@@ -243,6 +244,7 @@
         return trade({ ...options, type: "payment" });
     }
 
+    /** 收款不需要密码：VTX.receive({ amount, party, description }) */
     function receive(options) {
         return trade({ ...options, type: "receipt" });
     }

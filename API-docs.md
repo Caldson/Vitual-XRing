@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.4.0`（`data` 改为按游戏名分区，见第 3.1 节）
+- API 版本：`1.5.0`（收款不再需要密码；`data` 按游戏名分区，见第 3.1 节）
 
 ---
 
@@ -402,7 +402,10 @@ DELETE /api/me/data/{游戏名称}
 
 ### 4.8 记一笔收款 / 付款
 
-给自己的账户追加一条交易记录，并同步修改余额。**必须携带账户密码**（二次确认，防止 token 被盗后被刷）。
+给自己的账户追加一条交易记录，并同步修改余额。
+
+- **付款（`payment`）必须携带账户密码**（二次确认，防止 token 被盗后被刷）。
+- **收款（`receipt`）不需要密码**，有有效 token 就能直接入账。
 
 ```
 POST /api/me/trades
@@ -415,6 +418,17 @@ content-type: application/json
     "party": "示例网站",
     "description": "购买道具",
     "password": "账户密码"
+}
+```
+
+收款就不用带 `password`：
+
+```json
+{
+    "type": "receipt",
+    "amount": "5.00",
+    "party": "官方福利",
+    "description": "每日签到"
 }
 ```
 
@@ -433,7 +447,7 @@ POST /api/accounts/{登录名}/trades
 | `party` | 是 | 付款填**去向**，收款填**来源**（账户显示名或网站名），最长 40 字符 |
 | `description` | 否 | 备注，最长 200 字符 |
 | `name` | 否 | 记录名称，默认 `付款` / `收款`，最长 20 字符 |
-| `password` | 是 | 当前账户的登录密码 |
+| `password` | 仅付款 | 付款时必填，必须等于当前账户的登录密码；收款忽略此项 |
 
 **生成的记录**
 
@@ -466,7 +480,7 @@ POST /api/accounts/{登录名}/trades
 
 | 项目 | 限制 |
 |---|---|
-| 密码 | 必须与账户当前密码一致，否则 `400 invalid_password`（不会产生记录） |
+| 密码 | `payment` 必须与账户当前密码一致，否则 `400 invalid_password`（不会产生记录）；`receipt` 不校验密码 |
 | 余额 | `payment` 时余额必须足够，否则 `400 insufficient_funds` |
 | 权限 | 只能给自己记账（token 的 `sub` 必须等于 `{登录名}`），否则 `403 forbidden` |
 | 频率 | 每 IP 每分钟 20 次，超出 `429 too_many_requests` |
@@ -487,7 +501,7 @@ POST /api/accounts/{登录名}/trades
 | 状态码 | `error` | 含义 |
 |---|---|---|
 | 400 | `bad_request` | 参数缺失、格式错误、键名不合法 |
-| 400 | `invalid_password` | 记账时密码不正确 |
+| 400 | `invalid_password` | 付款时密码不正确 |
 | 400 | `insufficient_funds` | 付款金额超过当前余额 |
 | 409 | `account_exists` | 创建账户时登录名已被占用 |
 | 401 | `unauthorized` | 缺少 / 无效 / 过期的 Bearer token |
@@ -542,9 +556,9 @@ POST /api/accounts/{登录名}/trades
 | `VTX.getData(game)` | 读取某个游戏的分区数据，返回 `{ ok, login, game, gameData }` |
 | `VTX.deleteData(game)` | 删除某个游戏的全部分区数据 |
 | `VTX.deleteData(game, key)` | 删除某个游戏分区下的单个键 |
-| `VTX.pay({ amount, party, description, password })` | 记一笔付款（扣余额） |
-| `VTX.receive({ amount, party, description, password })` | 记一笔收款（加余额） |
-| `VTX.trade({ type, amount, party, description, name, password })` | 上面两个的通用形式 |
+| `VTX.pay({ amount, party, description, password })` | 记一笔付款（扣余额），`password` 必填 |
+| `VTX.receive({ amount, party, description })` | 记一笔收款（加余额），**不需要密码** |
+| `VTX.trade({ type, amount, party, description, name, password })` | 上面两个的通用形式（`payment` 才需要 `password`） |
 | `VTX.getToken()` | 当前 token（无则空字符串） |
 | `VTX.baseUrl` | 当前生效的 API 地址 |
 
@@ -597,7 +611,7 @@ const paid = await VTX.pay({
 console.log(paid.trade.price, paid.account.money);   // -12.34  87.66
 
 // 收款 5.00 VTX 来自某个网站
-await VTX.receive({ amount: "5.00", party: "游戏站", password: "账户密码" });
+await VTX.receive({ amount: "5.00", party: "游戏站", description: "签到奖励" });
 ```
 
 ---
@@ -715,7 +729,7 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?party=Decrive%20音游&amount=5.00&d
 **流程**
 
 1. 已有有效 token 时调 `GET /api/me` 自动登录，否则显示登录表单
-2. 选择「付款 / 收款」，填对方、金额、描述（选填）、**密码**
+2. 选择「付款 / 收款」，填对方、金额、描述（选填）；**付款才需要再输一次密码**，收款直接点「确认收款」到账
 3. 提交后页面展示记录详情（名称 / 金额 / 流向 / 描述 / 时间）与最新余额
 
 站内也可用 iframe 嵌它，把 `type=payment` 直接落到付款页签：
