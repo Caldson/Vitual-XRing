@@ -12,7 +12,7 @@
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  */
 
-const VERSION = "1.4.0";
+const VERSION = "1.5.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -784,9 +784,11 @@ async function handleTrade(request, env, cors, login) {
     }
 
     const password = String(body.password ?? "");
+    const isPayment = type === "payment";
 
-    if (!password) {
-        return jsonResponse({ error: "bad_request", message: "缺少 password：记账需要密码确认" }, 400, cors);
+    // 付款要密码二次确认；收款只是给自己入账，不需要密码
+    if (isPayment && !password) {
+        return jsonResponse({ error: "bad_request", message: "缺少 password：付款需要密码确认" }, 400, cors);
     }
 
     const party = String(body.party ?? body.counterparty ?? "").trim();
@@ -810,7 +812,6 @@ async function handleTrade(request, env, cors, login) {
         return jsonResponse({ error: "bad_request", message: `name 必须为 1-${MAX_TRADE_NAME_LENGTH} 个字符` }, 400, cors);
     }
 
-    const isPayment = type === "payment";
     let trade = null;
 
     const accounts = await commitAccounts(env, (data) => {
@@ -820,8 +821,8 @@ async function handleTrade(request, env, cors, login) {
             throw new HttpError(404, "not_found", "账户不存在");
         }
 
-        if (!timingSafeEqual(String(account.password || ""), password)) {
-            throw new HttpError(400, "invalid_password", "密码不正确，记账已取消");
+        if (isPayment && !timingSafeEqual(String(account.password || ""), password)) {
+            throw new HttpError(400, "invalid_password", "密码不正确，付款已取消");
         }
 
         const balanceCents = toCents(account.money) ?? 0;
