@@ -2,7 +2,7 @@
     "Kitawaga": {
         "username": "刘浩天（站主）",
         "password": "100%Security",
-        "money": "12434.45",
+        "money": "11199.89",
         "trades": [
             {
                 "name": "Developments",
@@ -291,6 +291,14 @@
                 "from": "刘浩天（站主）",
                 "to": "金焘熙",
                 "price": "-2000.00"
+            },
+            {
+                "name": "转账",
+                "description": "我阁那儿上计算机课",
+                "time": "2026/10/19",
+                "from": "刘浩天（站主）",
+                "to": "张深深",
+                "price": "-1234.56"
             }
         ],
         "data": {
@@ -447,7 +455,7 @@
     "Zhangshenshen": {
         "username": "张深深",
         "password": "XStud0gm",
-        "money": "2770.00",
+        "money": "4004.56",
         "trades": [
             {
                 "name": "官方福利",
@@ -480,6 +488,14 @@
                 "from": "刘浩天（站主）",
                 "to": "张深深",
                 "price": "+2500.00"
+            },
+            {
+                "name": "转账",
+                "description": "我阁那儿上计算机课",
+                "time": "2026/10/19",
+                "from": "刘浩天（站主）",
+                "to": "张深深",
+                "price": "+1234.56"
             }
         ]
     },
