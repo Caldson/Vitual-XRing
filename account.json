@@ -2,7 +2,7 @@
     "Kitawaga": {
         "username": "刘浩天（站主）",
         "password": "100%Security",
-        "money": "14434.45",
+        "money": "12434.45",
         "trades": [
             {
                 "name": "Developments",
@@ -283,6 +283,14 @@
                 "from": "Kitawaga",
                 "to": "刘浩天（站主）",
                 "price": "+1000.00"
+            },
+            {
+                "name": "转账",
+                "description": "恭喜你朋友你被我恭喜到了",
+                "time": "2026/10/19",
+                "from": "刘浩天（站主）",
+                "to": "金焘熙",
+                "price": "-2000.00"
             }
         ],
         "data": {
@@ -501,7 +509,7 @@
     "金焘熙": {
         "username": "金焘熙",
         "password": "110105201607040011",
-        "money": "2995.00",
+        "money": "4995.00",
         "trades": [
             {
                 "name": "每日签到",
@@ -550,6 +558,14 @@
                 "from": "Kitawaga",
                 "to": "金焘熙",
                 "price": "+1000.00"
+            },
+            {
+                "name": "转账",
+                "description": "恭喜你朋友你被我恭喜到了",
+                "time": "2026/10/19",
+                "from": "刘浩天（站主）",
+                "to": "金焘熙",
+                "price": "+2000.00"
             }
         ]
     }
