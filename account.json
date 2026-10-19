@@ -593,7 +593,7 @@
     "武卿卿": {
         "username": "武卿卿",
         "password": "123123",
-        "money": "5.00",
+        "money": "0.00",
         "trades": [
             {
                 "name": "每日签到",
@@ -602,6 +602,14 @@
                 "time": "2026/10/19",
                 "from": "官方",
                 "to": "武卿卿"
+            },
+            {
+                "name": "付款",
+                "description": "Vitual XRing 官方福利",
+                "time": "2026/10/19 19:37:18",
+                "from": "武卿卿",
+                "to": "Kitawaga",
+                "price": "-5.00"
             }
         ]
     }
