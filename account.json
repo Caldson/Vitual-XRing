@@ -255,16 +255,26 @@
                             "plays": 1,
                             "boost": false,
                             "updatedAt": "2026-10-17T16:05:15.869Z"
+                        },
+                        "official-walking-step": {
+                            "title": "Walking Step",
+                            "best": 316550,
+                            "last": 316550,
+                            "bestCombo": 291,
+                            "grade": "S",
+                            "plays": 1,
+                            "boost": true,
+                            "updatedAt": "2026-10-19T08:46:27.757Z"
                         }
                     },
                     "last": {
-                        "chartId": "official-neon-afterglow",
-                        "title": "Neon Afterglow",
-                        "score": 29792,
-                        "combo": 32,
-                        "grade": "A",
+                        "chartId": "official-walking-step",
+                        "title": "Walking Step",
+                        "score": 316550,
+                        "combo": 291,
+                        "grade": "S",
                         "boost": true,
-                        "time": "2026-10-19T08:42:02.009Z"
+                        "time": "2026-10-19T08:46:27.757Z"
                     }
                 }
             }
