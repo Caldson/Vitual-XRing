@@ -249,6 +249,45 @@
         return trade({ ...options, type: "receipt" });
     }
 
+    /**
+     * 生成新的收款码（旧码立即失效）。
+     * @param {string|number} [amount] 预设金额；不传由付款方自行填写
+     */
+    function createReceiptCode(amount) {
+        const body = amount === undefined || amount === null || String(amount).trim() === ""
+            ? {}
+            : { amount };
+        return request("/api/me/receipt-code", { method: "POST", body });
+    }
+
+    /** 读取当前收款码（不会重新生成） */
+    function receiptCode() {
+        return request("/api/me/receipt-code");
+    }
+
+    /** 撤销当前收款码 */
+    function revokeReceiptCode() {
+        return request("/api/me/receipt-code", { method: "DELETE" });
+    }
+
+    /** 解析收款码内容（公开接口，不需要登录） */
+    function receiptCodeInfo(code) {
+        return request(`/api/receipt-codes/${encodeURIComponent(String(code || ""))}`);
+    }
+
+    /** 用收款码付款（需要密码） */
+    function payReceiptCode(code, options) {
+        const payload = options || {};
+        return request(`/api/receipt-codes/${encodeURIComponent(String(code || ""))}/pay`, {
+            method: "POST",
+            body: {
+                password: payload.password,
+                amount: payload.amount,
+                description: payload.description
+            }
+        });
+    }
+
     global.VTX = {
         configure,
         login,
@@ -265,6 +304,11 @@
         trade,
         pay,
         receive,
+        createReceiptCode,
+        receiptCode,
+        revokeReceiptCode,
+        receiptCodeInfo,
+        payReceiptCode,
         getToken: currentToken,
         get baseUrl() {
             return resolveBase();

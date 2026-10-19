@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.5.0`（收款不再需要密码；`data` 按游戏名分区，见第 3.1 节）
+- API 版本：`5.0.0`（新增收款码；收款不需要密码；`data` 按游戏名分区，见第 3.1 节）
 
 ---
 
@@ -134,7 +134,12 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | PUT | `/api/accounts/{登录名}/data/{游戏名称}` | 是 | 同上，显式指定账户（只能是自己） |
 | GET | `/api/accounts/{登录名}/data/{游戏名称}` | 是 | 同上 |
 | DELETE | `/api/accounts/{登录名}/data/{游戏名称}[/{键}]` | 是 | 同上 |
-| POST | `/api/me/trades` | 是 | 记一笔收款 / 付款（需密码确认） |
+| POST | `/api/me/trades` | 是 | 记一笔收款（无需密码）/ 付款（需密码确认） |
+| POST | `/api/me/receipt-code` | 是 | 生成新的收款码（旧码立即失效） |
+| GET | `/api/me/receipt-code` | 是 | 读取当前收款码 |
+| DELETE | `/api/me/receipt-code` | 是 | 撤销收款码 |
+| GET | `/api/receipt-codes/{code}` | 否 | 解析收款码（收款人、金额） |
+| POST | `/api/receipt-codes/{code}/pay` | 是 | 扫收款码付款（需密码） |
 | POST | `/api/accounts/{登录名}/trades` | 是 | 同上，显式指定账户（只能是自己） |
 
 > **破坏性变更（1.4.0）**：`/api/me/data`（不带游戏名）现在返回 `400 bad_request`，并提示新用法。
@@ -488,6 +493,109 @@ POST /api/accounts/{登录名}/trades
 
 > 这条接口只做**记账**：`party` 是自由文本，不会给对方账户加减钱。需要账户间真实转账，请在站内 `manager.html` 操作。
 
+
+### 4.9 收款码
+
+扫码付款用的一次性收款入口。码本身是可撤销的随机串，**存在账户里**，所以：
+
+- 只有主动「刷新」才会生成新码，重新打开页面、换设备打开都是同一个码
+- 刷新后旧码立即失效（不会误收）
+- **收款方不需要做任何确认**，付款方扫完码付完款，钱直接进账
+
+#### 生成 / 读取 / 撤销（需要 token）
+
+```
+POST /api/me/receipt-code
+authorization: ******
+content-type: application/json
+
+{ "amount": "12.50" }          // 可省略；省略则由付款方自己填金额
+```
+
+**响应 `200`**
+
+```json
+{
+    "ok": true,
+    "login": "账户名称",
+    "payeeName": "用户名",
+    "code": "Kq3fGb2xLmN0pQrStUvWxY",
+    "amount": "12.50",
+    "createdAt": "2026/10/19 20:00:00",
+    "url": "https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY"
+}
+```
+
+- `GET /api/me/receipt-code` 读当前码（不会重新生成），没有码时 `code` 为 `null`
+- `DELETE /api/me/receipt-code` 撤销当前码
+
+#### 解析收款码（公开，不需要 token）
+
+```
+GET /api/receipt-codes/{code}
+```
+
+```json
+{
+    "ok": true,
+    "code": "Kq3fGb2xLmN0pQrStUvWxY",
+    "payee": "账户名称",
+    "payeeName": "用户名",
+    "amount": "12.50",
+    "createdAt": "2026/10/19 20:00:00",
+    "url": "https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY"
+}
+```
+
+码不存在或已被刷新替换时返回 `404 not_found`。
+
+#### 扫码付款（需要 token + 密码）
+
+```
+POST /api/receipt-codes/{code}/pay
+authorization: ******
+content-type: application/json
+
+{ "password": "付款方密码", "amount": "12.50" }
+```
+
+- `amount` 只有在该收款码没有预设金额时才必填
+- 收款方**不需要确认**，付款成功后钱立即入账
+
+**响应 `200`**
+
+```json
+{
+    "ok": true,
+    "login": "付款方账户",
+    "trade": {
+        "name": "付款",
+        "description": "",
+        "time": "2026/10/19 20:05:11",
+        "from": "付款方用户名",
+        "to": "收款方用户名",
+        "price": "-12.50"
+    },
+    "payee": { "login": "收款方账户", "username": "收款方用户名" },
+    "account": { "username": "付款方用户名", "money": "87.50", "trades": [], "data": {} },
+    "payeeAccount": { "login": "收款方账户", "money": "112.50" }
+}
+```
+
+双方各追加一条记录：付款方 `付款 -12.50`，收款方 `收款 +12.50`。
+
+**约束**
+
+| 项目 | 限制 |
+|---|---|
+| 密码 | 付款方必须输入正确密码，否则 `400 invalid_password`（双方余额都不会变） |
+| 余额 | 付款方余额必须足够，否则 `400 insufficient_funds` |
+| 自己的码 | 扫自己的收款码付款返回 `400 bad_request` |
+| 码格式 | 只允许字母、数字、`_`、`-`，长度 16–64 |
+| 频率 | 生成受写入限流（每分钟 60 次）；付款受记账限流（每分钟 20 次） |
+
+> 只在需要收钱时把码发给别人；码被转发出去谁都能用它给你打钱（不会扣你的钱），如果不想再收就点「撤销」。
+
 ---
 
 ## 5. 错误响应格式
@@ -559,6 +667,11 @@ POST /api/accounts/{登录名}/trades
 | `VTX.pay({ amount, party, description, password })` | 记一笔付款（扣余额），`password` 必填 |
 | `VTX.receive({ amount, party, description })` | 记一笔收款（加余额），**不需要密码** |
 | `VTX.trade({ type, amount, party, description, name, password })` | 上面两个的通用形式（`payment` 才需要 `password`） |
+| `VTX.createReceiptCode(amount?)` | 生成新的收款码（旧码立即失效），返回 `{ code, url, amount, createdAt }` |
+| `VTX.receiptCode()` | 读取当前收款码（不会重新生成） |
+| `VTX.revokeReceiptCode()` | 撤销收款码 |
+| `VTX.receiptCodeInfo(code)` | 解析收款码（公开接口，不需要登录） |
+| `VTX.payReceiptCode(code, { password, amount, description })` | 扫收款码付款，`amount` 仅在码上没预设金额时需要 |
 | `VTX.getToken()` | 当前 token（无则空字符串） |
 | `VTX.baseUrl` | 当前生效的 API 地址 |
 
@@ -612,6 +725,25 @@ console.log(paid.trade.price, paid.account.money);   // -12.34  87.66
 
 // 收款 5.00 VTX 来自某个网站
 await VTX.receive({ amount: "5.00", party: "游戏站", description: "签到奖励" });
+```
+
+**收款码示例**
+
+```js
+await VTX.login("账户名称", "密码");
+
+// 生成 12.50 VTX 的收款码，把 url 画成二维码给别人扫
+const code = await VTX.createReceiptCode("12.50");
+console.log(code.url);        // https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=...
+
+// 换设备 / 刷新页面都读同一个码
+const same = await VTX.receiptCode();
+
+// 付款方扫到码之后（需要他自己的 token 和密码）
+await VTX.payReceiptCode(code.code, { password: "付款方密码" });
+
+// 不想再收了就撤销
+await VTX.revokeReceiptCode();
 ```
 
 ---
@@ -706,19 +838,37 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html
 | 参数 | 说明 |
 |---|---|
 | `api` | API 地址，规则与 `API_LOGIN.html` 相同 |
-| `type` | `payment`（默认）或 `receipt`，决定打开时的初始页签 |
+| `type` | `payment`（默认）、`receipt` 或 `code`（收款码），决定打开时的初始页签 |
 | `party` | 预填对方（付款去向 / 收款来源） |
 | `amount` | 预填金额，如 `5.00` |
 | `description` | 预填描述 |
 | `lock` | `1` 时锁定上述字段且禁止切换付款/收款（用于固定商品） |
 | `close` | `1` 时付款成功后自动关闭窗口（仅对弹窗有效） |
 | `embed` | `1` 表示被 iframe 嵌入 |
+| `rc` | 收款码，例如 `?rc=Kq3f...`；带上就直接进入「扫码付款」流程 |
 
 **示例（固定商品付款）**
 
 ```
 https://xsmmc.caldson.us.ci/API_VTXPAY.html?party=Decrive%20音游&amount=5.00&description=全%20PERFECT%20道具&lock=1
 ```
+
+**示例（生成自己的收款码）**
+
+```
+https://xsmmc.caldson.us.ci/API_VTXPAY.html?type=code
+```
+
+「收款码」页签里可以填金额、生成 / 刷新 / 撤销收款码，并把二维码图片保存到电脑或手机相册。
+**只有点「刷新收款码」才会生成新的码**，旧码同时失效。
+
+**示例（扫码付款）**
+
+```
+https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
+```
+
+扫码者打开后会看到收款人与金额，登录并输入自己的密码即可付款；**收款方不需要确认**。
 
 **成功回调**：向 `window.opener` 与 `window.parent` 发送
 
@@ -729,8 +879,10 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?party=Decrive%20音游&amount=5.00&d
 **流程**
 
 1. 已有有效 token 时调 `GET /api/me` 自动登录，否则显示登录表单
-2. 选择「付款 / 收款」，填对方、金额、描述（选填）；**付款才需要再输一次密码**，收款直接点「确认收款」到账
+2. 选择「付款 / 收款 / 收款码」，填对方、金额、描述（选填）；**付款才需要再输一次密码**，收款直接点「确认收款」到账
 3. 提交后页面展示记录详情（名称 / 金额 / 流向 / 描述 / 时间）与最新余额
+
+带 `rc` 参数时是另一条流程：先解析收款码 → 登录 → 输入密码 → 直接付款（收款方无需确认），完成后同样向 `opener / parent` 发送上面那条 `vtx-pay` 消息。
 
 站内也可用 iframe 嵌它，把 `type=payment` 直接落到付款页签：
 
