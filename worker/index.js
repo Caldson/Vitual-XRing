@@ -533,7 +533,8 @@ async function handleDeleteReceiptCode(request, env, cors) {
 }
 
 async function handleResolveReceiptCode(request, env, cors, code) {
-    const accounts = await loadAccounts(env);
+    // 收款码要求「刷新/撤销后立即失效」，所以这里跳过账户缓存，直接读最新数据
+    const { accounts } = await readAccountFile(env);
     const found = findReceiptOwner(accounts, code);
 
     if (!found) {

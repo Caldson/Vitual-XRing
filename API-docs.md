@@ -138,7 +138,7 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | POST | `/api/me/receipt-code` | 是 | 生成新的收款码（旧码立即失效） |
 | GET | `/api/me/receipt-code` | 是 | 读取当前收款码 |
 | DELETE | `/api/me/receipt-code` | 是 | 撤销收款码 |
-| GET | `/api/receipt-codes/{code}` | 否 | 解析收款码（收款人、金额） |
+| GET | `/api/receipt-codes/{code}` | 否 | 解析收款码（收款人、金额，不走缓存，刷新/撤销后立即失效） |
 | POST | `/api/receipt-codes/{code}/pay` | 是 | 扫收款码付款（需密码） |
 | POST | `/api/accounts/{登录名}/trades` | 是 | 同上，显式指定账户（只能是自己） |
 
@@ -547,7 +547,7 @@ GET /api/receipt-codes/{code}
 }
 ```
 
-码不存在或已被刷新替换时返回 `404 not_found`。
+码不存在或已被刷新替换时返回 `404 not_found`。这个接口**不走账户缓存**，所以刷新/撤销后立即失效。
 
 #### 扫码付款（需要 token + 密码）
 
