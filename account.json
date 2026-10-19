@@ -221,12 +221,12 @@
                         "official-neon-afterglow": {
                             "title": "Neon Afterglow",
                             "best": 29792,
-                            "last": 16140,
+                            "last": 29792,
                             "bestCombo": 32,
-                            "grade": "C",
-                            "plays": 4,
-                            "boost": false,
-                            "updatedAt": "2026-10-17T16:02:04.456Z"
+                            "grade": "A",
+                            "plays": 5,
+                            "boost": true,
+                            "updatedAt": "2026-10-19T08:42:02.009Z"
                         },
                         "official-crazy-world": {
                             "title": "クレイジー・ワールド",
@@ -250,13 +250,13 @@
                         }
                     },
                     "last": {
-                        "chartId": "official-life-just-like-short-2",
-                        "title": "Life just like Short 2",
-                        "score": 315064,
-                        "combo": 43,
-                        "grade": "C",
-                        "boost": false,
-                        "time": "2026-10-17T16:05:15.869Z"
+                        "chartId": "official-neon-afterglow",
+                        "title": "Neon Afterglow",
+                        "score": 29792,
+                        "combo": 32,
+                        "grade": "A",
+                        "boost": true,
+                        "time": "2026-10-19T08:42:02.009Z"
                     }
                 }
             }
