@@ -358,6 +358,11 @@
                     }
                 }
             }
+        },
+        "receipt": {
+            "id": "7KowpadWpjF1wwyJTpaCWg",
+            "amount": null,
+            "createdAt": "2026/10/19 19:34:53"
         }
     },
     "Fanjiayue": {
