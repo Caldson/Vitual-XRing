@@ -215,7 +215,7 @@
         ],
         "data": {
             "Decrive": {
-                "boost": 0,
+                "boost": 1,
                 "stats": {
                     "charts": {
                         "official-neon-afterglow": {
