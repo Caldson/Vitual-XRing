@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`5.0.0`（新增收款码；收款不需要密码；`data` 按游戏名分区，见第 3.1 节）
+- API 版本：`5.1.0`（新增收款码；收款不需要密码；`data` 按游戏名分区，见第 3.1 节）
 
 ---
 
