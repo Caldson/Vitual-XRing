@@ -632,7 +632,7 @@
     "Fanjiayue": {
         "username": "范佳玥",
         "password": "XSvtx001",
-        "money": "205.00",
+        "money": "205.01",
         "trades": [
             {
                 "name": "转账",
@@ -649,6 +649,14 @@
                 "from": "系统",
                 "to": "范佳玥",
                 "price": "+200.00"
+            },
+            {
+                "name": "转账",
+                "description": "666",
+                "time": "2026/10/20",
+                "from": "新时代のZakoZako",
+                "to": "范佳玥",
+                "price": "+0.01"
             }
         ]
     },
@@ -920,7 +928,7 @@
     "音绕": {
         "username": "新时代のZakoZako",
         "password": "9142016",
-        "money": "4.95",
+        "money": "4.94",
         "trades": [
             {
                 "name": "每日签到",
@@ -1000,6 +1008,14 @@
                 "time": "2026/10/20",
                 "from": "音绕",
                 "to": "刘浩天（站主）",
+                "price": "-0.01"
+            },
+            {
+                "name": "转账",
+                "description": "666",
+                "time": "2026/10/20",
+                "from": "新时代のZakoZako",
+                "to": "范佳玥",
                 "price": "-0.01"
             }
         ]
