@@ -482,6 +482,20 @@
             letter-spacing: 0.02em;
         }
 
+        .admin-link {
+            padding: 5px 11px;
+            border-radius: 999px;
+            color: #7b3fe4;
+            background: #f3ecff;
+            font-size: 12.5px;
+            text-decoration: none;
+        }
+
+        .admin-link:hover {
+            color: #fff;
+            background: #7b3fe4;
+        }
+
         .balance-footer {
             position: relative;
             z-index: 1;
@@ -617,8 +631,11 @@
         <div class="topbar-actions">
             <a class="topbar-link" href="chat.html">AI 聊天</a>
             <a class="topbar-link" href="image.html">AI 生图</a>
+            <a class="topbar-link" href="shop.html">商店</a>
+            <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="API_VTXPAY.html?type=code">收款码</a>
-            <span class="version">v5.2</span>
+            <a id="admin-button" class="admin-link" href="admin.html" hidden>管理员仓库修改器</a>
+            <span class="version">v6.0</span>
             <button id="logout-button" class="logout-button" type="button">退出登录</button>
         </div>
     </header>
@@ -710,6 +727,10 @@
                         <label for="transfer-note">备注（可选）</label>
                         <input id="transfer-note" type="text" maxlength="80" placeholder="例如：还款">
                     </div>
+                    <div class="field full">
+                        <label for="transfer-password">账户密码确认</label>
+                        <input id="transfer-password" type="password" autocomplete="current-password" required>
+                    </div>
                 </div>
 
                 <div class="transfer-actions">
@@ -729,6 +750,10 @@
                 <div class="field">
                     <label for="withdraw-amount">提款金额（VTX）</label>
                     <input id="withdraw-amount" type="number" min="0.01" step="0.01" required>
+                </div>
+                <div class="field">
+                    <label for="withdraw-password">账户密码确认</label>
+                    <input id="withdraw-password" type="password" autocomplete="current-password" required>
                 </div>
                 <button id="withdraw-button" class="primary-button" type="submit">提款</button>
             </form>
@@ -754,14 +779,19 @@
 
     <footer>Vitual XRing · 账户余额以账户数据为准 · <a href="crypto.html">加密工具</a></footer>
 
-    <script src="vtx-crypto.js?v=5.2"></script>
-    <script src="vtx-api.js?v=5.2"></script>
+    <script src="vtx-crypto.js?v=6.0"></script>
+    <script src="vtx-api.js?v=6.0"></script>
 
     <script>
+        const ADMIN_ACCOUNT = "Kitawaga";
         let accountName = sessionStorage.getItem("vtxAccount");
         const message = document.getElementById("account-message");
 
         let accountsData = null;
+
+        if (accountName === ADMIN_ACCOUNT) {
+            document.getElementById("admin-button").hidden = false;
+        }
 
         document.getElementById("logout-button").addEventListener("click", () => {
             sessionStorage.removeItem("vtxAccount");
@@ -1008,6 +1038,7 @@
             const recipient = document.getElementById("transfer-to").value;
             const amountCents = toCents(document.getElementById("transfer-amount").value);
             const note = document.getElementById("transfer-note").value.trim();
+            const password = document.getElementById("transfer-password").value;
 
             document.getElementById("transfer-message").hidden = true;
 
@@ -1017,6 +1048,14 @@
             }
             if (!Number.isFinite(amountCents) || amountCents <= 0) {
                 setTransferMessage("请输入大于 0 的金额。", "error");
+                return;
+            }
+            if (!password) {
+                setTransferMessage("请输入账户密码确认转账。", "error");
+                return;
+            }
+            if (accountsData[accountName] && accountsData[accountName].password !== password) {
+                setTransferMessage("账户密码不正确。", "error");
                 return;
             }
 
@@ -1030,6 +1069,9 @@
 
                     if (!sender) {
                         throw new Error("当前账户在 account.json 中不存在。");
+                    }
+                    if (sender.password !== password) {
+                        throw new Error("账户密码不正确。");
                     }
                     if (!target) {
                         throw new Error(`收款账户 ${recipient} 不存在。`);
@@ -1096,6 +1138,7 @@
 
             const button = document.getElementById("withdraw-button");
             const input = document.getElementById("withdraw-amount");
+            const passwordInput = document.getElementById("withdraw-password");
             const amountCents = toCents(input.value);
             const receipt = document.getElementById("withdraw-receipt");
 
@@ -1107,6 +1150,14 @@
             }
             if (toCents(accountsData[accountName].money) < amountCents) {
                 setWithdrawMessage("余额不足。", "error");
+                return;
+            }
+            if (!passwordInput.value) {
+                setWithdrawMessage("请输入账户密码确认提款。", "error");
+                return;
+            }
+            if (accountsData[accountName].password !== passwordInput.value) {
+                setWithdrawMessage("账户密码不正确。", "error");
                 return;
             }
 
@@ -1122,6 +1173,9 @@
                     const account = data[accountName];
                     if (!account) {
                         throw new Error("当前账户在 account.json 中不存在。");
+                    }
+                    if (account.password !== passwordInput.value) {
+                        throw new Error("账户密码不正确。");
                     }
                     if (toCents(account.money) < amountCents) {
                         throw new Error("余额不足。");
@@ -1147,6 +1201,7 @@
                 renderAccount(accounts[accountName]);
                 populateRecipients();
                 input.value = "";
+                passwordInput.value = "";
                 document.getElementById("withdraw-receipt-text").textContent = receiptText;
                 receipt.hidden = false;
             } catch (error) {

@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`5.2.0`（新增收款码；收款不需要密码；`data` 按游戏名分区，见第 3.1 节）
+- API 版本：`6.0.0`（接口与 5.2.0 一致；新增商店、管理员仓库修改器与聊天室页面，见第 9.2 节）
 
 ---
 
@@ -891,6 +891,67 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 <iframe src="https://xsmmc.caldson.us.ci/API_VTXPAY.html?type=payment"
         style="width:440px;height:640px;border:0"></iframe>
 ```
+
+---
+
+## 9.2 商店、管理员工具与聊天室（6.0 新增）
+
+以下页面直接使用 `secure.json` 中保存的 GitHub token 读写仓库（Contents API / Git Data API），**不经过 Worker 接口**，
+因此 API 端点与 5.2.0 完全一致。
+
+### 9.2.1 商店（shop.html）
+
+- 地址：`https://xsmmc.caldson.us.ci/shop.html`，需要已登录（`sessionStorage.vtxAccount`）
+- 商品数据存放在仓库根目录 `shop.json`：
+
+```json
+{
+    "version": "6.0",
+    "items": [
+        {
+            "id": "vtx-note-10",
+            "name": "10 VTX 纸币",
+            "price": "10.00",
+            "description": "面值 10 VTX 的纸质货币，下单后次日线下领取。",
+            "manufacturer": "XRingCR",
+            "stock": 100
+        }
+    ]
+}
+```
+
+| 字段 | 说明 |
+|---|---|
+| `id` | 商品唯一标识，购买时用于定位商品 |
+| `name` | 商品名称 |
+| `price` | 单价（VTX，字符串） |
+| `description` | 详情描述 |
+| `manufacturer` | 制造商 |
+| `stock` | 库存数量，由站主填写；`stock > 0` 自动显示「在售」，否则显示「无货」 |
+
+- 购买流程：选择数量 → 输入**账户密码**确认 → 扣款并写入一条 `name` 为 `购买商品` 的交易记录
+- 购买会在一次提交中同时更新 `shop.json`（库存减少）与 `account.json`（余额减少、写入交易记录）
+- 成功后页面显示购买凭证，需要截图发到 XRingCR 群，次日线下领取
+
+### 9.2.2 管理员仓库修改器（admin.html）
+
+- 地址：`https://xsmmc.caldson.us.ci/admin.html`
+- 仅当 `sessionStorage.vtxAccount === "Kitawaga"` 时可访问，其它账户会被重定向到 `manager.html`；
+  `manager.html` 顶部也只在该账户登录时显示「管理员仓库修改器」按钮
+- 支持：新建 / 删除 / 修改文件，重命名文件（含扩展名），新建 / 删除 / 重命名文件夹，
+  fetch、pull、fetch and pull、push、自己处理 merge、让 AI 处理 merge、让 AI 写代码，
+  以及 push 前编辑 commit 名称与详情、push 后修改最近一次提交的名称与详情
+- 「让 AI 处理 merge」与「让 AI 写代码」使用 `https://text.pollinations.ai/openai`（依次尝试 `openai-fast`、`openai`、`mistral`）
+- 空文件夹通过 `.gitkeep` 占位，Git 本身不保存空目录
+
+### 9.2.3 聊天室（chatroom.html）
+
+- 地址：`https://xsmmc.caldson.us.ci/chatroom.html`
+- 6.0 版本仅显示「功能开发中，敬请期待。」
+
+### 9.2.4 提款与转账的密码确认（6.0 变更）
+
+`manager.html` 中的「提款」与「转账」在提交前必须输入当前账户密码，密码错误则不写入仓库。
 
 ---
 

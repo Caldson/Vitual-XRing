@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>管理员仓库修改器 | Vitual XRing</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            color: #172033;
+            background: #f4f7fb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding-bottom: 56px;
+            background:
+                radial-gradient(circle at 10% 0, #e6e9ff 0, transparent 34%),
+                radial-gradient(circle at 92% 6%, #e4f5f0 0, transparent 28%),
+                #f4f7fb;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 14px 24px;
+            border-bottom: 1px solid #e7ebf2;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(10px);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #172033;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .brand-mark {
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border-radius: 10px;
+            color: #fff;
+            background: linear-gradient(135deg, #4b3ce8, #7c6cff);
+            font-size: 16px;
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+
+        .topbar-link {
+            color: #4a5871;
+            text-decoration: none;
+            font-weight: 650;
+        }
+
+        .topbar-link:hover {
+            color: #3158d1;
+        }
+
+        .version {
+            padding: 4px 10px;
+            border-radius: 999px;
+            color: #4b3ce8;
+            background: #eef2ff;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        .admin-chip {
+            padding: 4px 10px;
+            border-radius: 999px;
+            color: #7b3fe4;
+            background: #f3ecff;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        main {
+            width: min(100%, 1280px);
+            margin: 0 auto;
+            padding: 28px 24px 0;
+        }
+
+        .page-head h1 {
+            margin: 4px 0 8px;
+            font-size: 28px;
+        }
+
+        .eyebrow {
+            margin: 0;
+            color: #738097;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .page-head p.copy {
+            margin: 0 0 16px;
+            color: #738097;
+            line-height: 1.7;
+        }
+
+        .repo-status {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border: 1px solid #e7ebf2;
+            border-radius: 14px;
+            background: #fff;
+            font-size: 13px;
+            color: #5b6880;
+        }
+
+        .repo-status b {
+            color: #1f2b45;
+            font-weight: 700;
+        }
+
+        .status {
+            margin: 0 0 16px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .status[hidden] {
+            display: none;
+        }
+
+        .status.error {
+            color: #a9202f;
+            background: #fdeef0;
+            border-color: #f6cdd3;
+        }
+
+        .status.success {
+            color: #1f7a52;
+            background: #edf8f2;
+            border-color: #c8e8d6;
+        }
+
+        .status.info {
+            color: #3158d1;
+            background: #f2f6ff;
+            border-color: #d8e3fb;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(240px, 300px) 1fr;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .panel {
+            border: 1px solid #e7ebf2;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 12px 32px rgba(30, 50, 90, 0.05);
+            padding: 18px;
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-weight: 750;
+            font-size: 15px;
+        }
+
+        .tree {
+            max-height: 420px;
+            overflow: auto;
+            padding: 6px;
+            border: 1px solid #eef1f7;
+            border-radius: 12px;
+            background: #fbfcfe;
+            font-size: 13.5px;
+        }
+
+        .tree ul {
+            margin: 0;
+            padding-left: 14px;
+            list-style: none;
+        }
+
+        .tree > ul {
+            padding-left: 2px;
+        }
+
+        .tree li {
+            margin: 1px 0;
+        }
+
+        .tree-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            padding: 5px 7px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: #33405a;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .tree-item:hover {
+            background: #eef2fb;
+        }
+
+        .tree-item.selected {
+            background: #e4ebff;
+            color: #24357a;
+            font-weight: 650;
+        }
+
+        .tree-item.dir {
+            font-weight: 700;
+            color: #2c3a58;
+        }
+
+        .tree-item .mark {
+            flex: none;
+            color: #d08700;
+        }
+
+        .tree-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .editor-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .editor-head h2 {
+            margin: 0;
+            font-size: 15px;
+            word-break: break-all;
+        }
+
+        .state-badge {
+            flex: none;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: #f1f3f8;
+            color: #7c8698;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .state-badge.dirty {
+            background: #fff4e0;
+            color: #a86900;
+        }
+
+        .state-badge.new {
+            background: #e9f8f1;
+            color: #1f7a52;
+        }
+
+        #editor {
+            width: 100%;
+            min-height: 340px;
+            padding: 14px;
+            border: 1px solid #dce2ec;
+            border-radius: 12px;
+            outline: none;
+            resize: vertical;
+            background: #fbfcfe;
+            color: #172033;
+            font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            tab-size: 4;
+        }
+
+        #editor:focus {
+            border-color: #7c6cff;
+            box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.14);
+        }
+
+        #editor:disabled {
+            opacity: 0.6;
+        }
+
+        .editor-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        .primary,
+        .ghost {
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 150ms, border-color 150ms;
+        }
+
+        .primary {
+            padding: 11px 18px;
+            border: 0;
+            color: #fff;
+            background: #4b3ce8;
+        }
+
+        .primary:hover:not(:disabled) {
+            background: #3a2ecb;
+        }
+
+        .ghost {
+            padding: 9px 14px;
+            border: 1px solid #dce2ec;
+            color: #3f4c66;
+            background: #fff;
+        }
+
+        .ghost:hover:not(:disabled) {
+            border-color: #b9c6e8;
+            background: #f5f8ff;
+        }
+
+        .primary:disabled,
+        .ghost:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .hint {
+            margin: 8px 0 0;
+            color: #8a94a6;
+            font-size: 12.5px;
+            line-height: 1.6;
+        }
+
+        .git-panel {
+            margin-top: 18px;
+        }
+
+        .git-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .commit-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13.5px;
+            font-weight: 650;
+        }
+
+        .field input,
+        .field textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #dce2ec;
+            border-radius: 10px;
+            outline: none;
+            background: #fff;
+            color: #172033;
+            font: inherit;
+            font-size: 13.5px;
+        }
+
+        .field textarea {
+            resize: vertical;
+            min-height: 74px;
+            font-family: inherit;
+        }
+
+        .field input:focus,
+        .field textarea:focus {
+            border-color: #7c6cff;
+            box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.14);
+        }
+
+        .subpanel {
+            padding: 14px;
+            border: 1px solid #eef1f7;
+            border-radius: 12px;
+            background: #fbfcfe;
+            margin-bottom: 12px;
+        }
+
+        .subpanel h3 {
+            margin: 0 0 8px;
+            font-size: 14px;
+        }
+
+        .subpanel p {
+            margin: 0 0 10px;
+            color: #5b6880;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .pending-list {
+            margin: 0;
+            padding-left: 18px;
+            font-size: 13px;
+            color: #3f4c66;
+            line-height: 1.8;
+        }
+
+        .pending-list:empty::before {
+            content: "暂无待提交更改";
+            color: #8a94a6;
+        }
+
+        .log {
+            margin: 0;
+            padding-left: 20px;
+            max-height: 220px;
+            overflow: auto;
+            font-size: 13px;
+            color: #3f4c66;
+            line-height: 1.7;
+        }
+
+        .log li {
+            word-break: break-word;
+        }
+
+        .log li.error {
+            color: #a9202f;
+        }
+
+        .log li.ok {
+            color: #1f7a52;
+        }
+
+        dialog {
+            width: min(100% - 32px, 420px);
+            padding: 0;
+            border: 0;
+            border-radius: 18px;
+            box-shadow: 0 30px 80px rgba(20, 40, 80, 0.24);
+        }
+
+        dialog::backdrop {
+            background: rgba(23, 32, 51, 0.42);
+        }
+
+        .ask {
+            padding: 22px;
+        }
+
+        .ask h2 {
+            margin: 0 0 14px;
+            font-size: 18px;
+        }
+
+        .dialog-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+
+            .commit-fields {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="index.html">
+            <span class="brand-mark" aria-hidden="true">V</span>
+            <span>Vitual XRing</span>
+        </a>
+        <div class="topbar-actions">
+            <span class="admin-chip">管理员</span>
+            <span class="version">v6.0</span>
+            <a class="topbar-link" href="manager.html">返回账户</a>
+            <a class="topbar-link" href="shop.html">商店</a>
+            <a class="topbar-link" href="chatroom.html">聊天室</a>
+        </div>
+    </header>
+
+    <main>
+        <section class="page-head">
+            <p class="eyebrow">Kitawaga Only</p>
+            <h1>管理员仓库修改器</h1>
+            <p class="copy">直接操作 GitHub 仓库中的文件：增删改文件与文件夹、重命名、fetch / pull / push、手动或让 AI 处理 merge、让 AI 写代码，并可在提交前后修改 commit 名称与详情。</p>
+            <div class="repo-status">
+                <span>仓库 <b id="repo-name">—</b></span>
+                <span>分支 <b id="repo-branch">—</b></span>
+                <span>远端 HEAD <b id="repo-head">—</b></span>
+                <span id="repo-fetched">尚未 fetch</span>
+            </div>
+            <p id="admin-message" class="status" role="status" aria-live="polite" hidden></p>
+        </section>
+
+        <div class="workspace">
+            <aside class="panel tree-panel">
+                <div class="panel-title">
+                    <span>仓库文件</span>
+                    <button id="tree-refresh" class="ghost" type="button">刷新</button>
+                </div>
+                <div class="tree-actions">
+                    <button class="ghost" type="button" data-tree-action="new-file">新建文件</button>
+                    <button class="ghost" type="button" data-tree-action="new-folder">新建文件夹</button>
+                    <button class="ghost" type="button" data-tree-action="rename">重命名</button>
+                    <button class="ghost" type="button" data-tree-action="delete">删除</button>
+                </div>
+                <div id="tree" class="tree"></div>
+                <p class="hint">点击文件可编辑；选中文件或文件夹后可重命名或删除。</p>
+            </aside>
+
+            <section class="panel editor-panel">
+                <div class="editor-head">
+                    <h2 id="editor-path">未打开文件</h2>
+                    <span id="editor-state" class="state-badge">—</span>
+                </div>
+                <textarea id="editor" spellcheck="false" disabled placeholder="从左侧选择一个文件，或使用「新建文件」开始编辑。"></textarea>
+                <div class="editor-actions">
+                    <button id="editor-revert" class="ghost" type="button" disabled>撤销修改</button>
+                    <span class="hint">编辑内容会自动进入暂存区，push 时一起提交。</span>
+                </div>
+            </section>
+        </div>
+
+        <section class="panel git-panel">
+            <h2 style="margin:0 0 12px;font-size:16px;">Git 操作</h2>
+            <div class="git-actions">
+                <button id="git-fetch" class="ghost" type="button">fetch</button>
+                <button id="git-pull" class="ghost" type="button">pull</button>
+                <button id="git-fetchandpull" class="ghost" type="button">fetch and pull</button>
+                <button id="git-merge-self" class="ghost" type="button">自己处理 merge</button>
+                <button id="git-merge-ai" class="ghost" type="button">让 AI 处理 merge</button>
+                <button id="git-push" class="primary" type="button">push</button>
+            </div>
+
+            <div class="commit-fields">
+                <div class="field">
+                    <label for="commit-title">commit 名称</label>
+                    <input id="commit-title" type="text" maxlength="120" placeholder="留空则自动生成">
+                </div>
+                <div class="field">
+                    <label for="commit-body">commit 详情</label>
+                    <textarea id="commit-body" rows="3" placeholder="可选，写在 commit 描述里"></textarea>
+                </div>
+            </div>
+
+            <div class="subpanel">
+                <h3>最近一次提交</h3>
+                <p id="last-commit-text">—</p>
+                <button id="amend-commit" class="ghost" type="button">修改提交名称与详情</button>
+            </div>
+
+            <div class="subpanel">
+                <h3>待提交更改 <span id="pending-count">0</span></h3>
+                <ul id="pending-list" class="pending-list"></ul>
+            </div>
+        </section>
+
+        <section class="panel" style="margin-top:18px;">
+            <h2 style="margin:0 0 12px;font-size:16px;">让 AI 写代码</h2>
+            <div class="commit-fields">
+                <div class="field">
+                    <label for="ai-path">目标文件（含扩展名）</label>
+                    <input id="ai-path" type="text" placeholder="例如 shop.html 或 code/demo.js">
+                </div>
+                <div class="field">
+                    <label for="ai-prompt">需求描述</label>
+                    <textarea id="ai-prompt" rows="3" placeholder="例如：给 shop 页面加一个按价格排序的下拉框"></textarea>
+                </div>
+            </div>
+            <button id="ai-generate" class="primary" type="button">让 AI 写代码</button>
+            <p id="ai-status" class="hint">AI 生成的内容会写入编辑器暂存，确认后再 push。</p>
+        </section>
+
+        <section class="panel" style="margin-top:18px;">
+            <h2 style="margin:0 0 12px;font-size:16px;">操作日志</h2>
+            <ol id="log" class="log"></ol>
+        </section>
+    </main>
+
+    <dialog id="ask-dialog" aria-labelledby="ask-title">
+        <form id="ask-form" class="ask">
+            <h2 id="ask-title">输入</h2>
+            <div class="field">
+                <label id="ask-label" for="ask-input">内容</label>
+                <input id="ask-input" type="text" required autocomplete="off">
+            </div>
+            <div class="dialog-actions">
+                <button id="ask-cancel" class="ghost" type="button">取消</button>
+                <button class="primary" type="submit">确定</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script src="vtx-crypto.js?v=6.0"></script>
+    <script src="vtx-api.js?v=6.0"></script>
+    <script src="vtx-repo.js?v=6.0"></script>
+
+    <script>
+        const ADMIN_ACCOUNT = "Kitawaga";
+        const accountName = sessionStorage.getItem("vtxAccount");
+        const AI_MODELS = ["openai-fast", "openai", "mistral"];
+
+        if (accountName !== ADMIN_ACCOUNT) {
+            window.location.replace("manager.html");
+        }
+
+        const message = document.getElementById("admin-message");
+        const treeBox = document.getElementById("tree");
+        const editor = document.getElementById("editor");
+        const editorPath = document.getElementById("editor-path");
+        const editorState = document.getElementById("editor-state");
+        const pendingList = document.getElementById("pending-list");
+        const pendingCount = document.getElementById("pending-count");
+        const commitTitle = document.getElementById("commit-title");
+        const commitBody = document.getElementById("commit-body");
+        const logList = document.getElementById("log");
+        const askDialog = document.getElementById("ask-dialog");
+        const askForm = document.getElementById("ask-form");
+        const askTitle = document.getElementById("ask-title");
+        const askLabel = document.getElementById("ask-label");
+        const askInput = document.getElementById("ask-input");
+
+        const state = {
+            repo: "",
+            branch: "",
+            head: "",
+            headMessage: "",
+            treeMap: new Map(),
+            loaded: new Map(),
+            deleted: new Map(),
+            selected: null,
+            current: null,
+            collapsed: new Set(),
+            fetchedAt: null
+        };
+
+        let askResolve = null;
+        let busy = false;
+
+        function showMessage(text, kind) {
+            message.textContent = text;
+            message.className = `status ${kind}`;
+            message.hidden = false;
+        }
+
+        function clearMessage() {
+            message.hidden = true;
+        }
+
+        function log(text, kind) {
+            const item = document.createElement("li");
+            if (kind) {
+                item.className = kind;
+            }
+            const now = new Date();
+            const pad = (value) => String(value).padStart(2, "0");
+            item.textContent = `[${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}] ${text}`;
+            logList.prepend(item);
+        }
+
+        function normalizePath(value) {
+            return String(value || "").trim().replace(/^\/+|\/+$/g, "").replace(/\/{2,}/g, "/");
+        }
+
+        function askText(title, label, value) {
+            return new Promise((resolve) => {
+                askResolve = resolve;
+                askTitle.textContent = title;
+                askLabel.textContent = label;
+                askInput.value = value || "";
+                if (typeof askDialog.showModal === "function") {
+                    askDialog.showModal();
+                } else {
+                    askDialog.setAttribute("open", "");
+                }
+                askInput.focus();
+                askInput.select();
+            });
+        }
+
+        function closeAsk(value) {
+            if (typeof askDialog.close === "function") {
+                askDialog.close();
+            } else {
+                askDialog.removeAttribute("open");
+            }
+            const resolve = askResolve;
+            askResolve = null;
+            if (resolve) {
+                resolve(value);
+            }
+        }
+
+        askForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            closeAsk(askInput.value.trim());
+        });
+
+        document.getElementById("ask-cancel").addEventListener("click", () => closeAsk(null));
+
+        askDialog.addEventListener("close", () => {
+            if (askDialog.open) {
+                return;
+            }
+            if (askResolve) {
+                const resolve = askResolve;
+                askResolve = null;
+                resolve(null);
+            }
+        });
+
+        function setBusy(value) {
+            busy = value;
+            for (const button of document.querySelectorAll(".git-actions button, .tree-actions button, #ai-generate")) {
+                button.disabled = value;
+            }
+        }
+
+        async function run(label, action) {
+            if (busy) {
+                return;
+            }
+            setBusy(true);
+            clearMessage();
+            try {
+                await action();
+            } catch (error) {
+                const text = error instanceof TypeError ? "网络请求失败，请稍后重试。" : error.message;
+                showMessage(text, "error");
+                log(`${label} 失败：${text}`, "error");
+            } finally {
+                setBusy(false);
+                renderTree();
+                renderEditorState();
+                renderPending();
+            }
+        }
+
+        function isDirty(entry) {
+            return entry.baseSha === null || entry.text !== entry.baseText;
+        }
+
+        function collectPaths() {
+            const paths = new Set(state.treeMap.keys());
+            for (const [path, entry] of state.loaded) {
+                if (entry.baseSha === null) {
+                    paths.add(path);
+                }
+            }
+            for (const path of state.deleted.keys()) {
+                paths.delete(path);
+            }
+            return Array.from(paths).sort((a, b) => a.localeCompare(b));
+        }
+
+        function buildTree(paths) {
+            const root = { dirs: new Map(), files: [] };
+            for (const path of paths) {
+                const parts = path.split("/");
+                let node = root;
+                for (let index = 0; index < parts.length - 1; index += 1) {
+                    const key = parts[index];
+                    if (!node.dirs.has(key)) {
+                        node.dirs.set(key, {
+                            path: parts.slice(0, index + 1).join("/"),
+                            dirs: new Map(),
+                            files: []
+                        });
+                    }
+                    node = node.dirs.get(key);
+                }
+                node.files.push({ name: parts[parts.length - 1], path });
+            }
+            return root;
+        }
+
+        function renderTree() {
+            treeBox.textContent = "";
+            const paths = collectPaths();
+            const tree = buildTree(paths);
+            const rootList = document.createElement("ul");
+
+            const renderDir = (parent, node) => {
+                const names = Array.from(node.dirs.keys()).sort((a, b) => a.localeCompare(b));
+                for (const name of names) {
+                    const child = node.dirs.get(name);
+                    const item = document.createElement("li");
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "tree-item dir";
+                    if (state.selected && state.selected.path === child.path) {
+                        button.classList.add("selected");
+                    }
+                    const collapsed = state.collapsed.has(child.path);
+                    button.textContent = `${collapsed ? "▸" : "▾"} ${name}/`;
+                    button.addEventListener("click", () => {
+                        if (state.collapsed.has(child.path)) {
+                            state.collapsed.delete(child.path);
+                        } else {
+                            state.collapsed.add(child.path);
+                        }
+                        state.selected = { path: child.path, type: "dir" };
+                        renderTree();
+                    });
+                    item.appendChild(button);
+                    if (!collapsed) {
+                        const list = document.createElement("ul");
+                        renderDir(list, child);
+                        item.appendChild(list);
+                    }
+                    parent.appendChild(item);
+                }
+
+                const files = node.files.slice().sort((a, b) => a.name.localeCompare(b.name));
+                for (const file of files) {
+                    const item = document.createElement("li");
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "tree-item";
+                    if (state.current === file.path) {
+                        button.classList.add("selected");
+                    }
+                    const entry = state.loaded.get(file.path);
+                    const dirty = entry && isDirty(entry);
+                    const label = document.createElement("span");
+                    label.textContent = `· ${file.name}`;
+                    button.appendChild(label);
+                    if (dirty) {
+                        const mark = document.createElement("span");
+                        mark.className = "mark";
+                        mark.textContent = "●";
+                        button.appendChild(mark);
+                    }
+                    button.addEventListener("click", () => {
+                        state.selected = { path: file.path, type: "file" };
+                        run("打开文件", () => openFile(file.path));
+                    });
+                    item.appendChild(button);
+                    parent.appendChild(item);
+                }
+            };
+
+            renderDir(rootList, tree);
+            treeBox.appendChild(rootList);
+        }
+
+        function renderEditorState() {
+            const entry = state.current ? state.loaded.get(state.current) : null;
+            editorPath.textContent = state.current || "未打开文件";
+            editor.disabled = !entry;
+
+            if (!entry) {
+                editorState.textContent = "—";
+                editorState.className = "state-badge";
+                document.getElementById("editor-revert").disabled = true;
+                return;
+            }
+
+            if (entry.baseSha === null) {
+                editorState.textContent = "新文件";
+                editorState.className = "state-badge new";
+            } else if (entry.text !== entry.baseText) {
+                editorState.textContent = "已修改";
+                editorState.className = "state-badge dirty";
+            } else {
+                editorState.textContent = "未修改";
+                editorState.className = "state-badge";
+            }
+            document.getElementById("editor-revert").disabled = entry.text === entry.baseText;
+        }
+
+        function renderEditor() {
+            const entry = state.current ? state.loaded.get(state.current) : null;
+            editor.value = entry ? entry.text : "";
+            renderEditorState();
+        }
+
+        function pendingChanges() {
+            const changes = [];
+            for (const [path, entry] of state.loaded) {
+                if (state.deleted.has(path)) {
+                    continue;
+                }
+                if (entry.baseSha === null) {
+                    changes.push({ path, content: entry.text, type: "新增" });
+                } else if (entry.text !== entry.baseText) {
+                    changes.push({ path, content: entry.text, type: "修改" });
+                }
+            }
+            for (const path of state.deleted.keys()) {
+                changes.push({ path, content: null, type: "删除" });
+            }
+            return changes;
+        }
+
+        function staleFiles() {
+            const stale = [];
+            for (const [path, entry] of state.loaded) {
+                if (state.deleted.has(path)) {
+                    continue;
+                }
+                const remote = state.treeMap.get(path);
+                const remoteSha = remote ? remote.sha : null;
+                if (entry.baseSha === null) {
+                    if (remoteSha) {
+                        stale.push(path);
+                    }
+                    continue;
+                }
+                if (!remoteSha || remoteSha !== entry.baseSha) {
+                    stale.push(path);
+                }
+            }
+            for (const [path, baseSha] of state.deleted) {
+                const remote = state.treeMap.get(path);
+                if (!remote) {
+                    continue;
+                }
+                if (!baseSha || remote.sha !== baseSha) {
+                    stale.push(path);
+                }
+            }
+            return stale;
+        }
+
+        function renderPending() {
+            const changes = pendingChanges();
+            pendingCount.textContent = String(changes.length);
+            pendingList.textContent = "";
+            for (const change of changes) {
+                const item = document.createElement("li");
+                item.textContent = `${change.type}：${change.path}`;
+                pendingList.appendChild(item);
+            }
+        }
+
+        async function openFile(path) {
+            if (!state.loaded.has(path)) {
+                const remote = state.treeMap.get(path);
+                if (!remote) {
+                    throw new Error(`${path} 不存在于仓库中。`);
+                }
+                const text = await window.VTXRepo.getBlob(remote.sha);
+                state.loaded.set(path, { text, baseText: text, baseSha: remote.sha });
+            }
+            state.current = path;
+            state.selected = { path, type: "file" };
+            renderEditor();
+            renderTree();
+        }
+
+        async function fetchRemote() {
+            state.head = await window.VTXRepo.getHeadSha();
+            const commit = await window.VTXRepo.getCommit(state.head);
+            state.headMessage = commit.message;
+            const tree = await window.VTXRepo.getTree(commit.tree.sha, true);
+            state.treeMap = new Map(
+                (tree.tree || [])
+                    .filter((entry) => entry.type === "blob")
+                    .map((entry) => [entry.path, entry])
+            );
+            state.fetchedAt = new Date();
+
+            document.getElementById("repo-head").textContent = state.head.slice(0, 7);
+            document.getElementById("repo-fetched").textContent = `上次 fetch：${state.fetchedAt.toLocaleTimeString("zh-CN")}`;
+            document.getElementById("last-commit-text").textContent =
+                `${state.head.slice(0, 7)} · ${commit.message}`;
+            renderTree();
+            renderPending();
+        }
+
+        async function pull(remoteChanges) {
+            for (const [path, entry] of state.loaded) {
+                const remote = state.treeMap.get(path);
+                if (!remote || remote.sha === entry.baseSha) {
+                    continue;
+                }
+                const text = await window.VTXRepo.getBlob(remote.sha);
+                if (entry.text === entry.baseText) {
+                    entry.text = text;
+                    entry.baseText = text;
+                    entry.baseSha = remote.sha;
+                    entry.remoteText = undefined;
+                    entry.remoteSha = undefined;
+                    remoteChanges.push(path);
+                } else {
+                    entry.remoteText = text;
+                    entry.remoteSha = remote.sha;
+                }
+            }
+            renderEditor();
+            return remoteChanges;
+        }
+
+        function diffHunks(baseLines, otherLines) {
+            const rows = baseLines.length;
+            const cols = otherLines.length;
+            const table = Array.from({ length: rows + 1 }, () => new Uint32Array(cols + 1));
+
+            for (let i = rows - 1; i >= 0; i -= 1) {
+                for (let j = cols - 1; j >= 0; j -= 1) {
+                    table[i][j] = baseLines[i] === otherLines[j]
+                        ? table[i + 1][j + 1] + 1
+                        : Math.max(table[i + 1][j], table[i][j + 1]);
+                }
+            }
+
+            const ops = [];
+            let i = 0;
+            let j = 0;
+            while (i < rows && j < cols) {
+                if (baseLines[i] === otherLines[j]) {
+                    ops.push({ type: "equal", base: i });
+                    i += 1;
+                    j += 1;
+                } else if (table[i + 1][j] >= table[i][j + 1]) {
+                    ops.push({ type: "del", base: i });
+                    i += 1;
+                } else {
+                    ops.push({ type: "add", text: otherLines[j] });
+                    j += 1;
+                }
+            }
+            while (i < rows) {
+                ops.push({ type: "del", base: i });
+                i += 1;
+            }
+            while (j < cols) {
+                ops.push({ type: "add", text: otherLines[j] });
+                j += 1;
+            }
+
+            const hunks = [];
+            let current = null;
+            let baseIndex = 0;
+
+            const ensureHunk = () => {
+                if (!current) {
+                    current = { start: baseIndex, end: baseIndex, lines: [] };
+                    hunks.push(current);
+                }
+                return current;
+            };
+
+            for (const op of ops) {
+                if (op.type === "equal") {
+                    current = null;
+                    baseIndex = op.base + 1;
+                    continue;
+                }
+                if (op.type === "del") {
+                    const hunk = ensureHunk();
+                    baseIndex = op.base + 1;
+                    hunk.end = baseIndex;
+                    continue;
+                }
+                const hunk = ensureHunk();
+                hunk.lines.push(op.text);
+            }
+
+            return hunks;
+        }
+
+        function mergeThreeWay(baseText, localText, remoteText) {
+            if (localText === remoteText) {
+                return { text: localText, conflict: false };
+            }
+            if (localText === baseText) {
+                return { text: remoteText, conflict: false };
+            }
+            if (remoteText === baseText) {
+                return { text: localText, conflict: false };
+            }
+
+            const baseLines = baseText.split("\n");
+            const localHunks = diffHunks(baseLines, localText.split("\n"));
+            const remoteHunks = diffHunks(baseLines, remoteText.split("\n"));
+            const out = [];
+            let pos = 0;
+            let i = 0;
+            let j = 0;
+            let conflict = false;
+
+            while (pos < baseLines.length || i < localHunks.length || j < remoteHunks.length) {
+                const local = localHunks[i];
+                const remote = remoteHunks[j];
+                const next = Math.min(
+                    local ? local.start : Infinity,
+                    remote ? remote.start : Infinity
+                );
+
+                if (pos < next) {
+                    out.push(baseLines[pos]);
+                    pos += 1;
+                    continue;
+                }
+
+                if (local && remote && (local.start === remote.start || (local.start < remote.end && remote.start < local.end))) {
+                    const localLines = local.lines;
+                    const remoteLines = remote.lines;
+                    if (localLines.join("\n") === remoteLines.join("\n")) {
+                        out.push(...localLines);
+                    } else {
+                        conflict = true;
+                        out.push("<<<<<<< 本地");
+                        out.push(...localLines);
+                        out.push("=======");
+                        out.push(...remoteLines);
+                        out.push(">>>>>>> 远端");
+                    }
+                    pos = Math.max(local.end, remote.end);
+                    i += 1;
+                    j += 1;
+                    continue;
+                }
+
+                if (local && local.start === next) {
+                    out.push(...local.lines);
+                    pos = local.end;
+                    i += 1;
+                    continue;
+                }
+
+                out.push(...remote.lines);
+                pos = remote.end;
+                j += 1;
+            }
+
+            return { text: out.join("\n"), conflict };
+        }
+
+        async function aiRequest(system, user, maxTokens) {
+            let lastError;
+            for (const model of AI_MODELS) {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 90000);
+                try {
+                    const response = await fetch("https://text.pollinations.ai/openai", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        signal: controller.signal,
+                        body: JSON.stringify({
+                            model,
+                            referrer: "xsmmc.caldson.us.ci",
+                            max_tokens: maxTokens || 3000,
+                            messages: [
+                                { role: "system", content: system },
+                                { role: "user", content: user }
+                            ]
+                        })
+                    });
+                    if (!response.ok) {
+                        lastError = new Error(`AI 服务返回错误（HTTP ${response.status}）`);
+                        continue;
+                    }
+                    const data = await response.json();
+                    const content = data && data.choices && data.choices[0] && data.choices[0].message
+                        ? String(data.choices[0].message.content || "").trim()
+                        : "";
+                    if (content) {
+                        return content;
+                    }
+                    lastError = new Error("AI 没有返回内容。");
+                } catch (error) {
+                    lastError = error;
+                } finally {
+                    clearTimeout(timer);
+                }
+            }
+            throw lastError || new Error("AI 服务暂时不可用，请稍后再试。");
+        }
+
+        function stripFence(text) {
+            const match = text.match(/^```[a-zA-Z0-9+#-]*\n([\s\S]*?)\n```\s*$/);
+            return match ? match[1] : text;
+        }
+
+        async function stageRemoteForMerge() {
+            for (const [path, entry] of state.loaded) {
+                const remote = state.treeMap.get(path);
+                if (!remote || remote.sha === entry.baseSha || remote.sha === entry.remoteSha) {
+                    continue;
+                }
+                const text = await window.VTXRepo.getBlob(remote.sha);
+                entry.remoteText = text;
+                entry.remoteSha = remote.sha;
+            }
+        }
+
+        async function stageDelete(path) {
+            const prefix = `${path}/`;
+            const targets = collectPaths().filter((item) => item === path || item.startsWith(prefix));
+            for (const target of targets) {
+                const entry = state.loaded.get(target);
+                if (entry && entry.baseSha === null) {
+                    state.loaded.delete(target);
+                    continue;
+                }
+                state.deleted.set(target, state.treeMap.has(target) ? state.treeMap.get(target).sha : null);
+                state.loaded.delete(target);
+                if (state.current === target) {
+                    state.current = null;
+                }
+            }
+            if (state.current && (state.current === path || state.current.startsWith(prefix))) {
+                state.current = null;
+            }
+            renderEditor();
+            renderTree();
+            renderPending();
+            return targets.length;
+        }
+
+        async function stageRename(path, type, newName) {
+            const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+            const target = normalizePath(`${parent}/${newName}`);
+
+            if (!target) {
+                throw new Error("新的名称不能为空。");
+            }
+            if (target === path) {
+                throw new Error("新的名称与原名相同。");
+            }
+            if (collectPaths().includes(target)) {
+                throw new Error(`${target} 已存在。`);
+            }
+
+            if (type === "file") {
+                let entry = state.loaded.get(path);
+                if (!entry) {
+                    const remote = state.treeMap.get(path);
+                    if (!remote) {
+                        throw new Error(`${path} 不存在。`);
+                    }
+                    const text = await window.VTXRepo.getBlob(remote.sha);
+                    entry = { text, baseText: text, baseSha: remote.sha };
+                }
+                entry.baseSha = null;
+                entry.baseText = "";
+                state.loaded.set(target, entry);
+                if (state.loaded.has(path)) {
+                    state.loaded.delete(path);
+                }
+                if (state.treeMap.has(path)) {
+                    state.deleted.set(path, state.treeMap.get(path).sha);
+                }
+                if (state.current === path) {
+                    state.current = target;
+                }
+            } else {
+                const prefix = `${path}/`;
+                const targets = collectPaths().filter((item) => item.startsWith(prefix));
+                for (const item of targets) {
+                    let entry = state.loaded.get(item);
+                    if (!entry) {
+                        const remote = state.treeMap.get(item);
+                        if (!remote) {
+                            continue;
+                        }
+                        const text = await window.VTXRepo.getBlob(remote.sha);
+                        entry = { text, baseText: text, baseSha: remote.sha };
+                    }
+                    const relative = item.slice(prefix.length);
+                    state.loaded.set(`${target}/${relative}`, {
+                        text: entry.text,
+                        baseText: "",
+                        baseSha: null
+                    });
+                    state.loaded.delete(item);
+                    if (state.treeMap.has(item)) {
+                        state.deleted.set(item, state.treeMap.get(item).sha);
+                    }
+                }
+                if (state.current && state.current.startsWith(prefix)) {
+                    state.current = `${target}/${state.current.slice(prefix.length)}`;
+                }
+            }
+
+            state.selected = { path: target, type };
+            renderEditor();
+            renderTree();
+            renderPending();
+            return target;
+        }
+
+        document.getElementById("tree-refresh").addEventListener("click", () => {
+            run("刷新列表", async () => {
+                await fetchRemote();
+                showMessage("仓库文件列表已刷新。", "success");
+                log("刷新文件列表");
+            });
+        });
+
+        for (const button of document.querySelectorAll("[data-tree-action]")) {
+            button.addEventListener("click", () => {
+                const action = button.dataset.treeAction;
+                run(action, async () => {
+                    if (action === "new-file") {
+                        const path = normalizePath(await askText("新建文件", "文件路径（含扩展名）", ""));
+                        if (!path) {
+                            return;
+                        }
+                        if (collectPaths().includes(path)) {
+                            throw new Error(`${path} 已存在。`);
+                        }
+                        state.loaded.set(path, { text: "", baseText: "", baseSha: null });
+                        state.current = path;
+                        state.selected = { path, type: "file" };
+                        renderEditor();
+                        renderTree();
+                        renderPending();
+                        log(`新建文件：${path}`);
+                        return;
+                    }
+
+                    if (action === "new-folder") {
+                        const path = normalizePath(await askText("新建文件夹", "文件夹路径", ""));
+                        if (!path) {
+                            return;
+                        }
+                        await window.VTXRepo.createFolder(path);
+                        await fetchRemote();
+                        log(`新建文件夹：${path}`, "ok");
+                        showMessage(`已创建文件夹 ${path}。`, "success");
+                        return;
+                    }
+
+                    if (!state.selected) {
+                        throw new Error("请先在左侧选中一个文件或文件夹。");
+                    }
+
+                    if (action === "rename") {
+                        const selected = state.selected;
+                        const baseName = selected.path.split("/").pop();
+                        const newName = await askText("重命名", selected.type === "dir" ? "新的文件夹名称" : "新的文件名（含扩展名）", baseName);
+                        if (!newName || newName === baseName) {
+                            return;
+                        }
+                        const target = await stageRename(selected.path, selected.type, newName);
+                        log(`已暂存重命名：${selected.path} → ${target}`);
+                        showMessage(`重命名已暂存，push 后生效：${target}`, "info");
+                        return;
+                    }
+
+                    if (action === "delete") {
+                        const selected = state.selected;
+                        const label = selected.type === "dir" ? "文件夹（包含其中的全部文件）" : "文件";
+                        if (!window.confirm(`确认删除${label} ${selected.path}？删除会在 push 后生效。`)) {
+                            return;
+                        }
+                        const count = await stageDelete(selected.path);
+                        state.selected = null;
+                        log(`已暂存删除：${selected.path}（${count} 个文件）`);
+                        showMessage(`删除已暂存，push 后生效：${selected.path}`, "info");
+                    }
+                });
+            });
+        }
+
+        editor.addEventListener("input", () => {
+            const entry = state.current ? state.loaded.get(state.current) : null;
+            if (!entry) {
+                return;
+            }
+            entry.text = editor.value;
+            renderEditorState();
+            renderTree();
+            renderPending();
+        });
+
+        document.getElementById("editor-revert").addEventListener("click", () => {
+            const entry = state.current ? state.loaded.get(state.current) : null;
+            if (!entry || entry.baseSha === null) {
+                return;
+            }
+            entry.text = entry.baseText;
+            renderEditor();
+            renderPending();
+            renderTree();
+        });
+
+        document.getElementById("git-fetch").addEventListener("click", () => {
+            run("fetch", async () => {
+                await fetchRemote();
+                log(`fetch 完成：HEAD ${state.head.slice(0, 7)}`, "ok");
+                showMessage(`fetch 完成，远端 HEAD ${state.head.slice(0, 7)}。`, "success");
+            });
+        });
+
+        document.getElementById("git-pull").addEventListener("click", () => {
+            run("pull", async () => {
+                await fetchRemote();
+                const changed = await pull([]);
+                log(`pull 完成，更新 ${changed.length} 个本地文件`, "ok");
+                showMessage(
+                    changed.length
+                        ? `pull 完成，更新 ${changed.length} 个文件。`
+                        : "pull 完成，本地没有可更新的文件。",
+                    "success"
+                );
+            });
+        });
+
+        document.getElementById("git-fetchandpull").addEventListener("click", () => {
+            run("fetch and pull", async () => {
+                await fetchRemote();
+                const changed = await pull([]);
+                log(`fetch and pull 完成，更新 ${changed.length} 个本地文件`, "ok");
+                showMessage(`fetch and pull 完成，远端 HEAD ${state.head.slice(0, 7)}，更新 ${changed.length} 个文件。`, "success");
+            });
+        });
+
+        document.getElementById("git-merge-self").addEventListener("click", () => {
+            run("自己处理 merge", async () => {
+                await fetchRemote();
+                await stageRemoteForMerge();
+                const conflicts = [];
+                let merged = 0;
+
+                for (const [path, entry] of state.loaded) {
+                    if (entry.remoteText === undefined) {
+                        continue;
+                    }
+                    const result = mergeThreeWay(entry.baseText, entry.text, entry.remoteText);
+                    entry.text = result.text;
+                    entry.baseText = entry.remoteText;
+                    entry.baseSha = entry.remoteSha;
+                    entry.remoteText = undefined;
+                    entry.remoteSha = undefined;
+                    if (result.conflict) {
+                        conflicts.push(path);
+                    } else {
+                        merged += 1;
+                    }
+                }
+
+                renderEditor();
+                renderTree();
+                renderPending();
+
+                if (conflicts.length) {
+                    if (!state.current && conflicts.length) {
+                        await openFile(conflicts[0]);
+                    }
+                    showMessage(
+                        `已自动合并 ${merged} 个文件；以下文件存在冲突，已在编辑器中用冲突标记标出，请手动修改后 push：${conflicts.join("、")}`,
+                        "error"
+                    );
+                    log(`merge 冲突：${conflicts.join("、")}`, "error");
+                } else {
+                    showMessage(`merge 完成，自动合并 ${merged} 个文件。`, "success");
+                    log(`自己处理 merge 完成，合并 ${merged} 个文件`, "ok");
+                }
+            });
+        });
+
+        document.getElementById("git-merge-ai").addEventListener("click", () => {
+            run("让 AI 处理 merge", async () => {
+                await fetchRemote();
+                await stageRemoteForMerge();
+
+                const targets = Array.from(state.loaded.entries()).filter(([, entry]) => entry.remoteText !== undefined);
+                if (targets.length === 0) {
+                    showMessage("没有需要合并的文件（远端与本地没有同时修改同一文件）。", "info");
+                    return;
+                }
+
+                let resolved = 0;
+                for (const [path, entry] of targets) {
+                    const prompt = [
+                        `文件路径：${path}`,
+                        "请把下面三个版本合并成一份最终内容。只输出合并后的完整文件内容，不要输出解释、不要使用代码块围栏。",
+                        "=== 基础版本（base） ===",
+                        entry.baseText,
+                        "=== 本地版本（local） ===",
+                        entry.text,
+                        "=== 远端版本（remote） ===",
+                        entry.remoteText
+                    ].join("\n");
+
+                    const reply = await aiRequest(
+                        "你是负责合并代码的资深工程师，需要保留本地与远端双方的有效改动，删除冲突标记，只输出合并后的完整文件内容。",
+                        prompt,
+                        4000
+                    );
+                    entry.text = stripFence(reply);
+                    entry.baseText = entry.remoteText;
+                    entry.baseSha = entry.remoteSha;
+                    entry.remoteText = undefined;
+                    entry.remoteSha = undefined;
+                    resolved += 1;
+                    log(`AI merge：${path}`, "ok");
+                }
+
+                renderEditor();
+                renderTree();
+                renderPending();
+                showMessage(`AI 已合并 ${resolved} 个文件，请在编辑器中检查后再 push。`, "success");
+            });
+        });
+
+        document.getElementById("git-push").addEventListener("click", () => {
+            run("push", async () => {
+                const changes = pendingChanges();
+                if (changes.length === 0) {
+                    throw new Error("没有待提交的更改。");
+                }
+
+                await fetchRemote();
+                const stale = staleFiles();
+                if (stale.length) {
+                    throw new Error(`远端已更新以下文件，请先 fetch and pull 或处理 merge 后再 push：${stale.join("、")}`);
+                }
+
+                const title = commitTitle.value.trim()
+                    || (changes.length === 1 ? `更新：${changes[0].path}` : `更新 ${changes.length} 个文件`);
+                const body = commitBody.value.trim();
+                const message = body ? `${title}\n\n${body}` : title;
+
+                const commit = await window.VTXRepo.commitFiles(
+                    changes.map((change) => ({ path: change.path, content: change.content })),
+                    message
+                );
+
+                state.loaded.clear();
+                state.deleted.clear();
+                state.current = null;
+                state.selected = null;
+                commitTitle.value = "";
+                commitBody.value = "";
+
+                await fetchRemote();
+                renderEditor();
+                log(`push 成功：${commit.sha.slice(0, 7)}（${changes.length} 个文件）`, "ok");
+                showMessage(`push 成功，commit ${commit.sha.slice(0, 7)}，共 ${changes.length} 个文件。`, "success");
+            });
+        });
+
+        document.getElementById("amend-commit").addEventListener("click", () => {
+            run("修改提交信息", async () => {
+                await fetchRemote();
+                const lines = state.headMessage.split("\n");
+                const currentTitle = lines[0] || "";
+                const currentBody = lines.slice(1).join("\n").trim();
+
+                const title = await askText("修改提交名称", "commit 名称", currentTitle);
+                if (!title) {
+                    return;
+                }
+                const body = await askText("修改提交详情", "commit 详情", currentBody);
+                if (body === null) {
+                    return;
+                }
+
+                const message = body.trim() ? `${title}\n\n${body.trim()}` : title;
+                const commit = await window.VTXRepo.amendHead(message);
+                await fetchRemote();
+                log(`已修改提交信息：${commit.sha.slice(0, 7)}`, "ok");
+                showMessage(`已修改最近一次提交的名称与详情（${commit.sha.slice(0, 7)}）。`, "success");
+            });
+        });
+
+        document.getElementById("ai-generate").addEventListener("click", () => {
+            run("让 AI 写代码", async () => {
+                const path = normalizePath(document.getElementById("ai-path").value)
+                    || (state.current || "");
+                const prompt = document.getElementById("ai-prompt").value.trim();
+                const status = document.getElementById("ai-status");
+
+                if (!path) {
+                    throw new Error("请填写目标文件路径。");
+                }
+                if (!prompt) {
+                    throw new Error("请填写需求描述。");
+                }
+
+                let existing = "";
+                const entry = state.loaded.get(path);
+                if (entry) {
+                    existing = entry.text;
+                } else if (state.treeMap.has(path)) {
+                    existing = await window.VTXRepo.getBlob(state.treeMap.get(path).sha);
+                }
+
+                status.textContent = "AI 正在生成…";
+
+                const user = [
+                    `目标文件：${path}`,
+                    existing ? "=== 现有内容 ===" : "（这是一个新文件）",
+                    existing,
+                    "=== 需求 ===",
+                    prompt,
+                    "只输出" + path + "的完整最终内容，不要输出解释或代码块围栏。"
+                ].join("\n");
+
+                const reply = await aiRequest(
+                    "你是资深前端 / JavaScript 工程师。根据需求直接给出文件的完整内容，保持原有代码风格与中文界面文案，不要输出多余解释。",
+                    user,
+                    4000
+                );
+
+                const text = stripFence(reply);
+                const target = state.loaded.get(path);
+                if (target) {
+                    target.text = text;
+                } else {
+                    const remote = state.treeMap.get(path);
+                    state.loaded.set(path, {
+                        text,
+                        baseText: remote ? existing : "",
+                        baseSha: remote ? remote.sha : null
+                    });
+                }
+
+                state.current = path;
+                state.selected = { path, type: "file" };
+                renderEditor();
+                renderTree();
+                renderPending();
+                document.getElementById("ai-path").value = path;
+                document.getElementById("ai-prompt").value = "";
+                status.textContent = "AI 已生成内容，已写入暂存区，请检查后 push。";
+                log(`AI 生成代码：${path}`, "ok");
+            });
+        });
+
+        async function init() {
+            if (!accountName || accountName !== ADMIN_ACCOUNT) {
+                return;
+            }
+            const config = await window.VTXRepo.config();
+            state.repo = config.repo;
+            state.branch = config.branch;
+            document.getElementById("repo-name").textContent = config.repo;
+            document.getElementById("repo-branch").textContent = config.branch;
+
+            await run("初始化", async () => {
+                await fetchRemote();
+                log(`已连接 ${config.repo}@${config.branch}`, "ok");
+            });
+            renderEditor();
+        }
+
+        init();
+    </script>
+</body>
+</html>
