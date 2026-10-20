@@ -2,7 +2,7 @@
     "Kitawaga": {
         "username": "刘浩天（站主）",
         "password": "100%Security",
-        "money": "20110194.94",
+        "money": "20110194.95",
         "trades": [
             {
                 "name": "Developments",
@@ -555,6 +555,14 @@
                 "from": "音绕",
                 "to": "刘浩天（站主）",
                 "price": "+0.01"
+            },
+            {
+                "name": "转账",
+                "description": "多棒的聊天软件啊",
+                "time": "2026/10/20",
+                "from": "音绕",
+                "to": "刘浩天（站主）",
+                "price": "+0.01"
             }
         ],
         "data": {
@@ -912,7 +920,7 @@
     "音绕": {
         "username": "音绕",
         "password": "9142016",
-        "money": "4.96",
+        "money": "4.95",
         "trades": [
             {
                 "name": "每日签到",
@@ -981,6 +989,14 @@
             {
                 "name": "转账",
                 "description": "ざこ",
+                "time": "2026/10/20",
+                "from": "音绕",
+                "to": "刘浩天（站主）",
+                "price": "-0.01"
+            },
+            {
+                "name": "转账",
+                "description": "多棒的聊天软件啊",
                 "time": "2026/10/20",
                 "from": "音绕",
                 "to": "刘浩天（站主）",
