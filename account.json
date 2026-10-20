@@ -1021,14 +1021,22 @@
         ]
     },
     "站主是雑魚雑魚": {
-        "username": "站主是雑魚雑魚",
-        "password": "9142016",
-        "money": "5.00",
+        "username": "BannedUser",
+        "password": "2.BannedUserAAA",
+        "money": "0.00",
         "trades": [
             {
                 "name": "每日签到",
                 "description": "每日签到奖励",
                 "price": "+5.00",
+                "time": "2026/10/20",
+                "from": "官方",
+                "to": "站主是雑魚雑魚"
+            },
+            {
+                "name": "账户封禁",
+                "description": "不满意就受着，fw不值得使用我们的产品！[Auto Reply]",
+                "price": "-5.00",
                 "time": "2026/10/20",
                 "from": "官方",
                 "to": "站主是雑魚雑魚"
