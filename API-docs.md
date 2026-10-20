@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`6.0.0`（接口与 5.2.0 一致；新增商店、管理员仓库修改器与聊天室页面，见第 9.2 节）
+- API 版本：`6.1.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，见第 9.2 节）
 
 ---
 
@@ -906,19 +906,21 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 
 ```json
 {
-    "version": "6.0",
+    "version": "6.1",
     "items": [
         {
-            "id": "vtx-note-10",
-            "name": "10 VTX 纸币",
-            "price": "10.00",
-            "description": "面值 10 VTX 的纸质货币，下单后次日线下领取。",
+            "id": "xring-backend-blankbook-pocketver",
+            "name": "[返场] [返场专属口袋版] 空白本",
+            "price": "5.00",
+            "description": "好久不见，空白本！我们，又见面了！请下单后截图发群主次日线下领取。",
             "manufacturer": "XRingCR",
-            "stock": 100
+            "stock": 2
         }
     ]
 }
 ```
+
+> `shop.json` 中的 `version` 与商品列表由站主自行维护，页面不会限制条数；当前数据为 6.1 版本。
 
 | 字段 | 说明 |
 |---|---|

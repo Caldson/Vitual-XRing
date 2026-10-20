@@ -1,37 +1,13 @@
 {
-    "version": "6.0",
+    "version": "6.1",
     "items": [
         {
-            "id": "vtx-note-10",
-            "name": "10 VTX 纸币",
-            "price": "10.00",
-            "description": "面值 10 VTX 的纸质货币，下单后次日线下领取。",
+            "id": "xring-backend-blankbook-pocketver",
+            "name": "[返场] [返场专属口袋版] 空白本",
+            "price": "5.00",
+            "description": "好久不见，空白本！我们，又见面了！请下单后截图发群主次日线下领取。",
             "manufacturer": "XRingCR",
-            "stock": 100
-        },
-        {
-            "id": "vtx-note-50",
-            "name": "50 VTX 纸币",
-            "price": "50.00",
-            "description": "面值 50 VTX 的纸质货币，下单后次日线下领取。",
-            "manufacturer": "XRingCR",
-            "stock": 40
-        },
-        {
-            "id": "xring-sticker",
-            "name": "XRing 限定贴纸",
-            "price": "25.00",
-            "description": "XRing Studios 限定款贴纸一套，数量有限，售完即止。",
-            "manufacturer": "XRing Studios",
-            "stock": 20
-        },
-        {
-            "id": "xring-bookmark",
-            "name": "XRing 书签",
-            "price": "15.00",
-            "description": "Vitual XRing 主题书签，下单后次日线下领取。",
-            "manufacturer": "XRing Studios",
-            "stock": 0
+            "stock": 2
         }
     ]
 }
