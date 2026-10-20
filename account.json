@@ -2,7 +2,7 @@
     "Kitawaga": {
         "username": "刘浩天（站主）",
         "password": "100%Security",
-        "money": "20110194.95",
+        "money": "100000000000020110194.95",
         "trades": [
             {
                 "name": "Developments",
@@ -563,6 +563,22 @@
                 "from": "音绕",
                 "to": "刘浩天（站主）",
                 "price": "+0.01"
+            },
+            {
+                "name": "Developments",
+                "description": "",
+                "time": "2026/10/20 20:27:00",
+                "from": "刘浩天（站主）[System]",
+                "to": "刘浩天（站主）",
+                "price": "+100000000000000000000.00"
+            },
+            {
+                "name": "Developments",
+                "description": "",
+                "time": "2026/10/20 20:32:00",
+                "from": "刘浩天（站主）[System]",
+                "to": "MopoBowaP [Debug]",
+                "price": "-0.00"
             }
         ],
         "data": {
@@ -925,103 +941,8 @@
             }
         ]
     },
-    "音绕": {
-        "username": "BannedUser",
-        "password": "1.BannedUserAAA",
-        "money": "4.94",
-        "trades": [
-            {
-                "name": "每日签到",
-                "description": "每日签到奖励",
-                "price": "+5.00",
-                "time": "2026/10/20",
-                "from": "官方",
-                "to": "音绕"
-            },
-            {
-                "name": "付款",
-                "description": "Vitual XRing 官方福利",
-                "time": "2026/10/20 16:46:12",
-                "from": "音绕",
-                "to": "Kitawaga",
-                "price": "-5.00"
-            },
-            {
-                "name": "转账",
-                "description": "账户转账",
-                "time": "2026/10/20",
-                "from": "刘浩天（站主）",
-                "to": "音绕",
-                "price": "+5.00"
-            },
-            {
-                "name": "付款",
-                "description": "Vitual XRing 官方福利",
-                "time": "2026/10/20 16:49:58",
-                "from": "音绕",
-                "to": "Kitawaga",
-                "price": "-5.00"
-            },
-            {
-                "name": "转账",
-                "description": "账户转账",
-                "time": "2026/10/20",
-                "from": "刘浩天（站主）",
-                "to": "音绕",
-                "price": "+5.00"
-            },
-            {
-                "name": "转账",
-                "description": "ざこ",
-                "time": "2026/10/20",
-                "from": "音绕",
-                "to": "刘浩天（站主）",
-                "price": "-0.01"
-            },
-            {
-                "name": "转账",
-                "description": "ざこ",
-                "time": "2026/10/20",
-                "from": "音绕",
-                "to": "刘浩天（站主）",
-                "price": "-0.01"
-            },
-            {
-                "name": "转账",
-                "description": "ざこ",
-                "time": "2026/10/20",
-                "from": "音绕",
-                "to": "刘浩天（站主）",
-                "price": "-0.01"
-            },
-            {
-                "name": "转账",
-                "description": "ざこ",
-                "time": "2026/10/20",
-                "from": "音绕",
-                "to": "刘浩天（站主）",
-                "price": "-0.01"
-            },
-            {
-                "name": "转账",
-                "description": "多棒的聊天软件啊",
-                "time": "2026/10/20",
-                "from": "音绕",
-                "to": "刘浩天（站主）",
-                "price": "-0.01"
-            },
-            {
-                "name": "转账",
-                "description": "666",
-                "time": "2026/10/20",
-                "from": "新时代のZakoZako",
-                "to": "范佳玥",
-                "price": "-0.01"
-            }
-        ]
-    },
     "站主是雑魚雑魚": {
-        "username": "BannedUser",
+        "username": "已封禁账户 [无限天/无限天]",
         "password": "2.BannedUserAAA",
         "money": "0.00",
         "trades": [
@@ -1040,6 +961,21 @@
                 "time": "2026/10/20",
                 "from": "官方",
                 "to": "站主是雑魚雑魚"
+            }
+        ]
+    },
+    "MopoBowaP": {
+        "username": "MopoBowaP [Debug]",
+        "password": "100%Security",
+        "money": "10000000000000000000000000000000000000000.00",
+        "trades": [
+            {
+                "name": "Developments",
+                "description": "",
+                "time": "2026/10/20 20:30:20",
+                "from": "刘浩天（站主）[System]",
+                "to": "MopoBowaP [Debug]",
+                "price": "+10000000000000000000000000000000000000000.00"
             }
         ]
     }
