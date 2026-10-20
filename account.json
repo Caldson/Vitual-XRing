@@ -872,7 +872,7 @@
     "音绕": {
         "username": "音绕",
         "password": "9142016",
-        "money": "5.00",
+        "money": "0.00",
         "trades": [
             {
                 "name": "每日签到",
@@ -897,6 +897,14 @@
                 "from": "刘浩天（站主）",
                 "to": "音绕",
                 "price": "+5.00"
+            },
+            {
+                "name": "付款",
+                "description": "Vitual XRing 官方福利",
+                "time": "2026/10/20 16:49:58",
+                "from": "音绕",
+                "to": "Kitawaga",
+                "price": "-5.00"
             }
         ]
     }
