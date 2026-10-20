@@ -2,7 +2,7 @@
     "Kitawaga": {
         "username": "刘浩天（站主）",
         "password": "100%Security",
-        "money": "10204.90",
+        "money": "110204.90",
         "trades": [
             {
                 "name": "Developments",
@@ -323,6 +323,14 @@
                 "time": "2026/10/20",
                 "from": "官方",
                 "to": "刘浩天（站主）"
+            },
+            {
+                "name": "收款",
+                "description": "Development",
+                "time": "2026/10/20 16:23:33",
+                "from": "Kitawaga",
+                "to": "刘浩天（站主）",
+                "price": "+100000.00"
             }
         ],
         "data": {
