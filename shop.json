@@ -6,9 +6,37 @@
             "id": "xring-backend-blankbook-pocketver",
             "name": "[返场] [返场专属口袋版] 空白本",
             "price": "5.00",
-            "description": "好久不见，空白本！我们，又见面了！请下单后截图发群主次日线下领取。",
+            "description": "好久不见，空白本！我们，又见面了！",
             "manufacturer": "XRingCR",
             "stock": 2
+        }
+    ],
+    "Cards 库一博卡牌普通卡": [
+        {
+            "id": "JAPEN-cards-qifuliandui",
+            "name": "[Cards 日本] 岐阜联队 攻4 步兵 防5 步兵",
+            "price": "20.00",
+            "description": "一回合一次，友方使用海军牌时，获得冲击，抽1张牌。",
+            "manufacturer": "库一博",
+            "stock": 1
+        }
+    ],
+    "Wards 库一博卡牌技能卡": [
+        {
+            "id": "JAPEN-wards-liangqijingong",
+            "name": "[Wards 日本] 两栖进攻",
+            "price": "17.50",
+            "description": "消灭一个攻击力等于或低于3的敌方单位",
+            "manufacturer": "库一博",
+            "stock": 1
+        },
+        {
+            "id": "JAPEN-wards-yibeicha",
+            "name": "[Wards TARGET] 一杯茶",
+            "price": "12.50",
+            "description": "你的所有英军单位获得+2防御力。",
+            "manufacturer": "库一博",
+            "stock": 1
         }
     ]
 }
