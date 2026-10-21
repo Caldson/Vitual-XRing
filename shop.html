@@ -155,6 +155,50 @@
             gap: 18px;
         }
 
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .filter-chip {
+            padding: 8px 15px;
+            border: 1px solid #dce2ec;
+            border-radius: 999px;
+            color: #4a5871;
+            background: #fff;
+            font: inherit;
+            font-size: 13.5px;
+            font-weight: 650;
+            cursor: pointer;
+            transition: background 150ms, border-color 150ms, color 150ms;
+        }
+
+        .filter-chip:hover {
+            border-color: #b9c6e8;
+            background: #f5f8ff;
+        }
+
+        .filter-chip.active {
+            border-color: #4169e1;
+            color: #fff;
+            background: #4169e1;
+        }
+
+        .filter-chip .count {
+            margin-left: 6px;
+            font-weight: 600;
+            opacity: 0.75;
+        }
+
+        .product-category {
+            margin: -4px 0 0;
+            color: #7b3fe4;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
         .product {
             display: flex;
             flex-direction: column;
@@ -442,7 +486,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v6.1</span>
+            <span class="version">v6.2</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -453,10 +497,12 @@
         <section class="hero">
             <p class="eyebrow">XRing 商店</p>
             <h1>商品列表</h1>
-            <p class="hero-copy">使用 VTX 购买商品。下单后请把凭证截图发到 XRingCR 群，次日线下领取。</p>
+            <p class="hero-copy">使用 VTX 购买商品，可按分类筛选。下单后请把凭证截图发到 XRingCR 群，次日线下领取。</p>
         </section>
 
         <p id="shop-message" class="status" role="status" aria-live="polite" hidden></p>
+
+        <nav id="shop-filters" class="filter-bar" aria-label="商品分类"></nav>
 
         <section id="shop-grid" class="shop-grid" aria-label="商品列表"></section>
         <p id="shop-empty" class="empty" hidden>商店暂时没有商品。</p>
@@ -495,9 +541,9 @@
         </form>
     </dialog>
 
-    <script src="vtx-crypto.js?v=6.1"></script>
-    <script src="vtx-api.js?v=6.1"></script>
-    <script src="vtx-repo.js?v=6.1"></script>
+    <script src="vtx-crypto.js?v=6.2"></script>
+    <script src="vtx-api.js?v=6.2"></script>
+    <script src="vtx-repo.js?v=6.2"></script>
 
     <script>
         const accountName = sessionStorage.getItem("vtxAccount");
@@ -505,8 +551,12 @@
             window.location.replace("login.html");
         }
 
+        const UNCATEGORIZED = "未分类";
+        const ALL_CATEGORIES = "__all__";
+
         const message = document.getElementById("shop-message");
         const grid = document.getElementById("shop-grid");
+        const filters = document.getElementById("shop-filters");
         const empty = document.getElementById("shop-empty");
         const receiptCard = document.getElementById("receipt-card");
         const dialog = document.getElementById("checkout-dialog");
@@ -519,6 +569,7 @@
         let shopData = null;
         let accountsData = null;
         let selectedId = null;
+        let activeCategory = ALL_CATEGORIES;
 
         function showMessage(text, kind) {
             message.textContent = text;
@@ -565,12 +616,135 @@
             return Number.isFinite(stock) ? Math.max(0, Math.floor(stock)) : 0;
         }
 
+        // shop.json 支持三种写法：
+        // 1. { "items": [未分类商品], "分类名": [该分类商品] }  ← 6.2 推荐
+        // 2. { "未分类": [...] }（同上，键名不同）
+        // 3. [商品, 商品]（6.1 及更早的旧格式）
+        function shopGroups(raw) {
+            if (!raw) {
+                return [];
+            }
+            if (Array.isArray(raw)) {
+                return [{ name: UNCATEGORIZED, items: raw }];
+            }
+
+            const groups = [];
+            const loose = [];
+            for (const key of ["items", UNCATEGORIZED]) {
+                if (Array.isArray(raw[key])) {
+                    loose.push(...raw[key]);
+                }
+            }
+            groups.push({ name: UNCATEGORIZED, items: loose });
+
+            for (const [key, value] of Object.entries(raw)) {
+                if (key === "items" || key === UNCATEGORIZED || key === "version") {
+                    continue;
+                }
+                if (!Array.isArray(value)) {
+                    continue;
+                }
+                groups.push({ name: key, items: value });
+            }
+            return groups;
+        }
+
+        function catalogEntries(raw) {
+            const entries = [];
+            for (const group of shopGroups(raw)) {
+                for (const item of group.items) {
+                    if (!item || typeof item !== "object") {
+                        continue;
+                    }
+                    const own = typeof item.category === "string" ? item.category.trim() : "";
+                    entries.push({ item, category: own || group.name });
+                }
+            }
+            return entries;
+        }
+
+        function categoryNames(entries) {
+            const names = [];
+            for (const entry of entries) {
+                if (entry.category === UNCATEGORIZED || names.includes(entry.category)) {
+                    continue;
+                }
+                names.push(entry.category);
+            }
+            return names;
+        }
+
+        function findEntry(id) {
+            return catalogEntries(shopData).find((entry) => entry.item.id === id) || null;
+        }
+
+        function findInShop(raw, id) {
+            for (const group of shopGroups(raw)) {
+                for (const item of group.items) {
+                    if (item && item.id === id) {
+                        return { group, item };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function renderFilters(entries) {
+            const names = categoryNames(entries);
+            const uncategorized = entries.filter((entry) => entry.category === UNCATEGORIZED).length;
+            const tabs = [
+                { key: ALL_CATEGORIES, label: "全部", count: entries.length },
+                { key: UNCATEGORIZED, label: UNCATEGORIZED, count: uncategorized },
+                ...names.map((name) => ({
+                    key: name,
+                    label: name,
+                    count: entries.filter((entry) => entry.category === name).length
+                }))
+            ];
+
+            if (activeCategory !== ALL_CATEGORIES && !tabs.some((tab) => tab.key === activeCategory)) {
+                activeCategory = ALL_CATEGORIES;
+            }
+
+            filters.textContent = "";
+            for (const tab of tabs) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = tab.key === activeCategory ? "filter-chip active" : "filter-chip";
+                button.setAttribute("aria-pressed", String(tab.key === activeCategory));
+                button.textContent = tab.label;
+
+                const count = document.createElement("span");
+                count.className = "count";
+                count.textContent = String(tab.count);
+                button.appendChild(count);
+
+                button.addEventListener("click", () => {
+                    activeCategory = tab.key;
+                    renderShop();
+                });
+                filters.appendChild(button);
+            }
+        }
+
         function renderShop() {
             grid.textContent = "";
-            const items = shopData && Array.isArray(shopData.items) ? shopData.items : [];
-            empty.hidden = items.length > 0;
+            const entries = catalogEntries(shopData);
+            renderFilters(entries);
 
-            for (const item of items) {
+            const visible = activeCategory === ALL_CATEGORIES
+                ? entries
+                : entries.filter((entry) => entry.category === activeCategory);
+
+            if (visible.length === 0) {
+                empty.textContent = entries.length ? "该分类下暂时没有商品。" : "商店暂时没有商品。";
+                empty.hidden = false;
+                return;
+            }
+            empty.hidden = true;
+
+            for (const entry of visible) {
+                const item = entry.item;
                 const stock = stockOf(item);
                 const onSale = stock > 0;
 
@@ -589,6 +763,13 @@
                 badge.textContent = onSale ? "在售" : "无货";
                 head.appendChild(badge);
                 card.appendChild(head);
+
+                if (activeCategory === ALL_CATEGORIES) {
+                    const category = document.createElement("p");
+                    category.className = "product-category";
+                    category.textContent = entry.category;
+                    card.appendChild(category);
+                }
 
                 const desc = document.createElement("p");
                 desc.className = "product-desc";
@@ -641,12 +822,12 @@
         }
 
         function currentTotalCents() {
-            const item = (shopData.items || []).find((entry) => entry.id === selectedId);
-            if (!item) {
+            const entry = findEntry(selectedId);
+            if (!entry) {
                 return NaN;
             }
             const quantity = Math.max(1, Math.floor(Number(quantityInput.value) || 1));
-            return toCents(item.price) * quantity;
+            return toCents(entry.item.price) * quantity;
         }
 
         function renderTotal() {
@@ -710,11 +891,12 @@
         async function purchase(event) {
             event.preventDefault();
 
-            const item = (shopData.items || []).find((entry) => entry.id === selectedId);
-            if (!item) {
+            const entry = findEntry(selectedId);
+            if (!entry) {
                 showMessage("商品已失效，请刷新页面。", "error");
                 return;
             }
+            const item = entry.item;
 
             const quantity = Math.floor(Number(quantityInput.value));
             if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -771,13 +953,13 @@
                 const shop = await window.VTXRepo.readJson("shop.json");
                 const accounts = await window.VTXApi.readAll();
                 const shopFile = shop.data;
-                const items = Array.isArray(shopFile.items) ? shopFile.items : [];
-                const item = items.find((entry) => entry.id === itemId);
+                const found = findInShop(shopFile, itemId);
                 const account = accounts[accountName];
 
-                if (!item) {
+                if (!found) {
                     throw new Error("商品已下架，请刷新页面。");
                 }
+                const item = found.item;
                 if (!account) {
                     throw new Error("当前账户在 account.json 中不存在。");
                 }

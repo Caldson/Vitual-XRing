@@ -1,13 +1,14 @@
 {
-    "version": "6.1",
-    "items": [
+    "version": "6.2",
+    "items": [],
+    "文具本 - 采用冷胶工艺": [
         {
             "id": "xring-backend-blankbook-pocketver",
             "name": "[返场] [返场专属口袋版] 空白本",
             "price": "5.00",
             "description": "好久不见，空白本！我们，又见面了！请下单后截图发群主次日线下领取。",
             "manufacturer": "XRingCR",
-            "stock": 3
+            "stock": 2
         }
     ]
 }
