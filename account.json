@@ -1006,7 +1006,16 @@
     "删我密码可耻！！！": {
         "username": "删我密码可耻！！！",
         "password": "zakozako",
-        "money": "0.00",
-        "trades": []
+        "money": "5.00",
+        "trades": [
+            {
+                "name": "每日签到",
+                "description": "每日签到奖励",
+                "price": "+5.00",
+                "time": "2026/10/21",
+                "from": "官方",
+                "to": "删我密码可耻！！！"
+            }
+        ]
     }
 }
