@@ -648,11 +648,26 @@
             if (/^[a-z][a-z0-9+.-]*:/i.test(text) || text.startsWith("//")) {
                 return text;
             }
-            return text
+            const segments = text
+                .replace(/\\/g, "/")
                 .replace(/^\.?\//, "")
                 .split("/")
-                .map((segment) => encodeURIComponent(segment))
+                .map((segment) => {
+                    try {
+                        return encodeURIComponent(decodeURIComponent(segment));
+                    } catch (error) {
+                        return encodeURIComponent(segment);
+                    }
+                })
                 .join("/");
+            return new URL(segments, window.location.href).href;
+        }
+
+        function retrySource(source) {
+            if (/^data:/i.test(source)) {
+                return "";
+            }
+            return `${source}${source.includes("?") ? "&" : "?"}retry=${Date.now()}`;
         }
 
         function renderProductImage(item) {
@@ -666,7 +681,22 @@
             image.loading = "lazy";
             image.decoding = "async";
             image.alt = item.name ? `${item.name} 图片` : "商品图片";
-            image.addEventListener("error", () => image.replaceWith(emptyImage()));
+
+            // 首次失败多半是缓存里的旧 404，用带时间戳的地址重试一次再降级为占位
+            image.addEventListener("error", () => {
+                const retry = image.dataset.retried ? "" : retrySource(source);
+                if (retry) {
+                    image.dataset.retried = "1";
+                    image.src = retry;
+                    return;
+                }
+                if (image.isConnected) {
+                    image.replaceWith(emptyImage());
+                } else {
+                    image.dataset.failed = "1";
+                }
+            });
+
             image.src = source;
             return image;
         }
@@ -930,7 +960,8 @@
                 const fresh = await window.VTXRepo.readJson("shop.json");
                 shopData = fresh.data;
             } catch (error) {
-                const response = await fetch("shop.json", { cache: "no-store" });
+                // 带上时间戳，避免读到 GitHub Pages CDN 里 10 分钟内的旧版本
+                const response = await fetch(`shop.json?t=${Date.now()}`, { cache: "no-store" });
                 if (!response.ok) {
                     throw error;
                 }
