@@ -210,6 +210,30 @@
             box-shadow: 0 12px 32px rgba(30, 50, 90, 0.06);
         }
 
+        .product-image {
+            display: block;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            border: 1px solid #eef1f7;
+            border-radius: 12px;
+            background: #f6f8fc;
+        }
+
+        .product-image-empty {
+            display: grid;
+            place-items: center;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            margin: 0;
+            border: 1px dashed #dce2ec;
+            border-radius: 12px;
+            color: #8a94a6;
+            background: #fbfcfe;
+            font-size: 13px;
+            text-align: center;
+        }
+
         .product-head {
             display: flex;
             align-items: flex-start;
@@ -486,7 +510,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v6.2</span>
+            <span class="version">v6.3</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -541,9 +565,9 @@
         </form>
     </dialog>
 
-    <script src="vtx-crypto.js?v=6.2"></script>
-    <script src="vtx-api.js?v=6.2"></script>
-    <script src="vtx-repo.js?v=6.2"></script>
+    <script src="vtx-crypto.js?v=6.3"></script>
+    <script src="vtx-api.js?v=6.3"></script>
+    <script src="vtx-repo.js?v=6.3"></script>
 
     <script>
         const accountName = sessionStorage.getItem("vtxAccount");
@@ -614,6 +638,44 @@
         function stockOf(item) {
             const stock = Number(item.stock);
             return Number.isFinite(stock) ? Math.max(0, Math.floor(stock)) : 0;
+        }
+
+        function imageSource(value) {
+            const text = String(value || "").trim();
+            if (!text) {
+                return "";
+            }
+            if (/^[a-z][a-z0-9+.-]*:/i.test(text) || text.startsWith("//")) {
+                return text;
+            }
+            return text
+                .replace(/^\.?\//, "")
+                .split("/")
+                .map((segment) => encodeURIComponent(segment))
+                .join("/");
+        }
+
+        function renderProductImage(item) {
+            const source = imageSource(item.image);
+            if (!source) {
+                return emptyImage();
+            }
+
+            const image = document.createElement("img");
+            image.className = "product-image";
+            image.loading = "lazy";
+            image.decoding = "async";
+            image.alt = item.name ? `${item.name} 图片` : "商品图片";
+            image.addEventListener("error", () => image.replaceWith(emptyImage()));
+            image.src = source;
+            return image;
+        }
+
+        function emptyImage() {
+            const placeholder = document.createElement("p");
+            placeholder.className = "product-image-empty";
+            placeholder.textContent = "无图片预览";
+            return placeholder;
         }
 
         // shop.json 支持三种写法：
@@ -750,6 +812,7 @@
 
                 const card = document.createElement("article");
                 card.className = "product";
+                card.appendChild(renderProductImage(item));
 
                 const head = document.createElement("div");
                 head.className = "product-head";
