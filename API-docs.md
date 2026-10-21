@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`6.1.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，见第 9.2 节）
+- API 版本：`6.2.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，见第 9.2 节）
 
 ---
 
@@ -902,12 +902,13 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 ### 9.2.1 商店（shop.html）
 
 - 地址：`https://xsmmc.caldson.us.ci/shop.html`，需要已登录（`sessionStorage.vtxAccount`）
-- 商品数据存放在仓库根目录 `shop.json`：
+- 商品数据存放在仓库根目录 `shop.json`，**按分类分组**：`items` 键放未分类商品，其它键名即分类名，值为该分类的商品数组：
 
 ```json
 {
-    "version": "6.1",
-    "items": [
+    "version": "6.2",
+    "items": [],
+    "文具本 - 采用冷胶工艺": [
         {
             "id": "xring-backend-blankbook-pocketver",
             "name": "[返场] [返场专属口袋版] 空白本",
@@ -920,19 +921,22 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 }
 ```
 
-> `shop.json` 中的 `version` 与商品列表由站主自行维护，页面不会限制条数；当前数据为 6.1 版本。
+- 页面顶部会按数据自动生成分栏：**全部**、**未分类**、（每个自定义分类），每个分栏后显示商品数量；「全部」视图会在卡片上标出该商品的分类
+- 兼容旧格式：`shop.json` 直接是商品数组（6.1 及更早）时，所有商品都算「未分类」；也可以改用 `未分类` 作为键名
+- 单个商品也可以加 `"category": "分类名"` 覆盖它所在分组的名字
 
 | 字段 | 说明 |
 |---|---|
-| `id` | 商品唯一标识，购买时用于定位商品 |
+| `id` | 商品唯一标识（全局不要重复），购买时用于定位商品 |
 | `name` | 商品名称 |
 | `price` | 单价（VTX，字符串） |
 | `description` | 详情描述 |
 | `manufacturer` | 制造商 |
 | `stock` | 库存数量，由站主填写；`stock > 0` 自动显示「在售」，否则显示「无货」 |
+| `category` | 选填，覆盖分组名 |
 
 - 购买流程：选择数量 → 输入**账户密码**确认 → 扣款并写入一条 `name` 为 `购买商品` 的交易记录
-- 购买会在一次提交中同时更新 `shop.json`（库存减少）与 `account.json`（余额减少、写入交易记录）
+- 购买会在一次提交中同时更新 `shop.json`（原分类内库存减少）与 `account.json`（余额减少、写入交易记录）
 - 成功后页面显示购买凭证，需要截图发到 XRingCR 群，次日线下领取
 
 ### 9.2.2 管理员仓库修改器（admin.html）
