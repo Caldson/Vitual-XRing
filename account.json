@@ -983,7 +983,7 @@
     "MopoBowaP": {
         "username": "MopoBowaP [Debug]",
         "password": "100%Security",
-        "money": "10000000000000000000000000000000000000000.00",
+        "money": "1e+40",
         "trades": [
             {
                 "name": "Developments",
@@ -992,6 +992,14 @@
                 "from": "刘浩天（站主）[System]",
                 "to": "MopoBowaP [Debug]",
                 "price": "+10000000000000000000000000000000000000000.00"
+            },
+            {
+                "name": "购买商品",
+                "description": "[返场] [返场专属口袋版] 空白本 ×1",
+                "price": "-5.00",
+                "time": "2026/10/20 23:08:37",
+                "from": "MopoBowaP [Debug]",
+                "to": "XRingCR"
             }
         ]
     }
