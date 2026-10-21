@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`6.2.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，见第 9.2 节）
+- API 版本：`6.3.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节）
 
 ---
 
@@ -906,7 +906,7 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 
 ```json
 {
-    "version": "6.2",
+    "version": "6.3",
     "items": [],
     "文具本 - 采用冷胶工艺": [
         {
@@ -915,7 +915,8 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
             "price": "5.00",
             "description": "好久不见，空白本！我们，又见面了！请下单后截图发群主次日线下领取。",
             "manufacturer": "XRingCR",
-            "stock": 2
+            "stock": 2,
+            "image": "images/blankbook.png"
         }
     ]
 }
@@ -924,6 +925,7 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 - 页面顶部会按数据自动生成分栏：**全部**、**未分类**、（每个自定义分类），每个分栏后显示商品数量；「全部」视图会在卡片上标出该商品的分类
 - 兼容旧格式：`shop.json` 直接是商品数组（6.1 及更早）时，所有商品都算「未分类」；也可以改用 `未分类` 作为键名
 - 单个商品也可以加 `"category": "分类名"` 覆盖它所在分组的名字
+- 卡片顶部显示商品图片（`image` 字段）；没有填写图片、或图片加载失败时，显示 `无图片预览`
 
 | 字段 | 说明 |
 |---|---|
@@ -934,6 +936,7 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 | `manufacturer` | 制造商 |
 | `stock` | 库存数量，由站主填写；`stock > 0` 自动显示「在售」，否则显示「无货」 |
 | `category` | 选填，覆盖分组名 |
+| `image` | 选填，图片地址。相对路径以站点根目录为基准（如 `images/blankbook.png`），也可以填完整 `https://` 地址；留空或加载失败时显示「无图片预览」 |
 
 - 购买流程：选择数量 → 输入**账户密码**确认 → 扣款并写入一条 `name` 为 `购买商品` 的交易记录
 - 购买会在一次提交中同时更新 `shop.json`（原分类内库存减少）与 `account.json`（余额减少、写入交易记录）
