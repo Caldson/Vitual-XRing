@@ -8,7 +8,8 @@
             "price": "5.00",
             "description": "好久不见，空白本！我们，又见面了！",
             "manufacturer": "XRingCR",
-            "stock": 2
+            "stock": 2,
+            "image": "8ce1c27f8c933abba97662c92d86c075.jpg"
         }
     ],
     "Cards 库一博卡牌普通卡": [
@@ -18,7 +19,8 @@
             "price": "20.00",
             "description": "一回合一次，友方使用海军牌时，获得冲击，抽1张牌。",
             "manufacturer": "库一博",
-            "stock": 1
+            "stock": 1,
+            "image": "80a4483d5daf1173ff4a18cd8c04777f.jpg"
         }
     ],
     "Wards 库一博卡牌技能卡": [
@@ -28,7 +30,8 @@
             "price": "17.50",
             "description": "消灭一个攻击力等于或低于3的敌方单位",
             "manufacturer": "库一博",
-            "stock": 1
+            "stock": 1,
+            "image": "a6d8c1a019f89fcdcd4913d36ca5f86f.jpg"
         },
         {
             "id": "JAPEN-wards-yibeicha",
@@ -36,7 +39,8 @@
             "price": "12.50",
             "description": "你的所有英军单位获得+2防御力。",
             "manufacturer": "库一博",
-            "stock": 1
+            "stock": 1,
+            "image": "a6029051b934f866416999620f9826e8.jpg"
         }
     ]
 }
