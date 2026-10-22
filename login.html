@@ -242,7 +242,7 @@
     </style>
 </head>
 <body>
-    <span class="version-badge">v6.3</span>
+    <span class="version-badge">v7.0</span>
     <main class="login-card">
         <div class="brand-mark" aria-hidden="true">V</div>
         <h1>欢迎回来</h1>
@@ -291,8 +291,8 @@
         <a class="back-link" href="index.html">← 返回首页</a>
     </main>
 
-    <script src="vtx-crypto.js?v=6.3"></script>
-    <script src="vtx-api.js?v=6.3"></script>
+    <script src="vtx-crypto.js?v=7.0"></script>
+    <script src="vtx-api.js?v=7.0"></script>
 
     <script>
         const loginForm = document.getElementById("login-form");
@@ -346,7 +346,17 @@
 
         function enterAccount(name) {
             sessionStorage.setItem("vtxAccount", name);
+            markLoginPending(name);
             window.location.href = "manager.html";
+        }
+
+        // manager.html 读取该标记后记录本次登录的公网 IP 与经纬度
+        function markLoginPending(name) {
+            try {
+                sessionStorage.setItem("vtxLoginPending", name);
+            } catch (error) {
+                /* 忽略 */
+            }
         }
 
         function remember(name, password) {
@@ -497,6 +507,7 @@
 
                 sessionStorage.setItem("vtxAccount", name);
                 remember(name, password);
+                markLoginPending(name);
                 window.location.href = "manager.html";
             } catch (error) {
                 registerMessage.textContent = networkMessage(

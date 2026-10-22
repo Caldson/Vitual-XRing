@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`6.3.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节）
+- API 版本：`7.0.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节）
 
 ---
 
@@ -103,6 +103,7 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | `data` | object | 按游戏名分区的自定义数据（`data["游戏名称"] = {...}`），默认 `{}`，只能由本人通过 API 写入 |
 
 > 任何接口都**不会返回密码**。
+> `account.json` 中的 `loginHistory`（登录位置）同样不会通过 API 返回，见第 9.3 节。
 
 ### 3.2 Trade
 
@@ -906,7 +907,7 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 
 ```json
 {
-    "version": "6.3",
+    "version": "7.0",
     "items": [],
     "文具本 - 采用冷胶工艺": [
         {
@@ -961,6 +962,51 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 ### 9.2.4 提款与转账的密码确认（6.0 变更）
 
 `manager.html` 中的「提款」与「转账」在提交前必须输入当前账户密码，密码错误则不写入仓库。
+
+---
+
+## 9.3 登录位置（7.0 新增）
+
+`manager.html` 的「登录位置」区块展示该账户每次登录的公网 IP、经纬度与地图，数据保存在
+`account.json` 的 `loginHistory` 字段：
+
+```json
+{
+    "username": "用户名",
+    "password": "...",
+    "money": "100.00",
+    "trades": [],
+    "loginHistory": [
+        {
+            "time": "2026/10/22 19:37:52",
+            "ip": "203.0.113.7",
+            "latitude": 31.2304,
+            "longitude": 121.4737,
+            "city": "Shanghai",
+            "region": "Shanghai",
+            "country": "China",
+            "isp": "Example ISP"
+        }
+    ]
+}
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `time` | string | `YYYY/MM/DD HH:mm:ss`，登录时间（浏览器本地时区） |
+| `ip` | string | 公网 IP；定位失败时省略 |
+| `latitude` / `longitude` | number | IP 归属地的大致经纬度（城市级精度） |
+| `city` / `region` / `country` | string | IP 归属地的城市 / 省份 / 国家 |
+| `isp` | string | 运营商或机构名称；取不到时省略 |
+
+- 只在**登录成功后**记录：`login.html` 在跳转前把登录名写入 `sessionStorage.vtxLoginPending`，
+  `manager.html` 读取后调用 `vtx-geo.js` 的 `VTXGeo.recordLogin()` 写入，不阻塞登录跳转
+- 位置来源依次尝试 `https://ipwho.is/`、`https://ipinfo.io/json`、`https://api.ip.sb/geoip`、
+  `https://ipapi.co/json/`、`https://api.ipify.org/?format=json`；全部失败时只记录时间，不影响登录
+- 最多保留最近 **20** 条，每条会新增一次 `登录记录：<登录名> <IP>` 的 Git 提交
+- 地图使用 Leaflet（jsDelivr → unpkg 依次回退）；瓦片优先高德（`webrd0{1-4}.is.autonavi.com`），
+  连续加载失败时切换到 OpenStreetMap；Leaflet 两个 CDN 都加载失败时回退到 OpenStreetMap 的嵌入 iframe
+- `GET /api/accounts` 等接口**不会返回** `loginHistory`，只有直接读写 `account.json` 的页面能看到
 
 ---
 

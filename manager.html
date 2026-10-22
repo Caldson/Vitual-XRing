@@ -277,6 +277,68 @@
             color: #8994a7;
         }
 
+        .locations-card {
+            margin-top: 22px;
+            padding: 26px 30px;
+            border: 1px solid #e7ebf2;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(30, 50, 90, 0.05);
+        }
+
+        .location-map {
+            height: 320px;
+            margin-bottom: 8px;
+            border: 1px solid #e7ebf2;
+            border-radius: 14px;
+            overflow: hidden;
+            background: #f4f6fa;
+        }
+
+        .location-map[hidden] {
+            display: none;
+        }
+
+        .location-map iframe {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .locations-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .location-button {
+            flex: none;
+            align-self: center;
+            min-height: 36px;
+            padding: 0 16px;
+            border: 1px solid #dce2ec;
+            border-radius: 10px;
+            color: #3f4b5f;
+            background: #fff;
+            font: inherit;
+            font-size: 13.5px;
+            font-weight: 650;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .location-button:hover {
+            border-color: #5478ed;
+            color: #3158d1;
+        }
+
+        .location-coords {
+            margin: 6px 0 0;
+            color: #738097;
+            font-size: 13.5px;
+            font-variant-numeric: tabular-nums;
+        }
+
         .transfer-card {
             margin-top: 22px;
             padding: 26px 30px;
@@ -616,6 +678,14 @@
                 padding: 22px 20px;
             }
 
+            .locations-card {
+                padding: 22px 20px;
+            }
+
+            .location-map {
+                height: 240px;
+            }
+
             .form-grid {
                 grid-template-columns: 1fr;
             }
@@ -635,7 +705,7 @@
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="API_VTXPAY.html?type=code">收款码</a>
             <a id="admin-button" class="admin-link" href="admin.html" hidden>管理员仓库修改器</a>
-            <span class="version">v6.3</span>
+            <span class="version">v7.0</span>
             <button id="logout-button" class="logout-button" type="button">退出登录</button>
         </div>
     </header>
@@ -674,6 +744,17 @@
                 <span class="detail-label">货币单位</span>
                 <span class="detail-value">VTX</span>
             </div>
+        </section>
+
+        <section class="locations-card" aria-labelledby="locations-title">
+            <div class="records-header">
+                <h2 id="locations-title">登录位置</h2>
+                <span id="locations-count" class="records-count"></span>
+            </div>
+            <p class="transfer-hint">每次登录都会记录公网 IP 与大致经纬度，用来确认账户操作都来自你本人。</p>
+            <div id="location-map" class="location-map" hidden></div>
+            <div id="locations-list" class="locations-list"></div>
+            <p id="locations-empty" class="records-empty" hidden>暂无登录位置记录。</p>
         </section>
 
         <section class="settings-card" aria-labelledby="settings-title">
@@ -779,8 +860,9 @@
 
     <footer>Vitual XRing · 账户余额以账户数据为准 · <a href="crypto.html">加密工具</a></footer>
 
-    <script src="vtx-crypto.js?v=6.3"></script>
-    <script src="vtx-api.js?v=6.3"></script>
+    <script src="vtx-crypto.js?v=7.0"></script>
+    <script src="vtx-api.js?v=7.0"></script>
+    <script src="vtx-geo.js?v=7.0"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";
@@ -1316,6 +1398,307 @@
             }
         }
 
+        const LOGIN_PENDING_KEY = "vtxLoginPending";
+        const LEAFLET_BASES = [
+            "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist",
+            "https://unpkg.com/leaflet@1.9.4/dist"
+        ];
+
+        let loginMap = null;
+        let loginMarkers = [];
+        let leafletLoader = null;
+
+        function takePendingLogin() {
+            try {
+                const pending = sessionStorage.getItem(LOGIN_PENDING_KEY);
+                sessionStorage.removeItem(LOGIN_PENDING_KEY);
+                return pending;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        async function recordLoginHistory(name) {
+            if (!window.VTXGeo) {
+                return;
+            }
+
+            const result = await window.VTXGeo.recordLogin(name);
+            if (!result) {
+                return;
+            }
+
+            accountsData = result.accounts;
+            if (accountsData[name]) {
+                renderLoginLocations(accountsData[name]);
+            }
+        }
+
+        function loadLeaflet() {
+            if (window.L) {
+                return Promise.resolve(true);
+            }
+            if (leafletLoader) {
+                return leafletLoader;
+            }
+
+            function loadFrom(base) {
+                return new Promise((resolve) => {
+                    let pending = 2;
+                    let failed = false;
+
+                    function finish(ok) {
+                        if (!ok) {
+                            failed = true;
+                        }
+                        pending -= 1;
+                        if (pending === 0) {
+                            resolve(!failed);
+                        }
+                    }
+
+                    const link = document.createElement("link");
+                    link.rel = "stylesheet";
+                    link.href = `${base}/leaflet.css`;
+                    link.onload = () => finish(true);
+                    link.onerror = () => finish(false);
+                    document.head.appendChild(link);
+
+                    const script = document.createElement("script");
+                    script.src = `${base}/leaflet.js`;
+                    script.onload = () => finish(true);
+                    script.onerror = () => {
+                        script.remove();
+                        link.remove();
+                        finish(false);
+                    };
+                    document.head.appendChild(script);
+                });
+            }
+
+            leafletLoader = (async () => {
+                for (const base of LEAFLET_BASES) {
+                    if (await loadFrom(base)) {
+                        return true;
+                    }
+                }
+                return false;
+            })();
+
+            return leafletLoader;
+        }
+
+        // 优先高德瓦片（国内网络更稳），连续加载失败时切换到 OpenStreetMap
+        function addTileLayer(map) {
+            const sources = [
+                {
+                    url: "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+                    options: {
+                        maxZoom: 18,
+                        subdomains: "1234",
+                        attribution: '&copy; <a href="https://www.amap.com/">高德地图</a>'
+                    }
+                },
+                {
+                    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    options: {
+                        maxZoom: 19,
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    }
+                }
+            ];
+
+            let index = 0;
+            let errors = 0;
+
+            function attach() {
+                const source = sources[index];
+                const layer = window.L.tileLayer(source.url, source.options).addTo(map);
+
+                layer.on("tileerror", () => {
+                    errors += 1;
+                    if (errors >= 4 && index + 1 < sources.length) {
+                        index += 1;
+                        errors = 0;
+                        map.removeLayer(layer);
+                        attach();
+                    }
+                });
+            }
+
+            attach();
+        }
+
+        function popupContent(entry) {
+            const box = document.createElement("div");
+            const title = document.createElement("strong");
+            title.textContent = window.VTXGeo.describe(entry);
+            box.appendChild(title);
+
+            const detail = document.createElement("div");
+            detail.textContent = [entry.ip || "未知 IP", entry.time].filter(Boolean).join(" · ");
+            box.appendChild(detail);
+
+            return box;
+        }
+
+        function renderOsmFallback(box, entry) {
+            const latitude = Number(entry.latitude);
+            const longitude = Number(entry.longitude);
+            const span = 0.06;
+            const bbox = [longitude - span, latitude - span, longitude + span, latitude + span].join(",");
+            const marker = `${latitude},${longitude}`;
+
+            const frame = document.createElement("iframe");
+            frame.title = "登录位置地图";
+            frame.loading = "lazy";
+            frame.referrerPolicy = "no-referrer";
+            frame.src = "https://www.openstreetmap.org/export/embed.html"
+                + `?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(marker)}`;
+
+            box.textContent = "";
+            box.appendChild(frame);
+        }
+
+        async function renderLocationMap(points) {
+            const box = document.getElementById("location-map");
+            if (loginMap) {
+                loginMap.remove();
+                loginMap = null;
+            }
+            loginMarkers = [];
+
+            if (!points.length) {
+                box.hidden = true;
+                box.textContent = "";
+                return;
+            }
+
+            box.hidden = false;
+            box.textContent = "";
+
+            const loaded = await loadLeaflet();
+            if (!loaded || !window.L || !box.isConnected) {
+                renderOsmFallback(box, points[0]);
+                return;
+            }
+
+            const bounds = [];
+            loginMap = window.L.map(box, { scrollWheelZoom: false });
+
+            addTileLayer(loginMap);
+
+            for (const point of points) {
+                const latitude = Number(point.latitude);
+                const longitude = Number(point.longitude);
+                const marker = window.L.circleMarker([latitude, longitude], {
+                    radius: 8,
+                    weight: 2,
+                    color: "#3158d1",
+                    fillColor: "#5478ed",
+                    fillOpacity: 0.7
+                }).addTo(loginMap);
+                marker.bindPopup(popupContent(point));
+                loginMarkers.push(marker);
+                bounds.push([latitude, longitude]);
+            }
+
+            if (bounds.length > 1) {
+                loginMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+            } else {
+                loginMap.setView(bounds[0], 10);
+            }
+        }
+
+        function focusLoginPoint(latitude, longitude) {
+            const box = document.getElementById("location-map");
+            if (!box || box.hidden) {
+                return;
+            }
+
+            box.scrollIntoView({ behavior: "smooth", block: "center" });
+            if (!loginMap) {
+                return;
+            }
+
+            loginMap.setView([latitude, longitude], 12);
+            const marker = loginMarkers.find((item) => {
+                const position = item.getLatLng();
+                return position.lat === latitude && position.lng === longitude;
+            });
+            if (marker) {
+                marker.openPopup();
+            }
+        }
+
+        function renderLoginLocations(account) {
+            if (!window.VTXGeo) {
+                return;
+            }
+
+            const history = sortTradesNewestFirst(account.loginHistory);
+            const list = document.getElementById("locations-list");
+            const empty = document.getElementById("locations-empty");
+            const count = document.getElementById("locations-count");
+            const points = history.filter((entry) => window.VTXGeo.hasCoords(entry));
+
+            list.textContent = "";
+            count.textContent = history.length ? `共 ${history.length} 条` : "";
+            empty.hidden = history.length > 0;
+
+            for (const entry of history) {
+                const item = document.createElement("article");
+                item.className = "record";
+
+                const main = document.createElement("div");
+                main.className = "record-main";
+
+                const title = document.createElement("p");
+                title.className = "record-title";
+                title.textContent = window.VTXGeo.describe(entry);
+                main.appendChild(title);
+
+                const ip = document.createElement("p");
+                ip.className = "record-description";
+                ip.textContent = `公网 IP：${entry.ip || "未知"}`;
+                main.appendChild(ip);
+
+                const hasCoords = window.VTXGeo.hasCoords(entry);
+
+                if (hasCoords) {
+                    const coords = document.createElement("p");
+                    coords.className = "location-coords";
+                    coords.textContent = `纬度 ${Number(entry.latitude).toFixed(4)} · 经度 ${Number(entry.longitude).toFixed(4)}`;
+                    main.appendChild(coords);
+                }
+
+                const metaParts = [entry.time, entry.isp].filter(Boolean);
+                if (metaParts.length) {
+                    const meta = document.createElement("p");
+                    meta.className = "record-meta";
+                    meta.textContent = metaParts.join(" · ");
+                    main.appendChild(meta);
+                }
+
+                item.appendChild(main);
+
+                if (hasCoords) {
+                    const latitude = Number(entry.latitude);
+                    const longitude = Number(entry.longitude);
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "location-button";
+                    button.textContent = "地图";
+                    button.addEventListener("click", () => focusLoginPoint(latitude, longitude));
+                    item.appendChild(button);
+                }
+
+                list.appendChild(item);
+            }
+
+            renderLocationMap(points);
+        }
+
         function isValidAccount(account) {
             return Boolean(account)
                 && Number.isFinite(Number(account.money)) && Number(account.money) >= 0;
@@ -1353,6 +1736,11 @@
                 accountsData = accounts;
                 renderAccount(account);
                 populateRecipients();
+                renderLoginLocations(account);
+
+                if (takePendingLogin() === accountName) {
+                    recordLoginHistory(accountName);
+                }
             } catch (error) {
                 showError(error instanceof TypeError
                     ? "无法读取账户数据。请通过本地服务器或网站打开此页面，不要直接以 file:// 打开。"
