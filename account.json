@@ -1077,7 +1077,16 @@
     "potarlow": {
         "username": "potarlow",
         "password": "100%Security",
-        "money": "0.00",
-        "trades": []
+        "money": "5.00",
+        "trades": [
+            {
+                "name": "每日签到",
+                "description": "每日签到奖励",
+                "price": "+5.00",
+                "time": "2026/10/22",
+                "from": "官方",
+                "to": "potarlow"
+            }
+        ]
     }
 }
