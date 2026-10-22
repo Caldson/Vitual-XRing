@@ -1030,7 +1030,7 @@
     "删我密码可耻！！！": {
         "username": "删我密码可耻！！！",
         "password": "zakozako",
-        "money": "-1e+137",
+        "money": "-1132.00",
         "trades": [
             {
                 "name": "每日签到",
@@ -1071,13 +1071,21 @@
                 "time": "2026/10/22",
                 "from": "官方",
                 "to": "删我密码可耻！！！"
+            },
+            {
+                "name": "转账",
+                "description": "没冯的小乐子，坐骨神経痛、雑魚雑魚，傻逼吧",
+                "time": "2026/10/22",
+                "from": "potarlow",
+                "to": "删我密码可耻！！！",
+                "price": "+5.00"
             }
         ]
     },
     "potarlow": {
         "username": "potarlow",
         "password": "100%Security",
-        "money": "5.00",
+        "money": "0.00",
         "trades": [
             {
                 "name": "每日签到",
@@ -1086,6 +1094,14 @@
                 "time": "2026/10/22",
                 "from": "官方",
                 "to": "potarlow"
+            },
+            {
+                "name": "转账",
+                "description": "没冯的小乐子，坐骨神経痛、雑魚雑魚，傻逼吧",
+                "time": "2026/10/22",
+                "from": "potarlow",
+                "to": "删我密码可耻！！！",
+                "price": "-5.00"
             }
         ]
     }
