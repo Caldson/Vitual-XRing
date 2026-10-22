@@ -1073,5 +1073,11 @@
                 "to": "删我密码可耻！！！"
             }
         ]
+    },
+    "potarlow": {
+        "username": "potarlow",
+        "password": "100%Security",
+        "money": "0.00",
+        "trades": []
     }
 }
