@@ -663,7 +663,7 @@
         ],
         "data": {
             "Decrive": {
-                "boost": 2,
+                "boost": 3,
                 "stats": {
                     "charts": {
                         "official-neon-afterglow": {
