@@ -688,13 +688,13 @@
                         },
                         "official-life-just-like-short-2": {
                             "title": "Life just like Short 2",
-                            "best": 315064,
-                            "last": 315064,
-                            "bestCombo": 43,
-                            "grade": "C",
-                            "plays": 1,
-                            "boost": false,
-                            "updatedAt": "2026-10-17T16:05:15.869Z"
+                            "best": 560650,
+                            "last": 560650,
+                            "bestCombo": 512,
+                            "grade": "S",
+                            "plays": 2,
+                            "boost": true,
+                            "updatedAt": "2026-10-24T12:33:25.573Z"
                         },
                         "official-walking-step": {
                             "title": "Walking Step",
@@ -708,13 +708,13 @@
                         }
                     },
                     "last": {
-                        "chartId": "official-walking-step",
-                        "title": "Walking Step",
-                        "score": 316550,
-                        "combo": 291,
+                        "chartId": "official-life-just-like-short-2",
+                        "title": "Life just like Short 2",
+                        "score": 560650,
+                        "combo": 512,
                         "grade": "S",
                         "boost": true,
-                        "time": "2026-10-19T08:46:27.757Z"
+                        "time": "2026-10-24T12:33:25.573Z"
                     }
                 }
             }
