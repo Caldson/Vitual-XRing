@@ -1,0 +1,19 @@
+{
+    "version": "7.0",
+    "items": [],
+    "文具本 - 采用冷胶工艺": [
+        {
+            "id": "xring-backend-blankbook-pocketver",
+            "name": "[返场] [返场专属口袋版] 空白本",
+            "price": "5.00",
+            "description": "好久不见，空白本！我们，又见面了！",
+            "manufacturer": "XRingCR",
+            "stock": 9,
+            "image": "images/blankbook-pocketver.jpg"
+        }
+    ],
+    "Cards 库一博卡牌普通卡": [
+    ],
+    "Wards 库一博卡牌技能卡": [
+    ]
+}
