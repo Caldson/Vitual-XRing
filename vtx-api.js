@@ -1,5 +1,4 @@
 (function () {
-    const SECURE_FILE = "secure.json";
     const DEFAULTS = { repo: "Caldson/Vitual-XRing", branch: "main", path: "account.json" };
 
     let cachedConfig = null;
@@ -59,22 +58,49 @@
         throw error;
     }
 
+    // 1.2.0：仓库 token 只保存在当前标签页的 sessionStorage 里，
+    // 不再从 secure.json 解密（那份文件等于把仓库写权限公开给所有人）。
+    const REPO_TOKEN_KEY = "vtxRepoToken";
+
     async function loadConfig() {
         if (cachedConfig) {
             return cachedConfig;
         }
 
-        const response = await fetch(SECURE_FILE, { cache: "no-store" });
-        if (!response.ok) {
-            throw new Error("找不到 secure.json，请先用 crypto.html 生成并提交到仓库根目录。");
-        }
-
-        cachedConfig = { ...DEFAULTS, ...(await response.json()) };
+        cachedConfig = { ...DEFAULTS };
         return cachedConfig;
     }
 
+    function setRepoToken(token) {
+        try {
+            sessionStorage.setItem(REPO_TOKEN_KEY, String(token || "").trim());
+        } catch (error) {
+            /* 隐私模式忽略 */
+        }
+    }
+
+    function getRepoToken() {
+        try {
+            return sessionStorage.getItem(REPO_TOKEN_KEY) || "";
+        } catch (error) {
+            return "";
+        }
+    }
+
+    function clearRepoToken() {
+        try {
+            sessionStorage.removeItem(REPO_TOKEN_KEY);
+        } catch (error) {
+            /* 忽略 */
+        }
+    }
+
     async function getToken() {
-        return window.VTXCrypto.decrypt(await loadConfig());
+        const token = getRepoToken();
+        if (!token) {
+            throw new Error("未设置 GitHub 仓库 Token。1.2.0 起不再从 secure.json 解密，请在管理页填入（只保存在当前标签页）。");
+        }
+        return token;
     }
 
     async function readFile(token, config) {
@@ -134,10 +160,10 @@
     }
 
     // ───────────────────────── 8.0：Workers API 客户端 ─────────────────────────
-    // 账户数据搬到 Workers KV 后，页面统一走这里。只有在 Workers 完全连不上时，
-    // 才会退回上面那套 GitHub 直连逻辑（secure.json 里的 token 作为备用通道）。
+    // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
+    // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "1.0.0";
+    const API_VERSION = "1.2.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -192,25 +218,48 @@
         return new URL(candidate, document.baseURI).href.replace(/\/+$/, "");
     }
 
-    function preferredBase() {
+    function allowedBases() {
+        const list = [];
+        const extra = typeof window.VTX_API_BASE === "string" ? window.VTX_API_BASE.trim() : "";
+        for (const candidate of extra ? [...API_CANDIDATES, extra] : API_CANDIDATES) {
+            try {
+                list.push(resolveBase(candidate));
+            } catch (error) {
+                /* 忽略无效候选 */
+            }
+        }
+        return list;
+    }
+
+    // 1.2.0：只有同源地址和白名单里的地址可以接收 token / 密码
+    function isAllowedBase(base) {
+        let parsed;
         try {
-            const fromQuery = new URLSearchParams(window.location.search).get("api");
-            if (fromQuery && fromQuery.trim()) {
-                return [fromQuery.trim().replace(/\/+$/, "")];
+            parsed = new URL(base);
+        } catch (error) {
+            return false;
+        }
+        if (parsed.origin === new URL(document.baseURI).origin) {
+            return true;
+        }
+        return allowedBases().includes(parsed.href.replace(/\/+$/, ""));
+    }
+
+    function preferredBase() {
+        // 1.2.0：不再接受 ?api= 这类 URL 参数，避免登录密码 / token 被导向攻击者域名
+        try {
+            const cached = sessionStorage.getItem(BASE_KEY);
+            if (cached) {
+                if (isAllowedBase(resolveBase(cached))) {
+                    return [cached, ...API_CANDIDATES.filter((item) => item !== cached)];
+                }
+                sessionStorage.removeItem(BASE_KEY);
             }
         } catch (error) {
             /* 忽略 */
         }
         if (typeof window.VTX_API_BASE === "string" && window.VTX_API_BASE.trim()) {
             return [window.VTX_API_BASE.trim().replace(/\/+$/, "")];
-        }
-        try {
-            const cached = sessionStorage.getItem(BASE_KEY);
-            if (cached) {
-                return [cached, ...API_CANDIDATES.filter((item) => item !== cached)];
-            }
-        } catch (error) {
-            /* 忽略 */
         }
         return API_CANDIDATES;
     }
@@ -280,6 +329,9 @@
             let base;
             try {
                 base = resolveBase(candidate);
+                if (!isAllowedBase(base)) {
+                    throw new Error("API 地址不在允许列表内");
+                }
             } catch (error) {
                 continue;
             }
@@ -302,8 +354,8 @@
         throw networkError("无法连接 Vitual XRing 服务，已切换到备用通道", lastError);
     }
 
-    // 只有「Workers 连不上 / 服务端 5xx / 本地没有 token」才允许走 GitHub 备用通道，
-    // 服务端明确拒绝（密码错误、余额不足等）必须原样抛给页面。
+    // 只有「Workers 连不上 / 服务端 5xx」才算离线；服务端明确拒绝（密码错误、余额不足等）
+    // 必须原样抛给页面。1.2.0 起 401 也不再触发备用通道（那条通道已停用）。
     function isOffline(error) {
         if (!error) {
             return false;
@@ -311,33 +363,20 @@
         if (error.workerUnavailable) {
             return true;
         }
-        if (error.status === 401 && !sessionToken()) {
-            return true;
-        }
         return Boolean(error.status && error.status >= 500);
     }
 
     function isFallbackReady() {
-        return Boolean(window.VTXCrypto);
+        // 1.2.0：浏览器直连 GitHub 改账户数据的备用通道已停用（等于把仓库写权限发给所有访客）
+        return false;
     }
 
     async function legacyAccounts() {
-        try {
-            const response = await fetch(`account.json?t=${Date.now()}`, { cache: "no-store" });
-            if (response.ok) {
-                return await response.json();
-            }
-        } catch (error) {
-            /* 文件已被迁移删除，改用 secure.json 里的 token */
-        }
-        return await readAll();
+        throw new Error("仓库直连备用通道已在 1.2.0 停用，请连接 Vitual XRing 服务后再试。");
     }
 
     async function legacyCommit(mutate) {
-        if (!isFallbackReady()) {
-            throw new Error("备用通道不可用：缺少 vtx-crypto.js");
-        }
-        return await commit(mutate);
+        throw new Error("仓库直连备用通道已在 1.2.0 停用，请连接 Vitual XRing 服务后再试。");
     }
 
     function moneyCents(value) {
@@ -702,20 +741,31 @@
             const data = await apiRequest("/me/purchase", {
                 method: "POST",
                 body: {
-                    item: options.item,
+                    id: options.id || options.item,
                     quantity: options.quantity,
-                    amount: options.amount,
                     password: options.password,
                     description: options.description
                 }
             });
-            return { account: data.account, trade: data.trade, receipt: data.receipt };
+            return {
+                account: data.account,
+                trade: data.trade,
+                receipt: data.receipt,
+                stock: data.stock,
+                item: data.item
+            };
         } catch (error) {
             if (!isOffline(error)) {
                 throw error;
             }
-            throw networkError("Workers 不可用，需要改用仓库直连购买流程", error);
+            throw networkError("Workers 不可用，暂时无法购买商品", error);
         }
+    }
+
+    /* 1.2.0：服务端商品库存（价格与扣款都由 Workers 决定） */
+    async function shopStock() {
+        const data = await apiRequest("/shop", { auth: false });
+        return data.stock || {};
     }
 
     async function recordLoginLocation(entry) {
@@ -1018,6 +1068,7 @@
         withdraw,
         billing,
         purchase,
+        shopStock,
         recordLoginLocation,
         adminAccounts,
         adminLog,
@@ -1031,6 +1082,9 @@
         commit,
         readAll,
         loadConfig,
-        getToken
+        getToken,
+        setRepoToken,
+        getRepoToken,
+        clearRepoToken
     };
 })();

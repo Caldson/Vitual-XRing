@@ -533,7 +533,7 @@
         </a>
         <div class="topbar-actions">
             <span class="admin-chip">管理员</span>
-            <span class="version">v1.0.0</span>
+            <span class="version">v1.2.0</span>
             <a class="topbar-link" href="manager.html">返回账户</a>
             <a class="topbar-link" href="accounts-admin.html">账号修改</a>
             <a class="topbar-link" href="shop.html">商店</a>
@@ -551,6 +551,8 @@
                 <span>分支 <b id="repo-branch">—</b></span>
                 <span>远端 HEAD <b id="repo-head">—</b></span>
                 <span id="repo-fetched">尚未 fetch</span>
+                <span id="repo-token-state">Token 未设置</span>
+                <button id="repo-token-button" class="ghost" type="button">设置仓库 Token</button>
             </div>
             <p id="admin-message" class="status" role="status" aria-live="polite" hidden></p>
         </section>
@@ -654,9 +656,8 @@
         </form>
     </dialog>
 
-    <script src="vtx-crypto.js?v=1.0.0"></script>
-    <script src="vtx-api.js?v=1.0.0"></script>
-    <script src="vtx-repo.js?v=1.0.0"></script>
+    <script src="vtx-api.js?v=1.2.0"></script>
+    <script src="vtx-repo.js?v=1.2.0"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";
@@ -1687,15 +1688,45 @@
             });
         });
 
+        // 1.2.0：仓库 Token 由管理员在浏览器里临时输入，只存在 sessionStorage，
+        // 不再从仓库里的 secure.json 解密（那等于把写权限公开）
+        function refreshTokenState() {
+            const token = window.VTXApi.getRepoToken();
+            document.getElementById("repo-token-state").textContent = token
+                ? `Token 已设置（${token.slice(0, 8)}…）`
+                : "Token 未设置";
+        }
+
+        document.getElementById("repo-token-button").addEventListener("click", () => {
+            const token = window.prompt(
+                "粘贴 GitHub Token（需要该仓库 Contents 读写权限）。只保存在当前标签页，关闭标签页即失效，不会写入仓库：",
+                ""
+            );
+            if (token === null) {
+                return;
+            }
+            window.VTXApi.setRepoToken(token);
+            refreshTokenState();
+            log(token.trim() ? "已设置仓库 Token（仅当前标签页）" : "已清除仓库 Token", "ok");
+        });
+
         async function init() {
             if (!accountName || accountName !== ADMIN_ACCOUNT) {
                 return;
             }
+            refreshTokenState();
             const config = await window.VTXRepo.config();
             state.repo = config.repo;
             state.branch = config.branch;
             document.getElementById("repo-name").textContent = config.repo;
             document.getElementById("repo-branch").textContent = config.branch;
+
+            if (!window.VTXApi.getRepoToken()) {
+                const message = document.getElementById("admin-message");
+                message.hidden = false;
+                message.textContent = "1.2.0 起仓库 Token 不再随网站发布：请先点右上角「设置仓库 Token」再操作。";
+                return;
+            }
 
             await run("初始化", async () => {
                 await fetchRemote();

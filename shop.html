@@ -510,7 +510,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v1.0.0</span>
+            <span class="version">v1.2.0</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -565,9 +565,8 @@
         </form>
     </dialog>
 
-    <script src="vtx-crypto.js?v=1.0.0"></script>
-    <script src="vtx-api.js?v=1.0.0"></script>
-    <script src="vtx-repo.js?v=1.0.0"></script>
+    <script src="vtx-api.js?v=1.2.0"></script>
+
 
     <script>
         const accountName = sessionStorage.getItem("vtxAccount");
@@ -612,13 +611,6 @@
 
         function fromCents(cents) {
             return (cents / 100).toFixed(2);
-        }
-
-        function timestamp() {
-            const now = new Date();
-            const pad = (value) => String(value).padStart(2, "0");
-            return `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} `
-                + `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
         }
 
         function networkMessage(error, fallback) {
@@ -956,18 +948,50 @@
         }
 
         async function loadShop() {
-            try {
-                const fresh = await window.VTXRepo.readJson("shop.json");
-                shopData = fresh.data;
-            } catch (error) {
-                // 带上时间戳，避免读到 GitHub Pages CDN 里 10 分钟内的旧版本
-                const response = await fetch(`shop.json?t=${Date.now()}`, { cache: "no-store" });
-                if (!response.ok) {
-                    throw error;
-                }
-                shopData = await response.json();
+            // 带上时间戳，避免读到 GitHub Pages CDN 里 10 分钟内的旧版本
+            const response = await fetch(`shop.json?t=${Date.now()}`, { cache: "no-store" });
+            if (!response.ok) {
+                throw new Error("无法读取商店数据，请稍后重试。");
             }
+            shopData = await response.json();
+            await applyServerStock();
             renderShop();
+        }
+
+        // 1.2.0：库存改由 Workers 记账（扣款与扣库存都在服务端），shop.json 里的 stock 只是初始值
+        async function applyServerStock() {
+            if (!window.VTXApi || typeof window.VTXApi.shopStock !== "function") {
+                return;
+            }
+            try {
+                const stock = await window.VTXApi.shopStock();
+                eachItem(shopData, (item) => {
+                    if (Object.prototype.hasOwnProperty.call(stock, item.id)) {
+                        const value = Number(stock[item.id]);
+                        if (Number.isFinite(value)) {
+                            item.stock = Math.max(0, Math.floor(value));
+                        }
+                    }
+                });
+            } catch (error) {
+                /* 读不到服务端库存时保留 shop.json 里的值 */
+            }
+        }
+
+        function eachItem(shop, visit) {
+            if (!shop || typeof shop !== "object") {
+                return;
+            }
+            for (const value of Object.values(shop)) {
+                if (!Array.isArray(value)) {
+                    continue;
+                }
+                for (const item of value) {
+                    if (item && typeof item === "object") {
+                        visit(item);
+                    }
+                }
+            }
         }
 
         async function loadAccount() {
@@ -1010,13 +1034,12 @@
                 showMessage("商品价格无效，请联系站主。", "error");
                 return;
             }
-            const totalCents = unitCents * quantity;
 
             submitButton.disabled = true;
             submitButton.textContent = "处理中…";
 
             try {
-                const result = await buyItem(item.id, quantity, totalCents, password);
+                const result = await buyItem(item, quantity, password);
                 accountsData = result.accounts;
                 shopData = result.shop;
                 renderBalance();
@@ -1025,7 +1048,7 @@
                 document.getElementById("receipt-text").textContent = result.receipt;
                 receiptCard.hidden = false;
                 receiptCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
-                showMessage(`购买成功：${item.name} ×${quantity}，共 ${fromCents(totalCents)} VTX。`, "success");
+                showMessage(`购买成功：${item.name} ×${quantity}，共 ${result.amount} VTX。`, "success");
             } catch (error) {
                 showMessage(
                     networkMessage(error, "网络请求失败，请检查网络后重试。"),
@@ -1037,110 +1060,27 @@
             }
         }
 
-        async function buyItem(itemId, quantity, totalCents, password) {
-            const shop = await window.VTXRepo.readJson("shop.json");
-            const shopFile = shop.data;
-            const found = findInShop(shopFile, itemId);
-
-            if (!found) {
-                throw new Error("商品已下架，请刷新页面。");
-            }
-
-            const item = found.item;
-
-            if (stockOf(item) < quantity) {
-                throw new Error(`库存不足，当前只剩 ${stockOf(item)} 件。`);
-            }
-
-            const amount = fromCents(totalCents);
-
-            // 先由 Workers 校验密码、余额并扣款，再更新仓库里的库存
-            let payment;
-            try {
-                payment = await window.VTXApi.purchase({
-                    item: item.name,
-                    quantity,
-                    amount,
-                    password,
-                    description: `${item.name} ×${quantity}`
-                });
-            } catch (error) {
-                if (!window.VTXApi.isOffline(error)) {
-                    throw error;
-                }
-                return await buyItemViaRepo(item, quantity, totalCents, password, shopFile);
-            }
-
-            item.stock = stockOf(item) - quantity;
-
-            try {
-                await window.VTXRepo.commitFiles(
-                    [{ path: "shop.json", content: `${JSON.stringify(shopFile, null, 4)}\n` }],
-                    `购买商品：${(payment.account && payment.account.username) || accountName} 购买 ${item.name} ×${quantity}`
-                );
-            } catch (error) {
-                try {
-                    await window.VTXApi.billing({
-                        type: "refund",
-                        amount,
-                        name: "商品退款",
-                        description: `${item.name} ×${quantity} · 库存更新失败`
-                    });
-                } catch (refundError) {
-                    /* 退款失败时把原始错误抛给页面 */
-                }
-                throw new Error("库存更新失败，本次付款已自动退回，请重试。");
-            }
-
-            const accounts = { ...(accountsData || {}), [accountName]: payment.account };
-            return { accounts, shop: shopFile, receipt: payment.receipt };
-        }
-
-        // 备用通道：Workers 完全连不上时，退回仓库直连（需要 secure.json 里的 token）
-        async function buyItemViaRepo(item, quantity, totalCents, password, shopFile) {
-            const accounts = await window.VTXApi.accounts();
-            const account = accounts[accountName];
-
-            if (!account) {
-                throw new Error("当前账户不存在，请重新登录。");
-            }
-            if (account.password !== undefined && account.password !== password) {
-                throw new Error("账户密码不正确。");
-            }
-            if (toCents(account.money) < totalCents) {
-                throw new Error(`余额不足，当前余额 ${fromCents(toCents(account.money))} VTX。`);
-            }
-
-            const time = timestamp();
-            const amount = fromCents(totalCents);
-
-            item.stock = stockOf(item) - quantity;
-
-            account.money = fromCents(toCents(account.money) - totalCents);
-            account.trades = Array.isArray(account.trades) ? account.trades : [];
-            account.trades.push({
-                name: "购买商品",
-                description: `${item.name} ×${quantity}`,
-                price: `-${amount}`,
-                time,
-                from: account.username || accountName,
-                to: "XRingCR"
+        async function buyItem(item, quantity, password) {
+            // 1.2.0：价格与库存都由 Workers 依据 shop.json 计算并扣减，
+            // 页面只告诉服务端「买哪个商品的几件」，不再上传金额。
+            const payment = await window.VTXApi.purchase({
+                id: item.id,
+                quantity,
+                password,
+                description: `${item.name} ×${quantity}`
             });
 
-            await window.VTXRepo.commitFiles(
-                [
-                    { path: "shop.json", content: `${JSON.stringify(shopFile, null, 4)}\n` },
-                    { path: "account.json", content: `${JSON.stringify(accounts, null, 4)}\n` }
-                ],
-                `购买商品：${account.username || accountName} 购买 ${item.name} ×${quantity}`,
-                { attempts: 1 }
-            );
+            if (payment.stock && payment.stock.id === item.id) {
+                item.stock = Math.max(0, Number(payment.stock.remaining) || 0);
+            } else {
+                item.stock = Math.max(0, stockOf(item) - quantity);
+            }
 
-            return {
-                accounts,
-                shop: shopFile,
-                receipt: `购买成功：${item.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`
-            };
+            const unitCents = toCents(payment.item ? payment.item.unitPrice : item.price);
+            const amount = Number.isFinite(unitCents) ? fromCents(unitCents * quantity) : "—";
+            const accounts = { ...(accountsData || {}), [accountName]: payment.account };
+
+            return { accounts, shop: shopData, receipt: payment.receipt, amount };
         }
 
         document.getElementById("checkout-cancel").addEventListener("click", closeCheckout);

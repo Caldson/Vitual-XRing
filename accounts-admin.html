@@ -344,7 +344,7 @@
         </a>
         <div class="topbar-actions">
             <span class="admin-chip">站主专用</span>
-            <span class="version">v1.0.0</span>
+            <span class="version">v1.2.0</span>
             <a href="manager.html">返回账户</a>
             <a href="admin.html">仓库修改器</a>
             <a href="chatroom.html">聊天室</a>
@@ -394,7 +394,7 @@
                     <div class="field">
                         <label for="edit-password">新密码</label>
                         <input id="edit-password" type="text" autocomplete="off" placeholder="留空表示不修改">
-                        <span class="field-hint">密码会明文保存在 Workers KV 中（与旧版 account.json 一致），至少 6 个字符。</span>
+                        <span class="field-hint">密码会以 PBKDF2-SHA256 哈希（每账户独立盐）保存在 Workers KV 中，至少 6 个字符。</span>
                     </div>
 
                     <div class="actions">
@@ -443,8 +443,7 @@
         <footer>Vitual XRing 8.0 · 账户数据存储于 Workers KV</footer>
     </main>
 
-    <script src="vtx-crypto.js?v=1.0.0"></script>
-    <script src="vtx-api.js?v=1.0.0"></script>
+    <script src="vtx-api.js?v=1.2.0"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";

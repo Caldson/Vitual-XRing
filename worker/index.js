@@ -13,6 +13,15 @@
  * 历史消息仍然可以查看，但不能再发消息、改名、加人、改公告；
  * 成员可以自己从会话列表删除这个只读会话。
  *
+ * 1.2.0 安全修复：
+ *   - 附件只允许 png/jpeg/gif/webp 内联，其余按 attachment 下载（防同源存储型 XSS）
+ *   - /api/me/purchase 的价格与库存由服务端按 shop.json 决定，忽略客户端 amount
+ *   - 邀请码改用 CSPRNG，邀请 / 群号加入接口限流
+ *   - 管理员登录名不可被注册或改名占用，/api/admin/accounts 不再返回明文密码
+ *   - 密码改用 PBKDF2-SHA256 哈希存储，旧明文密码在首次登录成功后就地升级
+ *   - 写账户前向 Durable Object AccountsLock 申请写锁，避免跨 isolate 并发覆盖余额
+ *   - 未捕获异常不再把内部信息回给客户端
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -32,7 +41,7 @@
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  */
 
-const VERSION = "1.0.0";
+const VERSION = "1.2.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -45,7 +54,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.0";
+const CHAT_VERSION = "1.2";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 const CHAT_WINDOW_MS = 60 * 1000;
@@ -110,6 +119,15 @@ const MAX_TRADE_CENTS = 100000000;
 const MAX_PARTY_LENGTH = 40;
 const MAX_DESCRIPTION_LENGTH = 200;
 const MAX_TRADE_NAME_LENGTH = 20;
+/* 1.2.0：商品价格与库存由服务端决定，最多一次买 999 件 */
+const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
+const SHOP_CACHE_TTL_MS = 30 * 1000;
+const SHOP_MAX_QUANTITY = 999;
+/* 1.2.0：邀请码查询/加入的节流（4 位邀请码只有 1 万个组合） */
+const INVITE_WINDOW_MS = 60 * 1000;
+const INVITE_MAX_ATTEMPTS = 10;
+/* 1.2.0：聊天附件只允许这些类型内联显示，其余一律按下载处理 */
+const CHAT_MEDIA_INLINE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 
 const loginAttempts = new Map();
 const writeAttempts = new Map();
@@ -119,6 +137,7 @@ const chatAttempts = new Map();
 const chatMediaAttempts = new Map();
 const chatTypingAttempts = new Map();
 const adminAttempts = new Map();
+const inviteAttempts = new Map();
 
 class HttpError extends Error {
     constructor(status, code, message) {
@@ -182,6 +201,57 @@ function timingSafeEqual(left, right) {
         diff |= (a.charCodeAt(index) || 0) ^ (b.charCodeAt(index) || 0);
     }
     return diff === 0;
+}
+
+/* ───────── 1.2.0：密码哈希（PBKDF2-SHA256，每账户独立盐） ───────── */
+
+const PASSWORD_SCHEME = "pbkdf2-sha256";
+const PASSWORD_ITERATIONS = 100000;
+const PASSWORD_SALT_BYTES = 16;
+const PASSWORD_KEY_BITS = 256;
+
+function isPasswordHashed(value) {
+    return typeof value === "string" && value.startsWith(`${PASSWORD_SCHEME}$`);
+}
+
+async function pbkdf2Bits(password, salt, iterations) {
+    const key = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(String(password ?? "")),
+        "PBKDF2",
+        false,
+        ["deriveBits"]
+    );
+    const bits = await crypto.subtle.deriveBits(
+        { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+        key,
+        PASSWORD_KEY_BITS
+    );
+    return new Uint8Array(bits);
+}
+
+async function hashPassword(password) {
+    const salt = crypto.getRandomValues(new Uint8Array(PASSWORD_SALT_BYTES));
+    const derived = await pbkdf2Bits(password, salt, PASSWORD_ITERATIONS);
+    return `${PASSWORD_SCHEME}$${PASSWORD_ITERATIONS}$${encodeBase64Url(salt)}$${encodeBase64Url(derived)}`;
+}
+
+/* 兼容旧数据：还没哈希的记录用明文比对，登录成功后由调用方就地升级 */
+async function verifyPasswordValue(stored, password) {
+    const value = String(stored ?? "");
+
+    if (!isPasswordHashed(value)) {
+        return timingSafeEqual(value, String(password ?? ""));
+    }
+
+    const parts = value.split("$");
+    const iterations = Number(parts[1]);
+    if (parts.length !== 4 || !Number.isFinite(iterations) || iterations <= 0 || !parts[2] || !parts[3]) {
+        return false;
+    }
+
+    const derived = await pbkdf2Bits(password, decodeBase64Url(parts[2]), iterations);
+    return timingSafeEqual(encodeBase64Url(derived), parts[3]);
 }
 
 async function hmac(secret, data) {
@@ -304,11 +374,11 @@ function selfAccount(account) {
     return { ...publicAccount(account), loginHistory: loginHistoryOf(account) };
 }
 
-// 管理员可见：带密码与收款码
+// 管理员可见：带收款码（1.2.0 起不再返回密码，改用密码重置动作）
 function fullAccount(account) {
     return {
         ...selfAccount(account),
-        password: String((account && account.password) || ""),
+        hasPassword: Boolean(account && account.password),
         receipt: account && account.receipt ? account.receipt : null
     };
 }
@@ -328,6 +398,7 @@ function corsHeaders(env, request) {
         "access-control-allow-headers": "authorization,content-type,x-file-name",
         "access-control-max-age": "86400",
         "vary": "origin",
+        "x-content-type-options": "nosniff",
         "cache-control": "no-store"
     };
 
@@ -572,6 +643,62 @@ function withStoreLock(task) {
     return run;
 }
 
+/* ───────── 1.2.0：跨 isolate 的账户写锁（Durable Object 租约） ───────── */
+
+const ACCOUNTS_LOCK_LEASE_MS = 30 * 1000;
+const ACCOUNTS_LOCK_WAIT_MS = 8000;
+
+function accountsLockStub(env) {
+    if (!env.ACCOUNTS_LOCK || typeof env.ACCOUNTS_LOCK.idFromName !== "function") {
+        return null;
+    }
+    try {
+        return env.ACCOUNTS_LOCK.get(env.ACCOUNTS_LOCK.idFromName("accounts-write-lock"));
+    } catch (error) {
+        return null;
+    }
+}
+
+/* 拿不到锁就等一会儿重试；绑定缺失时退化成只靠 isolate 内的锁 */
+async function acquireAccountsLock(env) {
+    const stub = accountsLockStub(env);
+    if (!stub) {
+        return async () => {};
+    }
+
+    const deadline = Date.now() + ACCOUNTS_LOCK_WAIT_MS;
+
+    while (Date.now() < deadline) {
+        let granted = false;
+        try {
+            const response = await stub.fetch("https://accounts-lock.internal/lock");
+            const data = await response.json();
+            granted = Boolean(data && data.granted);
+        } catch (error) {
+            return async () => {};
+        }
+
+        if (granted) {
+            let released = false;
+            return async () => {
+                if (released) {
+                    return;
+                }
+                released = true;
+                try {
+                    await stub.fetch("https://accounts-lock.internal/unlock");
+                } catch (error) {
+                    /* 拿不到也只会等到租约过期 */
+                }
+            };
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 30));
+    }
+
+    throw new HttpError(503, "busy", "账户正在被其他请求修改，请稍后重试");
+}
+
 async function commitAccounts(env, mutate) {
     if (!canWrite(env)) {
         throw new HttpError(503, "write_unavailable", "服务端未配置 ACCOUNTS_KV 或 GITHUB_TOKEN，无法写入");
@@ -579,12 +706,18 @@ async function commitAccounts(env, mutate) {
 
     if (hasKv(env)) {
         return await withStoreLock(async () => {
-            const accounts = await readKvAccounts(env);
-            mutate(accounts);
-            await env.ACCOUNTS_KV.put(STORE_KEY, JSON.stringify(accounts));
-            writeMemory(env, accounts);
-            await mirrorToGithub(env, accounts);
-            return accounts;
+            // 1.2.0：isolate 内的 promise 链挡不住跨 isolate 的并发，再向 Durable Object 申请一把写锁
+            const release = await acquireAccountsLock(env);
+            try {
+                const accounts = await readKvAccounts(env);
+                await mutate(accounts);
+                await env.ACCOUNTS_KV.put(STORE_KEY, JSON.stringify(accounts));
+                writeMemory(env, accounts);
+                await mirrorToGithub(env, accounts);
+                return accounts;
+            } finally {
+                await release();
+            }
         });
     }
 
@@ -592,7 +725,7 @@ async function commitAccounts(env, mutate) {
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
         const { accounts, sha } = await readAccountFile(env);
-        const message = mutate(accounts);
+        const message = await mutate(accounts);
 
         try {
             await writeAccountFile(env, accounts, sha, message);
@@ -739,6 +872,98 @@ function fromCents(cents) {
     return (cents / 100).toFixed(2);
 }
 
+/* ───────── 1.2.0：服务端商品目录 / 库存 ───────── */
+
+function shopStockKey(id) {
+    return `shop:stock:${id}`;
+}
+
+function shopOrigin(request, env) {
+    const configured = String(env.PUBLIC_BASE || "").trim().replace(/\/+$/, "");
+    if (configured) {
+        return configured;
+    }
+    const origin = new URL(request.url).origin;
+    return /\.workers\.dev$/i.test(new URL(origin).hostname) ? DEFAULT_SITE_ORIGIN : origin;
+}
+
+/* shop.json 的格式：{ version, items: [...], "分类名": [...] } */
+function flattenShopCatalog(catalog) {
+    const items = new Map();
+    const source = plainObject(catalog);
+
+    const push = (raw) => {
+        const entry = plainObject(raw);
+        const id = String(entry.id ?? "").trim();
+        const name = String(entry.name ?? "").trim();
+        const cents = toCents(entry.price);
+        if (!id || !name || cents === null || cents <= 0 || items.has(id)) {
+            return;
+        }
+        const stock = Number(entry.stock);
+        items.set(id, {
+            id,
+            name,
+            cents,
+            stock: Number.isFinite(stock) ? Math.max(0, Math.floor(stock)) : 0
+        });
+    };
+
+    for (const value of Object.values(source)) {
+        if (Array.isArray(value)) {
+            value.forEach(push);
+        }
+    }
+    if (Array.isArray(source.items)) {
+        source.items.forEach(push);
+    }
+    return items;
+}
+
+let shopCache = { at: 0, items: null };
+
+async function loadShopCatalog(request, env) {
+    // SHOP_CATALOG 可选：直接给 Worker 一份目录（测试或站点静态文件不可达时用）
+    if (env.SHOP_CATALOG) {
+        const inline = typeof env.SHOP_CATALOG === "string" ? JSON.parse(env.SHOP_CATALOG) : env.SHOP_CATALOG;
+        return flattenShopCatalog(inline);
+    }
+
+    if (shopCache.items && Date.now() - shopCache.at < SHOP_CACHE_TTL_MS) {
+        return shopCache.items;
+    }
+
+    const target = `${shopOrigin(request, env)}/shop.json`;
+    const response = await fetch(target, {
+        cf: { cacheTtl: 0, cacheEverything: false },
+        headers: { accept: "application/json" }
+    });
+
+    if (!response.ok) {
+        throw new HttpError(502, "catalog_unavailable", "读取商品目录失败，请稍后重试");
+    }
+
+    const items = flattenShopCatalog(await response.json());
+    shopCache = { at: Date.now(), items };
+    return items;
+}
+
+function findShopItem(items, key) {
+    const text = String(key || "").trim();
+    if (!text) {
+        return null;
+    }
+    if (items.has(text)) {
+        return items.get(text);
+    }
+    for (const item of items.values()) {
+        if (item.name === text) {
+            return item;
+        }
+    }
+    return null;
+}
+
 function shanghaiDate() {
     const now = new Date(Date.now() + 8 * 60 * 60 * 1000);
     return `${now.getUTCFullYear()}/${now.getUTCMonth() + 1}/${now.getUTCDate()}`;
@@ -755,6 +980,20 @@ function randomCode(bytes = 16) {
     const buffer = new Uint8Array(bytes);
     crypto.getRandomValues(buffer);
     return encodeBase64Url(buffer);
+}
+
+/* 1.2.0：邀请码改用 CSPRNG，Math.random 可预测 */
+function randomDigits(digits) {
+    const min = digits === 4 ? 0 : 10000000;
+    const span = digits === 4 ? 10000 : 90000000;
+    const limit = Math.floor(4294967296 / span) * span;
+    const buffer = new Uint32Array(1);
+    let value = 0;
+    do {
+        crypto.getRandomValues(buffer);
+        value = buffer[0];
+    } while (value >= limit);
+    return String(min + (value % span)).padStart(digits, "0");
 }
 
 function siteOrigin(request, env) {
@@ -967,7 +1206,7 @@ async function handlePayReceiptCode(request, env, cors, code) {
     let payerTrade = null;
     let payeeInfo = null;
 
-    const accounts = await commitAccounts(env, (data) => {
+    const accounts = await commitAccounts(env, async (data) => {
         const found = findReceiptOwner(data, code);
 
         if (!found) {
@@ -985,7 +1224,7 @@ async function handlePayReceiptCode(request, env, cors, code) {
             throw new HttpError(404, "not_found", "付款账户不存在");
         }
 
-        if (!timingSafeEqual(String(payerAccount.password || ""), password)) {
+        if (!(await verifyPasswordValue(payerAccount.password, password))) {
             throw new HttpError(400, "invalid_password", "密码不正确，付款已取消");
         }
 
@@ -1081,12 +1320,17 @@ async function handleLogin(request, env, cors) {
     const accounts = await loadAccounts(env);
     const account = accounts[login];
 
-    if (!account || !timingSafeEqual(account.password || "", password)) {
+    if (!account || !(await verifyPasswordValue(account.password, password))) {
         return jsonResponse({ error: "invalid_credentials", message: "登录名或密码不正确" }, 401, cors);
     }
 
     if (!env.SIGNING_SECRET) {
         return jsonResponse({ error: "server_misconfigured", message: "服务端未配置 SIGNING_SECRET" }, 500, cors);
+    }
+
+    // 1.2.0：旧账户的明文密码在首次登录成功后就地升级为 PBKDF2 哈希
+    if (!isPasswordHashed(account.password)) {
+        await upgradePasswordHash(env, login, password);
     }
 
     const now = Math.floor(Date.now() / 1000);
@@ -1420,9 +1664,13 @@ async function handleRegister(request, env, cors) {
         return jsonResponse({ error: "bad_request", message: `显示名称最长 ${MAX_USERNAME_LENGTH} 个字符` }, 400, cors);
     }
 
+    const hashed = await hashPassword(password);
     const accounts = await commitAccounts(env, (data) => {
         if (data[login]) {
             throw new HttpError(409, "account_exists", `账户名称 ${login} 已被占用`);
+        }
+        if (isReservedLogin(login, env)) {
+            throw new HttpError(409, "account_reserved", `账户名称 ${login} 是保留名称，请换一个`);
         }
         if (Object.keys(data).length >= MAX_ACCOUNTS) {
             throw new HttpError(403, "forbidden", `账户数量已达上限（${MAX_ACCOUNTS}）`);
@@ -1431,7 +1679,7 @@ async function handleRegister(request, env, cors) {
         data[login] = {
             uid: nextUidFrom(data),
             username: username || login,
-            password,
+            password: hashed,
             money: "0.00",
             trades: []
         };
@@ -1527,14 +1775,14 @@ async function handleTrade(request, env, cors, login) {
 
     let trade = null;
 
-    const accounts = await commitAccounts(env, (data) => {
+    const accounts = await commitAccounts(env, async (data) => {
         const account = data[target];
 
         if (!account) {
             throw new HttpError(404, "not_found", "账户不存在");
         }
 
-        if (isPayment && !timingSafeEqual(String(account.password || ""), password)) {
+        if (isPayment && !(await verifyPasswordValue(account.password, password))) {
             throw new HttpError(400, "invalid_password", "密码不正确，付款已取消");
         }
 
@@ -1581,9 +1829,29 @@ function requireOwnAccount(accounts, login) {
     return account;
 }
 
-function checkPassword(account, password) {
-    if (!timingSafeEqual(String(account.password || ""), String(password ?? ""))) {
+async function checkPassword(account, password) {
+    if (!(await verifyPasswordValue(account.password, password))) {
         throw new HttpError(400, "invalid_password", "账户密码不正确");
+    }
+}
+
+/* 旧账户首次用明文密码登录成功后，把记录换成 PBKDF2 哈希 */
+async function upgradePasswordHash(env, login, password) {
+    if (!canWrite(env)) {
+        return;
+    }
+    try {
+        const hashed = await hashPassword(password);
+        await commitAccounts(env, (data) => {
+            const account = data[login];
+            if (account && !isPasswordHashed(account.password)) {
+                account.password = hashed;
+                return `升级密码哈希：${login}`;
+            }
+            return `登录：${login}`;
+        });
+    } catch (error) {
+        /* 升级失败不能影响登录本身 */
     }
 }
 
@@ -1647,11 +1915,13 @@ async function handleUpdatePassword(request, env, cors) {
         return jsonResponse({ error: "bad_request", message: "新密码最长 128 个字符" }, 400, cors);
     }
 
-    await commitAccounts(env, (data) => {
+    const hashedPassword = await hashPassword(newPassword);
+
+    await commitAccounts(env, async (data) => {
         const account = requireOwnAccount(data, login);
 
-        checkPassword(account, currentPassword);
-        account.password = newPassword;
+        await checkPassword(account, currentPassword);
+        account.password = hashedPassword;
 
         return `修改密码：${login}`;
     });
@@ -1741,11 +2011,11 @@ async function handleTransfer(request, env, cors) {
     let senderTrade = null;
     let targetName = "";
 
-    const accounts = await commitAccounts(env, (data) => {
+    const accounts = await commitAccounts(env, async (data) => {
         const sender = requireOwnAccount(data, login);
         const receiver = data[target];
 
-        checkPassword(sender, password);
+        await checkPassword(sender, password);
 
         if (!receiver) {
             throw new HttpError(404, "not_found", `收款账户 ${target} 不存在`);
@@ -1805,10 +2075,10 @@ async function handleWithdraw(request, env, cors) {
     let trade = null;
     let username = login;
 
-    const accounts = await commitAccounts(env, (data) => {
+    const accounts = await commitAccounts(env, async (data) => {
         const account = requireOwnAccount(data, login);
 
-        checkPassword(account, password);
+        await checkPassword(account, password);
 
         const balance = toCents(account.money) ?? 0;
         if (balance < amountCents) {
@@ -1910,59 +2180,112 @@ async function handlePurchase(request, env, cors) {
 
     const login = session.payload.sub;
     const body = plainObject(await readJsonBody(request));
-    const item = String(body.item ?? "").trim().slice(0, 40);
+    const itemKey = String(body.id ?? body.item ?? "").trim().slice(0, 60);
     const quantity = Math.floor(Number(body.quantity || 0));
-    const amountCents = toCents(body.amount);
     const password = String(body.password ?? "");
     const description = String(body.description ?? "").trim().slice(0, MAX_DESCRIPTION_LENGTH);
 
-    if (!item) {
-        return jsonResponse({ error: "bad_request", message: "缺少 item：请填写商品名称" }, 400, cors);
+    if (!itemKey) {
+        return jsonResponse({ error: "bad_request", message: "缺少 id：请填写商品 ID" }, 400, cors);
     }
     if (!Number.isFinite(quantity) || quantity <= 0) {
         return jsonResponse({ error: "bad_request", message: "quantity 必须是大于 0 的整数" }, 400, cors);
     }
-    if (amountCents === null || amountCents <= 0) {
-        return jsonResponse({ error: "bad_request", message: "amount 必须是大于 0 的数字，最多两位小数" }, 400, cors);
+    if (quantity > SHOP_MAX_QUANTITY) {
+        return jsonResponse({ error: "bad_request", message: `一次最多购买 ${SHOP_MAX_QUANTITY} 件` }, 400, cors);
     }
     if (!password) {
         return jsonResponse({ error: "bad_request", message: "缺少 password：购买需要密码确认" }, 400, cors);
     }
 
+    // 1.2.0：价格只认仓库里的 shop.json，不再相信客户端传来的 amount
+    const catalog = await loadShopCatalog(request, env);
+    const product = findShopItem(catalog, itemKey);
+
+    if (!product) {
+        return jsonResponse({ error: "item_not_found", message: "商品不存在或已下架，请刷新页面" }, 404, cors);
+    }
+
+    const amountCents = product.cents * quantity;
+    if (!Number.isFinite(amountCents) || amountCents <= 0 || amountCents > MAX_TRADE_CENTS) {
+        return jsonResponse({ error: "bad_request", message: "订单金额不合法" }, 400, cors);
+    }
+
     const amount = fromCents(amountCents);
     const time = shanghaiTimestamp();
     let trade = null;
+    let remaining = null;
 
-    const accounts = await commitAccounts(env, (data) => {
+    const accounts = await commitAccounts(env, async (data) => {
         const account = requireOwnAccount(data, login);
 
-        checkPassword(account, password);
+        await checkPassword(account, password);
 
         const balance = toCents(account.money) ?? 0;
         if (balance < amountCents) {
             throw new HttpError(400, "insufficient_funds", `余额不足，当前余额 ${fromCents(balance)} VTX`);
         }
 
+        if (hasKv(env)) {
+            const stockKey = shopStockKey(product.id);
+            const stored = await env.ACCOUNTS_KV.get(stockKey);
+            const parsed = Number(stored);
+            const current = stored === null || stored === undefined || !Number.isFinite(parsed)
+                ? product.stock
+                : Math.max(0, Math.floor(parsed));
+
+            if (current < quantity) {
+                throw new HttpError(400, "out_of_stock", `库存不足，当前只剩 ${current} 件`);
+            }
+
+            remaining = current - quantity;
+            await env.ACCOUNTS_KV.put(stockKey, String(remaining));
+        }
+
         account.money = fromCents(balance - amountCents);
         trade = pushTrade(account, {
             name: "购买商品",
-            description: description || `${item} ×${quantity}`,
+            description: description || `${product.name} ×${quantity}`,
             price: `-${amount}`,
             time,
             from: account.username || login,
             to: "XRingCR"
         });
 
-        return `购买商品：${account.username || login} 购买 ${item} ×${quantity}`;
+        return `购买商品：${account.username || login} 购买 ${product.name} ×${quantity}`;
     });
 
     return jsonResponse({
         ok: true,
         login,
         trade,
-        receipt: `购买成功：${item} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
+        item: { id: product.id, name: product.name, unitPrice: fromCents(product.cents), quantity },
+        stock: remaining === null ? null : { id: product.id, remaining },
+        receipt: `购买成功：${product.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
         account: selfAccount(accounts[login])
     }, 200, cors);
+}
+
+/* 1.2.0：公开的商品库存（KV 里没有记录时回落到 shop.json 的库存） */
+async function handleShopStock(request, env, cors) {
+    const catalog = await loadShopCatalog(request, env);
+    const stock = {};
+
+    for (const item of catalog.values()) {
+        stock[item.id] = item.stock;
+    }
+
+    if (hasKv(env)) {
+        for (const id of Object.keys(stock)) {
+            const stored = await env.ACCOUNTS_KV.get(shopStockKey(id));
+            const parsed = Number(stored);
+            if (stored !== null && stored !== undefined && Number.isFinite(parsed)) {
+                stock[id] = Math.max(0, Math.floor(parsed));
+            }
+        }
+    }
+
+    return jsonResponse({ ok: true, version: VERSION, stock }, 200, cors);
 }
 
 async function handleLoginLocation(request, env, cors) {
@@ -1989,6 +2312,11 @@ async function handleLoginLocation(request, env, cors) {
 
 function adminLogin(env) {
     return String(env.ADMIN_ACCOUNT || DEFAULT_ADMIN_ACCOUNT).trim() || DEFAULT_ADMIN_ACCOUNT;
+}
+
+/* 1.2.0：管理员登录名是权限的唯一依据，绝不允许被别人注册/改名占用 */
+function isReservedLogin(login, env) {
+    return String(login || "").trim().toLowerCase() === adminLogin(env).toLowerCase();
 }
 
 async function requireAdmin(request, env, cors) {
@@ -2099,15 +2427,19 @@ async function handleAdminCreate(request, env, cors) {
         return jsonResponse({ error: error.code, message: error.message }, error.status, cors);
     }
 
+    const hashedPassword = await hashPassword(password);
     const accounts = await commitAccounts(env, (data) => {
         if (data[login]) {
             throw new HttpError(409, "account_exists", `账户名称 ${login} 已被占用`);
+        }
+        if (isReservedLogin(login, env)) {
+            throw new HttpError(409, "account_reserved", `账户名称 ${login} 是保留名称，不能用于新建账户`);
         }
         if (Object.keys(data).length >= MAX_ACCOUNTS) {
             throw new HttpError(403, "forbidden", `账户数量已达上限（${MAX_ACCOUNTS}）`);
         }
 
-        data[login] = { username, password, money, trades: [] };
+        data[login] = { username, password: hashedPassword, money, trades: [] };
         return `管理员创建账户：${login}`;
     });
 
@@ -2155,7 +2487,7 @@ async function handleAdminUpdate(request, env, cors, login) {
         }
     }
 
-    const accounts = await commitAccounts(env, (data) => {
+    const accounts = await commitAccounts(env, async (data) => {
         const account = data[login];
 
         if (!account) {
@@ -2167,7 +2499,7 @@ async function handleAdminUpdate(request, env, cors, login) {
             changes.push(`username=${account.username}`);
         }
         if (body.password !== undefined) {
-            account.password = String(body.password);
+            account.password = await hashPassword(String(body.password));
             changes.push("password=***");
         }
         if (body.money !== undefined) {
@@ -4798,8 +5130,9 @@ async function handleChatMediaUpload(request, env, cors) {
     }
     name = name.replace(/[\r\n]+/g, " ").slice(0, 100) || "file";
 
-    const type = String(request.headers.get("content-type") || "application/octet-stream").split(";")[0].trim().toLowerCase()
-        || "application/octet-stream";
+    const declaredType = String(request.headers.get("content-type") || "application/octet-stream").split(";")[0].trim().toLowerCase();
+    // 1.2.0：不再原样保存客户端声明的类型，避免 text/html / image/svg+xml 变成同源 XSS
+    const type = CHAT_MEDIA_INLINE_TYPES.has(declaredType) ? declaredType : "application/octet-stream";
     const id = randomCode(9);
     const at = Date.now();
     const expiresAt = at + CHAT_MEDIA_TTL_SECONDS * 1000;
@@ -4861,12 +5194,17 @@ async function handleChatMediaGet(request, env, cors, id) {
         return jsonResponse({ error: "media_expired", message: "图片或文件已过期" }, 410, cors);
     }
 
+    const storedType = String(meta.type || "").toLowerCase();
+    const inline = CHAT_MEDIA_INLINE_TYPES.has(storedType);
+
     return new Response(body, {
         status: 200,
         headers: {
             ...cors,
-            "content-type": meta.type || "application/octet-stream",
-            "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(meta.name || "file")}`,
+            "content-type": inline ? storedType : "application/octet-stream",
+            "content-disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(meta.name || "file")}`,
+            "x-content-type-options": "nosniff",
+            "content-security-policy": "default-src 'none'; sandbox",
             "cache-control": "private, max-age=120"
         }
     });
@@ -5266,6 +5604,10 @@ async function handleChatGroupJoinByNumber(request, env, cors) {
     if (guard) {
         return guard;
     }
+    // 1.2.0：群号是可枚举的 8 位数字，加入接口必须限流
+    if (throttled(inviteAttempts, clientIp(request), INVITE_WINDOW_MS, INVITE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "尝试过于频繁，请稍后再试" }, 429, cors);
+    }
 
     const login = session.payload.sub;
     const body = await readOptionalBody(request);
@@ -5453,11 +5795,9 @@ async function handleChatInviteCreate(request, env, cors) {
             }
         }
 
-        const min = digits === 4 ? 0 : 10000000;
-        const span = digits === 4 ? 10000 : 90000000;
         let code = "";
         for (let attempt = 0; attempt < 60; attempt += 1) {
-            const candidate = String(min + Math.floor(Math.random() * span)).padStart(digits, "0");
+            const candidate = randomDigits(digits);
             const taken = await readInvite(env, candidate);
             if (!taken) {
                 code = candidate;
@@ -5523,6 +5863,10 @@ async function handleChatInviteDetail(request, env, cors, code) {
     if (guard) {
         return guard;
     }
+    // 1.2.0：4 位邀请码只有 1 万个组合，必须限制枚举速度
+    if (throttled(inviteAttempts, clientIp(request), INVITE_WINDOW_MS, INVITE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "尝试过于频繁，请稍后再试" }, 429, cors);
+    }
 
     const invite = await readInvite(env, code);
     if (!invite) {
@@ -5540,6 +5884,9 @@ async function handleChatInviteJoin(request, env, cors, code) {
     const guard = chatGuard(env, cors);
     if (guard) {
         return guard;
+    }
+    if (throttled(inviteAttempts, clientIp(request), INVITE_WINDOW_MS, INVITE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "尝试过于频繁，请稍后再试" }, 429, cors);
     }
 
     const login = session.payload.sub;
@@ -6731,11 +7078,42 @@ export class ChatHub {
     }
 }
 
+/* ───────── 1.2.0：账户写锁（Durable Object，跨 isolate 串行化余额修改） ───────── */
+
+export class AccountsLock {
+    constructor(state) {
+        this.state = state;
+        this.holder = "";
+        this.expiresAt = 0;
+    }
+
+    async fetch(request) {
+        const { pathname } = new URL(request.url);
+        const now = Date.now();
+
+        if (pathname === "/lock") {
+            if (this.holder && now < this.expiresAt) {
+                return jsonResponse({ granted: false, retryAfterMs: this.expiresAt - now }, 200);
+            }
+            this.holder = randomCode(8);
+            this.expiresAt = now + ACCOUNTS_LOCK_LEASE_MS;
+            return jsonResponse({ granted: true, token: this.holder }, 200);
+        }
+
+        if (pathname === "/unlock") {
+            this.holder = "";
+            this.expiresAt = 0;
+            return jsonResponse({ ok: true }, 200);
+        }
+
+        return jsonResponse({ error: "not_found" }, 404);
+    }
+}
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
         const cors = corsHeaders(env, request);
-
         if (request.method === "OPTIONS") {
             return new Response(null, { status: 204, headers: cors });
         }
@@ -6756,6 +7134,10 @@ export default {
                         enabled: chatEnabled(env)
                     }
                 }, 200, cors);
+            }
+
+            if (url.pathname === "/api/shop" && request.method === "GET") {
+                return await handleShopStock(request, env, cors);
             }
 
             if (url.pathname === "/api/login" && request.method === "POST") {
@@ -6939,9 +7321,11 @@ export default {
             if (error instanceof HttpError) {
                 return jsonResponse({ error: error.code, message: error.message }, error.status, cors);
             }
+            // 1.2.0：不再把内部异常信息（KV/上游细节）回给客户端
+            console.error("vtx-api unhandled error", error && error.stack ? error.stack : error);
             return jsonResponse({
                 error: "upstream_error",
-                message: String(error && error.message || error)
+                message: "服务端内部错误，请稍后重试"
             }, 502, cors);
         }
     }

@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.0.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；**1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节**）
+- API 版本：`1.2.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**）
 
 ---
 
@@ -148,9 +148,10 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | POST | `/api/me/transfer` | 是 | 账户间转账（服务端校验密码并同时更新双方余额） |
 | POST | `/api/me/withdraw` | 是 | 提款（需密码），返回线下领取凭证文案 |
 | POST | `/api/me/billing` | 是 | AI 扣费 / 退款记账（`charge` / `refund`） |
-| POST | `/api/me/purchase` | 是 | 商店购买扣款（需密码），返回购买凭证 |
+| POST | `/api/me/purchase` | 是 | 商店购买扣款（需密码），价格与库存由服务端决定，返回购买凭证 |
+| GET | `/api/shop` | 否 | 商品库存（1.2.0 新增，KV 里没有记录时回落到 `shop.json` 的 `stock`） |
 | POST | `/api/me/login-location` | 是 | 记录一次登录位置（IP 由服务端取 `cf-connecting-ip`） |
-| GET | `/api/admin/accounts` | 是（站主） | 读取全部账户（含密码、登录记录） |
+| GET | `/api/admin/accounts` | 是（站主） | 读取全部账户（含登录记录；1.2.0 起不含明文密码） |
 | POST | `/api/admin/accounts` | 是（站主） | 直接创建账户 |
 | PUT | `/api/admin/accounts/{登录名}` | 是（站主） | 修改用户名 / 密码 / 余额 |
 | DELETE | `/api/admin/accounts/{登录名}` | 是（站主） | 删除账户（不能删站主自己） |
@@ -991,6 +992,10 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 **8.0 起账户相关操作改为走 Workers 接口**（[vtx-api.js](./vtx-api.js)），只有 `shop.json` 仍然用仓库直连
 （Contents / Git Data API），`secure.json` 中的 token 作为 Workers 不可用时的备用通道保留。
 
+> **1.2.0 变更**：`secure.json` 已从仓库删除，浏览器直连 GitHub 的备用通道也已停用。
+> 仓库 Token 现在由站主在 `admin.html` 里点「设置仓库 Token」临时填入，只存在当前标签页的 `sessionStorage`，
+> 关闭标签页即失效，绝不随网站发布。商店的库存也改由 Worker 记账，页面不再写 `shop.json`。
+
 ### 9.2.1 商店（shop.html）
 
 - 地址：`https://xsmmc.caldson.us.ci/shop.html`，需要已登录（`sessionStorage.vtxAccount`）
@@ -1217,7 +1222,7 @@ http://127.0.0.1:3000/API_LOGIN.html?api=http://127.0.0.1:8787
 
 ## 11. 安全说明
 
-- 所有接口都不会返回密码字段（**管理员接口除外**：`/api/admin/*` 仅站主可用，会返回 `password` 以便修改）
+- 所有接口都不会返回密码字段（`/api/admin/*` 从 1.2.0 起也只返回 `hasPassword`，不再回明文密码）
 - 登录失败按 IP 限流：60 秒内最多 10 次；写入、记账、提款、转账、购买、聊天各有独立限流
 - token 由 HMAC-SHA256 签名，篡改或过期即失效
 - **8.0 起账户数据不再公开**：账户、密码、余额、交易、游戏数据、登录 IP 记录全部存进 Workers KV，
@@ -1225,8 +1230,11 @@ http://127.0.0.1:3000/API_LOGIN.html?api=http://127.0.0.1:8787
 - `loginHistory`（登录 IP）只在 `GET /api/me` / 登录响应里返回给本人，`GET /api/accounts` 不含该字段
 - 转账、提款、购买在**服务端**校验密码与余额，前端不再拿密码做本地比较；修改密码需要提供当前密码
 - 管理操作（创建 / 修改 / 删除账户）会写入 KV 里的审计记录（`admin-log`，最多 200 条），通过 `GET /api/admin/log` 查看
-- 仍未改变的一点：密码在 KV 中仍是明文（服务端需要与旧数据兼容）。后续建议改为 PBKDF2 哈希存储，
-  并在登录时做一次透明升级。
+- **1.2.0 起密码以 PBKDF2-SHA256 哈希存储**（10 万次迭代、每账户 16 字节随机盐，
+  格式 `pbkdf2-sha256$<迭代>$<盐>$<哈希>`）。旧账户的明文密码会在**首次登录成功后就地升级**，
+  不需要任何手工迁移；此后登录、付款、提款、转账、购买都用哈希做常数时间比对。
+- **1.2.0 起余额修改跨 isolate 串行化**：`commitAccounts` 会先向 Durable Object `AccountsLock`
+  申请一把带 30 秒租约的写锁，拿到后重新读 KV 再改再写，避免并发请求互相覆盖。
 
 ---
 
@@ -1237,6 +1245,7 @@ http://127.0.0.1:3000/API_LOGIN.html?api=http://127.0.0.1:8787
 见第 7 节与第 10 节的迁移步骤。要点：
 
 - KV 键 `accounts` 存整份账户 JSON，结构仍是 `{ "登录名": { username, password, money, trades, data, loginHistory, receipt } }`
+  （1.2.0 起 `password` 是 `pbkdf2-sha256$<迭代>$<盐>$<哈希>` 形式的哈希，旧明文记录会在首次登录成功后自动替换）
 - 迁移是一次性的：KV 有数据后不再读 GitHub；`migrated-from-github` 记录删除仓库文件的时间
 - 未绑定 `ACCOUNTS_KV` 时行为与 7.0 完全一致（向后兼容）
 
@@ -1250,7 +1259,7 @@ http://127.0.0.1:3000/API_LOGIN.html?api=http://127.0.0.1:8787
 | `POST /api/me/transfer` | `{"to":"收款登录名","amount":"1.00","password":"...","description":"备注"}` | 双方余额与交易记录同时更新 |
 | `POST /api/me/withdraw` | `{"amount":"1.00","password":"..."}` | 返回 `receipt` 凭证文案 |
 | `POST /api/me/billing` | `{"type":"charge","amount":"0.01","name":"AI 聊天","description":"..."}` | `type` 取 `charge`（扣）或 `refund`（退） |
-| `POST /api/me/purchase` | `{"item":"商品名","quantity":1,"amount":"5.00","password":"..."}` | 返回 `receipt` 凭证文案 |
+| `POST /api/me/purchase` | `{"id":"商品id","quantity":1,"password":"..."}` | 价格与库存都由服务端按 `shop.json` 计算；1.2.0 起不再接受 `amount` |
 | `POST /api/me/login-location` | `{"latitude":..,"longitude":..,"city":".."}` | IP 由服务端填写 |
 
 以上接口返回的 `account` 都是**本人视角**（含 `loginHistory`，不含 `password`）。
@@ -1604,10 +1613,10 @@ GitHub Pages 与浏览器会长期缓存这个 URL，于是页面在 9.2 上线�
 
 **修复**：
 
-1. 全站脚本引用统一带上版本参数，例如 `<script src="vtx-api.js?v=1.0.0"></script>`，
+1. 全站脚本引用统一带上版本参数，例如 `<script src="vtx-api.js?v=1.2.0"></script>`，
    `?v=` 变化会让浏览器与 CDN 必须重新取文件。发布新版本时**必须一起改这个参数**。
 2. `chatroom.html` 启动时校验 `VTXApi.version`：
-   - 低于页面要求的版本（当前 `REQUIRED_API_VERSION = "1.0.0"`）就自动按
+   - 低于页面要求的版本（当前 `REQUIRED_API_VERSION = "1.2.0"`）就自动按
      `vtx-api.js?v=<版本>&t=<时间戳>` 重新加载一次；
    - 仍然不达标时显示「页面资源需要更新」提示页，给一个「重新加载」按钮，
      而不是让用户对着 `xxx is not a function` 发愣。
@@ -1730,4 +1739,45 @@ curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/redpacket/r
 - 消息类型为 `redpacket`，`message.packet` 携带 `totalCents / remainCents / count / allow / grabs[] / closed / expiresAt`
 - 抢到后实时广播 `message:packet`，前端就地刷新红包卡片
 - 列表预览显示「[拼手速红包] 1.00 元」
+
+---
+
+## 15. 1.2.0 安全修复补丁
+
+这一版只做安全修复，没有新增业务功能。**部署前请先完成 15.1 的凭据处理**。
+
+### 15.1 必须人工完成的凭据处理
+
+1. **立刻吊销旧仓库 Token**：GitHub → Settings → Developer settings → Personal access tokens，
+   删掉那个曾被加密塞进 `secure.json` 的 token（它已经随公开仓库泄露，删文件不代表安全）。
+2. 清理 git 历史里的 `secure.json`（历史提交仍可被任何人下载）：
+   `git filter-repo --invert-paths --path secure.json`，然后强推。
+3. 重新部署 Worker：`cd worker && npx wrangler deploy`
+   （1.2.0 新增 Durable Object `AccountsLock`，部署时会自动执行 `v2-accounts-lock` 迁移）。
+4. 需要网页版仓库修改器时，打开 `admin.html` → 点「设置仓库 Token」临时填入一个新 token
+   （只存在当前标签页，关闭即失效）。
+
+### 15.2 修复内容
+
+| 级别 | 问题 | 1.2.0 的处理 |
+|---|---|---|
+| 严重 | `secure.json` 用仓库里公开的常量加密 GitHub PAT，任何人都能解出**仓库写权限** | 删除 `secure.json`、`crypto.html`、`vtx-crypto.js`；停用浏览器直连 GitHub 的备用通道；Token 改为管理员临时输入 |
+| 高 | `?api=` URL 参数可把 API 地址换成攻击者域名，登录密码与 token 会被直接发过去 | `vtx-api.js` 只接受同源或内置白名单地址，`login.html` 不再透传 `api` 参数 |
+| 高 | 聊天附件原样回放客户端声明的 `content-type`，上传 HTML/SVG 即同源存储型 XSS | 附件类型白名单（仅 png/jpeg/gif/webp 内联），其余按 `attachment` + `application/octet-stream` 下载，并加 `nosniff` 与 `sandbox` CSP |
+| 中 | `/api/me/purchase` 信任客户端传来的 `amount`，1 分钱可买任意数量 | 服务端按 `shop.json` 定价、用 KV 记库存并扣减，忽略客户端金额；新增 `GET /api/shop` |
+| 中 | 邀请码用 `Math.random()`，且查询 / 加入接口没有限流 | 改用 `crypto.getRandomValues()`，邀请与群号加入接口按 IP 限流 10 次/分钟 |
+| 中 | 管理员身份只认登录名 `Kitawaga`，该名可被抢先注册 | 注册与管理员建号都拒绝保留名（`409 account_reserved`） |
+| 中 | `/api/admin/accounts` 返回明文密码；登录页把密码写进 `localStorage` | 管理员接口改为返回 `hasPassword`；登录页只记住登录名，并自动清除旧版残留密码 |
+| 中 | 密码在 KV 中以明文保存，任何 KV 读取 / 管理员接口泄露都会暴露全部口令 | 改为 PBKDF2-SHA256（10 万次迭代 + 每账户独立盐）存储，旧明文密码在首次登录成功后就地升级 |
+| 中 | 余额是「读-改-写」整份 KV JSON，跨 isolate 的并发请求会互相覆盖 | 新增 Durable Object `AccountsLock`（30 秒租约写锁），`commitAccounts` 拿锁后重新读 KV 再改再写 |
+| 低 | 未捕获异常把内部错误信息回给客户端 | 统一返回「服务端内部错误」，细节只写 Worker 日志 |
+
+### 15.3 仍然存在的风险（本次未改）
+
+- KV 读仍是最终一致：拿到写锁后如果读到的是旧副本，理论上仍可能少扣一次；
+  彻底解决需要把余额本身搬进 Durable Object 存储（本版只做了互斥，没做迁移）。
+- `POST /api/me/trades` 的 `receipt` 与 `POST /api/me/billing` 的 `refund` 不校验密码即可给自己加钱，
+  这是原有设计（站主凭截图人工发放），但配合 `/api/me/withdraw` 等于**任意用户可无限铸币**，请自行决定是否收紧。
+- 4 位邀请码的组合空间只有 1 万，限流只是缓解；对安全要求高的群请使用 8 位邀请码。
+- 密码哈希是 PBKDF2-SHA256；如需更强抗 GPU 能力，可后续迁移到 Argon2id / scrypt（需要新的哈希前缀与灰度升级）。
 
