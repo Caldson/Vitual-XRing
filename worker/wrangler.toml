@@ -20,7 +20,7 @@ zone_name = "caldson.us.ci"
 #   npx wrangler kv namespace create ACCOUNTS_KV
 [[kv_namespaces]]
 binding = "ACCOUNTS_KV"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "25cb4f40f4b0482c8b8e3dbc6f619d8c"
 
 [vars]
 REPO = "Caldson/Vitual-XRing"
