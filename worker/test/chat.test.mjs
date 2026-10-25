@@ -529,6 +529,119 @@ test("公共频道对所有账户可见，兼容旧的 room 接口", async () =>
     assert.ok(history.data.messages.some((item) => item.text === "大家好"));
 });
 
+test("站主可以新增、改名、解散公共频道，普通用户不行", async () => {
+    const { env, tokens } = await prepare();
+
+    const list = await api(env, "GET", "/api/chat/admin/public-groups", { token: tokens.Kitawaga });
+    assert.equal(list.status, 200);
+    assert.deepEqual(list.data.groups.map((item) => item.id).sort(), ["general", "help", "trade"]);
+
+    const denied = await api(env, "GET", "/api/chat/admin/public-groups", { token: tokens.Alice });
+    assert.equal(denied.status, 403);
+
+    const deniedCreate = await api(env, "POST", "/api/chat/admin/public-groups", {
+        token: tokens.Alice,
+        body: { name: "不许建" }
+    });
+    assert.equal(deniedCreate.status, 403);
+
+    const created = await api(env, "POST", "/api/chat/admin/public-groups", {
+        token: tokens.Kitawaga,
+        body: { id: "event", name: "活动", description: "活动公告" }
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    assert.equal(created.data.group.id, "event");
+    assert.equal(created.data.group.name, "活动");
+
+    const duplicate = await api(env, "POST", "/api/chat/admin/public-groups", {
+        token: tokens.Kitawaga,
+        body: { id: "event", name: "重复" }
+    });
+    assert.equal(duplicate.status, 409);
+
+    const auto = await api(env, "POST", "/api/chat/admin/public-groups", {
+        token: tokens.Kitawaga,
+        body: { name: "自动 id" }
+    });
+    assert.equal(auto.status, 201);
+    assert.match(auto.data.group.id, /^ch_[a-z0-9_-]+$/);
+    const autoId = auto.data.group.id;
+
+    const visible = await api(env, "GET", "/api/chat/conversations", { token: tokens.Bob });
+    const ids = visible.data.conversations.filter((item) => item.public).map((item) => item.id);
+    assert.ok(ids.includes("event"), JSON.stringify(ids));
+    assert.ok(ids.includes(autoId), JSON.stringify(ids));
+
+    const status = await api(env, "GET", "/api/chat/status");
+    assert.ok(status.data.rooms.some((item) => item.id === "event" && item.description === "活动公告"));
+
+    const sent = await api(env, "POST", "/api/chat/conversations/event/messages", {
+        token: tokens.Bob,
+        body: { text: "活动什么时候开始" }
+    });
+    assert.equal(sent.status, 201, JSON.stringify(sent.data));
+
+    const renamed = await api(env, "PATCH", "/api/chat/admin/public-groups/event", {
+        token: tokens.Kitawaga,
+        body: { name: "活动大厅", description: "每周活动公告" }
+    });
+    assert.equal(renamed.status, 200, JSON.stringify(renamed.data));
+    assert.equal(renamed.data.group.name, "活动大厅");
+
+    const afterRename = await api(env, "GET", "/api/chat/conversations/event", { token: tokens.Bob });
+    assert.equal(afterRename.data.conversation.name, "活动大厅");
+    assert.equal(afterRename.data.conversation.description, "每周活动公告");
+
+    const userRename = await api(env, "PATCH", "/api/chat/conversations/event", {
+        token: tokens.Bob,
+        body: { name: "我想改名" }
+    });
+    assert.equal(userRename.status, 403);
+
+    const adminRename = await api(env, "PATCH", "/api/chat/conversations/event", {
+        token: tokens.Kitawaga,
+        body: { name: "活动专区" }
+    });
+    assert.equal(adminRename.status, 200, JSON.stringify(adminRename.data));
+    const detail = await api(env, "GET", "/api/chat/admin/public-groups", { token: tokens.Kitawaga });
+    assert.equal(detail.data.groups.find((item) => item.id === "event").name, "活动专区");
+
+    const userDelete = await api(env, "DELETE", "/api/chat/conversations/event", { token: tokens.Bob });
+    assert.equal(userDelete.status, 403);
+
+    const dissolved = await api(env, "DELETE", "/api/chat/admin/public-groups/event", {
+        token: tokens.Kitawaga
+    });
+    assert.equal(dissolved.status, 200, JSON.stringify(dissolved.data));
+
+    const gone = await api(env, "GET", "/api/chat/conversations/event", { token: tokens.Bob });
+    assert.equal(gone.status, 404);
+
+    const afterDelete = await api(env, "GET", "/api/chat/conversations", { token: tokens.Bob });
+    assert.ok(!afterDelete.data.conversations.some((item) => item.id === "event"));
+
+    const events = env.CHAT.events.filter((item) => String(item.url).includes("/notify"));
+    assert.ok(events.some((item) => item.payload.event && item.payload.event.type === "conversation:new"));
+    assert.ok(events.some((item) => item.payload.event && item.payload.event.type === "conversation:remove"));
+
+    const missing = await api(env, "DELETE", "/api/chat/admin/public-groups/nope", { token: tokens.Kitawaga });
+    assert.equal(missing.status, 404);
+});
+
+test("公共频道不能全部删光，最后一个会被拒绝", async () => {
+    const { env, tokens } = await prepare();
+    const first = await api(env, "DELETE", "/api/chat/admin/public-groups/help", { token: tokens.Kitawaga });
+    assert.equal(first.status, 200, JSON.stringify(first.data));
+    const second = await api(env, "DELETE", "/api/chat/admin/public-groups/trade", { token: tokens.Kitawaga });
+    assert.equal(second.status, 200, JSON.stringify(second.data));
+
+    const last = await api(env, "DELETE", "/api/chat/admin/public-groups/general", { token: tokens.Kitawaga });
+    assert.equal(last.status, 400, JSON.stringify(last.data));
+
+    const list = await api(env, "GET", "/api/chat/admin/public-groups", { token: tokens.Kitawaga });
+    assert.deepEqual(list.data.groups.map((item) => item.id), ["general"]);
+});
+
 test("删除好友后仍可查看和删除旧会话，但不能继续发消息", async () => {
     const { env, tokens } = await prepare();
     const conversation = await befriend(env, tokens, "Alice", "Bob");

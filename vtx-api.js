@@ -137,7 +137,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。只有在 Workers 完全连不上时，
     // 才会退回上面那套 GitHub 直连逻辑（secure.json 里的 token 作为备用通道）。
 
-    const API_VERSION = "9.1.0";
+    const API_VERSION = "9.2.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -950,7 +950,17 @@
         adminRemoveMessage: (id, messageId) => chatRequest(`/admin/messages/${encodeId(messageId)}?conversation=${encodeId(id)}`, {
             method: "DELETE"
         }),
-        adminRemoveConversation: (id) => chatRequest(`/admin/conversations/${encodeId(id)}`, { method: "DELETE" })
+        adminRemoveConversation: (id) => chatRequest(`/admin/conversations/${encodeId(id)}`, { method: "DELETE" }),
+        adminPublicGroups: () => chatRequest("/admin/public-groups"),
+        createPublicGroup: (name, description, id) => chatRequest("/admin/public-groups", {
+            method: "POST",
+            body: { name, description, id }
+        }),
+        updatePublicGroup: (id, changes) => chatRequest(`/admin/public-groups/${encodeId(id)}`, {
+            method: "PATCH",
+            body: changes
+        }),
+        removePublicGroup: (id) => chatRequest(`/admin/public-groups/${encodeId(id)}`, { method: "DELETE" })
     };
 
     window.VTXApi = {

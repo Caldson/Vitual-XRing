@@ -951,7 +951,7 @@
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
-            <span class="version-badge">v9.1 聊天室</span>
+            <span class="version-badge">v9.2 聊天室</span>
         </div>
         <div class="topbar-spacer"></div>
         <span class="status"><span class="status-dot" id="conn-dot"></span><span id="conn-text">连接中…</span></span>
@@ -1038,7 +1038,8 @@
         searchQuery: "",
         searchResults: [],
         lastTypingSent: 0,
-        adminConversations: []
+        adminConversations: [],
+        publicGroups: []
     };
 
     const api = window.VTXApi;
@@ -1990,9 +1991,10 @@
             ${conv.type === "group" && !conv.public && !dissolved ? '<hr><button data-act="leave" class="danger">退出群聊</button>' : ""}
             ${conv.type === "direct" ? '<hr><button data-act="delete" class="danger">删除会话</button>' : ""}
             ${conv.public ? '<hr><button data-act="leave" class="danger">退出公共频道</button>' : ""}
+            ${conv.public && state.isAdmin ? '<button data-act="dissolve-public" class="danger">解散公共频道</button>' : ""}
             ${dissolved ? '<hr><button data-act="delete-group" class="danger">删除会话</button>' : ""}
             ${conv.type === "group" && !conv.public && !dissolved && isOwner(conv) ? '<button data-act="dissolve" class="danger">解散群聊</button>' : ""}
-            ${conv.type === "group" ? '<button data-act="info">群资料</button>' : ""}`;
+            ${conv.type === "group" ? `<button data-act="info">${conv.public ? "频道设置" : "群资料"}</button>` : ""}`;
         menu.style.left = `${Math.min(x, window.innerWidth - 180)}px`;
         menu.style.top = `${Math.min(y, window.innerHeight - 300)}px`;
         menu.classList.add("open");
@@ -2044,6 +2046,21 @@
                         }
                         await refreshConversations(true);
                         toast("群聊已解散");
+                        return;
+                    } else if (action === "dissolve-public") {
+                        if (!confirm("解散后所有账户都会失去这个公共频道，聊天记录一并删除，确定吗？")) {
+                            return;
+                        }
+                        await api.chat.removePublicGroup(conv.id);
+                        if (state.current && state.current.id === conv.id) {
+                            state.current = null;
+                            renderChatPane();
+                        }
+                        await refreshConversations(true);
+                        if (state.tab === "admin") {
+                            await loadAdmin();
+                        }
+                        toast("公共频道已解散");
                         return;
                     } else if (action === "delete-group") {
                         if (!confirm("确定从会话列表删除这个已解散的群聊吗？")) {
@@ -2146,15 +2163,18 @@
             </div>`;
         }).join("");
 
-        openModal(`群资料：${escapeHtml(state.current.name)}`, `
+        openModal(`${state.current.public ? "公共频道" : "群资料"}：${escapeHtml(state.current.name)}`, `
             <div class="notice">${state.current.public
-                ? "公共频道，所有登录用户都可以发言。"
+                ? `公共频道，所有登录用户都可以发言${state.current.description ? ` · ${escapeHtml(state.current.description)}` : ""}${state.isAdmin ? " · 你是站主，可以修改频道资料或解散频道" : ""}`
                 : (dissolved
                     ? `这个群聊已由 ${escapeHtml(state.current.dissolvedByName || state.current.dissolvedBy || "群主")} 解散${state.current.dissolvedAt ? `（${escapeHtml(state.current.dissolvedAt)}）` : ""}，只能查看历史消息。`
                     : `群主：${escapeHtml(state.current.owner)} · 群成员 ${state.members.length} 人`)}</div>
-            ${manage ? `<div class="field"><label>群聊名称</label>
+            ${manage ? `<div class="field"><label>${state.current.public ? "频道名称" : "群聊名称"}</label>
                 <input type="text" id="group-name-input" maxlength="24" value="${escapeHtml(state.current.name)}">
-                <div style="margin-top:8px;"><button class="btn small primary" id="save-group-name">保存群名</button></div></div>` : ""}
+                <div style="margin-top:8px;"><button class="btn small primary" id="save-group-name">保存${state.current.public ? "频道名" : "群名"}</button></div></div>` : ""}
+            ${state.current.public && state.isAdmin ? `<div class="field"><label>频道简介</label>
+                <input type="text" id="public-desc-input" maxlength="200" value="${escapeHtml(state.current.description || "")}">
+                <div style="margin-top:8px;"><button class="btn small primary" id="save-public-desc">保存简介</button></div></div>` : ""}
             <div class="field"><label>群公告${state.current.announcement && state.current.announcement.pinned ? "（已置顶）" : ""}</label>
                 <textarea id="announcement-input" maxlength="1000" ${manage ? "" : "disabled"}>${escapeHtml(state.current.announcement ? state.current.announcement.text : "")}</textarea>
                 ${manage ? `<div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
@@ -2166,13 +2186,16 @@
             ${state.current.type === "group" && !dissolved ? `<div class="field"><label>我的群昵称</label>
                 <input type="text" id="alias-input" maxlength="20" placeholder="留空恢复默认" value="${escapeHtml((state.members.find((item) => item.me) || {}).alias || "")}">
                 <div style="margin-top:8px;"><button class="btn small" id="save-alias">保存昵称</button></div></div>` : ""}
-            <div class="field"><label>群成员（${state.members.length}）</label>
+            <div class="field"><label>${state.current.public ? `成员（全部 ${state.members.length} 个账户）` : `群成员（${state.members.length}）`}</label>
                 ${!state.current.public && !dissolved ? '<div style="margin-bottom:8px;"><button class="btn small primary" id="add-members-btn">邀请好友进群</button></div>' : ""}
-                ${memberHtml || '<div style="color: var(--muted); font-size: 13px;">公共频道没有固定成员列表</div>'}
+                ${state.current.public
+                    ? '<div style="color: var(--muted); font-size: 13px;">公共频道对所有账户开放，不需要邀请或移出成员。</div>'
+                    : (memberHtml || '<div style="color: var(--muted); font-size: 13px;">还没有成员</div>')}
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top: 12px;">
                 ${state.current.type === "group" && !state.current.public ? `<button class="btn danger" id="leave-group">${dissolved ? "删除会话" : "退出群聊"}</button>` : ""}
                 ${owner && state.current.type === "group" && !state.current.public ? '<button class="btn danger" id="dissolve-group">解散群聊</button>' : ""}
+                ${state.current.public && state.isAdmin ? '<button class="btn danger" id="dissolve-public">解散公共频道</button>' : ""}
             </div>`, {
             wide: true,
             onMount(root) {
@@ -2186,7 +2209,21 @@
                     saveName.addEventListener("click", async () => {
                         try {
                             await api.chat.rename(state.current.id, el("group-name-input").value.trim());
-                            toast("群名已更新");
+                            toast(state.current.public ? "频道名已更新" : "群名已更新");
+                            await reload();
+                        } catch (error) {
+                            report(error);
+                        }
+                    });
+                }
+                const savePublicDesc = el("save-public-desc");
+                if (savePublicDesc) {
+                    savePublicDesc.addEventListener("click", async () => {
+                        try {
+                            await api.chat.updatePublicGroup(state.current.id, {
+                                description: el("public-desc-input").value.trim()
+                            });
+                            toast("频道简介已更新");
                             await reload();
                         } catch (error) {
                             report(error);
@@ -2280,6 +2317,25 @@
                             renderChatPane();
                             await refreshConversations(true);
                             toast("群聊已解散");
+                        } catch (error) {
+                            report(error);
+                        }
+                    });
+                }
+
+                const dissolvePublic = el("dissolve-public");
+                if (dissolvePublic) {
+                    dissolvePublic.addEventListener("click", async () => {
+                        if (!confirm("解散后所有账户都会失去这个公共频道，聊天记录一并删除，确定吗？")) {
+                            return;
+                        }
+                        try {
+                            await api.chat.removePublicGroup(state.current.id);
+                            closeModal();
+                            state.current = null;
+                            renderChatPane();
+                            await refreshConversations(true);
+                            toast("公共频道已解散");
                         } catch (error) {
                             report(error);
                         }
@@ -2658,8 +2714,12 @@
 
     async function loadAdmin() {
         try {
-            const data = await api.chat.adminConversations();
-            state.adminConversations = data.conversations || [];
+            const [convData, groupData] = await Promise.all([
+                api.chat.adminConversations(),
+                api.chat.adminPublicGroups()
+            ]);
+            state.adminConversations = convData.conversations || [];
+            state.publicGroups = groupData.groups || [];
             renderAdmin();
         } catch (error) {
             report(error);
@@ -2668,6 +2728,17 @@
 
     function renderAdmin() {
         const body = el("sidebar-body");
+        const groupRows = state.publicGroups.map((group) => `
+            <div class="list-item" data-public-group="${escapeHtml(group.id)}">
+                <div class="avatar public">频</div>
+                <div class="list-main">
+                    <div class="list-top">
+                        <span class="list-name">${escapeHtml(group.name)}</span>
+                        <span class="tag">公共频道</span>
+                    </div>
+                    <div class="list-preview"><span>${escapeHtml(group.description || "没有简介")} · ${escapeHtml(String(group.messageCount || 0))} 条消息</span></div>
+                </div>
+            </div>`).join("");
         const rows = state.adminConversations.map((conv) => `
             <div class="list-item" data-admin-conv="${escapeHtml(conv.id)}">
                 <div class="avatar group">管</div>
@@ -2675,14 +2746,144 @@
                     <div class="list-top">
                         <span class="list-name">${escapeHtml(conv.name)}</span>
                         ${conv.dissolved ? '<span class="tag">已解散</span>' : ""}
-                        <span class="tag">${conv.type === "direct" ? "单聊" : "群聊"}</span>
+                        <span class="tag">${conv.public ? "公共频道" : (conv.type === "direct" ? "单聊" : "群聊")}</span>
                     </div>
                     <div class="list-preview"><span>${escapeHtml(String(conv.memberCount))} 人 · ${escapeHtml(String(conv.messageCount || 0))} 条消息</span></div>
                 </div>
             </div>`).join("");
-        body.innerHTML = `<div class="section-title">站主管理（${state.adminConversations.length}）</div>${rows || '<div class="notice" style="margin: 8px 14px;">暂无会话。</div>'}`;
+        body.innerHTML = `
+            <div class="section-title">公共频道（${state.publicGroups.length}）<button class="btn small primary" id="new-public-group" style="float:right; margin-right:14px;">新建</button></div>
+            ${groupRows || '<div class="notice" style="margin: 8px 14px;">还没有公共频道。</div>'}
+            <div class="section-title" style="margin-top:14px;">站主管理（${state.adminConversations.length}）</div>
+            ${rows || '<div class="notice" style="margin: 8px 14px;">暂无会话。</div>'}`;
         body.querySelectorAll("[data-admin-conv]").forEach((node) => {
             node.addEventListener("click", () => openAdminConversation(node.dataset.adminConv));
+            node.addEventListener("contextmenu", (event) => {
+                event.preventDefault();
+                const conv = state.adminConversations.find((item) => item.id === node.dataset.adminConv);
+                if (conv) {
+                    showConversationMenu(conv, event.clientX, event.clientY);
+                }
+            });
+        });
+        body.querySelectorAll("[data-public-group]").forEach((node) => {
+            node.addEventListener("click", () => openPublicGroupAdmin(node.dataset.publicGroup));
+        });
+        el("new-public-group").addEventListener("click", openCreatePublicGroup);
+    }
+
+    function openCreatePublicGroup() {
+        openModal("新建公共频道", `
+            <div class="field"><label>频道名称</label>
+                <input type="text" id="public-group-name" maxlength="24" placeholder="例如：活动">
+            </div>
+            <div class="field"><label>频道简介（可选）</label>
+                <input type="text" id="public-group-desc" maxlength="200" placeholder="这个频道聊什么">
+            </div>
+            <div class="field"><label>频道 id（可选，留空自动生成）</label>
+                <input type="text" id="public-group-id" maxlength="40" placeholder="event">
+            </div>
+            <div class="notice">创建后所有账户都会在会话列表里看到这个频道。</div>`, {
+            actions: [
+                { label: "取消", act: "cancel" },
+                { label: "创建", act: "create", primary: true }
+            ],
+            onAction: async (act) => {
+                if (act !== "create") {
+                    return false;
+                }
+                const name = el("public-group-name").value.trim();
+                const description = el("public-group-desc").value.trim();
+                const id = el("public-group-id").value.trim();
+                if (!name) {
+                    toast("请填写频道名称", "error");
+                    return false;
+                }
+                try {
+                    await api.chat.createPublicGroup(name, description, id);
+                    await Promise.all([loadAdmin(), refreshConversations(true)]);
+                    toast("公共频道已创建");
+                    return true;
+                } catch (error) {
+                    report(error);
+                    return false;
+                }
+            }
+        });
+    }
+
+    function openPublicGroupAdmin(id) {
+        const group = state.publicGroups.find((item) => item.id === id);
+        if (!group) {
+            return;
+        }
+        openModal(`公共频道：${escapeHtml(group.name)}`, `
+            <div class="field"><label>频道名称</label>
+                <input type="text" id="public-group-name" maxlength="24" value="${escapeHtml(group.name)}">
+            </div>
+            <div class="field"><label>频道简介</label>
+                <input type="text" id="public-group-desc" maxlength="200" value="${escapeHtml(group.description || "")}">
+            </div>
+            <div class="notice">频道 id：${escapeHtml(group.id)} · ${escapeHtml(String(group.memberCount))} 人 · ${escapeHtml(String(group.messageCount || 0))} 条消息</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+                <button class="btn" id="public-group-open">进入频道</button>
+                <button class="btn" id="public-group-announcement">编辑群公告</button>
+                <button class="btn danger" id="public-group-delete">解散公共频道</button>
+            </div>`, {
+            actions: [
+                { label: "取消", act: "cancel" },
+                { label: "保存", act: "save", primary: true }
+            ],
+            onMount(root) {
+                root.querySelector("#public-group-open").addEventListener("click", () => {
+                    closeModal();
+                    switchTab("chats");
+                    openConversation(group.id);
+                });
+                root.querySelector("#public-group-announcement").addEventListener("click", async () => {
+                    closeModal();
+                    switchTab("chats");
+                    await openConversation(group.id);
+                    await openGroupInfo();
+                });
+                root.querySelector("#public-group-delete").addEventListener("click", async () => {
+                    if (!confirm("解散后所有账户都会失去这个公共频道，聊天记录一并删除，确定吗？")) {
+                        return;
+                    }
+                    try {
+                        await api.chat.removePublicGroup(group.id);
+                        closeModal();
+                        await Promise.all([loadAdmin(), refreshConversations(true)]);
+                        if (state.current && state.current.id === group.id) {
+                            state.current = null;
+                            renderChatPane();
+                        }
+                        toast("公共频道已解散");
+                    } catch (error) {
+                        report(error);
+                    }
+                });
+            },
+            onAction: async (act) => {
+                if (act !== "save") {
+                    return false;
+                }
+                const name = el("public-group-name").value.trim();
+                const description = el("public-group-desc").value.trim();
+                if (!name) {
+                    toast("请填写频道名称", "error");
+                    return false;
+                }
+                try {
+                    await api.chat.updatePublicGroup(group.id, { name, description });
+                    await Promise.all([loadAdmin(), refreshConversations(true)]);
+                    toast("公共频道已更新");
+                    return true;
+                } catch (error) {
+                    report(error);
+                    return false;
+                }
+            }
         });
     }
 
@@ -2787,6 +2988,24 @@
         backdrop.querySelectorAll('[data-act="cancel"]').forEach((button) => {
             button.addEventListener("click", closeModal);
         });
+        if (typeof options.onAction === "function") {
+            footer.querySelectorAll("button[data-act]").forEach((button) => {
+                const act = button.dataset.act;
+                if (act === "cancel") {
+                    return;
+                }
+                button.addEventListener("click", async () => {
+                    button.disabled = true;
+                    try {
+                        if (await options.onAction(act)) {
+                            closeModal();
+                        }
+                    } finally {
+                        button.disabled = false;
+                    }
+                });
+            });
+        }
         backdrop.addEventListener("mousedown", (event) => {
             if (event.target === backdrop) {
                 closeModal();

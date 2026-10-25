@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Vitual XRing 账户 API
  *
  * 8.0 起账户数据默认存放在 Workers KV（ACCOUNTS_KV）里，不再依赖公开的 account.json：
@@ -32,7 +32,7 @@
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  */
 
-const VERSION = "9.1.0";
+const VERSION = "9.2.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -45,7 +45,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "9.1";
+const CHAT_VERSION = "9.2";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 const CHAT_WINDOW_MS = 60 * 1000;
@@ -73,6 +73,9 @@ const CHAT_PUBLIC_GROUPS = [
     { id: "trade", name: "交易", description: "VTX 交易与商店相关讨论" },
     { id: "help", name: "求助", description: "遇到问题可以在这里提问" }
 ];
+const CHAT_PUBLIC_GROUPS_KEY = "chat:public-groups";
+const CHAT_PUBLIC_DESCRIPTION_MAX = 200;
+const CHAT_PUBLIC_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{1,39}$/;
 const CHAT_INDEX_KEY = "chat:index";
 const LOGIN_WINDOW_MS = 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
@@ -2186,7 +2189,8 @@ function chatGuard(env, cors) {
     return null;
 }
 
-function handleChatStatus(request, env, cors) {
+async function handleChatStatus(request, env, cors) {
+    const rooms = await readPublicGroups(env);
     return jsonResponse({
         ok: true,
         version: CHAT_VERSION,
@@ -2194,10 +2198,11 @@ function handleChatStatus(request, env, cors) {
         enabled: chatEnabled(env),
         storage: hasKv(env) ? "workers-kv" : "unavailable",
         realtime: env.CHAT && typeof env.CHAT.idFromName === "function" ? "websocket" : "polling",
-        rooms: CHAT_PUBLIC_GROUPS.map((group) => ({ id: group.id, name: group.name })),
+        rooms: rooms.map((group) => ({ id: group.id, name: group.name, description: group.description })),
         features: [
             "friends", "direct", "groups", "group-admin", "announcement",
-            "recall", "forward", "reply", "search", "mute-pin", "files-images", "expiring-media"
+            "recall", "forward", "reply", "search", "mute-pin", "files-images", "expiring-media",
+            "public-channel-admin", "group-dissolve"
         ],
         mediaTtlSeconds: CHAT_MEDIA_TTL_SECONDS,
         message: chatEnabled(env) ? "聊天室已开放" : "版本9.0，我们聊天室见"
@@ -2264,9 +2269,9 @@ function chatEntry(record, id) {
     return record.conversations.find((item) => item.id === id) || null;
 }
 
-function ensurePublicSubscriptions(record) {
+function ensurePublicSubscriptions(record, groups) {
     let changed = false;
-    for (const group of CHAT_PUBLIC_GROUPS) {
+    for (const group of groups || CHAT_PUBLIC_GROUPS) {
         if (!chatEntry(record, group.id)) {
             record.conversations.push({
                 id: group.id,
@@ -2285,7 +2290,7 @@ function ensurePublicSubscriptions(record) {
 
 async function loadChatUser(env, login) {
     const record = await readChatUser(env, login);
-    if (ensurePublicSubscriptions(record)) {
+    if (ensurePublicSubscriptions(record, await readPublicGroups(env))) {
         await saveChatUser(env, login, record);
     }
     return record;
@@ -2397,38 +2402,65 @@ async function appendSystemMessage(env, conv, text) {
 
 async function ensurePublicGroups(env) {
     const index = await readChatIndex(env);
+    const groups = await readPublicGroups(env);
     let changed = false;
 
-    for (const group of CHAT_PUBLIC_GROUPS) {
+    for (const group of groups) {
         const existing = await readConversation(env, group.id);
-        if (existing) {
+        if (!existing) {
+            const now = shanghaiTimestamp();
+            await saveConversation(env, {
+                id: group.id,
+                type: "group",
+                name: group.name,
+                description: group.description,
+                public: true,
+                owner: adminLogin(env),
+                admins: [],
+                members: [],
+                aliases: {},
+                announcement: null,
+                createdAt: now,
+                updatedAt: now,
+                lastMessage: null
+            });
+            if (!index.includes(group.id)) {
+                index.push(group.id);
+            }
+            changed = true;
             continue;
         }
-        const now = shanghaiTimestamp();
-        await saveConversation(env, {
-            id: group.id,
-            type: "group",
-            name: group.name,
-            description: group.description,
-            public: true,
-            owner: adminLogin(env),
-            admins: [],
-            members: [],
-            aliases: {},
-            announcement: null,
-            createdAt: now,
-            updatedAt: now,
-            lastMessage: null
-        });
-        if (!index.includes(group.id)) {
-            index.push(group.id);
+        const renamed = existing.name !== group.name || existing.description !== group.description;
+        if (renamed) {
+            existing.name = group.name;
+            existing.description = group.description;
+            existing.public = true;
+            await saveConversation(env, existing);
         }
-        changed = true;
     }
 
     if (changed) {
         await saveChatIndex(env, index);
     }
+}
+
+async function readPublicGroups(env) {
+    const stored = await env.ACCOUNTS_KV.get(CHAT_PUBLIC_GROUPS_KEY, "json");
+    if (Array.isArray(stored)) {
+        return stored
+            .filter((item) => item && CHAT_PUBLIC_ID_PATTERN.test(String(item.id || "")))
+            .map((item) => ({
+                id: String(item.id),
+                name: String(item.name || item.id),
+                description: String(item.description || ""),
+                createdAt: item.createdAt || ""
+            }));
+    }
+    return CHAT_PUBLIC_GROUPS.map((item) => ({ ...item, createdAt: "" }));
+}
+
+async function savePublicGroups(env, groups) {
+    await env.ACCOUNTS_KV.put(CHAT_PUBLIC_GROUPS_KEY, JSON.stringify(groups));
 }
 
 function chatDisplayName(accounts, login) {
@@ -2512,6 +2544,7 @@ function conversationView(env, conv, entry, messages, login, accounts) {
         peer: peerLogin,
         peerName: peerLogin ? chatDisplayName(accounts, peerLogin) : "",
         public: Boolean(conv.public),
+        description: String(conv.description || ""),
         memberCount: conv.public ? Object.keys(accounts).length : (conv.members || []).length,
         owner: conv.owner || "",
         admins: conv.admins || [],
@@ -3319,7 +3352,7 @@ async function handleChatLeave(request, env, cors, id) {
     return jsonResponse({ ok: true, conversation: id, left: true }, 200, cors);
 }
 
-async function deleteChatConversation(env, conv) {
+async function deleteChatConversation(env, conv, extraMembers = []) {
     await env.ACCOUNTS_KV.delete(chatMessagesKey(conv.id));
     await env.ACCOUNTS_KV.delete(chatConversationKey(conv.id));
     await removeFromChatIndex(env, conv.id);
@@ -3331,7 +3364,8 @@ async function deleteChatConversation(env, conv) {
         }
     }
 
-    for (const member of conv.public ? [] : (conv.members || [])) {
+    const members = conv.public ? extraMembers : (conv.members || []);
+    for (const member of members) {
         const record = await readChatUser(env, member);
         const kept = record.conversations.filter((item) => item.id !== conv.id);
         if (kept.length !== record.conversations.length) {
@@ -3368,7 +3402,19 @@ async function handleChatDeleteConversation(request, env, cors, id) {
         }
 
         if (conv.public) {
-            return { error: jsonResponse({ error: "forbidden", message: "公共频道不能解散，可以退出" }, 400, cors) };
+            if (!isPlatformAdmin(env, login)) {
+                return { error: jsonResponse({ error: "forbidden", message: "公共频道只有站主可以解散，其他人可以退出" }, 403, cors) };
+            }
+            const groups = await readPublicGroups(env);
+            if (groups.length <= 1) {
+                return { error: jsonResponse({ error: "bad_request", message: "至少需要保留一个公共频道" }, 400, cors) };
+            }
+            const targets = Object.keys(accounts);
+            await savePublicGroups(env, groups.filter((item) => item.id !== id));
+            await appendSystemMessage(env, conv, `${chatDisplayName(accounts, login)} 解散了公共频道`);
+            await saveConversation(env, conv);
+            await deleteChatConversation(env, conv, targets);
+            return { mode: "public-delete", targets, removed: true };
         }
 
         if (!canOwnGroup(env, conv, login)) {
@@ -3394,6 +3440,8 @@ async function handleChatDeleteConversation(request, env, cors, id) {
 
     if (result.dissolved) {
         await notifyChat(env, result.targets, { type: "conversation:dissolved", conversation: id, login });
+    } else if (result.removed) {
+        await notifyChat(env, result.targets, { type: "conversation:remove", conversation: id, by: login });
     }
     return jsonResponse({ ok: true, conversation: id, mode: result.mode, dissolved: result.mode === "dissolve" }, 200, cors);
 }
@@ -3421,12 +3469,24 @@ async function handleChatRename(request, env, cors, id) {
         if (chatGroupDissolved(conv)) {
             return { error: chatDissolvedResponse(cors) };
         }
-        if (conv.type !== "group" || !canManageGroup(env, conv, login)) {
+        if (conv.public) {
+            if (!isPlatformAdmin(env, login)) {
+                return { error: jsonResponse({ error: "forbidden", message: "只有站主可以修改公共频道名称" }, 403, cors) };
+            }
+        } else if (conv.type !== "group" || !canManageGroup(env, conv, login)) {
             return { error: jsonResponse({ error: "forbidden", message: "只有群主或管理员可以修改群名" }, 403, cors) };
         }
         const name = normalizeGroupName(body.name);
         const before = conv.name;
         conv.name = name;
+        if (conv.public) {
+            const groups = await readPublicGroups(env);
+            const index = groups.findIndex((item) => item.id === conv.id);
+            if (index >= 0) {
+                groups[index] = { ...groups[index], name };
+                await savePublicGroups(env, groups);
+            }
+        }
         await appendSystemMessage(env, conv, `${chatDisplayName(accounts, login)} 把群名从「${before}」改成了「${name}」`);
         await saveConversation(env, conv);
         const record = await loadChatUser(env, login);
@@ -4669,6 +4729,241 @@ async function handleChatAdminConversations(request, env, cors) {
     return jsonResponse({ ok: true, count: conversations.length, conversations }, 200, cors);
 }
 
+async function handleChatAdminPublicGroups(request, env, cors) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const accounts = await loadAccounts(env);
+    const groups = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const defined = await readPublicGroups(env);
+        const output = [];
+        for (const group of defined) {
+            const conv = await readConversation(env, group.id);
+            if (!conv) {
+                continue;
+            }
+            const messages = await readChatMessages(env, group.id);
+            output.push({
+                ...conversationView(env, conv, null, messages, session.payload.sub, accounts),
+                description: group.description || "",
+                messageCount: messages.length
+            });
+        }
+        return output;
+    });
+
+    return jsonResponse({ ok: true, count: groups.length, groups }, 200, cors);
+}
+
+async function handleChatAdminCreatePublicGroup(request, env, cors) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    let name;
+    try {
+        name = normalizeGroupName(body.name);
+    } catch (error) {
+        return jsonResponse({ error: error.code || "bad_request", message: error.message }, error.status || 400, cors);
+    }
+    const description = String(body.description ?? "").replace(/\s+/g, " ").trim();
+    if (description.length > CHAT_PUBLIC_DESCRIPTION_MAX) {
+        return jsonResponse({ error: "bad_request", message: `频道简介最长 ${CHAT_PUBLIC_DESCRIPTION_MAX} 个字符` }, 400, cors);
+    }
+    const requestedId = String(body.id ?? "").trim();
+    if (requestedId && !CHAT_PUBLIC_ID_PATTERN.test(requestedId)) {
+        return jsonResponse({ error: "bad_request", message: "频道 id 只能是小写字母、数字、- 和 _（2-40 位）" }, 400, cors);
+    }
+
+    const accounts = await loadAccounts(env);
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const groups = await readPublicGroups(env);
+        let id = requestedId || `ch_${randomCode(9).toLowerCase()}`;
+        if (groups.some((item) => item.id === id) || await readConversation(env, id)) {
+            if (requestedId) {
+                return { error: jsonResponse({ error: "conflict", message: `频道 id ${id} 已被占用` }, 409, cors) };
+            }
+            id = `ch_${randomCode(11).toLowerCase()}`;
+        }
+
+        const createdAt = shanghaiTimestamp();
+        groups.push({ id, name, description, createdAt });
+        await savePublicGroups(env, groups);
+
+        const conv = {
+            id,
+            type: "group",
+            name,
+            description,
+            public: true,
+            owner: adminLogin(env),
+            admins: [],
+            members: [],
+            aliases: {},
+            announcement: null,
+            createdAt,
+            updatedAt: createdAt,
+            lastMessage: null
+        };
+        await saveConversation(env, conv);
+        await addToChatIndex(env, id);
+        await appendSystemMessage(env, conv, `站主创建了公共频道「${name}」`);
+        await saveConversation(env, conv);
+
+        const messages = await readChatMessages(env, id);
+        return {
+            targets: Object.keys(accounts),
+            view: {
+                ...conversationView(env, conv, null, messages, session.payload.sub, accounts),
+                description,
+                messageCount: messages.length
+            }
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:new", conversation: result.view });
+    return jsonResponse({ ok: true, group: result.view }, 201, cors);
+}
+
+async function handleChatAdminUpdatePublicGroup(request, env, cors, id) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const accounts = await loadAccounts(env);
+
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const groups = await readPublicGroups(env);
+        const index = groups.findIndex((item) => item.id === id);
+        if (index < 0) {
+            return { error: jsonResponse({ error: "not_found", message: "公共频道不存在" }, 404, cors) };
+        }
+        const conv = await readConversation(env, id);
+        if (!conv) {
+            return { error: jsonResponse({ error: "not_found", message: "公共频道不存在" }, 404, cors) };
+        }
+
+        let name = groups[index].name;
+        if (body.name !== undefined) {
+            try {
+                name = normalizeGroupName(body.name);
+            } catch (error) {
+                return { error: jsonResponse({ error: error.code || "bad_request", message: error.message }, error.status || 400, cors) };
+            }
+        }
+        let description = groups[index].description || "";
+        if (body.description !== undefined) {
+            description = String(body.description ?? "").replace(/\s+/g, " ").trim();
+            if (description.length > CHAT_PUBLIC_DESCRIPTION_MAX) {
+                return {
+                    error: jsonResponse(
+                        { error: "bad_request", message: `频道简介最长 ${CHAT_PUBLIC_DESCRIPTION_MAX} 个字符` },
+                        400,
+                        cors
+                    )
+                };
+            }
+        }
+
+        const before = groups[index].name;
+        groups[index] = { ...groups[index], name, description };
+        await savePublicGroups(env, groups);
+
+        const renamed = conv.name !== name;
+        conv.name = name;
+        conv.description = description;
+        conv.public = true;
+        if (renamed) {
+            await appendSystemMessage(env, conv, `站主把频道名称从「${before}」改成了「${name}」`);
+        }
+        await saveConversation(env, conv);
+
+        const messages = await readChatMessages(env, id);
+        return {
+            targets: Object.keys(accounts),
+            renamed,
+            view: {
+                ...conversationView(env, conv, null, messages, session.payload.sub, accounts),
+                description,
+                messageCount: messages.length
+            }
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:update", conversation: result.view });
+    return jsonResponse({ ok: true, group: result.view }, 200, cors);
+}
+
+async function handleChatAdminDeletePublicGroup(request, env, cors, id) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const accounts = await loadAccounts(env);
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const groups = await readPublicGroups(env);
+        const target = groups.find((item) => item.id === id);
+        if (!target) {
+            return { error: jsonResponse({ error: "not_found", message: "公共频道不存在" }, 404, cors) };
+        }
+        if (groups.length <= 1) {
+            return { error: jsonResponse({ error: "bad_request", message: "至少需要保留一个公共频道" }, 400, cors) };
+        }
+
+        const conv = await readConversation(env, id);
+        await savePublicGroups(env, groups.filter((item) => item.id !== id));
+        if (conv) {
+            await appendSystemMessage(env, conv, `站主解散了公共频道「${conv.name}」`);
+            await saveConversation(env, conv);
+            await deleteChatConversation(env, conv, Object.keys(accounts));
+        }
+        await removeFromChatIndex(env, id);
+        return { targets: Object.keys(accounts), name: target.name };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:remove", conversation: id, by: session.payload.sub });
+    return jsonResponse({ ok: true, conversation: id, name: result.name, deleted: true }, 200, cors);
+}
+
 async function handleChatAdminMessages(request, env, cors, id) {
     const session = await requireAdmin(request, env, cors);
     if (session.error) {
@@ -4712,12 +5007,19 @@ async function handleChatAdminDeleteConversation(request, env, cors, id) {
         if (!conv) {
             return { error: jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors) };
         }
-        const targets = conversationTargets(conv, await loadAccounts(env));
-        if (!conv.public) {
+        const accounts = await loadAccounts(env);
+        const targets = conversationTargets(conv, accounts);
+        if (conv.public) {
+            /* 站主永久删除公共频道时，同时把它从频道定义里移除，否则下次还会被重建 */
+            const groups = await readPublicGroups(env);
+            if (groups.some((item) => item.id === id)) {
+                await savePublicGroups(env, groups.filter((item) => item.id !== id));
+            }
+        } else {
             await appendSystemMessage(env, conv, "站主解散了这个会话");
             await saveConversation(env, conv);
         }
-        await deleteChatConversation(env, conv);
+        await deleteChatConversation(env, conv, Object.keys(accounts));
         return { targets };
     });
 
@@ -4793,7 +5095,7 @@ async function routeChat(request, env, cors) {
     const method = request.method;
 
     if (path === "/api/chat/status" && method === "GET") {
-        return handleChatStatus(request, env, cors);
+        return await handleChatStatus(request, env, cors);
     }
 
     if (path === "/api/chat/ws" && method === "GET") {
@@ -4848,7 +5150,31 @@ async function routeChat(request, env, cors) {
         return await handleChatAdminConversations(request, env, cors);
     }
 
-    let match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/messages$/);
+    if (path === "/api/chat/admin/public-groups") {
+        if (method === "GET") {
+            return await handleChatAdminPublicGroups(request, env, cors);
+        }
+        if (method === "POST") {
+            return await handleChatAdminCreatePublicGroup(request, env, cors);
+        }
+    }
+
+    let match;
+    match = path.match(/^\/api\/chat\/admin\/public-groups\/([^/]+)$/);
+    if (match) {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "频道 id 不合法" }, 400, cors);
+        }
+        if (method === "PATCH" || method === "PUT") {
+            return await handleChatAdminUpdatePublicGroup(request, env, cors, id);
+        }
+        if (method === "DELETE") {
+            return await handleChatAdminDeletePublicGroup(request, env, cors, id);
+        }
+    }
+
+    match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/messages$/);
     if (match) {
         const id = chatConversationId(decodeURIComponent(match[1]));
         if (!id) {

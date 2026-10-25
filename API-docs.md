@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`9.1.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；**9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读，历史消息保留，见第 13.3 节**）
+- API 版本：`9.2.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读，历史消息保留，见第 13.3 节；**9.2 站主可以新增、改名、解散公共频道，见第 13.9 节**）
 
 ---
 
@@ -197,6 +197,10 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | GET | `/api/chat/admin/conversations/{id}/messages` | 是（站主） | 查看任意会话的消息 |
 | DELETE | `/api/chat/admin/messages/{id}` | 是（站主） | 永久删除任意消息 |
 | DELETE | `/api/chat/admin/conversations/{id}` | 是（站主） | 永久删除任意会话 |
+| GET | `/api/chat/admin/public-groups` | 是（站主） | 公共频道列表（9.2） |
+| POST | `/api/chat/admin/public-groups` | 是（站主） | 新建公共频道（9.2） |
+| PATCH | `/api/chat/admin/public-groups/{id}` | 是（站主） | 修改频道名称 / 简介（9.2） |
+| DELETE | `/api/chat/admin/public-groups/{id}` | 是（站主） | 解散公共频道（9.2） |
 | GET | `/api/chat/messages` | 是 | 兼容旧接口：等价于 `general` / `trade` / `help` 的消息列表 |
 | POST | `/api/chat/messages` | 是 | 兼容旧接口：向公共频道发文字消息 |
 
@@ -218,10 +222,10 @@ GET /api/health
 ```json
 {
     "name": "Vitual XRing API",
-    "version": "9.1.0",
+    "version": "9.2.0",
     "ok": true,
     "storage": "workers-kv",
-    "chat": { "version": "9.1", "enabled": true }
+    "chat": { "version": "9.2", "enabled": true }
 }
 ```
 
@@ -1033,6 +1037,7 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 - 9.0 起为完整聊天室：左侧会话列表 / 通讯录 / 站主管理，右侧聊天窗口
 - 支持：单聊、群聊、创建群、修改群名、群公告与置顶群公告、群主 / 管理员 / 转让 / 踢人、
   解散群聊（9.1：解散后只读保留历史消息）、
+  公共频道管理（9.2：站主可在「管理」页新建 / 改名 / 改简介 / 解散公共频道）、
   好友申请与黑名单、消息撤回、引用回复、转发、聊天记录搜索、会话置顶、消息免打扰、
   未读数、正在输入提示、在线状态、图片 / 文件消息
 - 实时消息通过 Durable Object `ChatHub` 的 WebSocket 推送；连接失败时自动降级为 7 秒轮询
@@ -1289,8 +1294,9 @@ curl https://xsmmc.caldson.us.ci/api/admin/log -H "authorization: ******"
 | `chat:direct:{A}\|{B}` | 单聊去重：两个登录名 → 会话 id |
 | `chat:media:{id}` / `chat:media-meta:{id}` | 图片 / 文件与元数据，`expirationTtl = 1200`（20 分钟） |
 | `chat:index` | 全部会话 id（站主管理页使用，最多 2000 个） |
+| `chat:public-groups` | 公共频道定义（9.2）：`[{ id, name, description, createdAt }]`，缺失时使用内置默认值 |
 
-- 会话 id：公共频道为 `general` / `trade` / `help`；群聊 `g_xxxxxxxxxxxx`；单聊 `dm_xxxxxxxxxxxx`
+- 会话 id：公共频道为 `general` / `trade` / `help` 或站主新建的 `ch_xxxxxxxx`；群聊 `g_xxxxxxxxxxxx`；单聊 `dm_xxxxxxxxxxxx`
 - 消息结构（响应）：
 
 ```json
@@ -1391,7 +1397,8 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx -H "aut
 - 单聊：只从自己的会话列表移除，对方不受影响。
 - 解散后 `conversationView` 会返回 `dissolved`、`dissolvedAt`、`dissolvedBy`、`dissolvedByName`，
   并写入一条系统消息「XX 解散了群聊」，实时通道会广播 `conversation:dissolved` 事件。
-- 公共频道不能解散，只能退出。
+- 公共频道：站主可以解散（9.2）。解散等于删除频道本身——消息一并删除，并从**所有账户**的会话列表移除，
+  频道定义也会从 `chat:public-groups` 里去掉；普通用户只能 `/leave` 退出。
 
 权限：
 
@@ -1401,7 +1408,8 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx -H "aut
 | 邀请成员 | 群内任意成员（公共频道无需邀请） |
 | 移出成员 | 群主、群管理员（不能移出群主；管理员只有群主能移出）、站主 |
 | 转让群主、设置 / 取消管理员 | 群主、站主 |
-| 解散群聊 | 群主、站主（公共频道不能解散）；解散后群聊只读，历史消息保留 |
+| 解散群聊 | 群主、站主；解散后群聊只读，历史消息保留 |
+| 解散公共频道 | 只有站主（9.2），见 [13.9](#139-公共频道管理92仅站主) |
 | 退出群聊 | 所有成员；群主退出时自动转让给最早加入的成员；已解散的群聊退出等于删除自己的会话 |
 
 其他会话操作：`POST /conversations/{id}/settings`（`{"pinned":true,"muted":true}`）、
@@ -1505,6 +1513,7 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/conversations/dm_xxxx 
 - 非站主调用返回 `403 forbidden`
 - 站主也可以直接在普通接口里读取任意会话、修改任意群资料、撤回 / 删除任意消息
 - 9.1 起站主可以在管理面板里「解散群聊（保留记录）」，也可以继续用 `/api/chat/admin/conversations/{id}` 永久删除整个会话
+- 9.2 起站主可以在「管理」页新建、改名、改简介、解散公共频道，见 [13.9](#139-公共频道管理92仅站主)
 - 「管理」页在 `chatroom.html` 左侧导航中出现（仅站主可见）
 
 ### 13.8 限流与错误码
@@ -1529,7 +1538,40 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/conversations/dm_xxxx 
 | `503` | `chat_not_ready` | `CHAT_ENABLED=false` |
 | `503` | `chat_ws_unavailable` | 未绑定 `CHAT` Durable Object（可用轮询） |
 
-### 13.9 前端
+### 13.9 公共频道管理（9.2，仅站主）
+
+公共频道列表不再写死在代码里，而是存在 KV 的 `chat:public-groups`（数组，元素为 `{ id, name, description, createdAt }`）。
+首次访问时如果 KV 里还没有这个键，会使用内置的 `general` / `trade` / `help` 作为默认值。
+
+```bash
+# 列出全部公共频道（含消息数、成员数）
+curl https://xsmmc.caldson.us.ci/api/chat/admin/public-groups -H "authorization: ******"
+
+# 新建公共频道（id 可省略，自动生成 ch_xxxxxxxx）
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/admin/public-groups \
+  -H "authorization: ******" -H "content-type: application/json" \
+  -d '{"name":"活动","description":"每周活动公告","id":"event"}'
+
+# 改名 / 改简介
+curl -X PATCH https://xsmmc.caldson.us.ci/api/chat/admin/public-groups/event \
+  -H "authorization: ******" -H "content-type: application/json" \
+  -d '{"name":"活动大厅","description":"每周活动与公告"}'
+
+# 解散公共频道（同时删除频道内全部消息，并从所有账户的会话列表移除）
+curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/public-groups/event \
+  -H "authorization: ******"
+```
+
+- 只有站主（`ADMIN_ACCOUNT`）可以调用，其他人返回 `403 forbidden`
+- 新建后所有账户的会话列表里立刻出现该频道（实时通道广播 `conversation:new`）
+- 改名会同步更新频道定义与会话资料，并写入一条系统消息，广播 `conversation:update`
+- 解散会广播 `conversation:remove`，所有账户的会话列表同步移除
+- 至少保留一个公共频道：删除最后一个会返回 `400 bad_request`
+- 站主也可以用普通接口 `PATCH /api/chat/conversations/{id}` 修改公共频道名称（会同步回频道定义），
+  或用 `DELETE /api/chat/conversations/{id}` 解散公共频道
+- 公共频道内的群公告与站主删除消息等能力沿用第 13.7 节
+
+### 13.10 前端
 
 - `chatroom.html`：完整聊天界面（会话、通讯录、站主管理、群资料、转发、搜索、撤回、媒体上传）
 - `vtx-api.js`：`VTXApi.chat.*` 封装全部聊天接口，另有 `chatSocketUrl()` / `chatMediaUrl()` / `chat.upload(file)`
