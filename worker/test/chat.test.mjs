@@ -153,7 +153,7 @@ test("聊天室状态开放，并暴露实时通道与媒体 TTL", async () => {
     const { env } = await prepare();
     const status = await api(env, "GET", "/api/chat/status");
     assert.equal(status.status, 200);
-    assert.equal(status.data.version, "1.4");
+    assert.equal(status.data.version, "1.5");
     assert.equal(status.data.enabled, true);
     assert.equal(status.data.realtime, "websocket");
     assert.equal(status.data.mediaTtlSeconds, 1200);
@@ -977,4 +977,41 @@ test("1.4.0：聊天室不再按 IP 限流（发言、正在输入、上传媒�
         });
         assert.equal(upload.status, 201, `第 ${index} 个：${JSON.stringify(upload.data)}`);
     }
+});
+
+test("1.5.0：@ 提及只在被 @ 的人那里计数，且过滤非群成员", async () => {
+    const { env, tokens } = await prepare();
+
+    const created = await api(env, "POST", "/api/chat/conversations/group", {
+        token: tokens.Alice,
+        body: { name: "提测群", members: ["Bob", "Carol"] }
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    const groupId = created.data.conversation.id;
+
+    const sent = await api(env, "POST", `/api/chat/conversations/${groupId}/messages`, {
+        token: tokens.Alice,
+        body: { text: "@Bob 看一下这个", mentions: ["Bob", "Kitawaga", "Bob", ""] }
+    });
+    assert.equal(sent.status, 201, JSON.stringify(sent.data));
+    assert.deepEqual(sent.data.message.mentions, ["Bob"]);
+
+    const bobList = await api(env, "GET", "/api/chat/conversations", { token: tokens.Bob });
+    const bobConv = bobList.data.conversations.find((item) => item.id === groupId);
+    assert.equal(bobConv.unread, 1);
+    assert.equal(bobConv.mentionUnread, 1);
+
+    const carolList = await api(env, "GET", "/api/chat/conversations", { token: tokens.Carol });
+    const carolConv = carolList.data.conversations.find((item) => item.id === groupId);
+    assert.equal(carolConv.unread, 1);
+    assert.equal(carolConv.mentionUnread, 0);
+
+    const aliceList = await api(env, "GET", "/api/chat/conversations", { token: tokens.Alice });
+    const aliceConv = aliceList.data.conversations.find((item) => item.id === groupId);
+    assert.equal(aliceConv.mentionUnread, 0);
+
+    // Bob 读过之后 @ 计数清零
+    await api(env, "POST", `/api/chat/conversations/${groupId}/read`, { token: tokens.Bob });
+    const bobAfter = await api(env, "GET", "/api/chat/conversations", { token: tokens.Bob });
+    assert.equal(bobAfter.data.conversations.find((item) => item.id === groupId).mentionUnread, 0);
 });

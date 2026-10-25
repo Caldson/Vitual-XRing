@@ -372,6 +372,28 @@
             text-align: center;
         }
 
+        /* 1.5.0：@ 提醒 */
+        .badge-mention {
+            flex: 0 0 auto;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #f0a13b;
+            color: #fff;
+            font-size: 10.5px;
+            font-weight: 700;
+            line-height: 18px;
+            text-align: center;
+        }
+
+        .rail .badge.mention { background: #f0a13b; }
+
+        .tag.mention-tag {
+            background: #fdf1dd;
+            color: #b7791f;
+        }
+
         .chat-pane {
             min-width: 0;
             min-height: 0;
@@ -696,6 +718,98 @@
         .msg-row:hover .msg-actions { opacity: 1; }
         .msg-actions:hover { color: var(--blue); }
 
+        /* 1.5.0：消息里被 @ 的名字 */
+        .mention {
+            padding: 0 3px;
+            border-radius: 6px;
+            background: var(--blue-soft);
+            color: var(--blue);
+            font-weight: 600;
+        }
+
+        .msg-row.mine .bubble .mention {
+            background: rgba(255, 255, 255, 0.24);
+            color: #fff;
+        }
+
+        .msg-row.mentioned .bubble {
+            border-color: #f0c97a;
+            background: #fffaf0;
+            box-shadow: 0 2px 10px rgba(240, 161, 59, 0.18);
+        }
+
+        .msg-meta .mention-flag {
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #fdf1dd;
+            color: #b7791f;
+            font-size: 10.5px;
+            font-weight: 700;
+        }
+
+        /* 1.5.0：输入 @ 时弹出的成员选择器 */
+        .mention-picker {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 100%;
+            margin-bottom: 8px;
+            max-height: 216px;
+            overflow-y: auto;
+            padding: 6px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 18px 40px rgba(23, 32, 51, 0.16);
+            z-index: 30;
+        }
+
+        .mention-item {
+            display: flex;
+            gap: 9px;
+            align-items: center;
+            width: 100%;
+            padding: 7px 9px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            text-align: left;
+            font-size: 13.5px;
+        }
+
+        .mention-item .mention-item-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .mention-item .mention-item-login {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .mention-item.active,
+        .mention-item:hover {
+            background: var(--blue-soft);
+        }
+
+        .mention-item .avatar {
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .mention-empty {
+            padding: 10px 12px;
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+
         .system-row {
             align-self: center;
             max-width: 80%;
@@ -724,6 +838,7 @@
         }
 
         .composer {
+            position: relative;
             flex: 0 0 auto;
             background: #fff;
             border-top: 1px solid var(--line);
@@ -1075,7 +1190,7 @@
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
-            <span class="version-badge">v1.4.0 聊天室</span>
+            <span class="version-badge">v1.5.0 聊天室</span>
         </div>
         <div class="topbar-spacer"></div>
         <span class="status"><span class="status-dot" id="conn-dot"></span><span id="conn-text">连接中…</span></span>
@@ -1142,8 +1257,8 @@
 <div class="menu" id="menu"></div>
 <div class="toast" id="toast"></div>
 
-<script src="vtx-qr.js?v=1.4.0"></script>
-<script src="vtx-api.js?v=1.4.0"></script>
+<script src="vtx-qr.js?v=1.5.0"></script>
+<script src="vtx-api.js?v=1.5.0"></script>
 <script>
 (function () {
     "use strict";
@@ -1176,11 +1291,13 @@
         publicGroups: [],
         uid: 0,
         myMoney: "",
-        invite: null
+        invite: null,
+        /* 1.5.0：@ 选人状态 */
+        mention: { active: false, items: [], index: 0 }
     };
 
     let api = window.VTXApi;
-    const REQUIRED_API_VERSION = "1.4.0";
+    const REQUIRED_API_VERSION = "1.5.0";
     const SDK_URL = "vtx-api.js";
 
     /* 1.3.0：iPad / iPhone 视口高度修正（issue #2）
@@ -1271,6 +1388,169 @@
     function initial(value) {
         const text = String(value || "?").trim();
         return escapeHtml(text.slice(0, 1).toUpperCase());
+    }
+
+    /* ───────── 1.5.0：@（mention） ───────── */
+
+    // 当前会话里可以被 @ 的人（不含自己）
+    function mentionMembers() {
+        return (state.members || []).filter((item) => item && item.login && item.login !== state.me);
+    }
+
+    function memberLabel(member) {
+        return member.alias || member.username || member.login;
+    }
+
+    // 把纯文本里的 @登录名 渲染成高亮片段（先转义，再替换，避免 XSS）
+    function renderMentions(text, mentions) {
+        const safe = escapeHtml(text);
+        const names = Array.from(new Set(
+            (Array.isArray(mentions) ? mentions : [])
+                .map((item) => String(item || "").trim())
+                .filter(Boolean)
+        )).sort((left, right) => right.length - left.length);
+        if (!names.length) {
+            return safe;
+        }
+        let html = safe;
+        for (const name of names) {
+            const pattern = new RegExp(`@${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w.-])`, "g");
+            html = html.replace(pattern, `<span class="mention">@${escapeHtml(name)}</span>`);
+        }
+        return html;
+    }
+
+    // 从输入框文本里找出真正要通知的人：必须是本会话成员，且 @ 前面是边界
+    function collectMentions(text) {
+        const value = String(text || "");
+        if (!value.includes("@")) {
+            return [];
+        }
+        const found = [];
+        for (const member of mentionMembers()) {
+            const pattern = new RegExp(`(^|[^\\w.-])@${member.login.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w.-])`);
+            if (pattern.test(value)) {
+                found.push(member.login);
+            }
+        }
+        return found;
+    }
+
+    // 光标前是否正好是一个 @关键词
+    function mentionQuery(input) {
+        const caret = typeof input.selectionStart === "number" ? input.selectionStart : input.value.length;
+        const before = input.value.slice(0, caret);
+        const match = before.match(/(?:^|\s)@([^\s@]{0,24})$/);
+        if (!match) {
+            return null;
+        }
+        return { query: match[1], start: caret - match[1].length - 1, end: caret };
+    }
+
+    function mentionCandidates(query) {
+        const keyword = String(query || "").toLowerCase();
+        const scored = [];
+        for (const member of mentionMembers()) {
+            const login = String(member.login || "");
+            const label = memberLabel(member);
+            const haystack = `${login} ${label}`.toLowerCase();
+            let score = -1;
+            if (!keyword) {
+                score = 0;
+            } else if (login.toLowerCase().startsWith(keyword) || String(label).toLowerCase().startsWith(keyword)) {
+                score = 2;
+            } else if (haystack.includes(keyword)) {
+                score = 1;
+            }
+            if (score >= 0) {
+                scored.push({ member, score, label });
+            }
+        }
+        scored.sort((left, right) => right.score - left.score
+            || left.member.login.localeCompare(right.member.login, "zh-CN"));
+        return scored.slice(0, 8).map((item) => item.member);
+    }
+
+    function hideMentionPicker() {
+        state.mention.active = false;
+        state.mention.items = [];
+        state.mention.index = 0;
+        const picker = el("mention-picker");
+        if (picker) {
+            picker.hidden = true;
+            picker.innerHTML = "";
+        }
+    }
+
+    function renderMentionPicker() {
+        const picker = el("mention-picker");
+        if (!picker) {
+            return;
+        }
+        if (!state.mention.active) {
+            picker.hidden = true;
+            return;
+        }
+        picker.hidden = false;
+        if (!state.mention.items.length) {
+            picker.innerHTML = '<div class="mention-empty">没有匹配的成员</div>';
+            return;
+        }
+        picker.innerHTML = state.mention.items.map((member, index) => `
+            <button type="button" class="mention-item${index === state.mention.index ? " active" : ""}" data-mention-login="${escapeHtml(member.login)}">
+                <span class="avatar">${initial(memberLabel(member))}</span>
+                <span class="mention-item-name">${escapeHtml(memberLabel(member))}</span>
+                <span class="mention-item-login">@${escapeHtml(member.login)}</span>
+            </button>`).join("");
+        picker.querySelectorAll("[data-mention-login]").forEach((node) => {
+            node.addEventListener("mousedown", (event) => {
+                event.preventDefault();
+                applyMention(node.dataset.mentionLogin);
+            });
+        });
+    }
+
+    function updateMentionPicker(input) {
+        const token = mentionQuery(input);
+        const conv = state.current;
+        const canMention = conv && !conv.dissolved && mentionMembers().length > 0;
+        if (!token || !canMention) {
+            hideMentionPicker();
+            return;
+        }
+        const items = mentionCandidates(token.query);
+        state.mention.active = true;
+        state.mention.items = items;
+        state.mention.index = 0;
+        state.mention.token = token;
+        renderMentionPicker();
+    }
+
+    function moveMentionPicker(step) {
+        if (!state.mention.active || !state.mention.items.length) {
+            return;
+        }
+        const total = state.mention.items.length;
+        state.mention.index = (state.mention.index + step + total) % total;
+        renderMentionPicker();
+    }
+
+    function applyMention(login) {
+        const input = el("message-input");
+        const token = state.mention.token;
+        if (!input || !token) {
+            hideMentionPicker();
+            return;
+        }
+        const value = input.value;
+        const inserted = `@${login} `;
+        input.value = `${value.slice(0, token.start)}${inserted}${value.slice(token.end)}`;
+        const caret = token.start + inserted.length;
+        input.focus();
+        input.setSelectionRange(caret, caret);
+        input.style.height = "auto";
+        input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
+        hideMentionPicker();
     }
 
     function toast(message, kind) {
@@ -1466,14 +1746,20 @@
 
     function renderRailBadges() {
         const unread = state.conversations.reduce((total, item) => total + (Number(item.unread) || 0), 0);
+        const mentions = state.conversations.reduce((total, item) => total + (Number(item.mentionUnread) || 0), 0);
         const unreadNode = el("rail-unread");
-        unreadNode.hidden = unread <= 0;
-        unreadNode.textContent = unread > 99 ? "99+" : String(unread);
+        unreadNode.hidden = unread <= 0 && mentions <= 0;
+        unreadNode.textContent = mentions ? `@${mentions > 9 ? "9+" : mentions}` : (unread > 99 ? "99+" : String(unread));
+        unreadNode.classList.toggle("mention", mentions > 0);
 
         const requests = (state.contacts.incoming || []).length;
         const requestNode = el("rail-requests");
         requestNode.hidden = requests <= 0;
         requestNode.textContent = String(requests);
+
+        /* 1.5.0：有未读 @ 时在标签页标题上提醒 */
+        const baseTitle = "聊天室 | Vitual XRing";
+        document.title = mentions ? `(${mentions} 条@你) ${baseTitle}` : baseTitle;
     }
 
     function renderSidebar() {
@@ -1511,11 +1797,17 @@
                     : "还没有消息");
             const active = state.current && state.current.id === conv.id ? " active" : "";
             const avatarClass = conv.public ? "public" : (conv.type === "group" ? "group" : "");
+            const mentionUnread = Number(conv.mentionUnread) || 0;
+            const unread = Number(conv.unread) || 0;
+            const badge = mentionUnread
+                ? `<span class="badge-mention" title="${mentionUnread} 条 @ 你">@${mentionUnread > 1 ? mentionUnread : ""}</span>`
+                : (unread ? `<span class="badge-red">${unread > 99 ? "99+" : unread}</span>` : "");
             return `<div class="list-item${active}${dissolved ? " dissolved" : ""}" data-conv="${escapeHtml(conv.id)}">
                 <div class="avatar ${avatarClass}">${conv.type === "group" ? "群" : initial(conv.name)}</div>
                 <div class="list-main">
                     <div class="list-top">
                         <span class="list-name">${escapeHtml(conv.name)}</span>
+                        ${mentionUnread ? '<span class="tag mention-tag">有人@你</span>' : ""}
                         ${dissolved ? '<span class="tag">已解散</span>' : ""}
                         ${conv.pinned ? '<span class="tag">置顶</span>' : ""}
                         ${conv.muted ? '<span class="tag muted">免打扰</span>' : ""}
@@ -1523,7 +1815,7 @@
                     </div>
                     <div class="list-preview">
                         <span>${escapeHtml(preview)}</span>
-                        ${conv.unread ? `<span class="badge-red">${conv.unread > 99 ? "99+" : conv.unread}</span>` : ""}
+                        ${badge}
                     </div>
                 </div>
             </div>`;
@@ -1866,6 +2158,7 @@
                 <div class="messages" id="messages"></div>
                 <div class="typing-line" id="typing-line"></div>
                 <div class="composer${dissolved ? " readonly" : ""}">
+                    <div class="mention-picker" id="mention-picker" hidden></div>
                     <div class="reply-bar" id="reply-bar" hidden>
                         <span class="reply-text" id="reply-text"></span>
                         <button type="button" id="reply-cancel">×</button>
@@ -1873,7 +2166,7 @@
                     <div class="composer-row">
                         <button type="button" class="attach-btn" id="attach-btn" title="发送图片或文件（20 分钟后过期）"${dissolved ? " disabled" : ""}>图片/文件</button>
                         ${conv.type === "group" ? `<button type="button" class="attach-btn" id="redpacket-btn" title="发拼手速红包"${dissolved ? " disabled" : ""}>红包</button>` : ""}
-                        <textarea id="message-input" placeholder="${dissolved ? "群聊已解散，只能查看历史消息" : "输入消息，Enter 发送，Shift+Enter 换行"}"${dissolved ? " disabled" : ""}></textarea>
+                        <textarea id="message-input" placeholder="${dissolved ? "群聊已解散，只能查看历史消息" : "输入消息，Enter 发送，Shift+Enter 换行，@ 提及成员"}"${dissolved ? " disabled" : ""}></textarea>
                         <button type="button" class="send-btn" id="send-btn"${dissolved ? " disabled" : ""}>发送</button>
                     </div>
                     <input type="file" id="file-input" hidden>
@@ -1922,6 +2215,9 @@
             }
 
             const mine = message.sender === state.me;
+            const mentioned = !mine
+                && Array.isArray(message.mentions)
+                && message.mentions.includes(state.me);
             const showName = conv.type === "group" && !mine;
             const profile = state.members.find((item) => item.login === message.sender);
             const displayName = profile && profile.alias ? profile.alias : (message.senderName || message.sender);
@@ -1935,10 +2231,10 @@
             }
             bubble += mediaOrText(message);
 
-            rows.push(`<div class="msg-row${mine ? " mine" : ""}" data-message-id="${escapeHtml(message.id)}">
+            rows.push(`<div class="msg-row${mine ? " mine" : ""}${mentioned ? " mentioned" : ""}" data-message-id="${escapeHtml(message.id)}">
                 <div class="avatar">${initial(displayName)}</div>
                 <div class="msg-body">
-                    <div class="msg-meta">${showName ? `<span class="name">${escapeHtml(displayName)}</span>` : ""}<span>${escapeHtml(timePart(message))}</span></div>
+                    <div class="msg-meta">${showName ? `<span class="name">${escapeHtml(displayName)}</span>` : ""}${mentioned ? '<span class="mention-flag">@ 你</span>' : ""}<span>${escapeHtml(timePart(message))}</span></div>
                     <div class="bubble">${bubble}</div>
                 </div>
                 <button type="button" class="msg-actions" data-msg-menu="${escapeHtml(message.id)}" title="更多操作">⋯</button>
@@ -2004,24 +2300,25 @@
 
     function mediaOrText(message) {
         const expired = message.media && message.media.expiresAt && Number(message.media.expiresAt) < Date.now();
+        const caption = message.text ? renderMentions(message.text, message.mentions) : "";
         if (message.type === "redpacket" && message.packet) {
             return redPacketCard(message);
         }
         if (message.type === "image" && message.media) {
             if (expired) {
-                return `<span class="media-expired">图片已过期（上传后 20 分钟自动删除）</span>${message.text ? `<div class="media-caption">${escapeHtml(message.text)}</div>` : ""}`;
+                return `<span class="media-expired">图片已过期（上传后 20 分钟自动删除）</span>${message.text ? `<div class="media-caption">${caption}</div>` : ""}`;
             }
             return `<img class="media-image" src="${api.chatMediaUrl(message.media.id, message.media.expiresAt)}" alt="${escapeHtml(message.media.name)}">
-                ${message.text ? `<div class="media-caption">${escapeHtml(message.text)}</div>` : ""}`;
+                ${message.text ? `<div class="media-caption">${caption}</div>` : ""}`;
         }
         if (message.type === "file" && message.media) {
             if (expired) {
-                return `<span class="media-expired">文件已过期（上传后 20 分钟自动删除）</span>${message.text ? `<div class="media-caption">${escapeHtml(message.text)}</div>` : ""}`;
+                return `<span class="media-expired">文件已过期（上传后 20 分钟自动删除）</span>${message.text ? `<div class="media-caption">${caption}</div>` : ""}`;
             }
             return `<a class="media-file" href="${api.chatMediaUrl(message.media.id, message.media.expiresAt)}" target="_blank" rel="noopener">📎 ${escapeHtml(message.media.name)}（${formatSize(message.media.size)}）</a>
-                ${message.text ? `<div class="media-caption">${escapeHtml(message.text)}</div>` : ""}`;
+                ${message.text ? `<div class="media-caption">${caption}</div>` : ""}`;
         }
-        return escapeHtml(message.text || "");
+        return renderMentions(message.text || "", message.mentions);
     }
 
     function redPacketCard(message) {
@@ -2057,6 +2354,11 @@
         const infoBtn = el("chat-info-btn");
         const replyCancel = el("reply-cancel");
 
+        if (!input) {
+            return;
+        }
+        hideMentionPicker();
+
         const syncReply = () => {
             const bar = el("reply-bar");
             if (!bar) {
@@ -2081,6 +2383,7 @@
         input.addEventListener("input", () => {
             input.style.height = "auto";
             input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
+            updateMentionPicker(input);
             const now = Date.now();
             if (now - state.lastTypingSent > 2200 && state.current) {
                 state.lastTypingSent = now;
@@ -2088,11 +2391,38 @@
             }
         });
         input.addEventListener("keydown", (event) => {
+            if (state.mention.active) {
+                if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    moveMentionPicker(1);
+                    return;
+                }
+                if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    moveMentionPicker(-1);
+                    return;
+                }
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    hideMentionPicker();
+                    return;
+                }
+                if ((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
+                    const chosen = state.mention.items[state.mention.index];
+                    if (chosen) {
+                        event.preventDefault();
+                        applyMention(chosen.login);
+                        return;
+                    }
+                }
+            }
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 sendCurrent();
             }
         });
+        input.addEventListener("blur", () => hideMentionPicker());
+        input.addEventListener("click", () => updateMentionPicker(input));
         send.addEventListener("click", sendCurrent);
         attach.addEventListener("click", () => file.click());
         file.addEventListener("change", async () => {
@@ -2109,12 +2439,19 @@
             try {
                 const media = await api.chat.upload(chosen);
                 const isImage = (media.type || "").startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(media.name);
-                await api.chat.send(state.current.id, {
+                const caption = input.value.trim();
+                const payload = {
                     type: isImage ? "image" : "file",
                     mediaId: media.id,
-                    text: input.value.trim()
-                });
+                    text: caption
+                };
+                const mentions = collectMentions(caption);
+                if (mentions.length) {
+                    payload.mentions = mentions;
+                }
+                await api.chat.send(state.current.id, payload);
                 input.value = "";
+                hideMentionPicker();
                 await loadMessages(state.current.id);
                 await refreshConversations(true);
                 toast("已发送，图片/文件将在 20 分钟后自动删除");
@@ -2167,10 +2504,15 @@
         if (state.replyTo) {
             payload.replyTo = state.replyTo.id;
         }
+        const mentions = collectMentions(text);
+        if (mentions.length) {
+            payload.mentions = mentions;
+        }
         try {
             const result = await api.chat.send(state.current.id, payload);
             input.value = "";
             input.style.height = "auto";
+            hideMentionPicker();
             state.replyTo = null;
             if (result.message && !state.messages.some((item) => item.id === result.message.id)) {
                 state.messages.push(result.message);
@@ -3878,12 +4220,18 @@
             if (!message) {
                 return;
             }
+            const mentionedMe = Array.isArray(message.mentions)
+                && message.mentions.includes(state.me)
+                && message.sender !== state.me;
             if (state.current && state.current.id === message.conversation) {
                 if (!state.messages.some((item) => item.id === message.id)) {
                     state.messages.push(message);
                     renderMessages();
                 }
                 api.chat.read(state.current.id).catch(() => {});
+            } else if (mentionedMe) {
+                const conv = state.conversations.find((item) => item.id === message.conversation);
+                toast(`${message.senderName || message.sender} 在「${conv ? conv.name : "聊天室"}」@ 了你`);
             }
             if (event.conversation && typeof event.conversation === "object" && state.current && state.current.id === event.conversation.id) {
                 state.current = { ...state.current, ...event.conversation };

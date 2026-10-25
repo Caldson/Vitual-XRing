@@ -31,6 +31,10 @@
  *   - 管理员接口返回账户当前密码：密码仍是 PBKDF2 哈希，另存 AES-GCM 加密副本
  *     passwordSealed（密钥来自 secret PASSWORD_VIEW_KEY），登录 / 改密 / 建号时自动维护
  *
+ * 1.5.0：
+ *   - 聊天室 mention（@ 提及）：消息携带 mentions（只保留本会话成员），
+ *     会话列表新增 mentionUnread（未读里 @ 我的条数）
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -51,7 +55,7 @@
  *   PASSWORD_VIEW_KEY           （可选，1.4.0）给管理员看的密码副本加密密钥；不配就不存副本
  */
 
-const VERSION = "1.4.0";
+const VERSION = "1.5.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -64,7 +68,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.4";
+const CHAT_VERSION = "1.5";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 /* 1.4.0：聊天室全部去掉按 IP 限流（发言 / 正在输入 / 上传媒体），删除了 CHAT_*_WINDOW_MS / CHAT_*_MAX_ATTEMPTS */
@@ -3037,6 +3041,19 @@ function chatUnreadCount(messages, entry, login) {
     return messages.filter((item) => (Number(item.at) || 0) > since && item.sender !== login && !item.system).length;
 }
 
+/* 1.5.0：未读里有几条 @ 了我 */
+function chatUnreadMentionCount(messages, entry, login) {
+    if (!entry || !login) {
+        return 0;
+    }
+    const since = Math.max(Number(entry.lastRead) || 0, Number(entry.clearedAt) || 0);
+    return messages.filter((item) => (Number(item.at) || 0) > since
+        && item.sender !== login
+        && !item.system
+        && Array.isArray(item.mentions)
+        && item.mentions.includes(login)).length;
+}
+
 function conversationView(env, conv, entry, messages, login, accounts) {
     const peerLogin = conv.type === "direct"
         ? (conv.members || []).find((item) => item !== login) || ""
@@ -3067,6 +3084,7 @@ function conversationView(env, conv, entry, messages, login, accounts) {
         muted: Boolean(entry && entry.muted),
         hidden: Boolean(entry && entry.hidden),
         unread: chatUnreadCount(messages, entry, login),
+        mentionUnread: chatUnreadMentionCount(messages, entry, login),
         lastRead: Number(entry && entry.lastRead) || 0,
         lastMessage: messageView(conv.lastMessage),
         updatedAt: Number(conv.lastMessage && conv.lastMessage.at) || 0
