@@ -9,6 +9,10 @@
  * 9.0 新增完整聊天室：聊天记录同样存在 KV，实时消息由 ChatHub（Durable Object）
  * 通过 WebSocket 推送；图片 / 文件在 KV 里只保留 20 分钟。
  *
+ * 9.1 把「解散群聊」做成只读保留：群主 / 站主解散后群聊标记 dissolved，
+ * 历史消息仍然可以查看，但不能再发消息、改名、加人、改公告；
+ * 成员可以自己从会话列表删除这个只读会话。
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -28,7 +32,7 @@
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  */
 
-const VERSION = "9.0.0";
+const VERSION = "9.1.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -41,7 +45,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "9.0";
+const CHAT_VERSION = "9.1";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 const CHAT_WINDOW_MS = 60 * 1000;
@@ -2513,6 +2517,10 @@ function conversationView(env, conv, entry, messages, login, accounts) {
         admins: conv.admins || [],
         announcement: conv.announcement || null,
         createdAt: conv.createdAt || "",
+        dissolved: Boolean(conv.dissolved),
+        dissolvedAt: conv.dissolvedAt || "",
+        dissolvedBy: conv.dissolvedBy || "",
+        dissolvedByName: conv.dissolvedBy ? chatDisplayName(accounts, conv.dissolvedBy) : "",
         pinned: Boolean(entry && entry.pinned),
         muted: Boolean(entry && entry.muted),
         hidden: Boolean(entry && entry.hidden),
@@ -2548,6 +2556,14 @@ function canManageGroup(env, conv, login) {
 
 function canOwnGroup(env, conv, login) {
     return isPlatformAdmin(env, login) || conv.owner === login;
+}
+
+function chatGroupDissolved(conv) {
+    return Boolean(conv && conv.type === "group" && !conv.public && conv.dissolved);
+}
+
+function chatDissolvedResponse(cors) {
+    return jsonResponse({ error: "group_dissolved", message: "群聊已解散，只能查看历史消息" }, 410, cors);
 }
 
 async function notifyChat(env, targets, event, exclude) {
@@ -3003,6 +3019,9 @@ async function handleChatSend(request, env, cors, id, compatRoom = "") {
             return { error: loaded.error };
         }
         const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
         if (conv.type === "direct") {
             const peer = (conv.members || []).find((item) => item !== login);
             const mine = await readChatUser(env, login);
@@ -3259,6 +3278,13 @@ async function handleChatLeave(request, env, cors, id) {
             return { removed: true, targets: [login], system: "" };
         }
 
+        if (chatGroupDissolved(conv)) {
+            /* 已解散的群聊对成员只是只读历史，退出等同于删除自己的会话 */
+            record.conversations = record.conversations.filter((item) => item.id !== id);
+            await saveChatUser(env, login, record);
+            return { removed: true, targets: [], system: "" };
+        }
+
         if (conv.owner === login) {
             const candidates = conv.members.filter((item) => item !== login);
             if (!candidates.length) {
@@ -3349,19 +3375,27 @@ async function handleChatDeleteConversation(request, env, cors, id) {
             return { error: jsonResponse({ error: "forbidden", message: "只有群主或站主可以解散群聊" }, 403, cors) };
         }
 
-        const targets = conv.members.slice();
+        if (chatGroupDissolved(conv)) {
+            return { mode: "dissolve", targets: conversationTargets(conv, accounts) };
+        }
+
+        const targets = conversationTargets(conv, accounts);
+        conv.dissolved = true;
+        conv.dissolvedAt = shanghaiTimestamp();
+        conv.dissolvedBy = login;
         await appendSystemMessage(env, conv, `${chatDisplayName(accounts, login)} 解散了群聊`);
         await saveConversation(env, conv);
-        await deleteChatConversation(env, conv);
-        return { mode: "dissolve", targets };
+        return { mode: "dissolve", targets, dissolved: true };
     });
 
     if (result.error) {
         return result.error;
     }
 
-    await notifyChat(env, result.targets, { type: "conversation:remove", conversation: id, login });
-    return jsonResponse({ ok: true, conversation: id, mode: result.mode }, 200, cors);
+    if (result.dissolved) {
+        await notifyChat(env, result.targets, { type: "conversation:dissolved", conversation: id, login });
+    }
+    return jsonResponse({ ok: true, conversation: id, mode: result.mode, dissolved: result.mode === "dissolve" }, 200, cors);
 }
 
 async function handleChatRename(request, env, cors, id) {
@@ -3384,6 +3418,9 @@ async function handleChatRename(request, env, cors, id) {
             return { error: loaded.error };
         }
         const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
         if (conv.type !== "group" || !canManageGroup(env, conv, login)) {
             return { error: jsonResponse({ error: "forbidden", message: "只有群主或管理员可以修改群名" }, 403, cors) };
         }
@@ -3433,6 +3470,9 @@ async function handleChatAnnouncement(request, env, cors, id) {
             return { error: loaded.error };
         }
         const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
         if (conv.type !== "group" || !canManageGroup(env, conv, login)) {
             return { error: jsonResponse({ error: "forbidden", message: "只有群主或管理员可以发布群公告" }, 403, cors) };
         }
@@ -3487,6 +3527,9 @@ async function handleChatAnnouncementPin(request, env, cors, id) {
             return { error: loaded.error };
         }
         const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
         if (conv.type !== "group" || !canManageGroup(env, conv, login)) {
             return { error: jsonResponse({ error: "forbidden", message: "只有群主或管理员可以置顶群公告" }, 403, cors) };
         }
@@ -3537,6 +3580,9 @@ async function handleChatMemberAlias(request, env, cors, id) {
             return { error: loaded.error };
         }
         const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
         if (conv.type !== "group") {
             return { error: jsonResponse({ error: "bad_request", message: "单聊没有群昵称" }, 400, cors) };
         }
@@ -3594,6 +3640,9 @@ async function handleChatAddMembers(request, env, cors, id) {
             return { error: loaded.error };
         }
         const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
         if (conv.type !== "group") {
             return { error: jsonResponse({ error: "bad_request", message: "单聊不能邀请成员" }, 400, cors) };
         }
@@ -3655,6 +3704,9 @@ async function handleChatRemoveMember(request, env, cors, id, member) {
             return { error: loaded.error };
         }
         const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
         if (conv.type !== "group" || conv.public) {
             return { error: jsonResponse({ error: "bad_request", message: "这个会话不支持移除成员" }, 400, cors) };
         }
@@ -3723,6 +3775,9 @@ async function handleChatTransferOwner(request, env, cors, id) {
             return { error: loaded.error };
         }
         const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
         if (conv.type !== "group" || conv.public) {
             return { error: jsonResponse({ error: "bad_request", message: "这个会话不能转让群主" }, 400, cors) };
         }
@@ -3778,6 +3833,9 @@ async function handleChatAdmins(request, env, cors, id, member, removing) {
             return { error: loaded.error };
         }
         const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
         if (conv.type !== "group") {
             return { error: jsonResponse({ error: "bad_request", message: "单聊没有管理员" }, 400, cors) };
         }

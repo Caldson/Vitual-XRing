@@ -137,7 +137,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。只有在 Workers 完全连不上时，
     // 才会退回上面那套 GitHub 直连逻辑（secure.json 里的 token 作为备用通道）。
 
-    const API_VERSION = "9.0.0";
+    const API_VERSION = "9.1.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";

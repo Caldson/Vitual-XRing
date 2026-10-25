@@ -305,9 +305,91 @@ test("建群、改名、群公告置顶、加人、管理员、转让、退群�
 
     const dissolve = await api(env, "DELETE", `/api/chat/conversations/${groupId}`, { token: tokens.Bob });
     assert.equal(dissolve.status, 200, JSON.stringify(dissolve.data));
+    assert.equal(dissolve.data.dissolved, true);
 
-    const gone = await api(env, "GET", `/api/chat/conversations/${groupId}`, { token: tokens.Bob });
-    assert.equal(gone.status, 404);
+    const afterDissolve = await api(env, "GET", `/api/chat/conversations/${groupId}`, { token: tokens.Bob });
+    assert.equal(afterDissolve.status, 200);
+    assert.equal(afterDissolve.data.conversation.dissolved, true);
+    assert.equal(afterDissolve.data.conversation.dissolvedBy, "Bob");
+});
+
+test("解散群聊后只读：历史消息保留，不能发言、改名或加人", async () => {
+    const { env, tokens } = await prepare();
+    const created = await api(env, "POST", "/api/chat/conversations/group", {
+        token: tokens.Alice,
+        body: { name: "只读群", members: ["Bob", "Carol"] }
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    const groupId = created.data.conversation.id;
+
+    const sent = await api(env, "POST", `/api/chat/conversations/${groupId}/messages`, {
+        token: tokens.Bob,
+        body: { text: "解散前的消息" }
+    });
+    assert.equal(sent.status, 201);
+
+    const forbidden = await api(env, "DELETE", `/api/chat/conversations/${groupId}`, { token: tokens.Bob });
+    assert.equal(forbidden.status, 403);
+
+    const dissolved = await api(env, "DELETE", `/api/chat/conversations/${groupId}`, { token: tokens.Alice });
+    assert.equal(dissolved.status, 200, JSON.stringify(dissolved.data));
+
+    const history = await api(env, "GET", `/api/chat/conversations/${groupId}/messages`, { token: tokens.Carol });
+    assert.equal(history.status, 200);
+    assert.ok(history.data.messages.some((item) => item.text === "解散前的消息"));
+    assert.ok(history.data.messages.some((item) => item.system && item.text.includes("解散了群聊")));
+
+    const blocked = await api(env, "POST", `/api/chat/conversations/${groupId}/messages`, {
+        token: tokens.Carol,
+        body: { text: "还能说话吗" }
+    });
+    assert.equal(blocked.status, 410);
+    assert.equal(blocked.data.error, "group_dissolved");
+
+    const renamed = await api(env, "PATCH", `/api/chat/conversations/${groupId}`, {
+        token: tokens.Alice,
+        body: { name: "改名" }
+    });
+    assert.equal(renamed.status, 410);
+
+    const added = await api(env, "POST", `/api/chat/conversations/${groupId}/members`, {
+        token: tokens.Alice,
+        body: { members: ["Kitawaga"] }
+    });
+    assert.equal(added.status, 410);
+
+    const list = await api(env, "GET", "/api/chat/conversations", { token: tokens.Carol });
+    const entry = list.data.conversations.find((item) => item.id === groupId);
+    assert.ok(entry, "解散后会话仍在成员列表里");
+    assert.equal(entry.dissolved, true);
+
+    const leave = await api(env, "POST", `/api/chat/conversations/${groupId}/leave`, { token: tokens.Carol });
+    assert.equal(leave.status, 200);
+    const afterLeave = await api(env, "GET", "/api/chat/conversations", { token: tokens.Carol });
+    assert.ok(!afterLeave.data.conversations.some((item) => item.id === groupId));
+
+    const owner = await api(env, "GET", `/api/chat/conversations/${groupId}`, { token: tokens.Alice });
+    assert.equal(owner.status, 200);
+});
+
+test("站主可以解散没有加入的群聊", async () => {
+    const { env, tokens } = await prepare();
+    const created = await api(env, "POST", "/api/chat/conversations/group", {
+        token: tokens.Alice,
+        body: { name: "站主解散测试", members: ["Bob"] }
+    });
+    assert.equal(created.status, 201);
+    const groupId = created.data.conversation.id;
+
+    const dissolved = await api(env, "DELETE", `/api/chat/conversations/${groupId}`, { token: tokens.Kitawaga });
+    assert.equal(dissolved.status, 200, JSON.stringify(dissolved.data));
+
+    const detail = await api(env, "GET", `/api/chat/conversations/${groupId}`, { token: tokens.Bob });
+    assert.equal(detail.status, 200);
+    assert.equal(detail.data.conversation.dissolvedBy, "Kitawaga");
+
+    const events = env.CHAT.events.filter((item) => String(item.url).includes("/notify"));
+    assert.ok(events.some((item) => item.payload.event && item.payload.event.type === "conversation:dissolved"));
 });
 
 test("转发、搜索、会话置顶/免打扰与清空", async () => {

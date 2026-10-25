@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`9.0.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；**9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送，见第 13 节**）
+- API 版本：`9.1.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；**9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读，历史消息保留，见第 13.3 节**）
 
 ---
 
@@ -218,10 +218,10 @@ GET /api/health
 ```json
 {
     "name": "Vitual XRing API",
-    "version": "9.0.0",
+    "version": "9.1.0",
     "ok": true,
     "storage": "workers-kv",
-    "chat": { "version": "9.0", "enabled": true }
+    "chat": { "version": "9.1", "enabled": true }
 }
 ```
 
@@ -1031,12 +1031,14 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 
 - 地址：`https://xsmmc.caldson.us.ci/chatroom.html`
 - 9.0 起为完整聊天室：左侧会话列表 / 通讯录 / 站主管理，右侧聊天窗口
-- 支持：单聊、群聊、创建群、修改群名、群公告与置顶群公告、群主 / 管理员 / 转让 / 踢人 / 解散、
+- 支持：单聊、群聊、创建群、修改群名、群公告与置顶群公告、群主 / 管理员 / 转让 / 踢人、
+  解散群聊（9.1：解散后只读保留历史消息）、
   好友申请与黑名单、消息撤回、引用回复、转发、聊天记录搜索、会话置顶、消息免打扰、
   未读数、正在输入提示、在线状态、图片 / 文件消息
 - 实时消息通过 Durable Object `ChatHub` 的 WebSocket 推送；连接失败时自动降级为 7 秒轮询
 - 图片 / 文件上传后只保留 20 分钟（KV `expirationTtl`），过期后聊天记录仍在，但显示「已过期」
-- 站主（`ADMIN_ACCOUNT`，默认 `Kitawaga`）可以在「管理」页查看、删除全部群聊与单聊的消息
+- 站主（`ADMIN_ACCOUNT`，默认 `Kitawaga`）可以在「管理」页查看、删除全部群聊与单聊的消息，
+  也可以解散任意群聊（只读保留记录）
 - 详细接口见第 13 节
 
 ### 9.2.4 提款与转账的密码确认（6.0 变更）
@@ -1269,10 +1271,13 @@ curl https://xsmmc.caldson.us.ci/api/admin/log -H "authorization: ******"
 
 ---
 
-## 13. 9.0 更新：完整聊天室
+## 13. 9.0 更新：完整聊天室（9.1 新增解散群聊）
 
 聊天记录、好友关系、群资料全部存在 Workers KV；实时消息由 Durable Object `ChatHub` 通过 WebSocket 广播。
 `CHAT_ENABLED=true`（9.0 默认）时所有聊天接口可用。
+
+9.1 起支持「解散群聊」：群主或站主解散后，群聊变成只读历史（`dissolved: true`），
+成员仍可查看聊天记录，但不能发言或修改群资料，详见 [13.3](#133-会话与群管理)。
 
 ### 13.1 数据模型与 KV 键
 
@@ -1377,6 +1382,17 @@ curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx/leave -H 
 curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx -H "authorization: ******"
 ```
 
+`DELETE /api/chat/conversations/{id}`（9.1）：
+
+- 群聊：群主或站主解散。会话会被标记 `dissolved: true`，**历史消息全部保留**，
+  所有成员仍能在会话列表看到它（带「已解散」标记），但不能再发消息、改名、加人、改公告、
+  转让群主或设置管理员，这些写操作统一返回 `410 group_dissolved`；
+  成员可以调用 `/leave` 把这条只读会话从自己的列表里删掉。
+- 单聊：只从自己的会话列表移除，对方不受影响。
+- 解散后 `conversationView` 会返回 `dissolved`、`dissolvedAt`、`dissolvedBy`、`dissolvedByName`，
+  并写入一条系统消息「XX 解散了群聊」，实时通道会广播 `conversation:dissolved` 事件。
+- 公共频道不能解散，只能退出。
+
 权限：
 
 | 操作 | 谁可以 |
@@ -1385,8 +1401,8 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx -H "aut
 | 邀请成员 | 群内任意成员（公共频道无需邀请） |
 | 移出成员 | 群主、群管理员（不能移出群主；管理员只有群主能移出）、站主 |
 | 转让群主、设置 / 取消管理员 | 群主、站主 |
-| 解散群聊 | 群主、站主（公共频道不能解散） |
-| 退出群聊 | 所有成员；群主退出时自动转让给最早加入的成员 |
+| 解散群聊 | 群主、站主（公共频道不能解散）；解散后群聊只读，历史消息保留 |
+| 退出群聊 | 所有成员；群主退出时自动转让给最早加入的成员；已解散的群聊退出等于删除自己的会话 |
 
 其他会话操作：`POST /conversations/{id}/settings`（`{"pinned":true,"muted":true}`）、
 `POST /conversations/{id}/clear`（只清空自己的记录）、`POST /conversations/{id}/read`、
@@ -1469,7 +1485,8 @@ socket.send(JSON.stringify({ type: "ping" }));
 | `message:delete` | 某条消息被删除 |
 | `conversation:new` | 被拉进新群 / 新单聊 |
 | `conversation:update` | 群名、群公告、成员、管理员等变化 |
-| `conversation:remove` | 群聊被解散 / 你被移出 / 单聊被删除 |
+| `conversation:dissolved` | 群聊被解散（9.1 起；前端把会话标记成只读而不是删掉） |
+| `conversation:remove` | 你被移出群聊 / 单聊被删除 |
 | `typing` | 有人正在输入（`login`、`name`） |
 | `friend:request` / `friend:accept` / `friend:decline` / `friend:remove` | 好友关系变化 |
 | `pong` | 回复 `ping` |
@@ -1487,6 +1504,7 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/conversations/dm_xxxx 
 
 - 非站主调用返回 `403 forbidden`
 - 站主也可以直接在普通接口里读取任意会话、修改任意群资料、撤回 / 删除任意消息
+- 9.1 起站主可以在管理面板里「解散群聊（保留记录）」，也可以继续用 `/api/chat/admin/conversations/{id}` 永久删除整个会话
 - 「管理」页在 `chatroom.html` 左侧导航中出现（仅站主可见）
 
 ### 13.8 限流与错误码
@@ -1505,6 +1523,7 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/conversations/dm_xxxx 
 | `403` | `blocked` / `not_friend` / `forbidden` | 被拉黑、不是好友、没有管理权限 |
 | `404` | `not_found` | 会话 / 消息 / 用户不存在 |
 | `410` | `media_expired` | 图片 / 文件已超过 20 分钟 |
+| `410` | `group_dissolved` | 群聊已解散，只能查看历史消息（9.1） |
 | `413` | `payload_too_large` | 文件超过 4 MB |
 | `429` | `too_many_requests` | 触发限流 |
 | `503` | `chat_not_ready` | `CHAT_ENABLED=false` |

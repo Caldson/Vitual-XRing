@@ -265,6 +265,8 @@
 
         .list-item:hover { background: #f7f9fd; }
         .list-item.active { background: var(--blue-soft); border-left-color: var(--blue); }
+        .list-item.dissolved { opacity: 0.62; }
+        .list-item.dissolved .list-name { color: #7b8494; }
 
         .avatar {
             flex: 0 0 auto;
@@ -421,6 +423,22 @@
         .announce-bar.pinned { border-color: #f0c97a; background: #fff5dc; }
         .announce-bar strong { flex: 0 0 auto; }
         .announce-bar .announce-text { flex: 1; white-space: pre-wrap; word-break: break-word; }
+
+        .dissolved-bar {
+            flex: 0 0 auto;
+            margin: 10px 18px 0;
+            padding: 9px 12px;
+            border: 1px solid #dfe3e9;
+            background: #f5f6f8;
+            border-radius: 10px;
+            color: #6b7280;
+            font-size: 12.5px;
+            line-height: 1.6;
+        }
+
+        .composer.readonly {
+            background: #f7f8fa;
+        }
 
         .messages {
             flex: 1;
@@ -933,7 +951,7 @@
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
-            <span class="version-badge">v9.0 聊天室</span>
+            <span class="version-badge">v9.1 聊天室</span>
         </div>
         <div class="topbar-spacer"></div>
         <span class="status"><span class="status-dot" id="conn-dot"></span><span id="conn-text">连接中…</span></span>
@@ -1252,16 +1270,20 @@
         }
 
         const items = state.conversations.map((conv) => {
-            const preview = conv.lastMessage
-                ? `${conv.type === "group" && conv.lastMessage.sender !== "system" ? `${conv.lastMessage.senderName || conv.lastMessage.sender}：` : ""}${conv.lastMessage.recalled ? "消息已撤回" : messagePreviewText(conv.lastMessage)}`
-                : "还没有消息";
+            const dissolved = Boolean(conv.dissolved);
+            const preview = dissolved
+                ? "群聊已解散，仅可查看历史消息"
+                : (conv.lastMessage
+                    ? `${conv.type === "group" && conv.lastMessage.sender !== "system" ? `${conv.lastMessage.senderName || conv.lastMessage.sender}：` : ""}${conv.lastMessage.recalled ? "消息已撤回" : messagePreviewText(conv.lastMessage)}`
+                    : "还没有消息");
             const active = state.current && state.current.id === conv.id ? " active" : "";
             const avatarClass = conv.public ? "public" : (conv.type === "group" ? "group" : "");
-            return `<div class="list-item${active}" data-conv="${escapeHtml(conv.id)}">
+            return `<div class="list-item${active}${dissolved ? " dissolved" : ""}" data-conv="${escapeHtml(conv.id)}">
                 <div class="avatar ${avatarClass}">${conv.type === "group" ? "群" : initial(conv.name)}</div>
                 <div class="list-main">
                     <div class="list-top">
                         <span class="list-name">${escapeHtml(conv.name)}</span>
+                        ${dissolved ? '<span class="tag">已解散</span>' : ""}
                         ${conv.pinned ? '<span class="tag">置顶</span>' : ""}
                         ${conv.muted ? '<span class="tag muted">免打扰</span>' : ""}
                         <span class="list-time">${conv.lastMessage ? escapeHtml(formatTime(conv.lastMessage)) : ""}</span>
@@ -1572,9 +1594,10 @@
         }
 
         const onlinePeer = conv.type === "direct" && state.online.has(conv.peer);
+        const dissolved = Boolean(conv.dissolved);
         const subtitle = conv.type === "direct"
             ? `${onlinePeer ? "在线 · " : ""}${escapeHtml(conv.peer)}`
-            : `${conv.public ? "公共频道" : "群聊"} · ${conv.memberCount} 人`;
+            : `${conv.public ? "公共频道" : (dissolved ? "群聊（已解散）" : "群聊")} · ${conv.memberCount} 人`;
 
         const pinned = conv.announcement && conv.announcement.pinned;
         const announce = conv.announcement
@@ -1584,28 +1607,33 @@
                </div>`
             : "";
 
+        const dissolvedBar = dissolved
+            ? `<div class="dissolved-bar">该群聊已由 ${escapeHtml(conv.dissolvedByName || conv.dissolvedBy || "群主")} 解散${conv.dissolvedAt ? `（${escapeHtml(conv.dissolvedAt)}）` : ""}，只能查看历史消息。</div>`
+            : "";
+
         pane.innerHTML = `
             <div class="chat-view">
                 <div class="chat-head">
                     <div class="grow">
-                        <h2>${escapeHtml(conv.name)}${conv.muted ? '<span class="tag muted">免打扰</span>' : ""}</h2>
+                        <h2>${escapeHtml(conv.name)}${conv.muted ? '<span class="tag muted">免打扰</span>' : ""}${dissolved ? '<span class="tag">已解散</span>' : ""}</h2>
                         <p>${subtitle}</p>
                     </div>
                     <button class="icon-btn" id="chat-menu-btn" title="会话设置">⋯</button>
                     <button class="icon-btn" id="chat-info-btn" title="查看资料">☰</button>
                 </div>
+                ${dissolvedBar}
                 ${announce}
                 <div class="messages" id="messages"></div>
                 <div class="typing-line" id="typing-line"></div>
-                <div class="composer">
+                <div class="composer${dissolved ? " readonly" : ""}">
                     <div class="reply-bar" id="reply-bar" hidden>
                         <span class="reply-text" id="reply-text"></span>
                         <button type="button" id="reply-cancel">×</button>
                     </div>
                     <div class="composer-row">
-                        <button type="button" class="attach-btn" id="attach-btn" title="发送图片或文件（20 分钟后过期）">图片/文件</button>
-                        <textarea id="message-input" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
-                        <button type="button" class="send-btn" id="send-btn">发送</button>
+                        <button type="button" class="attach-btn" id="attach-btn" title="发送图片或文件（20 分钟后过期）"${dissolved ? " disabled" : ""}>图片/文件</button>
+                        <textarea id="message-input" placeholder="${dissolved ? "群聊已解散，只能查看历史消息" : "输入消息，Enter 发送，Shift+Enter 换行"}"${dissolved ? " disabled" : ""}></textarea>
+                        <button type="button" class="send-btn" id="send-btn"${dissolved ? " disabled" : ""}>发送</button>
                     </div>
                     <input type="file" id="file-input" hidden>
                 </div>
@@ -1954,14 +1982,16 @@
             return;
         }
         const menu = el("menu");
+        const dissolved = Boolean(conv.dissolved);
         menu.innerHTML = `
             <button data-act="pin">${conv.pinned ? "取消置顶" : "置顶会话"}</button>
             <button data-act="mute">${conv.muted ? "取消免打扰" : "消息免打扰"}</button>
             <button data-act="clear">清空聊天记录</button>
-            ${conv.type === "group" && !conv.public ? '<hr><button data-act="leave" class="danger">退出群聊</button>' : ""}
+            ${conv.type === "group" && !conv.public && !dissolved ? '<hr><button data-act="leave" class="danger">退出群聊</button>' : ""}
             ${conv.type === "direct" ? '<hr><button data-act="delete" class="danger">删除会话</button>' : ""}
             ${conv.public ? '<hr><button data-act="leave" class="danger">退出公共频道</button>' : ""}
-            ${conv.type === "group" && !conv.public && isOwner(conv) ? '<button data-act="dissolve" class="danger">解散群聊</button>' : ""}
+            ${dissolved ? '<hr><button data-act="delete-group" class="danger">删除会话</button>' : ""}
+            ${conv.type === "group" && !conv.public && !dissolved && isOwner(conv) ? '<button data-act="dissolve" class="danger">解散群聊</button>' : ""}
             ${conv.type === "group" ? '<button data-act="info">群资料</button>' : ""}`;
         menu.style.left = `${Math.min(x, window.innerWidth - 180)}px`;
         menu.style.top = `${Math.min(y, window.innerHeight - 300)}px`;
@@ -2004,14 +2034,29 @@
                             renderChatPane();
                         }
                     } else if (action === "dissolve") {
-                        if (!confirm("解散后所有成员都会失去这个群聊，确定吗？")) {
+                        if (!confirm("解散后群聊会变成只读，成员仍可查看历史消息，确定吗？")) {
                             return;
                         }
                         await api.chat.remove(conv.id);
                         if (state.current && state.current.id === conv.id) {
+                            state.current = { ...state.current, dissolved: true };
+                            renderChatPane();
+                        }
+                        await refreshConversations(true);
+                        toast("群聊已解散");
+                        return;
+                    } else if (action === "delete-group") {
+                        if (!confirm("确定从会话列表删除这个已解散的群聊吗？")) {
+                            return;
+                        }
+                        await api.chat.leave(conv.id);
+                        if (state.current && state.current.id === conv.id) {
                             state.current = null;
                             renderChatPane();
                         }
+                        await refreshConversations(true);
+                        toast("已删除会话");
+                        return;
                     } else if (action === "info") {
                         openGroupInfo();
                         return;
@@ -2076,8 +2121,9 @@
         state.current = detail.conversation;
         state.members = detail.members || [];
 
-        const manage = isManage(state.current);
-        const owner = isOwner(state.current);
+        const dissolved = Boolean(state.current.dissolved);
+        const manage = !dissolved && isManage(state.current);
+        const owner = !dissolved && isOwner(state.current);
         const memberHtml = state.members.map((member) => {
             const actions = [];
             if (!member.me && owner && !member.owner) {
@@ -2101,7 +2147,11 @@
         }).join("");
 
         openModal(`群资料：${escapeHtml(state.current.name)}`, `
-            <div class="notice">${state.current.public ? "公共频道，所有登录用户都可以发言。" : `群主：${escapeHtml(state.current.owner)} · 群成员 ${state.members.length} 人`}</div>
+            <div class="notice">${state.current.public
+                ? "公共频道，所有登录用户都可以发言。"
+                : (dissolved
+                    ? `这个群聊已由 ${escapeHtml(state.current.dissolvedByName || state.current.dissolvedBy || "群主")} 解散${state.current.dissolvedAt ? `（${escapeHtml(state.current.dissolvedAt)}）` : ""}，只能查看历史消息。`
+                    : `群主：${escapeHtml(state.current.owner)} · 群成员 ${state.members.length} 人`)}</div>
             ${manage ? `<div class="field"><label>群聊名称</label>
                 <input type="text" id="group-name-input" maxlength="24" value="${escapeHtml(state.current.name)}">
                 <div style="margin-top:8px;"><button class="btn small primary" id="save-group-name">保存群名</button></div></div>` : ""}
@@ -2113,15 +2163,15 @@
                     <button class="btn small danger" id="clear-announcement">删除公告</button>
                 </div>` : ""}
             </div>
-            ${state.current.type === "group" ? `<div class="field"><label>我的群昵称</label>
+            ${state.current.type === "group" && !dissolved ? `<div class="field"><label>我的群昵称</label>
                 <input type="text" id="alias-input" maxlength="20" placeholder="留空恢复默认" value="${escapeHtml((state.members.find((item) => item.me) || {}).alias || "")}">
                 <div style="margin-top:8px;"><button class="btn small" id="save-alias">保存昵称</button></div></div>` : ""}
             <div class="field"><label>群成员（${state.members.length}）</label>
-                ${!state.current.public ? '<div style="margin-bottom:8px;"><button class="btn small primary" id="add-members-btn">邀请好友进群</button></div>' : ""}
+                ${!state.current.public && !dissolved ? '<div style="margin-bottom:8px;"><button class="btn small primary" id="add-members-btn">邀请好友进群</button></div>' : ""}
                 ${memberHtml || '<div style="color: var(--muted); font-size: 13px;">公共频道没有固定成员列表</div>'}
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top: 12px;">
-                ${state.current.type === "group" && !state.current.public ? '<button class="btn danger" id="leave-group">退出群聊</button>' : ""}
+                ${state.current.type === "group" && !state.current.public ? `<button class="btn danger" id="leave-group">${dissolved ? "删除会话" : "退出群聊"}</button>` : ""}
                 ${owner && state.current.type === "group" && !state.current.public ? '<button class="btn danger" id="dissolve-group">解散群聊</button>' : ""}
             </div>`, {
             wide: true,
@@ -2199,7 +2249,8 @@
                 const leaveGroup = el("leave-group");
                 if (leaveGroup) {
                     leaveGroup.addEventListener("click", async () => {
-                        if (!confirm("确定退出群聊吗？")) {
+                        const dissolved = Boolean(state.current && state.current.dissolved);
+                        if (!confirm(dissolved ? "确定从会话列表删除这个已解散的群聊吗？" : "确定退出群聊吗？")) {
                             return;
                         }
                         try {
@@ -2208,6 +2259,7 @@
                             state.current = null;
                             renderChatPane();
                             await refreshConversations(true);
+                            toast(dissolved ? "已删除会话" : "已退出群聊");
                         } catch (error) {
                             report(error);
                         }
@@ -2216,15 +2268,18 @@
                 const dissolveGroup = el("dissolve-group");
                 if (dissolveGroup) {
                     dissolveGroup.addEventListener("click", async () => {
-                        if (!confirm("解散后所有成员都会失去这个群聊，确定吗？")) {
+                        if (!confirm("解散后群聊会变成只读，成员仍可查看历史消息，确定吗？")) {
                             return;
                         }
                         try {
                             await api.chat.remove(state.current.id);
                             closeModal();
-                            state.current = null;
+                            if (state.current) {
+                                state.current = { ...state.current, dissolved: true };
+                            }
                             renderChatPane();
                             await refreshConversations(true);
+                            toast("群聊已解散");
                         } catch (error) {
                             report(error);
                         }
@@ -2619,6 +2674,7 @@
                 <div class="list-main">
                     <div class="list-top">
                         <span class="list-name">${escapeHtml(conv.name)}</span>
+                        ${conv.dissolved ? '<span class="tag">已解散</span>' : ""}
                         <span class="tag">${conv.type === "direct" ? "单聊" : "群聊"}</span>
                     </div>
                     <div class="list-preview"><span>${escapeHtml(String(conv.memberCount))} 人 · ${escapeHtml(String(conv.messageCount || 0))} 条消息</span></div>
@@ -2649,7 +2705,8 @@
             openModal(`管理：${escapeHtml(conv.name)}`, `
                 <div class="notice">会话 id：${escapeHtml(conv.id)} · 成员：${escapeHtml((data.members || []).join("、"))}</div>
                 ${rows}
-                <div style="margin-top: 14px;">
+                <div style="margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap;">
+                    ${conv.type === "group" && !conv.public && !conv.dissolved ? '<button class="btn danger" id="admin-dissolve-conv">解散群聊（保留记录）</button>' : ""}
                     <button class="btn danger" id="admin-delete-conv">删除整个会话</button>
                 </div>`, {
                 wide: true,
@@ -2686,6 +2743,26 @@
                             report(error);
                         }
                     });
+                    const adminDissolve = root.querySelector("#admin-dissolve-conv");
+                    if (adminDissolve) {
+                        adminDissolve.addEventListener("click", async () => {
+                            if (!confirm("解散后群聊会变成只读，成员仍可查看历史消息，确定吗？")) {
+                                return;
+                            }
+                            try {
+                                await api.chat.remove(conv.id);
+                                closeModal();
+                                await Promise.all([loadAdmin(), refreshConversations(true)]);
+                                if (state.current && state.current.id === conv.id) {
+                                    state.current = { ...state.current, dissolved: true };
+                                    renderChatPane();
+                                }
+                                toast("群聊已解散");
+                            } catch (error) {
+                                report(error);
+                            }
+                        });
+                    }
                 }
             });
         } catch (error) {
@@ -2842,6 +2919,21 @@
             if (state.current && state.current.id === conv.id) {
                 state.current = { ...state.current, ...conv };
                 renderChatPane();
+            }
+            renderSidebar();
+            refreshConversations(true);
+            return;
+        }
+        if (event.type === "conversation:dissolved") {
+            const id = event.conversation;
+            const target = state.conversations.find((item) => item.id === id);
+            if (target) {
+                target.dissolved = true;
+            }
+            if (state.current && state.current.id === id) {
+                state.current = { ...state.current, dissolved: true };
+                renderChatPane();
+                toast("群聊已被解散，只能查看历史消息");
             }
             renderSidebar();
             refreshConversations(true);
