@@ -1,1 +1,0 @@
-npx --yes wrangler@3.99.0 deploy
