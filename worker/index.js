@@ -67,12 +67,7 @@ const LOGIN_HISTORY_LIMIT = 20;
 const CHAT_VERSION = "1.4";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
-const CHAT_WINDOW_MS = 60 * 1000;
-const CHAT_MAX_ATTEMPTS = 30;
-const CHAT_MEDIA_WINDOW_MS = 60 * 1000;
-const CHAT_MEDIA_MAX_ATTEMPTS = 12;
-const CHAT_TYPING_WINDOW_MS = 60 * 1000;
-const CHAT_TYPING_MAX_ATTEMPTS = 120;
+/* 1.4.0：聊天室全部去掉按 IP 限流（发言 / 正在输入 / 上传媒体），删除了 CHAT_*_WINDOW_MS / CHAT_*_MAX_ATTEMPTS */
 const CHAT_RECALL_WINDOW_MS = 2 * 60 * 1000;
 const CHAT_MEDIA_TTL_SECONDS = 20 * 60;
 const CHAT_MEDIA_MAX_BYTES = 4 * 1024 * 1024;
@@ -141,9 +136,6 @@ const loginAttempts = new Map();
 const writeAttempts = new Map();
 const tradeAttempts = new Map();
 const registerAttempts = new Map();
-const chatAttempts = new Map();
-const chatMediaAttempts = new Map();
-const chatTypingAttempts = new Map();
 const adminAttempts = new Map();
 
 class HttpError extends Error {
@@ -3562,10 +3554,6 @@ async function handleChatSend(request, env, cors, id, compatRoom = "") {
         return guard;
     }
 
-    if (throttled(chatAttempts, clientIp(request), CHAT_WINDOW_MS, CHAT_MAX_ATTEMPTS)) {
-        return jsonResponse({ error: "too_many_requests", message: "发言过于频繁，请稍后再试" }, 429, cors);
-    }
-
     const login = session.payload.sub;
     const accounts = await loadAccounts(env);
     if (!accounts[login]) {
@@ -3742,9 +3730,6 @@ async function handleChatTyping(request, env, cors, id) {
     const session = await requireSession(request, env, cors);
     if (session.error) {
         return session.error;
-    }
-    if (throttled(chatTypingAttempts, `${clientIp(request)}:${id}`, CHAT_TYPING_WINDOW_MS, CHAT_TYPING_MAX_ATTEMPTS)) {
-        return jsonResponse({ ok: true, throttled: true }, 200, cors);
     }
     const guard = chatGuard(env, cors);
     if (guard) {
@@ -5190,10 +5175,6 @@ async function handleChatMediaUpload(request, env, cors) {
     const guard = chatGuard(env, cors);
     if (guard) {
         return guard;
-    }
-
-    if (throttled(chatMediaAttempts, clientIp(request), CHAT_MEDIA_WINDOW_MS, CHAT_MEDIA_MAX_ATTEMPTS)) {
-        return jsonResponse({ error: "too_many_requests", message: "上传过于频繁，请稍后再试" }, 429, cors);
     }
 
     const login = session.payload.sub;

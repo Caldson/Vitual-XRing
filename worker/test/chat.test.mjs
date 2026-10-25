@@ -946,3 +946,35 @@ test("拼手速红包：金额校验、抢红包、余额变动、退回", async
 function fromCentsForTest(cents) {
     return (cents / 100).toFixed(2);
 }
+
+test("1.4.0：聊天室不再按 IP 限流（发言、正在输入、上传媒体）", async () => {
+    const { env, tokens } = await prepare();
+    const direct = await befriend(env, tokens, "Alice", "Bob");
+
+    // 旧版限制是每分钟 30 条，这里连发 40 条确认不再出现 429
+    for (let index = 0; index < 40; index += 1) {
+        const sent = await api(env, "POST", `/api/chat/conversations/${direct.id}/messages`, {
+            token: tokens.Alice,
+            body: { text: `连发 ${index}` }
+        });
+        assert.equal(sent.status, 201, `第 ${index} 条：${JSON.stringify(sent.data)}`);
+    }
+
+    // 正在输入：旧版每分钟 120 次，超过了只会返回 throttled: true
+    for (let index = 0; index < 130; index += 1) {
+        const typing = await api(env, "POST", `/api/chat/conversations/${direct.id}/typing`, { token: tokens.Alice });
+        assert.equal(typing.status, 200);
+        assert.equal(typing.data.throttled, undefined);
+    }
+
+    // 上传媒体：旧版每分钟 12 次
+    for (let index = 0; index < 20; index += 1) {
+        const upload = await api(env, "POST", "/api/chat/media", {
+            token: tokens.Alice,
+            raw: new Uint8Array([137, 80, 78, 71]).buffer,
+            contentType: "image/png",
+            headers: { "x-file-name": encodeURIComponent(`限流测试-${index}.png`) }
+        });
+        assert.equal(upload.status, 201, `第 ${index} 个：${JSON.stringify(upload.data)}`);
+    }
+});
