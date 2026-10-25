@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`9.3.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读，历史消息保留，见第 13.3 节；9.2 站主可以新增、改名、解散公共频道，见第 13.9 节；**9.3 修复前端脚本被浏览器缓存导致「api.chat.xxx is not a function」，见第 13.11 节**）
+- API 版本：`1.0.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；**1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节**）
 
 ---
 
@@ -201,6 +201,20 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | POST | `/api/chat/admin/public-groups` | 是（站主） | 新建公共频道（9.2） |
 | PATCH | `/api/chat/admin/public-groups/{id}` | 是（站主） | 修改频道名称 / 简介（9.2） |
 | DELETE | `/api/chat/admin/public-groups/{id}` | 是（站主） | 解散公共频道（9.2） |
+| GET | `/api/chat/users/uid/{uid}` | 是 | 按 UID 精确查号（1.0.0） |
+| GET | `/api/chat/groups/lookup` | 是 | 按群号查群（1.0.0） |
+| POST | `/api/chat/groups/join` | 是 | 按群号加入群聊（1.0.0） |
+| GET | `/api/chat/invites/current` | 是 | 我进行中的建群邀请（1.0.0） |
+| POST | `/api/chat/invites` | 是 | 发起 4 / 8 位邀请码（1.0.0） |
+| GET | `/api/chat/invites/{code}` | 是 | 邀请详情（1.0.0） |
+| POST | `/api/chat/invites/{code}/join` | 是 | 参加邀请（1.0.0） |
+| POST | `/api/chat/invites/{code}/leave` | 是 | 退出邀请（1.0.0） |
+| POST | `/api/chat/invites/{code}/close` | 是（发起人） | 结束邀请并建群（1.0.0） |
+| DELETE | `/api/chat/invites/{code}` | 是（发起人） | 取消邀请（1.0.0） |
+| POST | `/api/chat/conversations/{id}/redpackets` | 是 | 群聊里发拼手速红包（1.0.0） |
+| POST | `/api/chat/messages/{id}/redpacket/grab` | 是 | 抢红包（1.0.0） |
+| GET | `/api/chat/messages/{id}/redpacket` | 是 | 红包详情（1.0.0） |
+| POST | `/api/chat/messages/{id}/redpacket/refund` | 是（发送者） | 退回未抢完的金额（1.0.0） |
 | GET | `/api/chat/messages` | 是 | 兼容旧接口：等价于 `general` / `trade` / `help` 的消息列表 |
 | POST | `/api/chat/messages` | 是 | 兼容旧接口：向公共频道发文字消息 |
 
@@ -222,10 +236,10 @@ GET /api/health
 ```json
 {
     "name": "Vitual XRing API",
-    "version": "9.3.0",
+    "version": "1.0.0",
     "ok": true,
     "storage": "workers-kv",
-    "chat": { "version": "9.3", "enabled": true }
+    "chat": { "version": "1.0", "enabled": true }
 }
 ```
 
@@ -1038,6 +1052,7 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 - 支持：单聊、群聊、创建群、修改群名、群公告与置顶群公告、群主 / 管理员 / 转让 / 踢人、
   解散群聊（9.1：解散后只读保留历史消息）、
   公共频道管理（9.2：站主可在「管理」页新建 / 改名 / 改简介 / 解散公共频道）、
+  账号 UID 与按 UID 搜人、群号与群二维码、4 / 8 位邀请码建群、拼手速红包（1.0.0）、
   好友申请与黑名单、消息撤回、引用回复、转发、聊天记录搜索、会话置顶、消息免打扰、
   未读数、正在输入提示、在线状态、图片 / 文件消息
 - 实时消息通过 Durable Object `ChatHub` 的 WebSocket 推送；连接失败时自动降级为 7 秒轮询
@@ -1295,6 +1310,8 @@ curl https://xsmmc.caldson.us.ci/api/admin/log -H "authorization: ******"
 | `chat:media:{id}` / `chat:media-meta:{id}` | 图片 / 文件与元数据，`expirationTtl = 1200`（20 分钟） |
 | `chat:index` | 全部会话 id（站主管理页使用，最多 2000 个） |
 | `chat:public-groups` | 公共频道定义（9.2）：`[{ id, name, description, createdAt }]`，缺失时使用内置默认值 |
+| `chat:invite:{code}` | 建群邀请（1.0.0）：`{ code, digits, owner, name, participants[], closed, conversation }`，24 小时过期 |
+| `chat:invite-owner:{登录名}` | 我进行中的邀请码（1.0.0） |
 
 - 会话 id：公共频道为 `general` / `trade` / `help` 或站主新建的 `ch_xxxxxxxx`；群聊 `g_xxxxxxxxxxxx`；单聊 `dm_xxxxxxxxxxxx`
 - 消息结构（响应）：
@@ -1533,6 +1550,8 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/conversations/dm_xxxx 
 | `404` | `not_found` | 会话 / 消息 / 用户不存在 |
 | `410` | `media_expired` | 图片 / 文件已超过 20 分钟 |
 | `410` | `group_dissolved` | 群聊已解散，只能查看历史消息（9.1） |
+| `410` | `packet_empty` / `packet_expired` | 红包抢完 / 已过期（1.0.0） |
+| `409` | `already_grabbed` / `invite_closed` | 已抢过 / 邀请已结束（1.0.0） |
 | `413` | `payload_too_large` | 文件超过 4 MB |
 | `429` | `too_many_requests` | 触发限流 |
 | `503` | `chat_not_ready` | `CHAT_ENABLED=false` |
@@ -1585,10 +1604,10 @@ GitHub Pages 与浏览器会长期缓存这个 URL，于是页面在 9.2 上线�
 
 **修复**：
 
-1. 全站脚本引用统一带上版本参数，例如 `<script src="vtx-api.js?v=9.3"></script>`，
+1. 全站脚本引用统一带上版本参数，例如 `<script src="vtx-api.js?v=1.0.0"></script>`，
    `?v=` 变化会让浏览器与 CDN 必须重新取文件。发布新版本时**必须一起改这个参数**。
 2. `chatroom.html` 启动时校验 `VTXApi.version`：
-   - 低于页面要求的版本（当前 `REQUIRED_API_VERSION = "9.3.0"`）就自动按
+   - 低于页面要求的版本（当前 `REQUIRED_API_VERSION = "1.0.0"`）就自动按
      `vtx-api.js?v=<版本>&t=<时间戳>` 重新加载一次；
    - 仍然不达标时显示「页面资源需要更新」提示页，给一个「重新加载」按钮，
      而不是让用户对着 `xxx is not a function` 发愣。
@@ -1596,3 +1615,119 @@ GitHub Pages 与浏览器会长期缓存这个 URL，于是页面在 9.2 上线�
 
 **约定**：`vtx-api.js` 的 `API_VERSION`、`chatroom.html` 的 `REQUIRED_API_VERSION`、
 各页面 `<script>` 的 `?v=`、Worker 的 `VERSION` / `CHAT_VERSION` 必须同步升级。
+
+---
+
+## 14. 1.0.0 更新：UID、群号、邀请码与红包
+
+### 14.1 账号 UID
+
+每个账户都有一个稳定的数字 UID，注册时按顺序分配（从 `100001` 开始），
+老账户在第一次调用 `/api/me`、`/api/chat/users` 等接口时自动补号。
+
+```bash
+# 看自己的 UID（account.uid）
+curl https://xsmmc.caldson.us.ci/api/me -H "authorization: ******"
+
+# 按 UID 精确查号
+curl https://xsmmc.caldson.us.ci/api/chat/users/uid/100001 -H "authorization: ******"
+
+# 搜索框也支持直接输入 UID
+curl "https://xsmmc.caldson.us.ci/api/chat/users?q=100001" -H "authorization: ******"
+```
+
+- `publicAccount` / `/api/chat/users` / 群成员列表都会带上 `uid`
+- 聊天室左下角显示「用户名 · UID 100001」，点一下复制
+
+### 14.2 群号与群二维码
+
+群聊创建时分配一个 8 位随机群号（`no`），老群在打开群资料时补号。
+
+```bash
+# 按群号查群（返回群名、群主、人数、是否已加入、二维码链接）
+curl "https://xsmmc.caldson.us.ci/api/chat/groups/lookup?number=12345678" -H "authorization: ******"
+
+# 按群号加入
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/groups/join \
+  -H "authorization: ******" -H "content-type: application/json" -d '{"number":12345678}'
+```
+
+- 群二维码内容：`https://<站点>/chatroom.html?group=<群号>`，
+  前端用 `vtx-qr.js`（`VTXQR.canvas`）在群资料里绘制，扫开链接会提示「加入「XX」？」
+- 群资料里显示群号 + 「复制群号」「群二维码」
+
+### 14.3 4 / 8 位数字建群邀请码
+
+微信式流程：发起人给出 4 位（或本站特有的 8 位）数字，其他人输入后进入候选，
+发起人点「结束邀请并建群」时，把发起人 + 所有参与者一次性建成群聊。
+
+```bash
+# 发起邀请（digits 只接受 4 或 8）
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/invites \
+  -H "authorization: ******" -H "content-type: application/json" -d '{"digits":4,"name":"周末开黑"}'
+
+# 我当前还没结束的邀请
+curl https://xsmmc.caldson.us.ci/api/chat/invites/current -H "authorization: ******"
+
+# 查看邀请详情 / 加入 / 退出
+curl https://xsmmc.caldson.us.ci/api/chat/invites/1234 -H "authorization: ******"
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/invites/1234/join -H "authorization: ******"
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/invites/1234/leave -H "authorization: ******"
+
+# 结束邀请并建群（只有发起人）
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/invites/1234/close \
+  -H "authorization: ******" -H "content-type: application/json" -d '{"name":"周末开黑"}'
+
+# 取消邀请（只有发起人）
+curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/invites/1234 -H "authorization: ******"
+```
+
+- 邀请有效期 24 小时（KV `expirationTtl`），KV 键：`chat:invite:{code}`、`chat:invite-owner:{登录名}`
+- 每个账户同时只能有一个进行中的邀请，再发一次会自动作废旧的
+- 最多 100 人参加；发起人不能加入自己的邀请
+- 邀请结束时如果没有参与者也没填群名，返回 `400 no_participants`
+- 实时事件：有人加入 / 退出广播 `invite:update`；结束广播 `conversation:new` + `invite:closed`；
+  取消广播 `invite:cancelled`
+
+### 14.4 拼手速红包
+
+只能在群聊（含公共频道）里发，金额从发送者 VTX 余额里实扣，抢到的人余额实时增加。
+
+```bash
+# 发红包：total 元、count 最多几人可抢（0/省略＝所有人）、allow 只让这些人抢、note 留言
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx/redpackets \
+  -H "authorization: ******" -H "content-type: application/json" \
+  -d '{"total":"1.00","count":3,"allow":[],"note":"恭喜发财"}'
+
+# 抢红包（返回抢到的分与最新余额）
+curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/redpacket/grab?conversation=g_xxxx" \
+  -H "authorization: ******"
+
+# 红包详情（含每人抢到多少）
+curl "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/redpacket?conversation=g_xxxx" \
+  -H "authorization: ******"
+
+# 发送者退回未被抢完的金额
+curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/redpacket/refund?conversation=g_xxxx" \
+  -H "authorization: ******"
+```
+
+规则：
+
+| 规则 | 说明 |
+|---|---|
+| 最小金额 | 0.01 元，单个红包上限 200000.00 元 |
+| 每人至少 0.01 元 | `total` 的分数就是最多能分给的人数，`0.02` 元最多 2 人，人多会返回 `400 bad_request` |
+| `count` | 0 / 省略＝所有有资格的人都能抢；填写时必须 ≤ 群内可抢人数，也 ≤ 金额分数 |
+| `allow` | 只允许名单内的人抢，名单必须是群成员，人数同样受金额限制 |
+| 不能抢自己的 | 返回 `403 forbidden` |
+| 只能抢一次 | 重复抢返回 `409 already_grabbed` |
+| 抢完 / 过期 | 返回 `410 packet_empty` / `410 packet_expired` |
+| 分配算法 | 与微信相同的「二倍均值法」，保证剩余每人至少 0.01 元 |
+| 有效期 | 24 小时；未被抢完的金额发送者可以随时退回 |
+| 余额 | 发红包立刻扣款并写入 `trades`（`拼手速红包 -x.xx`），抢到的人写入 `+x.xx` |
+
+- 消息类型为 `redpacket`，`message.packet` 携带 `totalCents / remainCents / count / allow / grabs[] / closed / expiresAt`
+- 抢到后实时广播 `message:packet`，前端就地刷新红包卡片
+- 列表预览显示「[拼手速红包] 1.00 元」
+

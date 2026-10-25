@@ -75,10 +75,10 @@ function createEnv() {
     };
 }
 
-const SEED = {    Kitawaga: { password: "password1", username: "站主", money: "0.00", trades: [], data: {} },
-    Alice: { password: "password1", username: "爱丽丝", money: "0.00", trades: [], data: {} },
-    Bob: { password: "password1", username: "鲍勃", money: "0.00", trades: [], data: {} },
-    Carol: { password: "password1", username: "卡罗尔", money: "0.00", trades: [], data: {} }
+const SEED = {    Kitawaga: { password: "password1", username: "站主", money: "100.00", trades: [], data: {} },
+    Alice: { password: "password1", username: "爱丽丝", money: "10.00", trades: [], data: {} },
+    Bob: { password: "password1", username: "鲍勃", money: "10.00", trades: [], data: {} },
+    Carol: { password: "password1", username: "卡罗尔", money: "10.00", trades: [], data: {} }
 };
 
 async function api(env, method, path, options = {}) {
@@ -153,7 +153,7 @@ test("聊天室状态开放，并暴露实时通道与媒体 TTL", async () => {
     const { env } = await prepare();
     const status = await api(env, "GET", "/api/chat/status");
     assert.equal(status.status, 200);
-    assert.equal(status.data.version, "9.3");
+    assert.equal(status.data.version, "1.0");
     assert.equal(status.data.enabled, true);
     assert.equal(status.data.realtime, "websocket");
     assert.equal(status.data.mediaTtlSeconds, 1200);
@@ -697,3 +697,252 @@ test("WebSocket 广播：notify 只发给目标用户", async () => {
     hub.detach("Bob", bob);
     assert.equal(hub.sockets.size, 0);
 });
+
+
+/* ───────────── 1.0.0 测试 ───────────── */
+
+test("账号 UID：注册即分配，可按 UID 精确查号", async () => {
+    const { env, tokens } = await prepare();
+
+    const me = await api(env, "GET", "/api/me", { token: tokens.Alice });
+    assert.equal(me.status, 200);
+    const uid = me.data.account.uid;
+    assert.ok(Number.isInteger(uid) && uid >= 100001, String(uid));
+
+    const again = await api(env, "GET", "/api/me", { token: tokens.Alice });
+    assert.equal(again.data.account.uid, uid, "UID 必须稳定");
+
+    const found = await api(env, "GET", `/api/chat/users/uid/${uid}`, { token: tokens.Bob });
+    assert.equal(found.status, 200, JSON.stringify(found.data));
+    assert.equal(found.data.user.login, "Alice");
+    assert.equal(found.data.user.uid, uid);
+
+    const missing = await api(env, "GET", "/api/chat/users/uid/99999999", { token: tokens.Bob });
+    assert.equal(missing.status, 404);
+
+    const search = await api(env, "GET", `/api/chat/users?q=${uid}`, { token: tokens.Bob });
+    assert.equal(search.status, 200);
+    assert.equal(search.data.users[0].login, "Alice");
+    assert.equal(search.data.users[0].uid, uid);
+});
+
+test("群号：建群即有 8 位群号，可按群号加入群聊", async () => {
+    const { env, tokens } = await prepare();
+    const created = await api(env, "POST", "/api/chat/conversations/group", {
+        token: tokens.Alice,
+        body: { name: "群号测试", members: ["Bob"] }
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    const no = created.data.conversation.no;
+    assert.ok(Number(no) >= 10000000 && Number(no) <= 99999999, String(no));
+
+    const detail = await api(env, "GET", `/api/chat/conversations/${created.data.conversation.id}`, { token: tokens.Alice });
+    assert.equal(detail.data.conversation.no, no);
+
+    const lookup = await api(env, "GET", `/api/chat/groups/lookup?number=${no}`, { token: tokens.Carol });
+    assert.equal(lookup.status, 200, JSON.stringify(lookup.data));
+    assert.equal(lookup.data.group.no, no);
+    assert.equal(lookup.data.group.joined, false);
+    assert.ok(lookup.data.group.link.includes(`group=${no}`));
+
+    const unknown = await api(env, "GET", "/api/chat/groups/lookup?number=12345678", { token: tokens.Carol });
+    assert.equal(unknown.status, 404);
+
+    const joined = await api(env, "POST", "/api/chat/groups/join", {
+        token: tokens.Carol,
+        body: { number: no }
+    });
+    assert.equal(joined.status, 200, JSON.stringify(joined.data));
+    assert.equal(joined.data.joined, true);
+
+    const list = await api(env, "GET", "/api/chat/conversations", { token: tokens.Carol });
+    assert.ok(list.data.conversations.some((item) => item.id === created.data.conversation.id));
+
+    const members = await api(env, "GET", `/api/chat/conversations/${created.data.conversation.id}`, { token: tokens.Alice });
+    assert.equal(members.data.members.length, 3);
+});
+
+test("4 位 / 8 位邀请码建群：加入、结束邀请生成群聊", async () => {
+    const { env, tokens } = await prepare();
+
+    const invite = await api(env, "POST", "/api/chat/invites", {
+        token: tokens.Alice,
+        body: { digits: 4 }
+    });
+    assert.equal(invite.status, 201, JSON.stringify(invite.data));
+    const code = invite.data.invite.code;
+    assert.match(code, /^\d{4}$/);
+
+    const current = await api(env, "GET", "/api/chat/invites/current", { token: tokens.Alice });
+    assert.equal(current.data.invite.code, code);
+
+    const bobJoin = await api(env, "POST", `/api/chat/invites/${code}/join`, { token: tokens.Bob });
+    assert.equal(bobJoin.status, 200, JSON.stringify(bobJoin.data));
+    assert.equal(bobJoin.data.invite.count, 1);
+
+    const carolJoin = await api(env, "POST", `/api/chat/invites/${code}/join`, { token: tokens.Carol });
+    assert.equal(carolJoin.data.invite.count, 2);
+
+    const ownerJoin = await api(env, "POST", `/api/chat/invites/${code}/join`, { token: tokens.Alice });
+    assert.equal(ownerJoin.status, 400);
+
+    const bobClose = await api(env, "POST", `/api/chat/invites/${code}/close`, { token: tokens.Bob });
+    assert.equal(bobClose.status, 403);
+
+    const closed = await api(env, "POST", `/api/chat/invites/${code}/close`, {
+        token: tokens.Alice,
+        body: { name: "邀请码群聊" }
+    });
+    assert.equal(closed.status, 201, JSON.stringify(closed.data));
+    assert.equal(closed.data.conversation.name, "邀请码群聊");
+    assert.equal(closed.data.conversation.memberCount, 3);
+    assert.ok(Number(closed.data.conversation.no) >= 10000000);
+
+    const afterClose = await api(env, "POST", `/api/chat/invites/${code}/join`, { token: tokens.Kitawaga });
+    assert.equal(afterClose.status, 409);
+
+    const currentAfter = await api(env, "GET", "/api/chat/invites/current", { token: tokens.Alice });
+    assert.equal(currentAfter.data.invite, null);
+
+    const long = await api(env, "POST", "/api/chat/invites", {
+        token: tokens.Bob,
+        body: { digits: 8 }
+    });
+    assert.equal(long.status, 201, JSON.stringify(long.data));
+    assert.match(long.data.invite.code, /^\d{8}$/);
+
+    const badDigits = await api(env, "POST", "/api/chat/invites", {
+        token: tokens.Bob,
+        body: { digits: 5 }
+    });
+    assert.equal(badDigits.status, 400);
+
+    const cancelled = await api(env, "DELETE", `/api/chat/invites/${long.data.invite.code}`, { token: tokens.Bob });
+    assert.equal(cancelled.status, 200);
+    const gone = await api(env, "GET", `/api/chat/invites/${long.data.invite.code}`, { token: tokens.Carol });
+    assert.equal(gone.status, 404);
+});
+
+test("拼手速红包：金额校验、抢红包、余额变动、退回", async () => {
+    const { env, tokens } = await prepare();
+    const created = await api(env, "POST", "/api/chat/conversations/group", {
+        token: tokens.Alice,
+        body: { name: "红包群", members: ["Bob", "Carol"] }
+    });
+    const id = created.data.conversation.id;
+
+    /* 0.02 元最多 2 人 */
+    const tooMany = await api(env, "POST", `/api/chat/conversations/${id}/redpackets`, {
+        token: tokens.Alice,
+        body: { total: "0.02", count: 3 }
+    });
+    assert.equal(tooMany.status, 400, JSON.stringify(tooMany.data));
+
+    const zeroCents = await api(env, "POST", `/api/chat/conversations/${id}/redpackets`, {
+        token: tokens.Alice,
+        body: { total: "0.001" }
+    });
+    assert.equal(zeroCents.status, 400);
+
+    const poor = await api(env, "POST", `/api/chat/conversations/${id}/redpackets`, {
+        token: tokens.Alice,
+        body: { total: "100.00" }
+    });
+    assert.equal(poor.status, 400);
+    assert.equal(poor.data.error, "insufficient_balance");
+
+    /* 直接单聊不能发红包 */
+    const direct = await befriend(env, tokens, "Alice", "Bob");
+    const notGroup = await api(env, "POST", `/api/chat/conversations/${direct.id}/redpackets`, {
+        token: tokens.Alice,
+        body: { total: "1.00" }
+    });
+    assert.equal(notGroup.status, 400);
+
+    const packet = await api(env, "POST", `/api/chat/conversations/${id}/redpackets`, {
+        token: tokens.Alice,
+        body: { total: "1.00", count: 2, note: "手速" }
+    });
+    assert.equal(packet.status, 201, JSON.stringify(packet.data));
+    assert.equal(packet.data.message.type, "redpacket");
+    assert.equal(packet.data.message.packet.totalCents, 100);
+    assert.equal(packet.data.balance, "9.00");
+
+    const messageId = packet.data.message.id;
+
+    const selfGrab = await api(env, "POST", `/api/chat/messages/${messageId}/redpacket/grab?conversation=${id}`, {
+        token: tokens.Alice
+    });
+    assert.equal(selfGrab.status, 403);
+
+    const bobGrab = await api(env, "POST", `/api/chat/messages/${messageId}/redpacket/grab?conversation=${id}`, {
+        token: tokens.Bob
+    });
+    assert.equal(bobGrab.status, 200, JSON.stringify(bobGrab.data));
+    assert.ok(bobGrab.data.cents >= 1);
+    assert.equal(bobGrab.data.balance, fromCentsForTest(1000 + bobGrab.data.cents));
+
+    const twice = await api(env, "POST", `/api/chat/messages/${messageId}/redpacket/grab?conversation=${id}`, {
+        token: tokens.Bob
+    });
+    assert.equal(twice.status, 409);
+
+    const carolGrab = await api(env, "POST", `/api/chat/messages/${messageId}/redpacket/grab?conversation=${id}`, {
+        token: tokens.Carol
+    });
+    assert.equal(carolGrab.status, 200, JSON.stringify(carolGrab.data));
+    assert.equal(bobGrab.data.cents + carolGrab.data.cents, 100, "两个红包加起来必须等于总额");
+
+    const third = await api(env, "POST", `/api/chat/messages/${messageId}/redpacket/grab?conversation=${id}`, {
+        token: tokens.Kitawaga
+    });
+    assert.ok([403, 404, 410].includes(third.status), String(third.status));
+
+    const detail = await api(env, "GET", `/api/chat/messages/${messageId}/redpacket?conversation=${id}`, {
+        token: tokens.Bob
+    });
+    assert.equal(detail.status, 200);
+    assert.ok(detail.data.mine.cents >= 1);
+    assert.equal(detail.data.message.packet.closed, true);
+
+    /* 指定人可以抢 */
+    const limited = await api(env, "POST", `/api/chat/conversations/${id}/redpackets`, {
+        token: tokens.Bob,
+        body: { total: "0.50", allow: ["Carol"] }
+    });
+    assert.equal(limited.status, 201, JSON.stringify(limited.data));
+
+    const aliceTries = await api(env, "POST", `/api/chat/messages/${limited.data.message.id}/redpacket/grab?conversation=${id}`, {
+        token: tokens.Kitawaga
+    });
+    assert.equal(aliceTries.status, 403);
+
+    const carolLimited = await api(env, "POST", `/api/chat/messages/${limited.data.message.id}/redpacket/grab?conversation=${id}`, {
+        token: tokens.Carol
+    });
+    assert.equal(carolLimited.status, 200);
+    assert.equal(carolLimited.data.cents, 50);
+
+    /* 未被抢完的可以退回 */
+    const refundable = await api(env, "POST", `/api/chat/conversations/${id}/redpackets`, {
+        token: tokens.Bob,
+        body: { total: "2.00", count: 2 }
+    });
+    assert.equal(refundable.status, 201, JSON.stringify(refundable.data));
+
+    const notOwner = await api(env, "POST", `/api/chat/messages/${refundable.data.message.id}/redpacket/refund?conversation=${id}`, {
+        token: tokens.Carol
+    });
+    assert.equal(notOwner.status, 403);
+
+    const refunded = await api(env, "POST", `/api/chat/messages/${refundable.data.message.id}/redpacket/refund?conversation=${id}`, {
+        token: tokens.Bob
+    });
+    assert.equal(refunded.status, 200, JSON.stringify(refunded.data));
+    assert.equal(refunded.data.refunded, "2.00");
+    assert.equal(refunded.data.balance, fromCentsForTest(950 + bobGrab.data.cents));
+});
+
+function fromCentsForTest(cents) {
+    return (cents / 100).toFixed(2);
+}

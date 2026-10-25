@@ -137,7 +137,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。只有在 Workers 完全连不上时，
     // 才会退回上面那套 GitHub 直连逻辑（secure.json 里的 token 作为备用通道）。
 
-    const API_VERSION = "9.3.0";
+    const API_VERSION = "1.0.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -960,7 +960,41 @@
             method: "PATCH",
             body: changes
         }),
-        removePublicGroup: (id) => chatRequest(`/admin/public-groups/${encodeId(id)}`, { method: "DELETE" })
+        removePublicGroup: (id) => chatRequest(`/admin/public-groups/${encodeId(id)}`, { method: "DELETE" }),
+        userByUid: (uid) => chatRequest(`/users/uid/${encodeId(uid)}`),
+        groupLookup: (number) => chatRequest(`/groups/lookup?number=${encodeId(number)}`),
+        joinGroupByNumber: (number) => chatRequest("/groups/join", {
+            method: "POST",
+            body: { number }
+        }),
+        createInvite: (digits, name) => chatRequest("/invites", {
+            method: "POST",
+            body: { digits, name }
+        }),
+        currentInvite: () => chatRequest("/invites/current"),
+        invite: (code) => chatRequest(`/invites/${encodeId(code)}`),
+        joinInvite: (code) => chatRequest(`/invites/${encodeId(code)}/join`, { method: "POST" }),
+        leaveInvite: (code) => chatRequest(`/invites/${encodeId(code)}/leave`, { method: "POST" }),
+        closeInvite: (code, name) => chatRequest(`/invites/${encodeId(code)}/close`, {
+            method: "POST",
+            body: { name }
+        }),
+        cancelInvite: (code) => chatRequest(`/invites/${encodeId(code)}`, { method: "DELETE" }),
+        sendRedPacket: (id, payload) => chatRequest(`/conversations/${encodeId(id)}/redpackets`, {
+            method: "POST",
+            body: payload
+        }),
+        grabRedPacket: (id, messageId) => chatRequest(
+            `/messages/${encodeId(messageId)}/redpacket/grab?conversation=${encodeId(id)}`,
+            { method: "POST" }
+        ),
+        redPacket: (id, messageId) => chatRequest(
+            `/messages/${encodeId(messageId)}/redpacket?conversation=${encodeId(id)}`
+        ),
+        refundRedPacket: (id, messageId) => chatRequest(
+            `/messages/${encodeId(messageId)}/redpacket/refund?conversation=${encodeId(id)}`,
+            { method: "POST" }
+        )
     };
 
     window.VTXApi = {

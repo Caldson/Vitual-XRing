@@ -32,7 +32,7 @@
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  */
 
-const VERSION = "9.3.0";
+const VERSION = "1.0.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -45,7 +45,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "9.3";
+const CHAT_VERSION = "1.0";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 const CHAT_WINDOW_MS = 60 * 1000;
@@ -76,6 +76,17 @@ const CHAT_PUBLIC_GROUPS = [
 const CHAT_PUBLIC_GROUPS_KEY = "chat:public-groups";
 const CHAT_PUBLIC_DESCRIPTION_MAX = 200;
 const CHAT_PUBLIC_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{1,39}$/;
+/* 1.0.0：账号 UID、群号、建群邀请码、拼手速红包 */
+const CHAT_UID_START = 100001;
+const CHAT_GROUP_NUMBER_MIN = 10000000;
+const CHAT_GROUP_NUMBER_MAX = 99999999;
+const CHAT_INVITE_PATTERN_4 = /^\d{4}$/;
+const CHAT_INVITE_PATTERN_8 = /^\d{8}$/;
+const CHAT_INVITE_TTL_SECONDS = 24 * 60 * 60;
+const CHAT_INVITE_MAX_PARTICIPANTS = 100;
+const CHAT_REDPACKET_MAX_CENTS = 20000000;
+const CHAT_REDPACKET_ALLOW_LIMIT = 200;
+const CHAT_REDPACKET_TTL_MS = 24 * 60 * 60 * 1000;
 const CHAT_INDEX_KEY = "chat:index";
 const LOGIN_WINDOW_MS = 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
@@ -218,11 +229,69 @@ async function verifyToken(token, secret) {
 function publicAccount(account) {
     const source = account && typeof account === "object" ? account : {};
     return {
+        uid: Number(source.uid) || 0,
         username: source.username || "",
         money: source.money || "0.00",
         trades: Array.isArray(source.trades) ? source.trades : [],
         data: source.data && typeof source.data === "object" && !Array.isArray(source.data) ? source.data : {}
     };
+}
+
+/* ───────── 1.0.0：账号 UID ───────── */
+
+function nextUidFrom(accounts) {
+    let max = CHAT_UID_START - 1;
+    for (const account of Object.values(accounts || {})) {
+        const value = Number(account && account.uid);
+        if (Number.isFinite(value) && value > max) {
+            max = value;
+        }
+    }
+    return max + 1;
+}
+
+/* 给缺失 UID 的账户补号；只在确实需要写入时才占用写锁 */
+async function ensureAccountUids(env, logins) {
+    if (!hasKv(env)) {
+        return await loadAccounts(env);
+    }
+    const current = await loadAccounts(env);
+    const targets = Array.isArray(logins) && logins.length ? logins : Object.keys(current);
+    const missing = targets.filter((login) => current[login] && !Number(current[login].uid));
+    if (!missing.length) {
+        return current;
+    }
+    const saved = await withStoreLock(async () => {
+        const fresh = await readKvAccounts(env);
+        let seq = nextUidFrom(fresh);
+        let changed = false;
+        for (const login of missing) {
+            if (fresh[login] && !Number(fresh[login].uid)) {
+                fresh[login].uid = seq;
+                seq += 1;
+                changed = true;
+            }
+        }
+        if (changed) {
+            await env.ACCOUNTS_KV.put(STORE_KEY, JSON.stringify(fresh));
+            writeMemory(env, fresh);
+        }
+        return fresh;
+    });
+    return saved;
+}
+
+function findLoginByUid(accounts, uid) {
+    const target = Number(uid);
+    if (!Number.isFinite(target) || target <= 0) {
+        return "";
+    }
+    for (const [login, account] of Object.entries(accounts || {})) {
+        if (Number(account && account.uid) === target) {
+            return login;
+        }
+    }
+    return "";
 }
 
 function loginHistoryOf(account) {
@@ -1099,7 +1168,7 @@ async function handleMe(request, env, cors) {
         return session.error;
     }
 
-    const accounts = await loadAccounts(env);
+    const accounts = await ensureAccountUids(env, [session.payload.sub]);
     const account = accounts[session.payload.sub];
 
     if (!account) {
@@ -1123,6 +1192,15 @@ async function readJsonBody(request) {
 
 function plainObject(value) {
     return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+/* 有些接口（结束邀请、加入邀请等）允许不带请求体 */
+async function readOptionalBody(request) {
+    try {
+        return plainObject(await readJsonBody(request));
+    } catch (error) {
+        return {};
+    }
 }
 
 function validateGameName(game) {
@@ -1351,6 +1429,7 @@ async function handleRegister(request, env, cors) {
         }
 
         data[login] = {
+            uid: nextUidFrom(data),
             username: username || login,
             password,
             money: "0.00",
@@ -2202,7 +2281,8 @@ async function handleChatStatus(request, env, cors) {
         features: [
             "friends", "direct", "groups", "group-admin", "announcement",
             "recall", "forward", "reply", "search", "mute-pin", "files-images", "expiring-media",
-            "public-channel-admin", "group-dissolve"
+            "public-channel-admin", "group-dissolve", "uid", "group-number", "group-qr",
+            "invite-code", "redpacket"
         ],
         mediaTtlSeconds: CHAT_MEDIA_TTL_SECONDS,
         message: chatEnabled(env) ? "聊天室已开放" : "版本9.0，我们聊天室见"
@@ -2486,6 +2566,9 @@ function messagePreview(message) {
     if (message.type === "file") {
         return `[文件] ${message.media && message.media.name ? message.media.name : ""}`.trim();
     }
+    if (message.type === "redpacket" && message.packet) {
+        return `[拼手速红包] ${fromCents(message.packet.totalCents)} 元 ${message.packet.note || ""}`.trim();
+    }
     return String(message.text || "");
 }
 
@@ -2511,6 +2594,7 @@ function messageView(message) {
         forwarded: Boolean(message.forwarded),
         recalled: Boolean(message.recalled),
         system: Boolean(message.system),
+        packet: message.recalled ? null : (message.packet || null),
         at: Number(message.at) || 0,
         time: message.time || ""
     };
@@ -2541,6 +2625,7 @@ function conversationView(env, conv, entry, messages, login, accounts) {
         id: conv.id,
         type: conv.type,
         name,
+        no: Number(conv.no) || 0,
         peer: peerLogin,
         peerName: peerLogin ? chatDisplayName(accounts, peerLogin) : "",
         public: Boolean(conv.public),
@@ -2569,6 +2654,52 @@ function conversationTargets(conv, accounts) {
         return Object.keys(accounts);
     }
     return Array.isArray(conv.members) ? conv.members.slice() : [];
+}
+
+/* ───────── 1.0.0：群号（QQ 式） ───────── */
+
+async function uniqueGroupNumber(env) {
+    const index = await readChatIndex(env);
+    const used = new Set();
+    for (const id of index) {
+        const conv = await readConversation(env, id);
+        const value = Number(conv && conv.no);
+        if (value) {
+            used.add(value);
+        }
+    }
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+        const span = CHAT_GROUP_NUMBER_MAX - CHAT_GROUP_NUMBER_MIN + 1;
+        const candidate = CHAT_GROUP_NUMBER_MIN + Math.floor(Math.random() * span);
+        if (!used.has(candidate)) {
+            return candidate;
+        }
+    }
+    return CHAT_GROUP_NUMBER_MIN + used.size + 1;
+}
+
+async function ensureGroupNumber(env, conv) {
+    if (!conv || conv.type !== "group" || Number(conv.no)) {
+        return conv;
+    }
+    conv.no = await uniqueGroupNumber(env);
+    await saveConversation(env, conv);
+    return conv;
+}
+
+async function findGroupByNumber(env, number) {
+    const target = Number(number);
+    if (!Number.isFinite(target) || target <= 0) {
+        return null;
+    }
+    const index = await readChatIndex(env);
+    for (const id of index) {
+        const conv = await readConversation(env, id);
+        if (conv && conv.type === "group" && Number(conv.no) === target) {
+            return conv;
+        }
+    }
+    return null;
 }
 
 function chatMemberOf(conv, login) {
@@ -2831,6 +2962,7 @@ async function handleChatCreateGroup(request, env, cors) {
             id: `g_${randomCode(9)}`,
             type: "group",
             name,
+            no: await uniqueGroupNumber(env),
             public: false,
             owner: login,
             admins: [],
@@ -2890,6 +3022,7 @@ async function handleChatConversationDetail(request, env, cors, id) {
             return { error: loaded.error };
         }
         const conv = loaded.conv;
+        await ensureGroupNumber(env, conv);
         const record = await loadChatUser(env, login);
         const messages = await readChatMessages(env, conv.id);
         const view = conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts);
@@ -2897,6 +3030,7 @@ async function handleChatConversationDetail(request, env, cors, id) {
         const members = memberLogins.map((member) => ({
             login: member,
             username: chatDisplayName(accounts, member),
+            uid: Number(accounts[member] && accounts[member].uid) || 0,
             alias: String(conv.aliases[member] || ""),
             owner: conv.owner === member,
             admin: (conv.admins || []).includes(member),
@@ -4249,7 +4383,7 @@ async function handleChatUsers(request, env, cors) {
     }
 
     const login = session.payload.sub;
-    const accounts = await loadAccounts(env);
+    const accounts = await ensureAccountUids(env);
     const url = new URL(request.url);
     const query = String(url.searchParams.get("q") || "").trim().toLowerCase();
     const record = await readChatUser(env, login);
@@ -4260,11 +4394,17 @@ async function handleChatUsers(request, env, cors) {
             continue;
         }
         const username = String(account && account.username || name);
-        if (query && !name.toLowerCase().includes(query) && !username.toLowerCase().includes(query)) {
+        const uid = Number(account && account.uid) || 0;
+        const uidText = uid ? String(uid) : "";
+        if (query
+            && !name.toLowerCase().includes(query)
+            && !username.toLowerCase().includes(query)
+            && !(uidText && uidText.includes(query))) {
             continue;
         }
         output.push({
             login: name,
+            uid,
             username,
             friend: record.friends.some((item) => item.login === name),
             blocked: record.blocked.includes(name),
@@ -4273,8 +4413,49 @@ async function handleChatUsers(request, env, cors) {
         });
     }
 
-    output.sort((left, right) => Number(right.friend) - Number(left.friend) || left.login.localeCompare(right.login));
+    output.sort((left, right) => {
+        const exactLeft = String(left.uid) === query ? 1 : 0;
+        const exactRight = String(right.uid) === query ? 1 : 0;
+        return exactRight - exactLeft
+            || Number(right.friend) - Number(left.friend)
+            || left.login.localeCompare(right.login);
+    });
     return jsonResponse({ ok: true, query, users: output.slice(0, 30) }, 200, cors);
+}
+
+/* 1.0.0：按 UID 精确查号 */
+async function handleChatUserByUid(request, env, cors, uid) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await ensureAccountUids(env);
+    const target = findLoginByUid(accounts, uid);
+    if (!target) {
+        return jsonResponse({ error: "not_found", message: `没有 UID 为 ${uid} 的账户` }, 404, cors);
+    }
+    const account = accounts[target];
+    const record = await readChatUser(env, login);
+
+    return jsonResponse({
+        ok: true,
+        user: {
+            login: target,
+            uid: Number(account.uid) || 0,
+            username: chatDisplayName(accounts, target),
+            me: target === login,
+            friend: record.friends.some((item) => item.login === target),
+            blocked: record.blocked.includes(target),
+            incoming: record.incoming.some((item) => item.from === target),
+            outgoing: record.outgoing.some((item) => item.to === target)
+        }
+    }, 200, cors);
 }
 
 async function handleChatContacts(request, env, cors) {
@@ -5031,8 +5212,963 @@ async function handleChatAdminDeleteConversation(request, env, cors, id) {
     return jsonResponse({ ok: true, conversation: id, deleted: true }, 200, cors);
 }
 
-async function handleChatRoomCompat(request, env, cors) {
+/* ───────────────── 1.0.0：群号 / 群二维码 / 按群号加入 ───────────────── */
+
+function groupInviteLink(request, env, no) {
+    return `${siteOrigin(request, env)}/chatroom.html?group=${encodeURIComponent(String(no || ""))}`;
+}
+
+function groupCard(request, env, conv, accounts, login) {
+    return {
+        id: conv.id,
+        no: Number(conv.no) || 0,
+        name: String(conv.name || "群聊"),
+        owner: conv.owner || "",
+        ownerName: conv.owner ? chatDisplayName(accounts, conv.owner) : "",
+        memberCount: conv.public ? Object.keys(accounts).length : (conv.members || []).length,
+        public: Boolean(conv.public),
+        dissolved: Boolean(conv.dissolved),
+        joined: chatMemberOf(conv, login),
+        link: groupInviteLink(request, env, conv.no),
+        announcement: conv.announcement ? conv.announcement.text : ""
+    };
+}
+
+async function handleChatGroupLookup(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
     const url = new URL(request.url);
+    const number = String(url.searchParams.get("number") || "").trim();
+    const conv = await findGroupByNumber(env, number);
+    if (!conv) {
+        return jsonResponse({ error: "not_found", message: "没有这个群号" }, 404, cors);
+    }
+    const accounts = await loadAccounts(env);
+    return jsonResponse({
+        ok: true,
+        group: groupCard(request, env, conv, accounts, session.payload.sub)
+    }, 200, cors);
+}
+
+async function handleChatGroupJoinByNumber(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const body = await readOptionalBody(request);
+    const number = String(body.number ?? new URL(request.url).searchParams.get("number") ?? "").trim();
+    if (!number) {
+        return jsonResponse({ error: "bad_request", message: "请填写群号" }, 400, cors);
+    }
+
+    const accounts = await loadAccounts(env);
+    const result = await withStoreLock(async () => {
+        const conv = await findGroupByNumber(env, number);
+        if (!conv) {
+            return { error: jsonResponse({ error: "not_found", message: "没有这个群号" }, 404, cors) };
+        }
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
+
+        if (!chatMemberOf(conv, login)) {
+            if (conv.public) {
+                await ensureConversationEntry(env, login, conv.id);
+            } else {
+                if (conv.members.length >= CHAT_GROUP_MAX_MEMBERS) {
+                    return { error: jsonResponse({ error: "bad_request", message: `群成员不能超过 ${CHAT_GROUP_MAX_MEMBERS} 人` }, 400, cors) };
+                }
+                conv.members.push(login);
+                await appendSystemMessage(env, conv, `${chatDisplayName(accounts, login)} 通过群号加入了群聊`);
+                await saveConversation(env, conv);
+                await ensureConversationEntry(env, login, conv.id);
+            }
+        } else {
+            await ensureConversationEntry(env, login, conv.id);
+        }
+
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        return {
+            view: conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts),
+            targets: conversationTargets(conv, accounts)
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:update", conversation: result.view });
+    return jsonResponse({ ok: true, conversation: result.view, joined: true }, 200, cors);
+}
+
+/* ───────────────── 1.0.0：4 / 8 位数字建群邀请码 ───────────────── */
+
+function chatInviteKey(code) {
+    return `chat:invite:${code}`;
+}
+
+function chatInviteOwnerKey(login) {
+    return `chat:invite-owner:${login}`;
+}
+
+function inviteDigitsOf(value) {
+    const digits = Number(value) || 0;
+    return digits === 4 || digits === 8 ? digits : 0;
+}
+
+function inviteCodeMatches(code) {
+    const text = String(code || "").trim();
+    if (CHAT_INVITE_PATTERN_4.test(text) || CHAT_INVITE_PATTERN_8.test(text)) {
+        return text;
+    }
+    return "";
+}
+
+async function readInvite(env, code) {
+    const invite = plainObject(await env.ACCOUNTS_KV.get(chatInviteKey(code), "json"));
+    return invite.code ? invite : null;
+}
+
+async function saveInvite(env, invite) {
+    await env.ACCOUNTS_KV.put(chatInviteKey(invite.code), JSON.stringify(invite), {
+        expirationTtl: CHAT_INVITE_TTL_SECONDS
+    });
+}
+
+function inviteView(invite, accounts) {
+    const participants = (invite.participants || []).map((login) => ({
+        login,
+        uid: Number(accounts[login] && accounts[login].uid) || 0,
+        username: chatDisplayName(accounts, login)
+    }));
+    return {
+        code: invite.code,
+        digits: invite.digits,
+        name: invite.name || "",
+        owner: invite.owner,
+        ownerName: chatDisplayName(accounts, invite.owner),
+        participants,
+        count: participants.length,
+        closed: Boolean(invite.closed),
+        conversation: invite.conversation || "",
+        createdAt: invite.createdAt || "",
+        expiresAt: invite.expiresAt || 0
+    };
+}
+
+async function closeInvite(env, invite, accounts) {
+    const now = shanghaiTimestamp();
+    const name = normalizeGroupName(invite.name || `群聊 ${invite.code}`);
+    const members = Array.from(new Set([invite.owner, ...(invite.participants || [])].filter(Boolean)));
+
+    const conv = {
+        id: `g_${randomCode(9)}`,
+        type: "group",
+        name,
+        no: await uniqueGroupNumber(env),
+        public: false,
+        owner: invite.owner,
+        admins: [],
+        members,
+        aliases: {},
+        announcement: null,
+        createdAt: now,
+        updatedAt: now,
+        lastMessage: null
+    };
+
+    await saveConversation(env, conv);
+    await addToChatIndex(env, conv.id);
+    for (const member of members) {
+        await ensureConversationEntry(env, member, conv.id);
+    }
+
+    const invited = members.filter((item) => item !== invite.owner);
+    await appendSystemMessage(env, conv, `建群邀请「${invite.code}」结束，${members.length} 人组成了群聊`
+        + (invited.length ? `（${invited.map((item) => chatDisplayName(accounts, item)).join("、")} 通过邀请码加入）` : ""));
+    await saveConversation(env, conv);
+
+    invite.closed = true;
+    invite.closedAt = now;
+    invite.conversation = conv.id;
+    await saveInvite(env, invite);
+    await env.ACCOUNTS_KV.delete(chatInviteOwnerKey(invite.owner));
+
+    const record = await loadChatUser(env, invite.owner);
+    const messages = await readChatMessages(env, conv.id);
+    return {
+        view: conversationView(env, conv, chatEntry(record, conv.id), messages, invite.owner, accounts),
+        targets: conversationTargets(conv, accounts)
+    };
+}
+
+async function handleChatInviteCreate(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const body = plainObject(await readJsonBody(request));
+    const digits = inviteDigitsOf(body.digits === undefined ? 4 : body.digits);
+    if (!digits) {
+        return jsonResponse({ error: "bad_request", message: "邀请码只能是 4 位或 8 位数字" }, 400, cors);
+    }
+
+    let name = "";
+    if (body.name !== undefined && String(body.name).trim()) {
+        try {
+            name = normalizeGroupName(body.name);
+        } catch (error) {
+            return jsonResponse({ error: error.code || "bad_request", message: error.message }, error.status || 400, cors);
+        }
+    }
+
+    const accounts = await ensureAccountUids(env, [login]);
+    const result = await withStoreLock(async () => {
+        const previous = await env.ACCOUNTS_KV.get(chatInviteOwnerKey(login));
+        if (previous) {
+            const old = await readInvite(env, previous);
+            if (old && !old.closed) {
+                await env.ACCOUNTS_KV.delete(chatInviteKey(old.code));
+            }
+        }
+
+        const min = digits === 4 ? 0 : 10000000;
+        const span = digits === 4 ? 10000 : 90000000;
+        let code = "";
+        for (let attempt = 0; attempt < 60; attempt += 1) {
+            const candidate = String(min + Math.floor(Math.random() * span)).padStart(digits, "0");
+            const taken = await readInvite(env, candidate);
+            if (!taken) {
+                code = candidate;
+                break;
+            }
+        }
+        if (!code) {
+            return { error: jsonResponse({ error: "conflict", message: "邀请码分配失败，请重试" }, 409, cors) };
+        }
+
+        const createdAt = shanghaiTimestamp();
+        const invite = {
+            code,
+            digits,
+            owner: login,
+            name,
+            participants: [],
+            createdAt,
+            expiresAt: Date.now() + CHAT_INVITE_TTL_SECONDS * 1000,
+            closed: false,
+            conversation: ""
+        };
+        await saveInvite(env, invite);
+        await env.ACCOUNTS_KV.put(chatInviteOwnerKey(login), code, {
+            expirationTtl: CHAT_INVITE_TTL_SECONDS
+        });
+        return { invite };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return jsonResponse({ ok: true, invite: inviteView(result.invite, accounts) }, 201, cors);
+}
+
+async function handleChatInviteCurrent(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await ensureAccountUids(env, [login]);
+    const code = await env.ACCOUNTS_KV.get(chatInviteOwnerKey(login));
+    const invite = code ? await readInvite(env, code) : null;
+    if (!invite || invite.closed) {
+        return jsonResponse({ ok: true, invite: null }, 200, cors);
+    }
+    return jsonResponse({ ok: true, invite: inviteView(invite, accounts) }, 200, cors);
+}
+
+async function handleChatInviteDetail(request, env, cors, code) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const invite = await readInvite(env, code);
+    if (!invite) {
+        return jsonResponse({ error: "not_found", message: "邀请码不存在或已过期" }, 404, cors);
+    }
+    const accounts = await ensureAccountUids(env);
+    return jsonResponse({ ok: true, invite: inviteView(invite, accounts) }, 200, cors);
+}
+
+async function handleChatInviteJoin(request, env, cors, code) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await ensureAccountUids(env, [login]);
+    const result = await withStoreLock(async () => {
+        const invite = await readInvite(env, code);
+        if (!invite) {
+            return { error: jsonResponse({ error: "not_found", message: "邀请码不存在或已过期" }, 404, cors) };
+        }
+        if (invite.closed) {
+            return {
+                error: jsonResponse(
+                    { error: "invite_closed", message: "邀请已结束，群聊已经建好了", conversation: invite.conversation },
+                    409,
+                    cors
+                )
+            };
+        }
+        if (invite.owner === login) {
+            return { error: jsonResponse({ error: "bad_request", message: "这是你自己发起的邀请" }, 400, cors) };
+        }
+        if ((invite.participants || []).includes(login)) {
+            return { invite };
+        }
+        if ((invite.participants || []).length >= CHAT_INVITE_MAX_PARTICIPANTS) {
+            return { error: jsonResponse({ error: "bad_request", message: `最多 ${CHAT_INVITE_MAX_PARTICIPANTS} 人参加邀请` }, 400, cors) };
+        }
+        invite.participants.push(login);
+        await saveInvite(env, invite);
+        return { invite };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    const view = inviteView(result.invite, accounts);
+    await notifyChat(env, [result.invite.owner], { type: "invite:update", invite: view });
+    return jsonResponse({ ok: true, invite: view }, 200, cors);
+}
+
+async function handleChatInviteLeave(request, env, cors, code) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await ensureAccountUids(env, [login]);
+    const result = await withStoreLock(async () => {
+        const invite = await readInvite(env, code);
+        if (!invite) {
+            return { error: jsonResponse({ error: "not_found", message: "邀请码不存在或已过期" }, 404, cors) };
+        }
+        invite.participants = (invite.participants || []).filter((item) => item !== login);
+        await saveInvite(env, invite);
+        return { invite };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    const view = inviteView(result.invite, accounts);
+    await notifyChat(env, [result.invite.owner], { type: "invite:update", invite: view });
+    return jsonResponse({ ok: true, invite: view, left: true }, 200, cors);
+}
+
+async function handleChatInviteClose(request, env, cors, code) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const body = await readOptionalBody(request);
+    const accounts = await ensureAccountUids(env);
+
+    if (body.name !== undefined && String(body.name).trim()) {
+        try {
+            normalizeGroupName(body.name);
+        } catch (error) {
+            return jsonResponse({ error: error.code || "bad_request", message: error.message }, error.status || 400, cors);
+        }
+    }
+
+    const result = await withStoreLock(async () => {
+        const invite = await readInvite(env, code);
+        if (!invite) {
+            return { error: jsonResponse({ error: "not_found", message: "邀请码不存在或已过期" }, 404, cors) };
+        }
+        if (invite.owner !== login) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有发起人可以结束邀请" }, 403, cors) };
+        }
+        if (invite.closed) {
+            return {
+                error: jsonResponse(
+                    { error: "invite_closed", message: "邀请已经结束了", conversation: invite.conversation },
+                    409,
+                    cors
+                )
+            };
+        }
+        if (body.name !== undefined && String(body.name).trim()) {
+            invite.name = String(body.name).trim();
+        }
+        if (!(invite.participants || []).length && !invite.name) {
+            return {
+                error: jsonResponse(
+                    { error: "no_participants", message: "还没有人加入邀请，先让大家输入邀请码吧" },
+                    400,
+                    cors
+                )
+            };
+        }
+        const closed = await closeInvite(env, invite, accounts);
+        return closed;
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:new", conversation: result.view });
+    const invite = await readInvite(env, code);
+    const participants = (invite && invite.participants ? invite.participants : [])
+        .filter((item) => item !== login);
+    if (participants.length) {
+        await notifyChat(env, participants, { type: "invite:closed", invite: inviteView(invite, accounts) });
+    }
+
+    return jsonResponse({ ok: true, conversation: result.view, invite: inviteView(invite, accounts) }, 201, cors);
+}
+
+async function handleChatInviteCancel(request, env, cors, code) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await ensureAccountUids(env, [login]);
+    const result = await withStoreLock(async () => {
+        const invite = await readInvite(env, code);
+        if (!invite) {
+            return { error: jsonResponse({ error: "not_found", message: "邀请码不存在或已过期" }, 404, cors) };
+        }
+        if (invite.owner !== login) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有发起人可以取消邀请" }, 403, cors) };
+        }
+        const participants = (invite.participants || []).slice();
+        await env.ACCOUNTS_KV.delete(chatInviteKey(code));
+        await env.ACCOUNTS_KV.delete(chatInviteOwnerKey(login));
+        return { participants };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    if (result.participants.length) {
+        await notifyChat(env, result.participants, { type: "invite:cancelled", code });
+    }
+    return jsonResponse({ ok: true, cancelled: true }, 200, cors);
+}
+
+/* ───────────────── 1.0.0：拼手速红包 ───────────────── */
+
+async function loadAccountsForLock(env) {
+    return await readKvAccounts(env);
+}
+
+async function saveAccountsForLock(env, accounts) {
+    await env.ACCOUNTS_KV.put(STORE_KEY, JSON.stringify(accounts));
+    writeMemory(env, accounts);
+    await mirrorToGithub(env, accounts);
+}
+
+function balanceCents(account) {
+    const cents = toCents(account && account.money !== undefined ? account.money : "0.00");
+    return cents === null ? 0 : cents;
+}
+
+function redPacketCapacity(packet, conv, accounts) {
+    const sender = packet.sender;
+    const members = conv.public ? Object.keys(accounts) : (conv.members || []);
+    const allow = Array.isArray(packet.allow) && packet.allow.length ? packet.allow : [];
+    const eligible = (allow.length ? allow : members).filter((login) => login !== sender && accounts[login]);
+    const grabbed = new Set((packet.grabs || []).map((item) => item.login));
+    const pending = eligible.filter((login) => !grabbed.has(login));
+    const limit = Number(packet.count) > 0
+        ? Math.max(0, Number(packet.count) - (packet.grabs || []).length)
+        : pending.length;
+    return Math.min(pending.length, limit);
+}
+
+function randomShareCents(remainCents, capacity) {
+    if (capacity <= 1) {
+        return remainCents;
+    }
+    const max = remainCents - (capacity - 1);
+    if (max <= 1) {
+        return 1;
+    }
+    const average = Math.floor(remainCents / capacity);
+    const upper = Math.max(1, Math.min(max, average * 2));
+    return Math.min(max, 1 + Math.floor(Math.random() * upper));
+}
+
+async function handleChatRedPacketCreate(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const body = plainObject(await readJsonBody(request));
+    const totalCents = toCents(body.total ?? body.amount);
+    if (totalCents === null || totalCents < 1) {
+        return jsonResponse({ error: "bad_request", message: "红包金额至少 0.01 元" }, 400, cors);
+    }
+    if (totalCents > CHAT_REDPACKET_MAX_CENTS) {
+        return jsonResponse({ error: "bad_request", message: `单个红包最多 ${fromCents(CHAT_REDPACKET_MAX_CENTS)} 元` }, 400, cors);
+    }
+    let count = Number(body.count);
+    count = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+    const note = String(body.note ?? "").replace(/\s+/g, " ").trim().slice(0, 40);
+    const allowRequested = Array.isArray(body.allow)
+        ? Array.from(new Set(body.allow.map((item) => String(item || "").trim()).filter(Boolean)))
+        : [];
+
+    if (count && count > totalCents) {
+        return jsonResponse({
+            error: "bad_request",
+            message: `${fromCents(totalCents)} 元的红包最多只能分给 ${totalCents} 个人（每人至少 0.01 元）`
+        }, 400, cors);
+    }
+    if (allowRequested.length > CHAT_REDPACKET_ALLOW_LIMIT) {
+        return jsonResponse({ error: "bad_request", message: `最多指定 ${CHAT_REDPACKET_ALLOW_LIMIT} 人可以抢` }, 400, cors);
+    }
+    if (allowRequested.length && allowRequested.length > totalCents) {
+        return jsonResponse({
+            error: "bad_request",
+            message: `指定 ${allowRequested.length} 人可以抢，但 ${fromCents(totalCents)} 元最多只能分给 ${totalCents} 个人`
+        }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
+        if (conv.type !== "group") {
+            return { error: jsonResponse({ error: "bad_request", message: "只能在群聊里发红包" }, 400, cors) };
+        }
+
+        const store = await loadAccountsForLock(env);
+        const sender = store[login];
+        if (!sender) {
+            return { error: jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors) };
+        }
+        const balance = balanceCents(sender);
+        if (balance < totalCents) {
+            return {
+                error: jsonResponse(
+                    { error: "insufficient_balance", message: `余额不足，当前余额 ${fromCents(balance)} VTX` },
+                    400,
+                    cors
+                )
+            };
+        }
+
+        const members = conv.public ? Object.keys(store) : (conv.members || []);
+        const allow = allowRequested.filter((item) => members.includes(item) && item !== login);
+        if (allowRequested.length && allow.length !== allowRequested.length) {
+            return { error: jsonResponse({ error: "bad_request", message: "被指定的人必须都在这个群里" }, 400, cors) };
+        }
+        const capacity = allow.length || Math.max(0, members.length - 1);
+        if (capacity === 0) {
+            return { error: jsonResponse({ error: "bad_request", message: "这个群里只有你自己，没有人可以抢" }, 400, cors) };
+        }
+        const limit = count || 0;
+        if (limit && limit > capacity) {
+            return {
+                error: jsonResponse(
+                    { error: "bad_request", message: `最多只有 ${capacity} 个人可以抢` },
+                    400,
+                    cors
+                )
+            };
+        }
+        if (totalCents < (limit || capacity)) {
+            return {
+                error: jsonResponse({
+                    error: "bad_request",
+                    message: `${fromCents(totalCents)} 元最多只能分给 ${totalCents} 个人（每人至少 0.01 元）`
+                }, 400, cors)
+            };
+        }
+
+        sender.money = fromCents(balance - totalCents);
+        sender.trades = Array.isArray(sender.trades) ? sender.trades : [];
+        sender.trades.push({
+            name: "拼手速红包",
+            description: `在群聊里发出 ${fromCents(totalCents)} 元红包`,
+            time: shanghaiTimestamp(),
+            price: `-${fromCents(totalCents)}`
+        });
+        await saveAccountsForLock(env, store);
+
+        const messages = await readChatMessages(env, conv.id);
+        const at = Date.now();
+        const message = {
+            id: randomCode(9),
+            conversation: conv.id,
+            sender: login,
+            senderName: chatMemberAlias(conv, store, login),
+            type: "redpacket",
+            text: note || "拼手速红包",
+            media: null,
+            replyTo: null,
+            mentions: [],
+            forwarded: false,
+            at,
+            time: shanghaiTimestamp(at),
+            packet: {
+                id: `rp_${randomCode(6)}`,
+                sender: login,
+                senderName: chatMemberAlias(conv, store, login),
+                totalCents,
+                remainCents: totalCents,
+                count: limit,
+                allow,
+                grabs: [],
+                note,
+                createdAt: at,
+                expiresAt: at + CHAT_REDPACKET_TTL_MS,
+                closed: false
+            }
+        };
+
+        await appendMessage(env, conv, message);
+        await saveConversation(env, conv);
+
+        return {
+            message,
+            targets: conversationTargets(conv, store),
+            view: conversationView(
+                env,
+                conv,
+                chatEntry(await loadChatUser(env, login), conv.id),
+                [...messages, message],
+                login,
+                store
+            ),
+            balance: sender.money
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, {
+        type: "message",
+        conversation: result.view,
+        message: messageView(result.message)
+    });
+
+    return jsonResponse({
+        ok: true,
+        conversation: result.view,
+        message: messageView(result.message),
+        balance: result.balance
+    }, 201, cors);
+}
+
+async function handleChatRedPacketGrab(request, env, cors, messageId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const url = new URL(request.url);
+    const convId = chatConversationId(url.searchParams.get("conversation") || "");
+    if (!convId) {
+        return jsonResponse({ error: "bad_request", message: "缺少会话 id" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const conv = await readConversation(env, convId);
+        if (!conv) {
+            return { error: jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors) };
+        }
+        if (!chatMemberOf(conv, login)) {
+            return { error: chatNotAMember(cors) };
+        }
+        const messages = await readChatMessages(env, convId);
+        const message = messages.find((item) => item.id === messageId);
+        if (!message || message.type !== "redpacket" || !message.packet) {
+            return { error: jsonResponse({ error: "not_found", message: "红包不存在" }, 404, cors) };
+        }
+        const packet = message.packet;
+        const store = await loadAccountsForLock(env);
+
+        if (message.sender === login) {
+            return { error: jsonResponse({ error: "forbidden", message: "不能抢自己发的红包" }, 403, cors) };
+        }
+        if (Array.isArray(packet.allow) && packet.allow.length && !packet.allow.includes(login)) {
+            return { error: jsonResponse({ error: "forbidden", message: "这个红包只给指定的人抢" }, 403, cors) };
+        }
+        if ((packet.grabs || []).some((item) => item.login === login)) {
+            return { error: jsonResponse({ error: "already_grabbed", message: "你已经抢过这个红包了" }, 409, cors) };
+        }
+        if (packet.closed || packet.remainCents <= 0) {
+            return { error: jsonResponse({ error: "packet_empty", message: "红包已经被抢完了" }, 410, cors) };
+        }
+        if (Number(packet.count) > 0 && (packet.grabs || []).length >= Number(packet.count)) {
+            return { error: jsonResponse({ error: "packet_empty", message: "红包已经被抢完了" }, 410, cors) };
+        }
+        if (Number(packet.expiresAt) && Number(packet.expiresAt) < Date.now()) {
+            return { error: jsonResponse({ error: "packet_expired", message: "红包已过期" }, 410, cors) };
+        }
+
+        const capacity = redPacketCapacity(packet, conv, store);
+        if (capacity <= 0) {
+            return { error: jsonResponse({ error: "packet_empty", message: "红包已经被抢完了" }, 410, cors) };
+        }
+
+        const cents = randomShareCents(packet.remainCents, capacity);
+        const grabber = store[login];
+        if (!grabber) {
+            return { error: jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors) };
+        }
+
+        grabber.money = fromCents(balanceCents(grabber) + cents);
+        grabber.trades = Array.isArray(grabber.trades) ? grabber.trades : [];
+        grabber.trades.push({
+            name: "拼手速红包",
+            description: `抢到 ${message.senderName || message.sender} 发的红包`,
+            time: shanghaiTimestamp(),
+            price: `+${fromCents(cents)}`
+        });
+
+        packet.grabs = packet.grabs || [];
+        packet.grabs.push({
+            login,
+            name: chatMemberAlias(conv, store, login),
+            cents,
+            at: Date.now(),
+            time: shanghaiTimestamp()
+        });
+        packet.remainCents -= cents;
+        if (packet.remainCents <= 0
+            || (Number(packet.count) > 0 && packet.grabs.length >= Number(packet.count))) {
+            packet.closed = true;
+            packet.remainCents = Math.max(0, packet.remainCents);
+        }
+        await saveAccountsForLock(env, store);
+        message.packet = packet;
+        await saveChatMessages(env, convId, messages);
+
+        return {
+            packet,
+            cents,
+            targets: conversationTargets(conv, store),
+            view: messageView(message),
+            balance: grabber.money
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, {
+        type: "message:packet",
+        conversation: convId,
+        message: result.view
+    });
+
+    return jsonResponse({
+        ok: true,
+        cents: result.cents,
+        amount: fromCents(result.cents),
+        balance: result.balance,
+        packet: result.packet
+    }, 200, cors);
+}
+
+async function handleChatRedPacketDetail(request, env, cors, messageId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const url = new URL(request.url);
+    const convId = chatConversationId(url.searchParams.get("conversation") || "");
+    if (!convId) {
+        return jsonResponse({ error: "bad_request", message: "缺少会话 id" }, 400, cors);
+    }
+
+    const conv = await readConversation(env, convId);
+    if (!conv) {
+        return jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors);
+    }
+    if (!chatMemberOf(conv, login)) {
+        return chatNotAMember(cors);
+    }
+    const messages = await readChatMessages(env, convId);
+    const message = messages.find((item) => item.id === messageId);
+    if (!message || message.type !== "redpacket" || !message.packet) {
+        return jsonResponse({ error: "not_found", message: "红包不存在" }, 404, cors);
+    }
+
+    const mine = (message.packet.grabs || []).find((item) => item.login === login);
+    return jsonResponse({
+        ok: true,
+        message: messageView(message),
+        mine: mine ? { cents: mine.cents, amount: fromCents(mine.cents), time: mine.time } : null
+    }, 200, cors);
+}
+
+async function handleChatRedPacketRefund(request, env, cors, messageId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const url = new URL(request.url);
+    const convId = chatConversationId(url.searchParams.get("conversation") || "");
+    if (!convId) {
+        return jsonResponse({ error: "bad_request", message: "缺少会话 id" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const conv = await readConversation(env, convId);
+        if (!conv) {
+            return { error: jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors) };
+        }
+        const messages = await readChatMessages(env, convId);
+        const message = messages.find((item) => item.id === messageId);
+        if (!message || message.type !== "redpacket" || !message.packet) {
+            return { error: jsonResponse({ error: "not_found", message: "红包不存在" }, 404, cors) };
+        }
+        if (message.sender !== login) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有发红包的人可以退回剩余金额" }, 403, cors) };
+        }
+        const packet = message.packet;
+        if (packet.closed || packet.remainCents <= 0) {
+            return { error: jsonResponse({ error: "packet_empty", message: "红包已经抢完了，没有剩余金额" }, 410, cors) };
+        }
+
+        const store = await loadAccountsForLock(env);
+        const sender = store[login];
+        if (sender) {
+            sender.money = fromCents(balanceCents(sender) + packet.remainCents);
+            sender.trades = Array.isArray(sender.trades) ? sender.trades : [];
+            sender.trades.push({
+                name: "拼手速红包退回",
+                description: "退回未被领取的红包金额",
+                time: shanghaiTimestamp(),
+                price: `+${fromCents(packet.remainCents)}`
+            });
+            await saveAccountsForLock(env, store);
+        }
+        const refunded = packet.remainCents;
+        packet.remainCents = 0;
+        packet.closed = true;
+        message.packet = packet;
+        await saveChatMessages(env, convId, messages);
+
+        return {
+            refunded,
+            balance: sender ? sender.money : "",
+            targets: conversationTargets(conv, store),
+            view: messageView(message)
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "message:packet", conversation: convId, message: result.view });
+    return jsonResponse({
+        ok: true,
+        refunded: fromCents(result.refunded),
+        balance: result.balance,
+        packet: result.view.packet
+    }, 200, cors);
+}
+
+async function handleChatRoomCompat(request, env, cors) {    const url = new URL(request.url);
     const room = String(url.searchParams.get("room") || "").trim();
 
     if (request.method === "GET") {
@@ -5126,6 +6262,56 @@ async function routeChat(request, env, cors) {
         return await handleChatContacts(request, env, cors);
     }
 
+    /* 1.0.0：UID 找号、群号、建群邀请码 */
+    let match;
+
+    match = path.match(/^\/api\/chat\/users\/uid\/([^/]+)$/);
+    if (match && method === "GET") {
+        return await handleChatUserByUid(request, env, cors, decodeURIComponent(match[1]));
+    }
+
+    if (path === "/api/chat/groups/lookup" && method === "GET") {
+        return await handleChatGroupLookup(request, env, cors);
+    }
+
+    if (path === "/api/chat/groups/join" && method === "POST") {
+        return await handleChatGroupJoinByNumber(request, env, cors);
+    }
+
+    if (path === "/api/chat/invites") {
+        if (method === "POST") {
+            return await handleChatInviteCreate(request, env, cors);
+        }
+    }
+
+    if (path === "/api/chat/invites/current" && method === "GET") {
+        return await handleChatInviteCurrent(request, env, cors);
+    }
+
+    match = path.match(/^\/api\/chat\/invites\/([^/]+)(?:\/(join|leave|close))?$/);
+    if (match) {
+        const code = inviteCodeMatches(decodeURIComponent(match[1]));
+        if (!code) {
+            return jsonResponse({ error: "bad_request", message: "邀请码只能是 4 位或 8 位数字" }, 400, cors);
+        }
+        const action = match[2] || "";
+        if (!action && method === "GET") {
+            return await handleChatInviteDetail(request, env, cors, code);
+        }
+        if (!action && method === "DELETE") {
+            return await handleChatInviteCancel(request, env, cors, code);
+        }
+        if (action === "join" && method === "POST") {
+            return await handleChatInviteJoin(request, env, cors, code);
+        }
+        if (action === "leave" && method === "POST") {
+            return await handleChatInviteLeave(request, env, cors, code);
+        }
+        if (action === "close" && method === "POST") {
+            return await handleChatInviteClose(request, env, cors, code);
+        }
+    }
+
     if (path === "/api/chat/friends/requests" && method === "POST") {
         return await handleChatFriendRequest(request, env, cors);
     }
@@ -5159,7 +6345,6 @@ async function routeChat(request, env, cors) {
         }
     }
 
-    let match;
     match = path.match(/^\/api\/chat\/admin\/public-groups\/([^/]+)$/);
     if (match) {
         const id = chatConversationId(decodeURIComponent(match[1]));
@@ -5185,6 +6370,33 @@ async function routeChat(request, env, cors) {
         }
         if (method === "POST") {
             return await handleChatSend(request, env, cors, id);
+        }
+    }
+
+    match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/redpackets$/);
+    if (match && method === "POST") {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        return await handleChatRedPacketCreate(request, env, cors, id);
+    }
+
+    match = path.match(/^\/api\/chat\/messages\/([^/]+)\/redpacket(?:\/(grab|refund))?$/);
+    if (match) {
+        const messageId = decodeURIComponent(match[1]);
+        if (!CHAT_MESSAGE_ID_PATTERN.test(messageId)) {
+            return jsonResponse({ error: "bad_request", message: "消息 id 不合法" }, 400, cors);
+        }
+        const action = match[2] || "";
+        if (!action && method === "GET") {
+            return await handleChatRedPacketDetail(request, env, cors, messageId);
+        }
+        if (action === "grab" && method === "POST") {
+            return await handleChatRedPacketGrab(request, env, cors, messageId);
+        }
+        if (action === "refund" && method === "POST") {
+            return await handleChatRedPacketRefund(request, env, cors, messageId);
         }
     }
 

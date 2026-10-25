@@ -424,6 +424,73 @@
         .announce-bar strong { flex: 0 0 auto; }
         .announce-bar .announce-text { flex: 1; white-space: pre-wrap; word-break: break-word; }
 
+        /* 1.0.0：红包 */
+        .rp-card {
+            display: block;
+            min-width: 190px;
+            max-width: 240px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #f0564a 0%, #e0362a 100%);
+            color: #fff;
+            cursor: pointer;
+            border: none;
+            text-align: left;
+            font: inherit;
+        }
+
+        .rp-card .rp-head { display: flex; gap: 8px; align-items: center; }
+        .rp-card .rp-icon { font-size: 20px; }
+        .rp-card .rp-note { font-size: 13px; font-weight: 600; line-height: 1.4; word-break: break-word; }
+        .rp-card .rp-sub { margin-top: 6px; font-size: 11.5px; opacity: 0.9; }
+        .rp-card.done { background: linear-gradient(135deg, #b9bcc4 0%, #9aa0aa 100%); }
+
+        .rp-grabs { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+        .rp-grabs .row { display: flex; justify-content: space-between; gap: 10px; }
+        .rp-grabs .row .amount { color: var(--blue); font-weight: 600; }
+
+        .code-big {
+            font-family: "SFMono-Regular", Consolas, monospace;
+            font-size: 34px;
+            font-weight: 700;
+            letter-spacing: 8px;
+            text-align: center;
+            padding: 14px 8px;
+            border-radius: 12px;
+            background: #f2f6ff;
+            color: var(--blue);
+            user-select: all;
+        }
+
+        .qr-box {
+            display: grid;
+            place-items: center;
+            padding: 12px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+
+        .qr-box canvas { width: 220px; height: 220px; image-rendering: pixelated; }
+
+        .code-line {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .code-line .mono {
+            font-family: "SFMono-Regular", Consolas, monospace;
+            font-size: 14px;
+            color: var(--text);
+            font-weight: 600;
+            user-select: all;
+        }
+
         .dissolved-bar {
             flex: 0 0 auto;
             margin: 10px 18px 0;
@@ -951,7 +1018,7 @@
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
-            <span class="version-badge">v9.3 聊天室</span>
+            <span class="version-badge">v1.0.0 聊天室</span>
         </div>
         <div class="topbar-spacer"></div>
         <span class="status"><span class="status-dot" id="conn-dot"></span><span id="conn-text">连接中…</span></span>
@@ -1018,7 +1085,8 @@
 <div class="menu" id="menu"></div>
 <div class="toast" id="toast"></div>
 
-<script src="vtx-api.js?v=9.3"></script>
+<script src="vtx-qr.js?v=1.0.0"></script>
+<script src="vtx-api.js?v=1.0.0"></script>
 <script>
 (function () {
     "use strict";
@@ -1048,11 +1116,14 @@
         searchResults: [],
         lastTypingSent: 0,
         adminConversations: [],
-        publicGroups: []
+        publicGroups: [],
+        uid: 0,
+        myMoney: "",
+        invite: null
     };
 
     let api = window.VTXApi;
-    const REQUIRED_API_VERSION = "9.3.0";
+    const REQUIRED_API_VERSION = "1.0.0";
     const SDK_URL = "vtx-api.js";
 
     function compareVersion(left, right) {
@@ -1212,13 +1283,22 @@
         try {
             const me = await api.me();
             state.me = api.currentLogin();
-            state.username = me.account && me.account.username ? me.account.username : state.me;
+            const account = me && me.account ? me.account : (me || {});
+            state.username = account.username || state.me;
+            state.uid = Number(account.uid) || 0;
+            state.myMoney = account.money || "";
         } catch (error) {
             showGate();
             return;
         }
         showApp();
-        el("rail-me").textContent = state.username;
+        el("rail-me").textContent = state.uid ? `${state.username} · UID ${state.uid}` : state.username;
+        el("rail-me").title = state.uid ? `我的 UID：${state.uid}（点一下复制）` : "";
+        el("rail-me").addEventListener("click", () => {
+            if (state.uid) {
+                copyText(String(state.uid));
+            }
+        });
         bindUi();
         try {
             await api.chat.adminConversations();
@@ -1230,6 +1310,7 @@
         await Promise.all([refreshConversations(), refreshContacts()]);
         connectSocket();
         state.pollTimer = setInterval(poll, 7000);
+        handleGroupDeepLink().catch(() => {});
     }
 
     function bindUi() {
@@ -1386,7 +1467,14 @@
         if (message.type === "file") {
             return `[文件] ${message.media && message.media.name ? message.media.name : ""}`;
         }
+        if (message.type === "redpacket" && message.packet) {
+            return `[拼手速红包] ${formatAmount(message.packet.totalCents)} 元`;
+        }
         return String(message.text || "");
+    }
+
+    function formatAmount(cents) {
+        return (Number(cents || 0) / 100).toFixed(2);
     }
 
     function renderContacts() {
@@ -1698,6 +1786,7 @@
                     </div>
                     <div class="composer-row">
                         <button type="button" class="attach-btn" id="attach-btn" title="发送图片或文件（20 分钟后过期）"${dissolved ? " disabled" : ""}>图片/文件</button>
+                        ${conv.type === "group" ? `<button type="button" class="attach-btn" id="redpacket-btn" title="发拼手速红包"${dissolved ? " disabled" : ""}>红包</button>` : ""}
                         <textarea id="message-input" placeholder="${dissolved ? "群聊已解散，只能查看历史消息" : "输入消息，Enter 发送，Shift+Enter 换行"}"${dissolved ? " disabled" : ""}></textarea>
                         <button type="button" class="send-btn" id="send-btn"${dissolved ? " disabled" : ""}>发送</button>
                     </div>
@@ -1829,6 +1918,9 @@
 
     function mediaOrText(message) {
         const expired = message.media && message.media.expiresAt && Number(message.media.expiresAt) < Date.now();
+        if (message.type === "redpacket" && message.packet) {
+            return redPacketCard(message);
+        }
         if (message.type === "image" && message.media) {
             if (expired) {
                 return `<span class="media-expired">图片已过期（上传后 20 分钟自动删除）</span>${message.text ? `<div class="media-caption">${escapeHtml(message.text)}</div>` : ""}`;
@@ -1844,6 +1936,30 @@
                 ${message.text ? `<div class="media-caption">${escapeHtml(message.text)}</div>` : ""}`;
         }
         return escapeHtml(message.text || "");
+    }
+
+    function redPacketCard(message) {
+        const packet = message.packet || {};
+        const mine = (packet.grabs || []).find((item) => item.login === state.me);
+        const isSender = message.sender === state.me;
+        const closed = Boolean(packet.closed) || Number(packet.remainCents) <= 0;
+        const grabs = (packet.grabs || []).length;
+        let sub = `${formatAmount(packet.totalCents)} 元`;
+        if (mine) {
+            sub = `已抢到 ${formatAmount(mine.cents)} 元`;
+        } else if (isSender) {
+            sub = `${formatAmount(packet.totalCents)} 元 · 已抢 ${grabs} 个`;
+        } else if (closed) {
+            sub = `${formatAmount(packet.totalCents)} 元 · 已被抢完`;
+        } else {
+            sub = `${formatAmount(packet.totalCents)} 元 · 点击抢红包`;
+        }
+        const limit = Number(packet.count) > 0 ? `${packet.count} 人可抢` : "所有人可抢";
+        return `<button type="button" class="rp-card${closed && !mine ? " done" : ""}" data-grab="${escapeHtml(message.id)}">
+            <div class="rp-head"><span class="rp-icon">🧧</span><span class="rp-note">${escapeHtml(packet.note || "拼手速红包")}</span></div>
+            <div class="rp-sub">${escapeHtml(sub)}</div>
+            <div class="rp-sub">${escapeHtml(limit)} · 已抢 ${grabs}${Number(packet.count) > 0 ? `/${packet.count}` : ""}</div>
+        </button>`;
     }
 
     function bindChatUi() {
@@ -1932,6 +2048,20 @@
                     openGroupInfo();
                 } else {
                     openDirectInfo();
+                }
+            });
+        }
+        const redPacketBtn = el("redpacket-btn");
+        if (redPacketBtn) {
+            redPacketBtn.addEventListener("click", openRedPacketDialog);
+        }
+        const messageBox = el("messages");
+        if (messageBox) {
+            messageBox.addEventListener("click", (event) => {
+                const button = event.target.closest("[data-grab]");
+                if (button) {
+                    event.stopPropagation();
+                    grabRedPacket(button.dataset.grab);
                 }
             });
         }
@@ -2240,6 +2370,10 @@
             ${state.current.public && state.isAdmin ? `<div class="field"><label>频道简介</label>
                 <input type="text" id="public-desc-input" maxlength="200" value="${escapeHtml(state.current.description || "")}">
                 <div style="margin-top:8px;"><button class="btn small primary" id="save-public-desc">保存简介</button></div></div>` : ""}
+            ${state.current.type === "group" && !state.current.public && state.current.no ? `<div class="field"><label>群号</label>
+                <div class="code-line"><span class="mono">${escapeHtml(String(state.current.no))}</span>
+                    <button class="btn small" id="copy-group-no2">复制群号</button>
+                    <button class="btn small primary" id="group-qr-btn">群二维码</button></div></div>` : ""}
             <div class="field"><label>群公告${state.current.announcement && state.current.announcement.pinned ? "（已置顶）" : ""}</label>
                 <textarea id="announcement-input" maxlength="1000" ${manage ? "" : "disabled"}>${escapeHtml(state.current.announcement ? state.current.announcement.text : "")}</textarea>
                 ${manage ? `<div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
@@ -2281,8 +2415,7 @@
                         }
                     });
                 }
-                const savePublicDesc = el("save-public-desc");
-                if (savePublicDesc) {
+                const savePublicDesc = el("save-public-desc");                if (savePublicDesc) {
                     savePublicDesc.addEventListener("click", async () => {
                         try {
                             await api.chat.updatePublicGroup(state.current.id, {
@@ -2347,6 +2480,17 @@
                 const addMembers = el("add-members-btn");
                 if (addMembers) {
                     addMembers.addEventListener("click", () => openAddMembers(state.current));
+                }
+                const copyGroupNo = el("copy-group-no2");
+                if (copyGroupNo) {
+                    copyGroupNo.addEventListener("click", () => copyText(String(state.current.no || "")));
+                }
+                const qrBtn = el("group-qr-btn");
+                if (qrBtn) {
+                    qrBtn.addEventListener("click", () => {
+                        closeModal();
+                        openGroupShare();
+                    });
                 }
                 const leaveGroup = el("leave-group");
                 if (leaveGroup) {
@@ -2587,14 +2731,484 @@
         });
     }
 
+    /* ───────────── 1.0.0：红包 / 群号 / 邀请码 / UID ───────────── */
+
+    function copyText(text) {
+        const value = String(text || "");
+        const fallback = () => {
+            const area = document.createElement("textarea");
+            area.value = value;
+            document.body.appendChild(area);
+            area.select();
+            try {
+                document.execCommand("copy");
+                toast("已复制");
+            } catch (error) {
+                toast("复制失败，请手动选择复制", "error");
+            }
+            document.body.removeChild(area);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(value).then(() => toast("已复制"), fallback);
+            return;
+        }
+        fallback();
+    }
+
+    function openRedPacketDialog() {
+        const conv = state.current;
+        if (!conv) {
+            return;
+        }
+        if (conv.type !== "group") {
+            toast("只能在群聊里发红包", "error");
+            return;
+        }
+        const candidates = state.members
+            .filter((item) => !item.me)
+            .map((item) => `
+                <label class="check-row">
+                    <input type="checkbox" value="${escapeHtml(item.login)}" class="rp-allow">
+                    <span class="avatar">${initial(item.alias || item.username || item.login)}</span>
+                    <span class="grow">${escapeHtml(item.alias || item.username || item.login)}</span>
+                    <span class="tag">${escapeHtml(item.login)}</span>
+                </label>`).join("");
+
+        openModal("发拼手速红包", `
+            <div class="field"><label>金额（元，最少 0.01）</label>
+                <input type="text" id="rp-total" inputmode="decimal" placeholder="1.00">
+            </div>
+            <div class="field"><label>最多几人可以抢（留空＝所有人）</label>
+                <input type="text" id="rp-count" inputmode="numeric" placeholder="留空">
+                <div class="notice" id="rp-hint" style="margin-top:6px;">每人至少 0.01 元，所以 0.02 元最多只能分给 2 个人。</div>
+            </div>
+            <div class="field"><label>留言</label>
+                <input type="text" id="rp-note" maxlength="40" placeholder="恭喜发财">
+            </div>
+            <div class="field"><label>只让指定的人抢（不选＝所有人）</label>
+                <div id="rp-allow-list" style="max-height:180px; overflow:auto;">${candidates || '<div class="notice">群里还没有其他成员。</div>'}</div>
+            </div>`, {
+            wide: true,
+            actions: [
+                { label: "取消", act: "cancel" },
+                { label: "发红包", act: "send", primary: true }
+            ],
+            onMount(root) {
+                const hint = root.querySelector("#rp-hint");
+                const update = () => {
+                    const total = Math.round(Number(root.querySelector("#rp-total").value || 0) * 100);
+                    const count = Number(root.querySelector("#rp-count").value || 0);
+                    const picked = root.querySelectorAll(".rp-allow:checked").length;
+                    const people = count > 0 ? count : (picked > 0 ? picked : 0);
+                    if (!total) {
+                        hint.textContent = "每人至少 0.01 元，所以 0.02 元最多只能分给 2 个人。";
+                        return;
+                    }
+                    if (people > total) {
+                        hint.textContent = `${formatAmount(total)} 元最多只能分给 ${total} 个人（每人至少 0.01 元）`;
+                        hint.style.color = "#c0342a";
+                    } else {
+                        hint.textContent = `当前最多可以分给 ${people || total} 个人，每人至少 0.01 元`;
+                        hint.style.color = "";
+                    }
+                };
+                root.querySelector("#rp-total").addEventListener("input", update);
+                root.querySelector("#rp-count").addEventListener("input", update);
+                root.querySelectorAll(".rp-allow").forEach((box) => box.addEventListener("change", update));
+            },
+            onAction: async (act) => {
+                if (act !== "send") {
+                    return false;
+                }
+                const total = el("rp-total").value.trim();
+                const countText = el("rp-count").value.trim();
+                const allow = Array.from(document.querySelectorAll(".rp-allow:checked")).map((item) => item.value);
+                if (!total) {
+                    toast("请填写金额", "error");
+                    return false;
+                }
+                try {
+                    const sent = await api.chat.sendRedPacket(state.current.id, {
+                        total,
+                        count: countText ? Number(countText) : 0,
+                        allow,
+                        note: el("rp-note").value.trim()
+                    });
+                    if (sent.balance !== undefined) {
+                        state.myMoney = sent.balance;
+                    }
+                    await loadMessages(state.current.id);
+                    await refreshConversations(true);
+                    toast("红包已发出");
+                    return true;
+                } catch (error) {
+                    report(error);
+                    return false;
+                }
+            }
+        });
+    }
+
+    async function grabRedPacket(messageId) {
+        if (!state.current) {
+            return;
+        }
+        const message = state.messages.find((item) => item.id === messageId);
+        if (message && message.sender === state.me) {
+            showRedPacketDetail(message);
+            return;
+        }
+        if (message && message.packet && (message.packet.grabs || []).some((item) => item.login === state.me)) {
+            showRedPacketDetail(message);
+            return;
+        }
+        try {
+            const result = await api.chat.grabRedPacket(state.current.id, messageId);
+            toast(`抢到 ${result.amount} 元`);
+            await loadMessages(state.current.id);
+        } catch (error) {
+            if (error && (error.status === 409 || error.status === 410 || error.status === 403)) {
+                await loadMessages(state.current.id);
+            }
+            report(error);
+        }
+    }
+
+    function showRedPacketDetail(message) {
+        const packet = message.packet || {};
+        const mine = (packet.grabs || []).find((item) => item.login === state.me);
+        const rows = (packet.grabs || []).map((item) => `
+            <div class="row">
+                <span>${escapeHtml(item.name || item.login)}</span>
+                <span class="amount">${formatAmount(item.cents)} 元</span>
+            </div>`).join("") || '<div class="notice">还没有人抢到。</div>';
+        const summary = mine
+            ? `你抢到 ${formatAmount(mine.cents)} 元`
+            : (Number(packet.remainCents) > 0 ? `还剩 ${formatAmount(packet.remainCents)} 元` : "已经被抢完了");
+        const actions = [{ label: "关闭", act: "cancel", primary: true }];
+        if (message.sender === state.me && Number(packet.remainCents) > 0 && !packet.closed) {
+            actions.unshift({ label: `退回剩余 ${formatAmount(packet.remainCents)} 元`, act: "refund" });
+        }
+        openModal(`红包：${escapeHtml(packet.note || "拼手速红包")}`, `
+            <div class="notice">${escapeHtml(summary)} · 总额 ${formatAmount(packet.totalCents)} 元 · ${escapeHtml(String((packet.grabs || []).length))} 人已抢${Number(packet.count) > 0 ? ` / ${packet.count} 人可抢` : ""}</div>
+            <div class="rp-grabs">${rows}</div>`, {
+            actions,
+            onAction: async (act) => {
+                if (act !== "refund") {
+                    return false;
+                }
+                try {
+                    const result = await api.chat.refundRedPacket(state.current.id, message.id);
+                    toast(`已退回 ${result.refunded} 元`);
+                    await loadMessages(state.current.id);
+                    return true;
+                } catch (error) {
+                    report(error);
+                    return false;
+                }
+            }
+        });
+    }
+
+    async function openGroupShare() {
+        const conv = state.current;
+        if (!conv) {
+            return;
+        }
+        if (!conv.no) {
+            toast("这个群还没有群号", "error");
+            return;
+        }
+        let link = new URL(`chatroom.html?group=${encodeURIComponent(String(conv.no))}`, location.href).href;
+        if (location.protocol === "file:") {
+            try {
+                const info = await api.chat.groupLookup(conv.no);
+                if (info.group && info.group.link) {
+                    link = info.group.link;
+                }
+            } catch (error) {
+                /* 群号查询失败时用当前地址兜底 */
+            }
+        }
+        openModal(`群二维码：${escapeHtml(conv.name)}`, `
+            <div class="code-line">群号<span class="mono">${escapeHtml(String(conv.no))}</span>
+                <button class="btn small" id="copy-group-no">复制群号</button></div>
+            <div class="qr-box" id="qr-box"></div>
+            <div class="notice">扫二维码或在聊天室「按群号加入」里输入这个群号，就能加入群聊。<br>二维码内容：<span class="mono">${escapeHtml(link)}</span></div>`, {
+            wide: true,
+            onMount(root) {
+                root.querySelector("#copy-group-no").addEventListener("click", () => copyText(String(conv.no)));
+                const box = root.querySelector("#qr-box");
+                if (window.VTXQR && typeof window.VTXQR.canvas === "function") {
+                    try {
+                        box.appendChild(window.VTXQR.canvas(link, { scale: 6 }));
+                    } catch (error) {
+                        box.textContent = "二维码生成失败";
+                    }
+                } else {
+                    box.textContent = "二维码库未加载，请刷新页面";
+                }
+            }
+        });
+    }
+
+    function openInviteDialog() {
+        openModal("用邀请码建群", `
+            <div class="notice">选一个邀请码长度，发起后把数字告诉朋友，让他们在「输入邀请码」里加入。你点「结束邀请并建群」时，会把所有加入的人拉进同一个群。</div>
+            <div class="field"><label>群聊名称（可以先空着，结束邀请时再填）</label>
+                <input type="text" id="invite-name" maxlength="24" placeholder="例如：周末开黑">
+            </div>
+            <div class="field"><label>邀请码类型</label>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn" data-digits="4">4 位数字（微信式）</button>
+                    <button class="btn" data-digits="8">8 位数字（我们的）</button>
+                </div>
+            </div>`, {
+            onMount(root) {
+                root.querySelectorAll("[data-digits]").forEach((button) => {
+                    button.addEventListener("click", async () => {
+                        try {
+                            const created = await api.chat.createInvite(Number(button.dataset.digits), el("invite-name").value.trim());
+                            state.invite = created.invite;
+                            closeModal();
+                            showInvitePanel(created.invite);
+                        } catch (error) {
+                            report(error);
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    async function showInvitePanel(invite) {
+        state.invite = invite;
+        const rows = (invite.participants || []).map((item) => `
+            <div class="check-row">
+                <span class="avatar">${initial(item.username || item.login)}</span>
+                <span class="grow">${escapeHtml(item.username || item.login)}</span>
+                <span class="tag">UID ${escapeHtml(String(item.uid || "-"))}</span>
+            </div>`).join("") || '<div class="notice">还没有人加入，把邀请码发出去吧。</div>';
+
+        openModal(`建群邀请 ${invite.code}`, `
+            <div class="code-big">${escapeHtml(invite.code)}</div>
+            <div class="notice" style="text-align:center;">${invite.digits} 位邀请码 · 让朋友在「输入邀请码」里填这串数字</div>
+            <div style="display:flex; gap:8px; justify-content:center; margin:10px 0;">
+                <button class="btn small" id="copy-invite">复制邀请码</button>
+                <button class="btn small" id="refresh-invite">刷新加入情况</button>
+            </div>
+            <div class="field"><label>已加入（${(invite.participants || []).length} 人）</label>${rows}</div>
+            <div class="field"><label>群聊名称</label>
+                <input type="text" id="invite-close-name" maxlength="24" value="${escapeHtml(invite.name || "")}" placeholder="例如：周末开黑">
+            </div>`, {
+            wide: true,
+            actions: [
+                { label: "取消邀请", act: "cancel-invite" },
+                { label: "结束邀请并建群", act: "close", primary: true }
+            ],
+            onMount(root) {
+                root.querySelector("#copy-invite").addEventListener("click", () => copyText(invite.code));
+                root.querySelector("#refresh-invite").addEventListener("click", async () => {
+                    try {
+                        const fresh = await api.chat.invite(invite.code);
+                        closeModal();
+                        showInvitePanel(fresh.invite);
+                    } catch (error) {
+                        report(error);
+                    }
+                });
+                const timer = setInterval(async () => {
+                    if (document.getElementById("modal-root").innerHTML === "") {
+                        clearInterval(timer);
+                        return;
+                    }
+                    try {
+                        const fresh = await api.chat.invite(invite.code);
+                        if ((fresh.invite.participants || []).length !== (state.invite && state.invite.participants || []).length) {
+                            state.invite = fresh.invite;
+                            closeModal();
+                            showInvitePanel(fresh.invite);
+                        }
+                    } catch (error) {
+                        /* 静默轮询失败 */
+                    }
+                }, 4000);
+            },
+            onAction: async (act) => {
+                if (act === "cancel-invite") {
+                    if (!confirm("确定取消这个邀请吗？已经加入的人会收到通知。")) {
+                        return false;
+                    }
+                    try {
+                        await api.chat.cancelInvite(state.invite.code);
+                        state.invite = null;
+                        toast("邀请已取消");
+                        return true;
+                    } catch (error) {
+                        report(error);
+                        return false;
+                    }
+                }
+                if (act !== "close") {
+                    return false;
+                }
+                try {
+                    const closed = await api.chat.closeInvite(state.invite.code, el("invite-close-name").value.trim());
+                    state.invite = null;
+                    toast("群聊已创建");
+                    await refreshConversations(true);
+                    setTimeout(() => openConversation(closed.conversation.id), 200);
+                    return true;
+                } catch (error) {
+                    report(error);
+                    return false;
+                }
+            }
+        });
+    }
+
+    function openJoinInviteDialog() {
+        openModal("输入邀请码", `
+            <div class="notice">输入朋友给你的 4 位或 8 位数字，加入之后等他结束邀请，就会一起进群。</div>
+            <div class="field"><label>邀请码</label>
+                <input type="text" id="join-invite-code" inputmode="numeric" maxlength="8" placeholder="0000">
+            </div>`, {
+            actions: [
+                { label: "取消", act: "cancel" },
+                { label: "加入邀请", act: "join", primary: true }
+            ],
+            onAction: async (act) => {
+                if (act !== "join") {
+                    return false;
+                }
+                const code = el("join-invite-code").value.trim();
+                if (!/^\d{4}$|^\d{8}$/.test(code)) {
+                    toast("邀请码只能是 4 位或 8 位数字", "error");
+                    return false;
+                }
+                try {
+                    const joined = await api.chat.joinInvite(code);
+                    toast("已加入邀请，等待发起人结束邀请");
+                    closeModal();
+                    showJoinState(joined.invite);
+                    return false;
+                } catch (error) {
+                    report(error);
+                    return false;
+                }
+            }
+        });
+    }
+
+    function showJoinState(invite) {
+        const rows = (invite.participants || []).map((item) => `
+            <div class="check-row">
+                <span class="avatar">${initial(item.username || item.login)}</span>
+                <span class="grow">${escapeHtml(item.username || item.login)}</span>
+            </div>`).join("") || '<div class="notice">还没有其他人加入。</div>';
+
+        openModal(`已加入邀请 ${invite.code}`, `
+            <div class="code-big">${escapeHtml(invite.code)}</div>
+            <div class="notice" style="text-align:center;">发起人：${escapeHtml(invite.ownerName || invite.owner)} · 已加入 ${(invite.participants || []).length} 人</div>
+            <div class="field"><label>当前参与者</label>${rows}</div>`, {
+            actions: [
+                { label: "退出邀请", act: "leave" },
+                { label: "关闭", act: "cancel", primary: true }
+            ],
+            onAction: async (act) => {
+                if (act !== "leave") {
+                    return false;
+                }
+                try {
+                    await api.chat.leaveInvite(invite.code);
+                    toast("已退出邀请");
+                    return true;
+                } catch (error) {
+                    report(error);
+                    return false;
+                }
+            }
+        });
+    }
+
+    function openJoinGroupDialog() {
+        openModal("按群号加入", `
+            <div class="notice">输入 8 位群号，或让朋友把群二维码发给你。</div>
+            <div class="field"><label>群号</label>
+                <input type="text" id="join-group-no" inputmode="numeric" maxlength="8" placeholder="12345678">
+            </div>`, {
+            actions: [
+                { label: "取消", act: "cancel" },
+                { label: "查找并加入", act: "join", primary: true }
+            ],
+            onAction: async (act) => {
+                if (act !== "join") {
+                    return false;
+                }
+                const number = el("join-group-no").value.trim();
+                if (!/^\d+$/.test(number)) {
+                    toast("请填写数字群号", "error");
+                    return false;
+                }
+                await joinGroupByNumber(number);
+                return false;
+            }
+        });
+    }
+
+    async function joinGroupByNumber(number) {
+        try {
+            const info = await api.chat.groupLookup(number);
+            const card = info.group;
+            const confirmed = confirm(`加入「${card.name}」？\n群号：${card.no}\n群主：${card.ownerName || card.owner}\n成员：${card.memberCount} 人`);
+            if (!confirmed) {
+                return;
+            }
+            const joined = await api.chat.joinGroupByNumber(number);
+            closeModal();
+            await refreshConversations(true);
+            await openConversation(joined.conversation.id);
+            toast("已加入群聊");
+        } catch (error) {
+            report(error);
+        }
+    }
+
+    async function handleGroupDeepLink() {
+        const number = new URLSearchParams(location.search).get("group");
+        if (!number) {
+            return;
+        }
+        try {
+            const info = await api.chat.groupLookup(number);
+            if (info.group.joined) {
+                await openConversation(info.group.id);
+                return;
+            }
+            const confirmed = confirm(`加入「${info.group.name}」？\n群号：${info.group.no}\n成员：${info.group.memberCount} 人`);
+            if (!confirmed) {
+                return;
+            }
+            const joined = await api.chat.joinGroupByNumber(number);
+            await refreshConversations(true);
+            await openConversation(joined.conversation.id);
+            toast("已加入群聊");
+        } catch (error) {
+            report(error);
+        }
+    }
+
     function openNewChat() {
         openModal("发起聊天", `
-            <div class="notice">搜索账户，发起单聊或打开会话。</div>
-            <div class="field"><input type="text" id="user-search" placeholder="输入登录名或用户名"></div>
+            <div class="notice">搜索登录名、用户名或 UID，发起单聊或打开会话。</div>
+            <div class="field"><input type="text" id="user-search" placeholder="登录名 / 用户名 / UID"></div>
             <div id="user-results"></div>
             <div style="margin-top: 14px; display:flex; gap:8px; flex-wrap:wrap;">
                 <button class="btn small primary" id="new-group-btn">创建群聊</button>
                 <button class="btn small" id="add-friend-btn2">添加好友</button>
+                <button class="btn small" id="invite-group-btn">用邀请码建群</button>
+                <button class="btn small" id="join-invite-btn">输入邀请码</button>
+                <button class="btn small" id="join-group-btn">按群号加入</button>
             </div>`, {
             onMount(root) {
                 const search = root.querySelector("#user-search");
@@ -2606,7 +3220,7 @@
                         results.innerHTML = data.users.map((user) => `
                             <div class="check-row">
                                 <span class="avatar">${initial(user.username || user.login)}</span>
-                                <span class="grow">${escapeHtml(user.username || user.login)}（${escapeHtml(user.login)}）${user.friend ? '<span class="pill">好友</span>' : ""}</span>
+                                <span class="grow">${escapeHtml(user.username || user.login)}（${escapeHtml(user.login)}）<span class="tag">UID ${escapeHtml(String(user.uid || "-"))}</span>${user.friend ? '<span class="pill">好友</span>' : ""}</span>
                                 ${user.friend ? `<button class="btn small primary" data-chat="${escapeHtml(user.login)}">发消息</button>` : `<button class="btn small" data-add="${escapeHtml(user.login)}">加好友</button>`}
                             </div>`).join("") || '<div class="notice">没有找到用户。</div>';
 
@@ -2649,6 +3263,18 @@
                 root.querySelector("#add-friend-btn2").addEventListener("click", () => {
                     closeModal();
                     openAddFriend();
+                });
+                root.querySelector("#invite-group-btn").addEventListener("click", () => {
+                    closeModal();
+                    openInviteDialog();
+                });
+                root.querySelector("#join-invite-btn").addEventListener("click", () => {
+                    closeModal();
+                    openJoinInviteDialog();
+                });
+                root.querySelector("#join-group-btn").addEventListener("click", () => {
+                    closeModal();
+                    openJoinGroupDialog();
                 });
             }
         });
@@ -3231,6 +3857,47 @@
                 toast("这个会话已被解散或你已被移出");
             }
             renderSidebar();
+            return;
+        }
+        if (event.type === "message:packet") {
+            const message = event.message;
+            if (!message) {
+                return;
+            }
+            const index = state.messages.findIndex((item) => item.id === message.id);
+            if (index >= 0) {
+                state.messages[index] = message;
+                renderMessages();
+            }
+            return;
+        }
+        if (event.type === "invite:update") {
+            if (state.invite && event.invite && event.invite.code === state.invite.code) {
+                state.invite = event.invite;
+                const box = document.querySelector(".code-big");
+                if (box) {
+                    const joined = document.querySelectorAll("#modal-root .check-row").length;
+                    if (joined !== (event.invite.participants || []).length) {
+                        closeModal();
+                        showInvitePanel(event.invite);
+                    }
+                }
+            }
+            return;
+        }
+        if (event.type === "invite:closed") {
+            closeModal();
+            toast("发起人结束了邀请，群聊已建好");
+            refreshConversations(true).then(() => {
+                if (event.invite && event.invite.conversation) {
+                    openConversation(event.invite.conversation).catch(() => {});
+                }
+            });
+            return;
+        }
+        if (event.type === "invite:cancelled") {
+            closeModal();
+            toast("发起人取消了邀请");
             return;
         }
         if (event.type === "typing") {
