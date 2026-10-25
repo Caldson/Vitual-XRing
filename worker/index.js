@@ -22,6 +22,10 @@
  *   - 写账户前向 Durable Object AccountsLock 申请写锁，避免跨 isolate 并发覆盖余额
  *   - 未捕获异常不再把内部信息回给客户端
  *
+ * 1.3.0 修复已知问题（#2）：
+ *   - 前端聊天室改用 visualViewport 计算高度，修 iPad / iPhone 上消息区没有滚动条、
+ *     输入框被顶到屏幕外的问题（服务端接口未变，只同步版本号便于前端校验）
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -41,7 +45,7 @@
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  */
 
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -54,7 +58,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.2";
+const CHAT_VERSION = "1.3";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 const CHAT_WINDOW_MS = 60 * 1000;

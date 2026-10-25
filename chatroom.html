@@ -2,13 +2,14 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#1f2430">
     <title>聊天室 | Vitual XRing</title>
     <style>
         :root {
             color-scheme: light;
             font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            --app-height: 100vh;
             --blue: #3867e8;
             --blue-soft: #eef2ff;
             --ink: #172033;
@@ -36,6 +37,8 @@
             background: var(--bg);
             color: var(--ink);
             overflow: hidden;
+            overscroll-behavior: none;
+            -webkit-text-size-adjust: 100%;
         }
 
         button, input, textarea {
@@ -43,23 +46,33 @@
             color: inherit;
         }
 
-        button { cursor: pointer; }
+        button { cursor: pointer; touch-action: manipulation; }
 
+        /* 1.3.0：iPad / iPhone 的 100vh 是「工具栏收起后」的大视口，键盘弹出也不会变，
+           聊天区会被撑出屏幕且没有滚动条。这里优先用 dvh，脚本再用 visualViewport
+           的实际高度写成内联 height（见 syncViewportHeight），保证输入框始终可见。 */
         .app {
             height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
         .topbar {
-            height: 56px;
+            height: auto;
+            min-height: 56px;
             display: flex;
             align-items: center;
             gap: 14px;
             padding: 0 18px;
+            padding-top: calc(env(safe-area-inset-top, 0px));
+            padding-left: calc(18px + env(safe-area-inset-left, 0px));
+            padding-right: calc(18px + env(safe-area-inset-right, 0px));
             background: #fff;
             border-bottom: 1px solid var(--line);
             flex: 0 0 auto;
+            box-sizing: border-box;
         }
 
         .brand {
@@ -124,6 +137,7 @@
             min-height: 0;
             display: grid;
             grid-template-columns: 68px 292px minmax(0, 1fr);
+            overflow: hidden;
         }
 
         .rail {
@@ -132,7 +146,10 @@
             flex-direction: column;
             align-items: center;
             padding: 14px 0;
+            padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
             gap: 8px;
+            min-height: 0;
+            overflow-y: auto;
         }
 
         .rail button {
@@ -199,6 +216,8 @@
             display: flex;
             flex-direction: column;
             min-width: 0;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .sidebar-head {
@@ -241,7 +260,10 @@
 
         .sidebar-body {
             flex: 1;
+            min-height: 0;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
             padding: 6px 0 14px;
         }
 
@@ -352,6 +374,8 @@
 
         .chat-pane {
             min-width: 0;
+            min-height: 0;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             background:
@@ -511,10 +535,24 @@
             flex: 1;
             min-height: 0;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
+            scrollbar-color: #c7d2e4 transparent;
             padding: 18px 20px 10px;
             display: flex;
             flex-direction: column;
             gap: 10px;
+        }
+
+        /* 桌面 / 鼠标设备给一条常驻滚动条；iPadOS 仍是系统浮层滚动条 */
+        .messages::-webkit-scrollbar { width: 10px; }
+        .messages::-webkit-scrollbar-track { background: transparent; }
+        .messages::-webkit-scrollbar-thumb {
+            border: 3px solid transparent;
+            border-radius: 999px;
+            background: #c7d2e4;
+            background-clip: content-box;
         }
 
         .load-more {
@@ -690,6 +728,7 @@
             background: #fff;
             border-top: 1px solid var(--line);
             padding: 9px 14px 11px;
+            padding-bottom: calc(11px + env(safe-area-inset-bottom, 0px));
         }
 
         .reply-bar {
@@ -781,6 +820,7 @@
         .modal {
             width: min(100%, 560px);
             max-height: min(84vh, 760px);
+            max-height: min(84dvh, 760px);
             display: flex;
             flex-direction: column;
             background: #fff;
@@ -813,7 +853,10 @@
         .modal-body {
             padding: 16px 18px;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
             flex: 1;
+            min-height: 0;
         }
 
         .modal footer {
@@ -964,9 +1007,13 @@
         .gate {
             position: fixed;
             inset: 0;
+            height: var(--app-height);
+            overflow-y: auto;
             display: grid;
             place-items: center;
             padding: 24px;
+            padding-top: calc(24px + env(safe-area-inset-top, 0px));
+            padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
             background:
                 radial-gradient(circle at 15% 15%, #e2edff 0, transparent 34%),
                 radial-gradient(circle at 90% 85%, #e4f5f0 0, transparent 30%),
@@ -1010,6 +1057,16 @@
             .msg-body { max-width: 82%; }
             .topbar .version-badge { display: none; }
         }
+
+        /* 1.3.0：iOS / iPadOS 聚焦字号小于 16px 的输入框会把整个页面放大，
+           放大后 fixed 布局与可视区域对不上，看起来就是「overflow 排版混乱」。 */
+        @media (hover: none) and (pointer: coarse) {
+            input,
+            textarea,
+            select {
+                font-size: 16px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1018,7 +1075,7 @@
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
-            <span class="version-badge">v1.2.0 聊天室</span>
+            <span class="version-badge">v1.3.0 聊天室</span>
         </div>
         <div class="topbar-spacer"></div>
         <span class="status"><span class="status-dot" id="conn-dot"></span><span id="conn-text">连接中…</span></span>
@@ -1085,8 +1142,8 @@
 <div class="menu" id="menu"></div>
 <div class="toast" id="toast"></div>
 
-<script src="vtx-qr.js?v=1.2.0"></script>
-<script src="vtx-api.js?v=1.2.0"></script>
+<script src="vtx-qr.js?v=1.3.0"></script>
+<script src="vtx-api.js?v=1.3.0"></script>
 <script>
 (function () {
     "use strict";
@@ -1123,8 +1180,36 @@
     };
 
     let api = window.VTXApi;
-    const REQUIRED_API_VERSION = "1.2.0";
+    const REQUIRED_API_VERSION = "1.3.0";
     const SDK_URL = "vtx-api.js";
+
+    /* 1.3.0：iPad / iPhone 视口高度修正（issue #2）
+       iOS 的 100vh 取的是「工具栏收起后」的大视口，键盘弹出时也不会变，
+       于是聊天区被撑出屏幕、消息列表失去滚动条、输入框落到屏幕外。
+       这里用 visualViewport 的实际高度盖掉 CSS 高度，并在键盘 / 旋转时重算。 */
+    function syncViewportHeight() {
+        const viewport = window.visualViewport;
+        const height = Math.round(viewport && viewport.height ? viewport.height : window.innerHeight);
+        const appEl = el("app");
+        if (!height || !appEl || appEl.style.height === `${height}px`) {
+            return;
+        }
+        const list = el("messages");
+        const pinned = Boolean(list) && list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+        appEl.style.height = `${height}px`;
+        document.documentElement.style.setProperty("--app-height", `${height}px`);
+        if (pinned) {
+            list.scrollTop = list.scrollHeight;
+        }
+    }
+
+    syncViewportHeight();
+    window.addEventListener("resize", syncViewportHeight);
+    window.addEventListener("orientationchange", () => setTimeout(syncViewportHeight, 150));
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", syncViewportHeight);
+        window.visualViewport.addEventListener("scroll", syncViewportHeight);
+    }
 
     function compareVersion(left, right) {
         const a = String(left || "").split(".").map((item) => Number(item) || 0);
@@ -1226,6 +1311,7 @@
     function showApp() {
         el("gate").hidden = true;
         el("app").hidden = false;
+        syncViewportHeight();
     }
 
     function timePart(message) {

@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.2.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**）
+- API 版本：`1.3.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**）
 
 ---
 
@@ -1613,10 +1613,10 @@ GitHub Pages 与浏览器会长期缓存这个 URL，于是页面在 9.2 上线�
 
 **修复**：
 
-1. 全站脚本引用统一带上版本参数，例如 `<script src="vtx-api.js?v=1.2.0"></script>`，
+1. 全站脚本引用统一带上版本参数，例如 `<script src="vtx-api.js?v=1.3.0"></script>`，
    `?v=` 变化会让浏览器与 CDN 必须重新取文件。发布新版本时**必须一起改这个参数**。
 2. `chatroom.html` 启动时校验 `VTXApi.version`：
-   - 低于页面要求的版本（当前 `REQUIRED_API_VERSION = "1.2.0"`）就自动按
+   - 低于页面要求的版本（当前 `REQUIRED_API_VERSION = "1.3.0"`）就自动按
      `vtx-api.js?v=<版本>&t=<时间戳>` 重新加载一次；
    - 仍然不达标时显示「页面资源需要更新」提示页，给一个「重新加载」按钮，
      而不是让用户对着 `xxx is not a function` 发愣。
@@ -1780,4 +1780,42 @@ curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/redpacket/r
   这是原有设计（站主凭截图人工发放），但配合 `/api/me/withdraw` 等于**任意用户可无限铸币**，请自行决定是否收紧。
 - 4 位邀请码的组合空间只有 1 万，限流只是缓解；对安全要求高的群请使用 8 位邀请码。
 - 密码哈希是 PBKDF2-SHA256；如需更强抗 GPU 能力，可后续迁移到 Argon2id / scrypt（需要新的哈希前缀与灰度升级）。
+
+---
+
+## 16. 1.3.0 修复已知问题
+
+本版只改前端，Worker 接口没有任何变化；版本号按 13.11 的约定一起升到 `1.3.0`。
+
+### 16.1 问题（issue #2）
+
+[#2 聊天室 overflow 问题](https://github.com/Caldson/Vitual-XRing/issues/2)：
+用 iPad 打开 `chatroom.html` 时聊天区域没有可用的滚动条，排版错乱，输入框被挤出可视范围。
+
+### 16.2 原因
+
+1. **`100vh` 不是可视高度**：iOS / iPadOS Safari 的 `100vh` 取的是「地址栏与工具栏收起后」
+   的大视口，键盘弹出时也不会变。`body` 又是 `overflow: hidden`，于是整页比屏幕高出一截，
+   消息列表与输入框落到屏幕外，且没有滚动条可以把它们找回来。
+2. **flex / grid 子项缺少 `min-height: 0`**：`.sidebar`、`.chat-pane` 的自动最小高度是内容高度，
+   消息一多就把面板撑高，滚动容器 `.messages` 拿不到固定高度，自然不滚动。
+3. **输入框字号小于 16px**：iOS 在聚焦 `font-size < 16px` 的输入框时会自动放大页面，
+   放大后 `fixed` 定位与可视区域错位，看上去就是「排版混乱」。
+
+### 16.3 修复
+
+| 项 | 处理 |
+|---|---|
+| 视口高度 | `.app` 由 `height: 100vh` 改为 `100dvh`，并由脚本 `syncViewportHeight()` 用 `visualViewport.height`（不可用时用 `window.innerHeight`）写成内联高度；监听 `resize`、`orientationchange` 以及 `visualViewport` 的 `resize` / `scroll`，键盘弹出、旋转、工具栏收起时都会重算 |
+| 滚动容器 | `.messages`、`.sidebar-body`、`.modal-body` 补 `min-height: 0`、`-webkit-overflow-scrolling: touch`、`overscroll-behavior: contain`；`.layout`、`.sidebar`、`.chat-pane` 补 `min-height: 0` / `overflow: hidden`，消息再多也只让消息列表滚动 |
+| 滚动条 | `.messages` 用 `scrollbar-width: thin` + `::-webkit-scrollbar` 画一条常驻细滚动条（iPadOS 仍是系统浮层滚动条，滚动时出现） |
+| 输入框 | `@media (hover: none) and (pointer: coarse)` 下 `input` / `textarea` / `select` 统一 16px，避免聚焦自动放大；`button` 加 `touch-action: manipulation`，避免双击缩放 |
+| 安全区 | `viewport` 加 `viewport-fit=cover`，顶栏、输入区、左侧导航按 `env(safe-area-inset-*)` 留出刘海与 Home 指示条的空间；`.modal` 最大高度改用 `dvh` |
+| 键盘弹出 | 视口高度变化时，如果消息列表原本贴着底部，重新滚到底，输入框与最新消息都留在视野里 |
+
+### 16.4 同步升级的版本号
+
+`vtx-api.js` 的 `API_VERSION`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页面 `<script>` 的 `?v=`、
+Worker 的 `VERSION` / `CHAT_VERSION`、`worker/package.json` 全部升到 `1.3.0`（`CHAT_VERSION` 为 `1.3`）。
+
 
