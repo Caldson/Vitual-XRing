@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>收款 / 付款 | Vitual XRing</title>
+    <style>
+        :root {
+            color-scheme: light;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 18px;
+            background: linear-gradient(160deg, #eef3ff 0%, #f8fafc 45%, #eef6f4 100%);
+            font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+            color: #1f2937;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 430px;
+            padding: 34px 30px 28px;
+            border-radius: 20px;
+            background: #ffffff;
+            box-shadow: 0 24px 60px rgba(31, 58, 118, 0.13);
+        }
+
+        .brand-mark {
+            width: 46px;
+            height: 46px;
+            margin: 0 auto 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 14px;
+            color: #ffffff;
+            background: linear-gradient(140deg, #4f7ef7, #3158d1);
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        h1 {
+            margin: 0 0 6px;
+            font-size: 21px;
+            text-align: center;
+            letter-spacing: -0.01em;
+        }
+
+        .subtitle {
+            margin: 0 0 22px;
+            color: #7d8899;
+            font-size: 13.5px;
+            text-align: center;
+        }
+
+        .field {
+            margin-bottom: 14px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #55617a;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px 13px;
+            border: 1px solid #dbe2ee;
+            border-radius: 11px;
+            background: #fbfcfe;
+            color: #1f2937;
+            font-size: 14.5px;
+            font-family: inherit;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #6b8ff5;
+            box-shadow: 0 0 0 3px rgba(107, 143, 245, 0.16);
+        }
+
+        .type-switch {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 18px;
+            padding: 5px;
+            border-radius: 13px;
+            background: #f1f4fa;
+        }
+
+        .type-switch button {
+            padding: 9px 0;
+            border: none;
+            border-radius: 9px;
+            background: transparent;
+            color: #64708a;
+            font-size: 14px;
+            font-weight: 650;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+        }
+
+        .type-switch button[aria-pressed="true"] {
+            background: #ffffff;
+            color: #3158d1;
+            box-shadow: 0 2px 10px rgba(49, 88, 209, 0.14);
+        }
+
+        .type-switch button:disabled {
+            opacity: 0.42;
+            cursor: not-allowed;
+        }
+
+        .type-switch button[aria-pressed="true"][data-kind="receipt"] {
+            color: #12855d;
+        }
+
+        .type-switch button[aria-pressed="true"][data-kind="code"] {
+            color: #b45309;
+        }
+
+        .qr-box {
+            margin: 4px 0 12px;
+            padding: 12px;
+            border: 1px solid #e7ecf6;
+            border-radius: 14px;
+            background: #f7f9fe;
+            text-align: center;
+        }
+
+        .qr-box img {
+            width: 100%;
+            max-width: 320px;
+            border-radius: 10px;
+            background: #ffffff;
+        }
+
+        .qr-caption {
+            margin: 0 0 6px;
+            color: #3158d1;
+            font-size: 15px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .qr-tip {
+            margin: 0 0 12px;
+            color: #7d8899;
+            font-size: 12.5px;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        .qr-small {
+            margin: 10px 0 0;
+            color: #9aa4b6;
+            font-size: 12px;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        .code-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .code-actions button {
+            flex: 1;
+            padding: 9px 0;
+            font-size: 13px;
+        }
+
+        .code-exit {
+            width: 100%;
+            margin-top: 14px;
+            padding: 10px 0;
+        }
+
+        button.primary {
+            width: 100%;
+            margin-top: 6px;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #4f7ef7, #3158d1);
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: transform 0.12s, box-shadow 0.15s, opacity 0.15s;
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 10px 22px rgba(49, 88, 209, 0.24);
+        }
+
+        button.primary:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        button.primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        button.primary[data-kind="receipt"] {
+            background: linear-gradient(135deg, #35c389, #12855d);
+        }
+
+        button.ghost {
+            padding: 9px 15px;
+            border: 1px solid #dbe2ee;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #4a5568;
+            font-size: 13.5px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .message {
+            min-height: 20px;
+            margin: 12px 0 0;
+            color: #d64545;
+            font-size: 13px;
+            line-height: 1.55;
+            text-align: center;
+        }
+
+        .message.ok {
+            color: #12855d;
+        }
+
+        .balance-card {
+            margin-bottom: 18px;
+            padding: 14px 16px;
+            border: 1px solid #e7ecf6;
+            border-radius: 13px;
+            background: #f7f9fe;
+            text-align: center;
+        }
+
+        .balance-card span {
+            display: block;
+            color: #7d8899;
+            font-size: 12.5px;
+        }
+
+        .balance-card strong {
+            display: block;
+            margin-top: 3px;
+            color: #3158d1;
+            font-size: 25px;
+            font-weight: 750;
+            letter-spacing: -0.02em;
+        }
+
+        .record {
+            padding: 14px 16px;
+            border: 1px solid #e2ecff;
+            border-radius: 13px;
+            background: #f6f9ff;
+            font-size: 13.5px;
+            line-height: 1.75;
+            color: #46536b;
+        }
+
+        .record dl {
+            margin: 0;
+            display: grid;
+            grid-template-columns: 68px 1fr;
+            gap: 2px 10px;
+        }
+
+        .record dt {
+            color: #8b95a8;
+        }
+
+        .record dd {
+            margin: 0;
+            word-break: break-all;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .result-actions button {
+            flex: 1;
+        }
+
+        .hint {
+            margin: 18px 0 0;
+            color: #9aa4b6;
+            font-size: 12px;
+            line-height: 1.6;
+            text-align: center;
+            word-break: break-all;
+        }
+
+        .version-badge {
+            position: fixed;
+            top: 18px;
+            right: 20px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            color: #3158d1;
+            background: #eef2ff;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <span class="version-badge">v1.3.0</span>
+
+    <main class="card">
+        <div class="brand-mark" aria-hidden="true">V</div>
+        <h1>收款 / 付款</h1>
+        <p class="subtitle">付款需要输入账户密码确认；收款直接到账，无需密码。</p>
+
+        <section id="login-view" hidden>
+            <div class="field">
+                <label for="login-name">登录账户名</label>
+                <input id="login-name" type="text" autocomplete="username" required>
+            </div>
+            <div class="field">
+                <label for="login-password">密码</label>
+                <input id="login-password" type="password" autocomplete="current-password" required>
+            </div>
+            <button id="login-button" class="primary" type="button">登录</button>
+            <p id="login-message" class="message" role="alert" aria-live="polite"></p>
+        </section>
+
+        <section id="pay-view" hidden>
+            <div class="balance-card">
+                <span id="account-name">—</span>
+                <strong id="account-money">0.00 VTX</strong>
+            </div>
+
+            <div class="type-switch" id="type-switch" role="group" aria-label="记账类型">
+                <button id="type-payment" type="button" data-kind="payment" aria-pressed="true">付款</button>
+                <button id="type-receipt" type="button" data-kind="receipt" aria-pressed="false">收款</button>
+                <button id="type-code" type="button" data-kind="code" aria-pressed="false">收款码</button>
+            </div>
+
+            <div id="form-panel">
+                <div class="field">
+                    <label id="party-label" for="party">收款方</label>
+                    <input id="party" type="text" maxlength="40" placeholder="账户显示名或网站名">
+                </div>
+
+                <div class="field">
+                    <label for="amount">金额（VTX）</label>
+                    <input id="amount" type="text" inputmode="decimal" placeholder="0.00">
+                </div>
+
+                <div class="field">
+                    <label for="description">描述（选填）</label>
+                    <input id="description" type="text" maxlength="200" placeholder="例如：购买道具">
+                </div>
+
+                <div class="field" id="password-field">
+                    <label for="confirm-password">密码（确认支付）</label>
+                    <input id="confirm-password" type="password" autocomplete="current-password">
+                </div>
+
+                <button id="submit-button" class="primary" type="button" data-kind="payment">确认付款</button>
+            </div>
+
+            <div id="code-panel" hidden>
+                <div class="field">
+                    <label for="code-amount">收款金额（VTX，留空则由付款方填写）</label>
+                    <input id="code-amount" type="text" inputmode="decimal" placeholder="例如 5.00">
+                </div>
+
+                <button id="code-generate" class="primary" type="button" data-kind="receipt">生成收款码</button>
+
+                <div class="qr-box" id="code-box" hidden>
+                    <img id="code-image" alt="收款码">
+                </div>
+
+                <p class="qr-caption" id="code-caption" hidden></p>
+                <p class="qr-tip" id="code-tip" hidden>让对方扫这个码付款，钱会直接到你的账户，你不需要再做确认。</p>
+
+                <div class="code-actions" id="code-actions" hidden>
+                    <button id="code-save" class="ghost" type="button">保存图片</button>
+                    <button id="code-refresh" class="ghost" type="button">刷新收款码</button>
+                    <button id="code-revoke" class="ghost" type="button">撤销</button>
+                </div>
+
+                <p class="qr-small" id="code-hint" hidden>只有点「刷新收款码」才会生成新的码，旧码会立即失效。手机上长按上面的图片即可保存到相册。</p>
+
+                <button id="code-exit" class="ghost code-exit" type="button">退出收款码</button>
+            </div>
+
+            <p id="pay-message" class="message" role="alert" aria-live="polite"></p>
+        </section>
+
+        <section id="scan-view" hidden>
+            <div class="balance-card">
+                <span>付款给</span>
+                <strong id="scan-payee">—</strong>
+            </div>
+
+            <div class="record">
+                <dl>
+                    <dt>收款人</dt><dd id="scan-payee-name">—</dd>
+                    <dt>金额</dt><dd id="scan-amount-text">—</dd>
+                    <dt>备注</dt><dd id="scan-note">收款码付款</dd>
+                </dl>
+            </div>
+
+            <div class="field" id="scan-amount-field" hidden>
+                <label for="scan-amount">付款金额（VTX）</label>
+                <input id="scan-amount" type="text" inputmode="decimal" placeholder="0.00">
+            </div>
+
+            <div class="field">
+                <label for="scan-password">密码（确认付款）</label>
+                <input id="scan-password" type="password" autocomplete="current-password">
+            </div>
+
+            <button id="scan-submit" class="primary" type="button" data-kind="payment">确认付款</button>
+            <p id="scan-message" class="message" role="alert" aria-live="polite"></p>
+        </section>
+
+        <section id="result-view" hidden>
+            <div class="balance-card">
+                <span>最新余额</span>
+                <strong id="result-money">0.00 VTX</strong>
+            </div>
+            <div class="record">
+                <dl>
+                    <dt>名称</dt><dd id="record-name">—</dd>
+                    <dt>金额</dt><dd id="record-price">—</dd>
+                    <dt>流向</dt><dd id="record-flow">—</dd>
+                    <dt>描述</dt><dd id="record-description">—</dd>
+                    <dt>时间</dt><dd id="record-time">—</dd>
+                </dl>
+            </div>
+            <div class="result-actions">
+                <button class="ghost" type="button" id="again-button">再记一笔</button>
+                <button class="ghost" type="button" id="logout-button">退出登录</button>
+            </div>
+        </section>
+
+        <p id="api-hint" class="hint"></p>
+    </main>
+
+    <script src="vtx-qr.js?v=1.3.0"></script>
+    <script src="vtx-sdk.js?v=1.3.0"></script>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const PRODUCTION_API = "https://xsmmc.caldson.us.ci";
+        const isLocalPreview = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/.test(window.location.hostname);
+        const apiBase = (params.get("api") || (isLocalPreview ? PRODUCTION_API : window.location.origin)).replace(/\/+$/, "");
+
+        // 由其它站点调用时可预填字段，并在付款成功后回传结果
+        const preset = {
+            party: params.get("party") || "",
+            amount: params.get("amount") || "",
+            description: params.get("description") || "",
+            name: params.get("name") || "",
+            lock: params.get("lock") === "1",
+            close: params.get("close") === "1"
+        };
+
+        const elements = {
+            loginView: document.getElementById("login-view"),
+            payView: document.getElementById("pay-view"),
+            resultView: document.getElementById("result-view"),
+            loginName: document.getElementById("login-name"),
+            loginPassword: document.getElementById("login-password"),
+            loginButton: document.getElementById("login-button"),
+            loginMessage: document.getElementById("login-message"),
+            accountName: document.getElementById("account-name"),
+            accountMoney: document.getElementById("account-money"),
+            typePayment: document.getElementById("type-payment"),
+            typeReceipt: document.getElementById("type-receipt"),
+            typeCode: document.getElementById("type-code"),
+            typeSwitch: document.getElementById("type-switch"),
+            formPanel: document.getElementById("form-panel"),
+            codePanel: document.getElementById("code-panel"),
+            codeAmount: document.getElementById("code-amount"),
+            codeGenerate: document.getElementById("code-generate"),
+            codeBox: document.getElementById("code-box"),
+            codeImage: document.getElementById("code-image"),
+            codeCaption: document.getElementById("code-caption"),
+            codeTip: document.getElementById("code-tip"),
+            codeActions: document.getElementById("code-actions"),
+            codeHint: document.getElementById("code-hint"),
+            codeSave: document.getElementById("code-save"),
+            codeRefresh: document.getElementById("code-refresh"),
+            codeRevoke: document.getElementById("code-revoke"),
+            codeExit: document.getElementById("code-exit"),
+            scanView: document.getElementById("scan-view"),
+            scanPayee: document.getElementById("scan-payee"),
+            scanPayeeName: document.getElementById("scan-payee-name"),
+            scanAmountText: document.getElementById("scan-amount-text"),
+            scanAmountField: document.getElementById("scan-amount-field"),
+            scanAmount: document.getElementById("scan-amount"),
+            scanNote: document.getElementById("scan-note"),
+            scanPassword: document.getElementById("scan-password"),
+            scanSubmit: document.getElementById("scan-submit"),
+            scanMessage: document.getElementById("scan-message"),
+            partyLabel: document.getElementById("party-label"),
+            party: document.getElementById("party"),
+            amount: document.getElementById("amount"),
+            description: document.getElementById("description"),
+            passwordField: document.getElementById("password-field"),
+            confirmPassword: document.getElementById("confirm-password"),
+            submitButton: document.getElementById("submit-button"),
+            payMessage: document.getElementById("pay-message"),
+            resultMoney: document.getElementById("result-money"),
+            recordName: document.getElementById("record-name"),
+            recordPrice: document.getElementById("record-price"),
+            recordFlow: document.getElementById("record-flow"),
+            recordDescription: document.getElementById("record-description"),
+            recordTime: document.getElementById("record-time"),
+            againButton: document.getElementById("again-button"),
+            logoutButton: document.getElementById("logout-button"),
+            hint: document.getElementById("api-hint")
+        };
+
+        let account = null;
+        const presetType = params.get("type");
+        let kind = presetType === "receipt" ? "receipt" : (presetType === "code" ? "code" : "payment");
+        // lock=1 是给第三方固定商品用的，不允许切到收款码
+        if (preset.lock && kind === "code") {
+            kind = "payment";
+        }
+        let receipt = null;
+        let scan = null;
+        const scanCode = params.get("rc") || "";
+
+        function formatMoney(value) {
+            const amount = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+            if (!Number.isFinite(amount)) {
+                return String(value ?? "—");
+            }
+            return new Intl.NumberFormat("zh-CN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(amount);
+        }
+
+        function setMessage(element, text, ok) {
+            element.textContent = text || "";
+            element.className = ok ? "message ok" : "message";
+        }
+
+        function show(view) {
+            elements.loginView.hidden = view !== "login";
+            elements.payView.hidden = view !== "pay";
+            elements.scanView.hidden = view !== "scan";
+            elements.resultView.hidden = view !== "result";
+        }
+
+        function applyKind() {
+            const isPayment = kind === "payment";
+            const isCode = kind === "code";
+
+            // 收款码是独立界面：进去后整排页签隐藏，只能点「退出收款码」回来
+            elements.typeSwitch.hidden = isCode;
+            elements.codeExit.hidden = !isCode;
+
+            elements.typePayment.setAttribute("aria-pressed", String(isPayment));
+            elements.typeReceipt.setAttribute("aria-pressed", String(kind === "receipt"));
+            elements.typeCode.setAttribute("aria-pressed", String(isCode));
+
+            elements.formPanel.hidden = isCode;
+            elements.codePanel.hidden = !isCode;
+
+            if (isCode) {
+                setMessage(elements.payMessage, "", false);
+                loadReceiptCode();
+                return;
+            }
+
+            elements.partyLabel.textContent = isPayment ? "付款给" : "收款来自";
+            elements.party.placeholder = isPayment ? "账户显示名或网站名" : "账户显示名或网站名";
+            elements.submitButton.textContent = isPayment ? "确认付款" : "确认收款";
+            elements.submitButton.dataset.kind = kind;
+
+            // 收款直接入账，不需要密码
+            elements.passwordField.hidden = !isPayment;
+            if (!isPayment) {
+                elements.confirmPassword.value = "";
+            }
+
+            if (preset.party) elements.party.value = preset.party;
+            if (preset.amount) elements.amount.value = preset.amount;
+            if (preset.description) elements.description.value = preset.description;
+
+            if (preset.lock) {
+                elements.typePayment.disabled = true;
+                elements.typeReceipt.disabled = true;
+                elements.typeCode.disabled = true;
+                elements.party.readOnly = true;
+                elements.amount.readOnly = true;
+                elements.description.readOnly = true;
+            } else {
+                elements.amount.value = "";
+            }
+
+            setMessage(elements.payMessage, "", false);
+        }
+
+        function renderAccount() {
+            elements.accountName.textContent = `${account.username || "账户"}（${account.login}）`;
+            elements.accountMoney.textContent = `${formatMoney(account.money)} VTX`;
+        }
+
+        function describeError(error) {
+            if (!error) {
+                return "操作失败，请重试。";
+            }
+            if (error instanceof TypeError) {
+                return `无法连接 API（${apiBase}），请确认 Worker 已部署且地址正确。`;
+            }
+            if (error.code === "not_json" || error.status === 404) {
+                return `${apiBase} 没有 /api 接口。本地静态服务器不含 Worker，请先部署 Worker，或用 ?api=<Worker地址> 指定。`;
+            }
+            if (error.code === "invalid_password") {
+                return "密码不正确，记账已取消。";
+            }
+            if (error.code === "insufficient_funds") {
+                return error.message || "余额不足。";
+            }
+            if (error.code === "invalid_credentials") {
+                return "登录名或密码不正确。";
+            }
+            return error.message || "操作失败，请重试。";
+        }
+
+        async function loadSession() {
+            if (!window.VTX.isLoggedIn()) {
+                show("login");
+                elements.loginName.focus();
+                return;
+            }
+
+            try {
+                const result = await window.VTX.me();
+                account = {
+                    login: result.login,
+                    username: result.account.username,
+                    money: result.account.money
+                };
+                enterWorkspace();
+            } catch (error) {
+                window.VTX.logout();
+                show("login");
+                setMessage(elements.loginMessage, describeError(error), false);
+            }
+        }
+
+        async function handleLogin() {
+            const login = elements.loginName.value.trim();
+            const password = elements.loginPassword.value;
+
+            if (!login || !password) {
+                setMessage(elements.loginMessage, "请填写登录账户名和密码。", false);
+                return;
+            }
+
+            elements.loginButton.disabled = true;
+            setMessage(elements.loginMessage, "", false);
+
+            try {
+                const result = await window.VTX.login(login, password);
+                account = {
+                    login: result.login,
+                    username: result.account.username,
+                    money: result.account.money
+                };
+                elements.loginPassword.value = "";
+                enterWorkspace();
+            } catch (error) {
+                setMessage(elements.loginMessage, describeError(error), false);
+            } finally {
+                elements.loginButton.disabled = false;
+            }
+        }
+
+        /* ---------- 收款码 ---------- */
+
+        function renderCodeCard() {
+            if (!receipt || !receipt.code) {
+                return "";
+            }
+
+            const width = 720;
+            const height = 1000;
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.fillStyle = "#3158d1";
+            ctx.font = 'bold 34px "Segoe UI", "Microsoft YaHei", sans-serif';
+            ctx.textAlign = "center";
+            ctx.fillText("Vitual XRing 收款码", width / 2, 80);
+
+            ctx.fillStyle = "#1f2937";
+            ctx.font = 'bold 40px "Segoe UI", "Microsoft YaHei", sans-serif';
+            ctx.fillText(receipt.payeeName || account.username || "", width / 2, 146);
+
+            ctx.fillStyle = receipt.amount ? "#12855d" : "#7d8899";
+            ctx.font = receipt.amount
+                ? 'bold 62px "Segoe UI", "Microsoft YaHei", sans-serif'
+                : '600 30px "Segoe UI", "Microsoft YaHei", sans-serif';
+            ctx.fillText(receipt.amount ? `${receipt.amount} VTX` : "金额由付款方填写", width / 2, 232);
+
+            const qr = window.VTXQR.encode(receipt.url);
+            const area = 520;
+            const scale = Math.floor(area / (qr.size + 8));
+            const moduleSize = scale * (qr.size + 8);
+            const offsetX = (width - moduleSize) / 2;
+            const offsetY = 286;
+
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(offsetX, offsetY, moduleSize, moduleSize);
+            ctx.fillStyle = "#000000";
+            for (let row = 0; row < qr.size; row += 1) {
+                for (let col = 0; col < qr.size; col += 1) {
+                    if (qr.modules[row][col]) {
+                        ctx.fillRect(
+                            offsetX + (col + 4) * scale,
+                            offsetY + (row + 4) * scale,
+                            scale,
+                            scale
+                        );
+                    }
+                }
+            }
+
+            ctx.fillStyle = "#55617a";
+            ctx.font = '500 24px "Segoe UI", "Microsoft YaHei", sans-serif';
+            ctx.fillText("扫一扫，直接付款到这个账户", width / 2, offsetY + moduleSize + 56);
+
+            ctx.fillStyle = "#9aa4b6";
+            ctx.font = '400 18px ui-monospace, Consolas, monospace';
+            const url = receipt.url.replace(/^https?:\/\//, "");
+            const lines = [];
+            let rest = url;
+            while (rest.length > 44) {
+                let cut = rest.lastIndexOf("/", 44);
+                if (cut < 22) cut = rest.lastIndexOf("?", 44);
+                if (cut < 22) cut = 44;
+                const keep = rest[cut] === "/" || rest[cut] === "?" ? cut + 1 : cut;
+                lines.push(rest.slice(0, keep));
+                rest = rest.slice(keep);
+            }
+            if (rest) lines.push(rest);
+            lines.forEach((line, index) => {
+                ctx.fillText(line, width / 2, offsetY + moduleSize + 96 + index * 26);
+            });
+
+            return canvas.toDataURL("image/png");
+        }
+
+        function paintReceipt() {
+            const hasCode = Boolean(receipt && receipt.code);
+
+            elements.codeBox.hidden = !hasCode;
+            elements.codeCaption.hidden = !hasCode;
+            elements.codeTip.hidden = !hasCode;
+            elements.codeActions.hidden = !hasCode;
+            elements.codeHint.hidden = !hasCode;
+            elements.codeGenerate.hidden = hasCode;
+
+            if (!hasCode) {
+                elements.codeImage.removeAttribute("src");
+                elements.codeCaption.textContent = "";
+                return;
+            }
+
+            elements.codeImage.src = receipt.image;
+            elements.codeCaption.textContent = receipt.amount
+                ? `${receipt.payeeName} · 收款 ${receipt.amount} VTX`
+                : `${receipt.payeeName} · 金额由付款方填写`;
+            elements.codeAmount.value = receipt.amount || "";
+        }
+
+        async function loadReceiptCode() {
+            try {
+                const result = await window.VTX.receiptCode();
+                receipt = result.code
+                    ? {
+                        code: result.code,
+                        url: result.url,
+                        amount: result.amount,
+                        payeeName: result.payeeName || account.username
+                    }
+                    : null;
+
+                if (receipt) {
+                    receipt.image = renderCodeCard();
+                }
+                paintReceipt();
+            } catch (error) {
+                setMessage(elements.payMessage, describeError(error), false);
+            }
+        }
+
+        async function generateReceiptCode() {
+            const amount = elements.codeAmount.value.trim();
+
+            if (amount && (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0)) {
+                setMessage(elements.payMessage, "收款金额必须是大于 0 的数字，最多两位小数。", false);
+                return;
+            }
+
+            elements.codeGenerate.disabled = true;
+            setMessage(elements.payMessage, "正在生成收款码…", true);
+
+            try {
+                const result = await window.VTX.createReceiptCode(amount || undefined);
+                receipt = {
+                    code: result.code,
+                    url: result.url,
+                    amount: result.amount,
+                    payeeName: result.payeeName || account.username
+                };
+                receipt.image = renderCodeCard();
+                paintReceipt();
+                setMessage(elements.payMessage, "新的收款码已生成，旧码已失效。", true);
+            } catch (error) {
+                setMessage(elements.payMessage, describeError(error), false);
+            } finally {
+                elements.codeGenerate.disabled = false;
+            }
+        }
+
+        function saveReceiptImage() {
+            if (!receipt || !receipt.image) {
+                return;
+            }
+
+            const link = document.createElement("a");
+            link.href = receipt.image;
+            link.download = `vtx-receipt-${receipt.code}.png`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            setMessage(elements.payMessage, "已保存图片；手机端可长按二维码图片保存到相册。", true);
+        }
+
+        async function revokeReceiptCode() {
+            if (!receipt || !receipt.code) {
+                return;
+            }
+
+            elements.codeRevoke.disabled = true;
+
+            try {
+                await window.VTX.revokeReceiptCode();
+                receipt = null;
+                paintReceipt();
+                elements.codeAmount.value = "";
+                setMessage(elements.payMessage, "收款码已撤销。", true);
+            } catch (error) {
+                setMessage(elements.payMessage, describeError(error), false);
+            } finally {
+                elements.codeRevoke.disabled = false;
+            }
+        }
+
+        /* ---------- 扫码付款 ---------- */
+
+        async function prepareScan() {
+            try {
+                scan = await window.VTX.receiptCodeInfo(scanCode);
+            } catch (error) {
+                show("login");
+                elements.loginName.focus();
+                setMessage(elements.loginMessage, describeError(error), false);
+                return;
+            }
+
+            elements.scanPayee.textContent = `${scan.payeeName}`;
+            elements.scanPayeeName.textContent = `${scan.payeeName}（${scan.payee}）`;
+            elements.scanAmountText.textContent = scan.amount ? `${scan.amount} VTX` : "由你填写";
+            elements.scanAmountField.hidden = Boolean(scan.amount);
+            elements.scanNote.textContent = "收款码付款（收款方无需确认）";
+        }
+
+        function renderScan() {
+            if (!scan) {
+                return;
+            }
+            elements.scanPayee.textContent = scan.payeeName;
+            elements.scanPayeeName.textContent = `${scan.payeeName}（${scan.payee}）`;
+            elements.scanAmountText.textContent = scan.amount ? `${scan.amount} VTX` : "由你填写";
+            elements.scanAmountField.hidden = Boolean(scan.amount);
+            setMessage(elements.scanMessage, "", false);
+            show("scan");
+            elements.scanPassword.focus();
+        }
+
+        async function handleScanPay() {
+            const password = elements.scanPassword.value;
+
+            if (!password) {
+                setMessage(elements.scanMessage, "请输入密码确认付款。", false);
+                return;
+            }
+
+            const payload = { password, description: "" };
+
+            if (!scan.amount) {
+                const amount = elements.scanAmount.value.trim();
+                if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) {
+                    setMessage(elements.scanMessage, "付款金额必须是大于 0 的数字，最多两位小数。", false);
+                    return;
+                }
+                payload.amount = amount;
+            }
+
+            elements.scanSubmit.disabled = true;
+            setMessage(elements.scanMessage, "正在付款…", true);
+
+            try {
+                const result = await window.VTX.payReceiptCode(scanCode, payload);
+                const trade = result.trade || {};
+                account.money = result.account.money;
+                elements.scanPassword.value = "";
+
+                elements.resultMoney.textContent = `${formatMoney(result.account.money)} VTX`;
+                elements.recordName.textContent = trade.name || "付款";
+                elements.recordPrice.textContent = trade.price || "";
+                elements.recordFlow.textContent = trade.from && trade.to
+                    ? `来自 ${trade.from} 入账 ${trade.to}`
+                    : (trade.from || trade.to || "—");
+                elements.recordDescription.textContent = trade.description || "（无）";
+                elements.recordTime.textContent = trade.time || "—";
+                elements.againButton.textContent = "再付一笔";
+                show("result");
+
+                notifyParent({ type: "vtx-pay", ok: true, kind: "payment", trade: result.trade || null, account: result.account || null });
+            } catch (error) {
+                setMessage(elements.scanMessage, describeError(error), false);
+            } finally {
+                elements.scanSubmit.disabled = false;
+            }
+        }
+
+        function enterWorkspace() {
+            renderAccount();
+
+            if (scan) {
+                renderScan();
+                return;
+            }
+
+            applyKind();
+            show("pay");
+            elements.party.focus();
+        }
+
+        function notifyParent(message) {
+            if (window.opener && !window.opener.closed) {
+                try {
+                    window.opener.postMessage(message, "*");
+                } catch (error) {
+                    /* 忽略跨窗口错误 */
+                }
+            }
+            if (window.parent && window.parent !== window) {
+                try {
+                    window.parent.postMessage(message, "*");
+                } catch (error) {
+                    /* 忽略跨窗口错误 */
+                }
+            }
+        }
+
+        function validate() {
+            const party = elements.party.value.trim();
+            const amount = elements.amount.value.trim();
+            const isPayment = kind === "payment";
+
+            if (!party) {
+                return isPayment ? "请填写付款给谁。" : "请填写收款来自谁。";
+            }
+            if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) {
+                return "金额必须是大于 0 的数字，最多两位小数。";
+            }
+            if (isPayment && !elements.confirmPassword.value) {
+                return "请输入密码确认。";
+            }
+            return "";
+        }
+
+        async function handleSubmit() {
+            const problem = validate();
+
+            if (problem) {
+                setMessage(elements.payMessage, problem, false);
+                return;
+            }
+
+            const isPayment = kind === "payment";
+            const payload = {
+                amount: elements.amount.value.trim(),
+                party: elements.party.value.trim(),
+                description: elements.description.value.trim()
+            };
+
+            if (isPayment) {
+                payload.password = elements.confirmPassword.value;
+            }
+
+            elements.submitButton.disabled = true;
+            setMessage(elements.payMessage, "正在提交…", true);
+
+            try {
+                const result = kind === "payment"
+                    ? await window.VTX.pay(payload)
+                    : await window.VTX.receive(payload);
+
+                const trade = result.trade || {};
+                account.money = result.account.money;
+
+                elements.resultMoney.textContent = `${formatMoney(result.account.money)} VTX`;
+                elements.recordName.textContent = trade.name || (kind === "payment" ? "付款" : "收款");
+                elements.recordPrice.textContent = trade.price || "";
+                elements.recordFlow.textContent = trade.from && trade.to
+                    ? `来自 ${trade.from} 入账 ${trade.to}`
+                    : (trade.from || trade.to || "—");
+                elements.recordDescription.textContent = trade.description || "（无）";
+                elements.recordTime.textContent = trade.time || "—";
+
+                elements.confirmPassword.value = "";
+                if (!preset.lock) {
+                    elements.amount.value = "";
+                    elements.description.value = "";
+                }
+                elements.againButton.textContent = "再记一笔";
+                show("result");
+
+                notifyParent({
+                    type: "vtx-pay",
+                    ok: true,
+                    kind,
+                    trade: result.trade || null,
+                    account: result.account || null
+                });
+
+                if (preset.close) {
+                    window.setTimeout(() => window.close(), 1200);
+                }
+            } catch (error) {
+                setMessage(elements.payMessage, describeError(error), false);
+            } finally {
+                elements.submitButton.disabled = false;
+            }
+        }
+
+        elements.typePayment.addEventListener("click", () => {
+            if (preset.lock || kind === "code") {
+                return;
+            }
+            kind = "payment";
+            applyKind();
+        });
+        elements.typeReceipt.addEventListener("click", () => {
+            if (preset.lock || kind === "code") {
+                return;
+            }
+            kind = "receipt";
+            applyKind();
+        });
+        elements.typeCode.addEventListener("click", () => {
+            if (preset.lock) {
+                return;
+            }
+            kind = "code";
+            applyKind();
+        });
+        elements.codeExit.addEventListener("click", () => {
+            kind = "payment";
+            applyKind();
+            elements.party.focus();
+        });
+
+        elements.codeGenerate.addEventListener("click", generateReceiptCode);
+        elements.codeRefresh.addEventListener("click", generateReceiptCode);
+        elements.codeSave.addEventListener("click", saveReceiptImage);
+        elements.codeRevoke.addEventListener("click", revokeReceiptCode);
+        elements.scanSubmit.addEventListener("click", handleScanPay);
+        elements.scanPassword.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                handleScanPay();
+            }
+        });
+
+        elements.loginButton.addEventListener("click", handleLogin);
+        elements.loginPassword.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                handleLogin();
+            }
+        });
+        elements.submitButton.addEventListener("click", handleSubmit);
+        elements.confirmPassword.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                handleSubmit();
+            }
+        });
+        elements.againButton.addEventListener("click", () => {
+            if (scan) {
+                elements.scanPassword.value = "";
+                setMessage(elements.scanMessage, "", false);
+                show("scan");
+                elements.scanPassword.focus();
+                return;
+            }
+
+            renderAccount();
+            applyKind();
+            show("pay");
+            elements.party.focus();
+        });
+        elements.logoutButton.addEventListener("click", () => {
+            window.VTX.logout();
+            account = null;
+            elements.loginName.value = "";
+            elements.loginPassword.value = "";
+            setMessage(elements.loginMessage, "", false);
+            show("login");
+            elements.loginName.focus();
+        });
+
+        window.VTX.configure({ baseUrl: apiBase });
+        elements.hint.textContent = `API：${apiBase}${isLocalPreview ? "（本地预览，默认连线上 Worker；可用 ?api=覆盖）" : ""}`;
+
+        if (scanCode) {
+            prepareScan().then(loadSession);
+        } else {
+            loadSession();
+        }
+    </script>
+</body>
+</html>
