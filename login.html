@@ -242,7 +242,7 @@
     </style>
 </head>
 <body>
-    <span class="version-badge">v1.3.0</span>
+    <span class="version-badge">v1.4.0</span>
     <main class="login-card">
         <div class="brand-mark" aria-hidden="true">V</div>
         <h1>欢迎回来</h1>
@@ -291,8 +291,8 @@
         <a class="back-link" href="index.html">← 返回首页</a>
     </main>
 
-    <script src="vtx-api.js?v=1.3.0"></script>
-    <script src="vtx-geo.js?v=1.3.0"></script>
+    <script src="vtx-api.js?v=1.4.0"></script>
+    <script src="vtx-geo.js?v=1.4.0"></script>
 
     <script>
         const loginForm = document.getElementById("login-form");
@@ -364,10 +364,10 @@
             window.location.href = new URL(safe, window.location.href).href;
         }
 
-        // 1.2.0：localStorage 里只留登录名，绝不保存密码
-        function remember(name) {
+        // 1.4.0：恢复「记住上次登录的账户并自动登录」——把登录名与密码一起存在本地
+        function remember(name, password) {
             try {
-                localStorage.setItem("vtxRemembered", JSON.stringify({ login: name }));
+                localStorage.setItem("vtxRemembered", JSON.stringify({ login: name, password }));
             } catch (error) {
                 /* 隐私模式忽略 */
             }
@@ -387,11 +387,7 @@
                 if (!parsed || !parsed.login) {
                     return null;
                 }
-                if (parsed.password !== undefined) {
-                    // 清掉旧版本留下的明文密码
-                    localStorage.setItem("vtxRemembered", JSON.stringify({ login: parsed.login }));
-                }
-                return { login: parsed.login };
+                return { login: parsed.login, password: typeof parsed.password === "string" ? parsed.password : "" };
             } catch (error) {
                 /* 忽略损坏数据 */
             }
@@ -404,19 +400,46 @@
                 return false;
             }
 
-            // 1.2.0：不再自动登录（不再保存密码），只回填账户名
             const nameInput = document.getElementById("account-name");
+            const note = document.getElementById("auto-login-note");
+            const text = document.getElementById("auto-login-text");
+            const form = document.getElementById("login-form");
+
+            if (!saved.password) {
+                // 1.2.0 只记了登录名，没有密码就没法自动登录
+                if (nameInput && !nameInput.value) {
+                    nameInput.value = saved.login;
+                }
+                if (note && text) {
+                    note.hidden = false;
+                    text.textContent = `上次登录：${saved.login}（请输入密码登录）`;
+                }
+                return false;
+            }
+
+            if (note && text) {
+                note.hidden = false;
+                text.textContent = `正在自动登录 ${saved.login}…`;
+            }
+            form.classList.add("disabled");
+
+            try {
+                const account = await verifyCredentials(saved.login, saved.password);
+
+                if (account) {
+                    enterAccount(saved.login);
+                    return true;
+                }
+                text.textContent = `上次登录：${saved.login}（自动登录失败，请输入密码）`;
+            } catch (error) {
+                text.textContent = `上次登录：${saved.login}（自动登录失败，请输入密码）`;
+            } finally {
+                form.classList.remove("disabled");
+            }
+
             if (nameInput && !nameInput.value) {
                 nameInput.value = saved.login;
             }
-
-            const note = document.getElementById("auto-login-note");
-            const text = document.getElementById("auto-login-text");
-            if (note && text) {
-                note.hidden = false;
-                text.textContent = `上次登录：${saved.login}（不再保存密码，请输入密码登录）`;
-            }
-
             return false;
         }
 
@@ -446,7 +469,8 @@
                     return;
                 }
 
-                remember(name);
+                remember(name, password);
+                enterAccount(name);
                 enterAccount(name);
             } catch (error) {
                 loginMessage.textContent = networkMessage(
@@ -493,7 +517,7 @@
                 const geo = await browserGeo();
                 await window.VTXApi.register({ login: name, password, username: name, geo });
 
-                remember(name);
+                remember(name, password);
                 enterAccount(name);
             } catch (error) {
                 registerMessage.textContent = networkMessage(

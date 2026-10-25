@@ -153,7 +153,7 @@ test("聊天室状态开放，并暴露实时通道与媒体 TTL", async () => {
     const { env } = await prepare();
     const status = await api(env, "GET", "/api/chat/status");
     assert.equal(status.status, 200);
-    assert.equal(status.data.version, "1.3");
+    assert.equal(status.data.version, "1.4");
     assert.equal(status.data.enabled, true);
     assert.equal(status.data.realtime, "websocket");
     assert.equal(status.data.mediaTtlSeconds, 1200);

@@ -247,6 +247,22 @@
             font-size: 12px;
         }
 
+        .password-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .password-row input {
+            flex: 1;
+            min-width: 0;
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        }
+
+        .password-row button {
+            flex: 0 0 auto;
+            padding: 8px 14px;
+        }
+
         .row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -344,7 +360,7 @@
         </a>
         <div class="topbar-actions">
             <span class="admin-chip">站主专用</span>
-            <span class="version">v1.3.0</span>
+            <span class="version">v1.4.0</span>
             <a href="manager.html">返回账户</a>
             <a href="admin.html">仓库修改器</a>
             <a href="chatroom.html">聊天室</a>
@@ -389,6 +405,15 @@
                             <label for="edit-money">余额（VTX）</label>
                             <input id="edit-money" type="text" inputmode="decimal" placeholder="例如 100.00">
                         </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="edit-current-password">当前密码</label>
+                        <div class="password-row">
+                            <input id="edit-current-password" type="password" readonly autocomplete="off" placeholder="—">
+                            <button id="toggle-password" class="ghost" type="button">显示</button>
+                        </div>
+                        <span class="field-hint" id="current-password-hint">点击「显示」查看该账户当前密码；账户下次登录后会自动补上记录。</span>
                     </div>
 
                     <div class="field">
@@ -443,7 +468,7 @@
         <footer>Vitual XRing 8.0 · 账户数据存储于 Workers KV</footer>
     </main>
 
-    <script src="vtx-api.js?v=1.3.0"></script>
+    <script src="vtx-api.js?v=1.4.0"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";
@@ -465,6 +490,7 @@
 
         let accountsData = {};
         let selected = null;
+        let passwordVisible = false;
 
         function showMessage(text, kind) {
             messageBox.textContent = text;
@@ -540,8 +566,32 @@
             document.getElementById("edit-username").value = account.username || "";
             document.getElementById("edit-money").value = account.money || "0.00";
             document.getElementById("edit-password").value = "";
+            showCurrentPassword(account);
 
             renderList();
+        }
+
+        /* 1.4.0：管理员查看账户当前密码（服务端解密，未配置 PASSWORD_VIEW_KEY 时为 null） */
+        function showCurrentPassword(account) {
+            const input = document.getElementById("edit-current-password");
+            const hint = document.getElementById("current-password-hint");
+            const toggle = document.getElementById("toggle-password");
+            const value = account && typeof account.password === "string" ? account.password : "";
+
+            passwordVisible = false;
+            toggle.textContent = "显示";
+            input.type = "password";
+            input.value = value;
+            input.placeholder = value ? "" : "—";
+            toggle.hidden = !value;
+
+            if (value) {
+                hint.textContent = "点击「显示」查看该账户当前密码。";
+            } else if (account && account.hasPassword) {
+                hint.textContent = "服务端没有保存可显示的密码（未配置 PASSWORD_VIEW_KEY，或该账户自 1.4.0 后还没登录过）。";
+            } else {
+                hint.textContent = "该账户还没有设置密码。";
+            }
         }
 
         function renderAudit(entries) {
@@ -604,6 +654,15 @@
                 renderAudit([]);
             }
         }
+
+        document.getElementById("toggle-password").addEventListener("click", () => {
+            const input = document.getElementById("edit-current-password");
+            const toggle = document.getElementById("toggle-password");
+
+            passwordVisible = !passwordVisible;
+            input.type = passwordVisible ? "text" : "password";
+            toggle.textContent = passwordVisible ? "隐藏" : "显示";
+        });
 
         editForm.addEventListener("submit", async (event) => {
             event.preventDefault();

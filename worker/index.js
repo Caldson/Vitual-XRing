@@ -26,6 +26,11 @@
  *   - 前端聊天室改用 visualViewport 计算高度，修 iPad / iPhone 上消息区没有滚动条、
  *     输入框被顶到屏幕外的问题（服务端接口未变，只同步版本号便于前端校验）
  *
+ * 1.4.0：
+ *   - 面对面加群（4 / 8 位邀请码与群号）不再按 IP 限流
+ *   - 管理员接口返回账户当前密码：密码仍是 PBKDF2 哈希，另存 AES-GCM 加密副本
+ *     passwordSealed（密钥来自 secret PASSWORD_VIEW_KEY），登录 / 改密 / 建号时自动维护
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -43,9 +48,10 @@
  * 机密（wrangler secret put）：
  *   GITHUB_TOKEN                迁移 / 镜像时需要仓库 Contents 读写权限
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
+ *   PASSWORD_VIEW_KEY           （可选，1.4.0）给管理员看的密码副本加密密钥；不配就不存副本
  */
 
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -58,7 +64,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.3";
+const CHAT_VERSION = "1.4";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 const CHAT_WINDOW_MS = 60 * 1000;
@@ -127,9 +133,7 @@ const MAX_TRADE_NAME_LENGTH = 20;
 const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
 const SHOP_CACHE_TTL_MS = 30 * 1000;
 const SHOP_MAX_QUANTITY = 999;
-/* 1.2.0：邀请码查询/加入的节流（4 位邀请码只有 1 万个组合） */
-const INVITE_WINDOW_MS = 60 * 1000;
-const INVITE_MAX_ATTEMPTS = 10;
+/* 1.4.0：面对面加群（4 / 8 位邀请码与群号）不再按 IP 限流，删除了原来的 INVITE_* 节流 */
 /* 1.2.0：聊天附件只允许这些类型内联显示，其余一律按下载处理 */
 const CHAT_MEDIA_INLINE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 
@@ -141,7 +145,6 @@ const chatAttempts = new Map();
 const chatMediaAttempts = new Map();
 const chatTypingAttempts = new Map();
 const adminAttempts = new Map();
-const inviteAttempts = new Map();
 
 class HttpError extends Error {
     constructor(status, code, message) {
@@ -232,6 +235,62 @@ async function pbkdf2Bits(password, salt, iterations) {
         PASSWORD_KEY_BITS
     );
     return new Uint8Array(bits);
+}
+
+/* 1.4.0：账号修改页需要显示账户当前密码。
+   密码本体仍是 PBKDF2 哈希（不可逆），另外存一份 AES-GCM 加密副本 passwordSealed：
+   密钥由 secret PASSWORD_VIEW_KEY 经 SHA-256 派生，只有管理员接口会解密返回；
+   没配置这个 secret 时不会写副本，接口返回 password: null。 */
+const PASSWORD_VIEW_PREFIX = "aes-gcm";
+const PASSWORD_VIEW_IV_BYTES = 12;
+
+async function passwordViewKey(env) {
+    const raw = String((env && env.PASSWORD_VIEW_KEY) || "");
+    if (!raw) {
+        return null;
+    }
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+    return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+async function sealPassword(env, password) {
+    const key = await passwordViewKey(env);
+    if (!key) {
+        return null;
+    }
+    const iv = crypto.getRandomValues(new Uint8Array(PASSWORD_VIEW_IV_BYTES));
+    const sealed = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        key,
+        new TextEncoder().encode(String(password ?? ""))
+    );
+    return `${PASSWORD_VIEW_PREFIX}$${encodeBase64Url(iv)}$${encodeBase64Url(new Uint8Array(sealed))}`;
+}
+
+async function openPassword(env, sealed) {
+    const value = String(sealed ?? "");
+    if (!value.startsWith(`${PASSWORD_VIEW_PREFIX}$`)) {
+        return null;
+    }
+    const parts = value.split("$");
+    if (parts.length !== 3 || !parts[1] || !parts[2]) {
+        return null;
+    }
+    const key = await passwordViewKey(env);
+    if (!key) {
+        return null;
+    }
+    try {
+        const plain = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: decodeBase64Url(parts[1]) },
+            key,
+            decodeBase64Url(parts[2])
+        );
+        return new TextDecoder().decode(plain);
+    } catch (error) {
+        /* 换过 PASSWORD_VIEW_KEY 后旧副本解不开，按「没有记录」处理 */
+        return null;
+    }
 }
 
 async function hashPassword(password) {
@@ -378,13 +437,21 @@ function selfAccount(account) {
     return { ...publicAccount(account), loginHistory: loginHistoryOf(account) };
 }
 
-// 管理员可见：带收款码（1.2.0 起不再返回密码，改用密码重置动作）
-function fullAccount(account) {
+// 管理员可见：带收款码与当前密码（1.4.0 起解密 passwordSealed 返回，未配置密钥时为 null）
+async function fullAccount(account, env) {
     return {
         ...selfAccount(account),
         hasPassword: Boolean(account && account.password),
+        password: await openPassword(env, account && account.passwordSealed),
         receipt: account && account.receipt ? account.receipt : null
     };
+}
+
+async function fullAccountMap(accounts, env) {
+    const entries = await Promise.all(
+        Object.entries(accounts || {}).map(async ([login, account]) => [login, await fullAccount(account, env)])
+    );
+    return Object.fromEntries(entries);
 }
 
 function corsHeaders(env, request) {
@@ -1333,7 +1400,9 @@ async function handleLogin(request, env, cors) {
     }
 
     // 1.2.0：旧账户的明文密码在首次登录成功后就地升级为 PBKDF2 哈希
-    if (!isPasswordHashed(account.password)) {
+    // 1.4.0：顺带给还没有可显示副本的账户补一份 passwordSealed
+    const needsSeal = Boolean(env.PASSWORD_VIEW_KEY) && !account.passwordSealed;
+    if (!isPasswordHashed(account.password) || needsSeal) {
         await upgradePasswordHash(env, login, password);
     }
 
@@ -1669,6 +1738,7 @@ async function handleRegister(request, env, cors) {
     }
 
     const hashed = await hashPassword(password);
+    const sealed = await sealPassword(env, password);
     const accounts = await commitAccounts(env, (data) => {
         if (data[login]) {
             throw new HttpError(409, "account_exists", `账户名称 ${login} 已被占用`);
@@ -1687,6 +1757,9 @@ async function handleRegister(request, env, cors) {
             money: "0.00",
             trades: []
         };
+        if (sealed) {
+            data[login].passwordSealed = sealed;
+        }
 
         return `创建账户：${login}`;
     });
@@ -1846,11 +1919,18 @@ async function upgradePasswordHash(env, login, password) {
     }
     try {
         const hashed = await hashPassword(password);
+        const sealed = await sealPassword(env, password);
         await commitAccounts(env, (data) => {
             const account = data[login];
-            if (account && !isPasswordHashed(account.password)) {
+            if (!account) {
+                return `登录：${login}`;
+            }
+            if (!isPasswordHashed(account.password)) {
                 account.password = hashed;
-                return `升级密码哈希：${login}`;
+            }
+            /* 1.4.0：登录时手里就有明文密码，顺手给老账户补一份可显示的加密副本 */
+            if (sealed && !account.passwordSealed) {
+                account.passwordSealed = sealed;
             }
             return `登录：${login}`;
         });
@@ -1920,12 +2000,18 @@ async function handleUpdatePassword(request, env, cors) {
     }
 
     const hashedPassword = await hashPassword(newPassword);
+    const sealedPassword = await sealPassword(env, newPassword);
 
     await commitAccounts(env, async (data) => {
         const account = requireOwnAccount(data, login);
 
         await checkPassword(account, currentPassword);
         account.password = hashedPassword;
+        if (sealedPassword) {
+            account.passwordSealed = sealedPassword;
+        } else {
+            delete account.passwordSealed;
+        }
 
         return `修改密码：${login}`;
     });
@@ -2387,7 +2473,7 @@ async function handleAdminList(request, env, cors) {
     const output = {};
 
     for (const [login, account] of Object.entries(accounts)) {
-        output[login] = fullAccount(account);
+        output[login] = await fullAccount(account, env);
     }
 
     return jsonResponse({
@@ -2432,6 +2518,7 @@ async function handleAdminCreate(request, env, cors) {
     }
 
     const hashedPassword = await hashPassword(password);
+    const sealedPassword = await sealPassword(env, password);
     const accounts = await commitAccounts(env, (data) => {
         if (data[login]) {
             throw new HttpError(409, "account_exists", `账户名称 ${login} 已被占用`);
@@ -2444,6 +2531,9 @@ async function handleAdminCreate(request, env, cors) {
         }
 
         data[login] = { username, password: hashedPassword, money, trades: [] };
+        if (sealedPassword) {
+            data[login].passwordSealed = sealedPassword;
+        }
         return `管理员创建账户：${login}`;
     });
 
@@ -2452,8 +2542,8 @@ async function handleAdminCreate(request, env, cors) {
     return jsonResponse({
         ok: true,
         login,
-        account: fullAccount(accounts[login]),
-        accounts: Object.fromEntries(Object.entries(accounts).map(([key, value]) => [key, fullAccount(value)]))
+        account: await fullAccount(accounts[login], env),
+        accounts: await fullAccountMap(accounts, env)
     }, 201, cors);
 }
 
@@ -2469,6 +2559,7 @@ async function handleAdminUpdate(request, env, cors, login) {
 
     const body = plainObject(await readJsonBody(request));
     const changes = [];
+    const sealedPassword = body.password !== undefined ? await sealPassword(env, String(body.password)) : null;
 
     if (body.username !== undefined) {
         const username = String(body.username).trim();
@@ -2504,6 +2595,11 @@ async function handleAdminUpdate(request, env, cors, login) {
         }
         if (body.password !== undefined) {
             account.password = await hashPassword(String(body.password));
+            if (sealedPassword) {
+                account.passwordSealed = sealedPassword;
+            } else {
+                delete account.passwordSealed;
+            }
             changes.push("password=***");
         }
         if (body.money !== undefined) {
@@ -2524,8 +2620,8 @@ async function handleAdminUpdate(request, env, cors, login) {
         ok: true,
         login,
         changes,
-        account: fullAccount(accounts[login]),
-        accounts: Object.fromEntries(Object.entries(accounts).map(([key, value]) => [key, fullAccount(value)]))
+        account: await fullAccount(accounts[login], env),
+        accounts: await fullAccountMap(accounts, env)
     }, 200, cors);
 }
 
@@ -2557,7 +2653,7 @@ async function handleAdminDelete(request, env, cors, login) {
     return jsonResponse({
         ok: true,
         removed: login,
-        accounts: Object.fromEntries(Object.entries(accounts).map(([key, value]) => [key, fullAccount(value)]))
+        accounts: await fullAccountMap(accounts, env)
     }, 200, cors);
 }
 
@@ -5608,10 +5704,6 @@ async function handleChatGroupJoinByNumber(request, env, cors) {
     if (guard) {
         return guard;
     }
-    // 1.2.0：群号是可枚举的 8 位数字，加入接口必须限流
-    if (throttled(inviteAttempts, clientIp(request), INVITE_WINDOW_MS, INVITE_MAX_ATTEMPTS)) {
-        return jsonResponse({ error: "too_many_requests", message: "尝试过于频繁，请稍后再试" }, 429, cors);
-    }
 
     const login = session.payload.sub;
     const body = await readOptionalBody(request);
@@ -5867,10 +5959,6 @@ async function handleChatInviteDetail(request, env, cors, code) {
     if (guard) {
         return guard;
     }
-    // 1.2.0：4 位邀请码只有 1 万个组合，必须限制枚举速度
-    if (throttled(inviteAttempts, clientIp(request), INVITE_WINDOW_MS, INVITE_MAX_ATTEMPTS)) {
-        return jsonResponse({ error: "too_many_requests", message: "尝试过于频繁，请稍后再试" }, 429, cors);
-    }
 
     const invite = await readInvite(env, code);
     if (!invite) {
@@ -5888,9 +5976,6 @@ async function handleChatInviteJoin(request, env, cors, code) {
     const guard = chatGuard(env, cors);
     if (guard) {
         return guard;
-    }
-    if (throttled(inviteAttempts, clientIp(request), INVITE_WINDOW_MS, INVITE_MAX_ATTEMPTS)) {
-        return jsonResponse({ error: "too_many_requests", message: "尝试过于频繁，请稍后再试" }, 429, cors);
     }
 
     const login = session.payload.sub;

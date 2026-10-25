@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.3.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**）
+- API 版本：`1.4.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消面对面加群限流，见第 17 节**）
 
 ---
 
@@ -151,7 +151,7 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | POST | `/api/me/purchase` | 是 | 商店购买扣款（需密码），价格与库存由服务端决定，返回购买凭证 |
 | GET | `/api/shop` | 否 | 商品库存（1.2.0 新增，KV 里没有记录时回落到 `shop.json` 的 `stock`） |
 | POST | `/api/me/login-location` | 是 | 记录一次登录位置（IP 由服务端取 `cf-connecting-ip`） |
-| GET | `/api/admin/accounts` | 是（站主） | 读取全部账户（含登录记录；1.2.0 起不含明文密码） |
+| GET | `/api/admin/accounts` | 是（站主） | 读取全部账户（含登录记录与可显示的 `password`，后者 1.4.0 起恢复；未配置 `PASSWORD_VIEW_KEY` 时为 `null`） |
 | POST | `/api/admin/accounts` | 是（站主） | 直接创建账户 |
 | PUT | `/api/admin/accounts/{登录名}` | 是（站主） | 修改用户名 / 密码 / 余额 |
 | DELETE | `/api/admin/accounts/{登录名}` | 是（站主） | 删除账户（不能删站主自己） |
@@ -1222,8 +1222,10 @@ http://127.0.0.1:3000/API_LOGIN.html?api=http://127.0.0.1:8787
 
 ## 11. 安全说明
 
-- 所有接口都不会返回密码字段（`/api/admin/*` 从 1.2.0 起也只返回 `hasPassword`，不再回明文密码）
+- 所有接口都不会返回密码字段；**1.4.0 起 `/api/admin/accounts*` 例外**：站主会拿到解密后的 `password`
+  （来自 AES-GCM 加密副本 `passwordSealed`，密钥是 secret `PASSWORD_VIEW_KEY`），其余接口仍只给 `hasPassword`
 - 登录失败按 IP 限流：60 秒内最多 10 次；写入、记账、提款、转账、购买、聊天各有独立限流
+  （**1.4.0 起面对面加群——4 / 8 位邀请码查询、加入与群号加入——不再单独限流**）
 - token 由 HMAC-SHA256 签名，篡改或过期即失效
 - **8.0 起账户数据不再公开**：账户、密码、余额、交易、游戏数据、登录 IP 记录全部存进 Workers KV，
   仓库里的 `account.json` 在首次迁移后会被自动删除，`/api/accounts` 之类的接口必须携带有效 token 才能读取
@@ -1550,6 +1552,7 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/conversations/dm_xxxx 
 | 上传媒体 | 每个 IP 60 秒 12 次 |
 | 正在输入 | 每个 IP + 会话 60 秒 120 次 |
 | 好友申请 / 会话操作 | 受全局写入限流保护 |
+| 面对面加群（邀请码 / 群号） | **1.4.0 起不再限流**（1.2.0 曾是每 IP 60 秒 10 次） |
 
 | 状态码 | `error` | 说明 |
 |---|---|---|
@@ -1613,10 +1616,10 @@ GitHub Pages 与浏览器会长期缓存这个 URL，于是页面在 9.2 上线�
 
 **修复**：
 
-1. 全站脚本引用统一带上版本参数，例如 `<script src="vtx-api.js?v=1.3.0"></script>`，
+1. 全站脚本引用统一带上版本参数，例如 `<script src="vtx-api.js?v=1.4.0"></script>`，
    `?v=` 变化会让浏览器与 CDN 必须重新取文件。发布新版本时**必须一起改这个参数**。
 2. `chatroom.html` 启动时校验 `VTXApi.version`：
-   - 低于页面要求的版本（当前 `REQUIRED_API_VERSION = "1.3.0"`）就自动按
+   - 低于页面要求的版本（当前 `REQUIRED_API_VERSION = "1.4.0"`）就自动按
      `vtx-api.js?v=<版本>&t=<时间戳>` 重新加载一次；
    - 仍然不达标时显示「页面资源需要更新」提示页，给一个「重新加载」按钮，
      而不是让用户对着 `xxx is not a function` 发愣。
@@ -1817,5 +1820,58 @@ curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/redpacket/r
 
 `vtx-api.js` 的 `API_VERSION`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页面 `<script>` 的 `?v=`、
 Worker 的 `VERSION` / `CHAT_VERSION`、`worker/package.json` 全部升到 `1.3.0`（`CHAT_VERSION` 为 `1.3`）。
+
+---
+
+## 17. 1.4.0 更新：自动登录、可查看的账户密码、面对面加群去限流
+
+### 17.1 恢复「记住上次登录的账户并自动登录」（`login.html`）
+
+1.2.0 出于安全考虑把登录页改成了「只记登录名、必须重新输密码」。1.4.0 按需求恢复：
+
+- 登录 / 注册成功后，`localStorage.vtxRemembered` 存 `{ "login": "...", "password": "..." }`；
+- 打开 `login.html` 时 `tryAutoLogin()` 直接拿这对凭据调一次 `/api/login`，
+  成功后立刻跳到 `?next=` 指定的页面（默认 `manager.html`）；
+- 自动登录失败（密码被改、账户被删、网络异常）时不再死循环，只在提示条上写
+  「上次登录：xxx（自动登录失败，请输入密码）」并回填登录名；
+- 只有登录名、没有密码的旧版记录仍然兼容：回填登录名并提示输入密码；
+- 点「切换账户」会清掉这条记录并清空表单。
+
+> 这意味着密码以明文保存在该浏览器的 localStorage 里，只在用户自己的设备上有效；
+> 共用设备请用「切换账户」清掉记录。
+
+### 17.2 管理员可以查看账户当前密码
+
+密码本体仍是 PBKDF2-SHA256 哈希（不可逆），另外保存一份 **AES-GCM 加密副本** `passwordSealed`：
+
+| 项 | 说明 |
+|---|---|
+| 密钥 | secret `PASSWORD_VIEW_KEY`（任意字符串，经 SHA-256 派生 AES-GCM 密钥）；未配置时不写副本 |
+| 写入时机 | 注册、登录成功（顺带给老账户补副本）、本人改密码、站主建号 / 改密码 |
+| 存储格式 | `aes-gcm$<base64url(iv)>$<base64url(密文)>`，与 `password` 并列存在账户记录里 |
+| 读取 | 只有 `GET /api/admin/accounts`、`POST /api/admin/accounts`、`PUT /api/admin/accounts/{login}`、`DELETE /api/admin/accounts/{login}` 的响应里带解密后的 `password`；其它接口（含 `GET /api/accounts`）都不返回 |
+| 解不开时 | 换过 `PASSWORD_VIEW_KEY` 或记录缺失 → 返回 `password: null`，前端提示「服务端没有保存可显示的密码」 |
+
+`accounts-admin.html` 的编辑面板新增「当前密码」一行：默认打码，点「显示 / 隐藏」切换；
+保存新密码后自动刷新为新的密码。
+
+部署前需要执行一次：
+
+```bash
+cd worker
+npx wrangler secret put PASSWORD_VIEW_KEY    # 随便给一段足够长的随机字符串
+npx wrangler deploy
+```
+
+### 17.3 面对面加群不再限流
+
+1.2.0 给 4 / 8 位邀请码查询、加入与 8 位群号加入加了「每 IP 60 秒 10 次」的限制，
+现场面对面加群时很容易被 429 挡住。1.4.0 删除该限制：
+
+- `GET /api/chat/invites/{code}`、`POST /api/chat/invites/{code}/join`、
+  `POST /api/chat/groups/join`（群号加入）都不再检查 `inviteAttempts`；
+- 相关的 `INVITE_WINDOW_MS` / `INVITE_MAX_ATTEMPTS` 常量与计数器一并删除；
+- 发送消息、上传媒体、好友申请等其它限流保持不变。
+
 
 
