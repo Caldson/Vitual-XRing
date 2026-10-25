@@ -137,7 +137,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。只有在 Workers 完全连不上时，
     // 才会退回上面那套 GitHub 直连逻辑（secure.json 里的 token 作为备用通道）。
 
-    const API_VERSION = "8.0.0";
+    const API_VERSION = "9.0.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -193,6 +193,14 @@
     }
 
     function preferredBase() {
+        try {
+            const fromQuery = new URLSearchParams(window.location.search).get("api");
+            if (fromQuery && fromQuery.trim()) {
+                return [fromQuery.trim().replace(/\/+$/, "")];
+            }
+        } catch (error) {
+            /* 忽略 */
+        }
         if (typeof window.VTX_API_BASE === "string" && window.VTX_API_BASE.trim()) {
             return [window.VTX_API_BASE.trim().replace(/\/+$/, "")];
         }
@@ -757,6 +765,194 @@
         return await apiRequest("/chat/status", { auth: false });
     }
 
+    // ───────────────────────── 9.0：聊天室客户端 ─────────────────────────
+
+    function chatBase() {
+        const candidates = preferredBase();
+        for (const candidate of candidates) {
+            try {
+                return resolveBase(candidate);
+            } catch (error) {
+                /* 试下一个 */
+            }
+        }
+        throw new Error("找不到可用的 Vitual XRing 服务地址");
+    }
+
+    function chatPath(path) {
+        return `/chat${path}`;
+    }
+
+    async function chatRequest(path, options = {}) {
+        return await apiRequest(chatPath(path), options);
+    }
+
+    function encodeId(value) {
+        return encodeURIComponent(String(value || ""));
+    }
+
+    function chatSocketUrl() {
+        const token = sessionToken();
+        const base = chatBase().replace(/^http/i, "ws");
+        return `${base}/chat/ws?token=${encodeURIComponent(token)}`;
+    }
+
+    function chatMediaUrl(id, expiresAt) {
+        const token = sessionToken();
+        return `${chatBase()}/chat/media/${encodeId(id)}?token=${encodeURIComponent(token)}&t=${Number(expiresAt) || 0}`;
+    }
+
+    async function chatUpload(file) {
+        const token = sessionToken();
+        const base = chatBase();
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        const timer = controller ? setTimeout(() => controller.abort(), 60000) : null;
+        let response;
+
+        try {
+            response = await fetch(`${base}/chat/media`, {
+                method: "POST",
+                headers: {
+                    authorization: `Bearer ${token}`,
+                    "content-type": file.type || "application/octet-stream",
+                    "x-file-name": encodeURIComponent(file.name || "file")
+                },
+                body: file,
+                signal: controller ? controller.signal : undefined
+            });
+        } catch (error) {
+            throw networkError("上传图片/文件失败", error);
+        } finally {
+            if (timer) {
+                clearTimeout(timer);
+            }
+        }
+
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (error) {
+            data = null;
+        }
+
+        if (!response.ok) {
+            const error = new Error((data && data.message) || `上传失败（HTTP ${response.status}）`);
+            error.status = response.status;
+            error.code = data && data.error;
+            throw error;
+        }
+
+        return data.media;
+    }
+
+    const chat = {
+        status: chatStatus,
+        conversations: () => chatRequest("/conversations"),
+        direct: (login) => chatRequest("/conversations/direct", { method: "POST", body: { login } }),
+        createGroup: (name, members) => chatRequest("/conversations/group", {
+            method: "POST",
+            body: { name, members: members || [] }
+        }),
+        conversation: (id) => chatRequest(`/conversations/${encodeId(id)}`),
+        rename: (id, name) => chatRequest(`/conversations/${encodeId(id)}`, {
+            method: "PATCH",
+            body: { name }
+        }),
+        remove: (id) => chatRequest(`/conversations/${encodeId(id)}`, { method: "DELETE" }),
+        leave: (id) => chatRequest(`/conversations/${encodeId(id)}/leave`, { method: "POST" }),
+        join: (id) => chatRequest(`/conversations/${encodeId(id)}/join`, { method: "POST" }),
+        read: (id) => chatRequest(`/conversations/${encodeId(id)}/read`, { method: "POST" }),
+        typing: (id) => chatRequest(`/conversations/${encodeId(id)}/typing`, { method: "POST" }),
+        settings: (id, changes) => chatRequest(`/conversations/${encodeId(id)}/settings`, {
+            method: "POST",
+            body: changes || {}
+        }),
+        clear: (id) => chatRequest(`/conversations/${encodeId(id)}/clear`, { method: "POST" }),
+        messages: (id, options = {}) => {
+            const params = new URLSearchParams();
+            if (options.before) {
+                params.set("before", String(options.before));
+            }
+            if (options.limit) {
+                params.set("limit", String(options.limit));
+            }
+            const query = params.toString();
+            return chatRequest(`/conversations/${encodeId(id)}/messages${query ? `?${query}` : ""}`);
+        },
+        send: (id, payload) => chatRequest(`/conversations/${encodeId(id)}/messages`, {
+            method: "POST",
+            body: payload || {}
+        }),
+        recall: (id, messageId) => chatRequest(`/messages/${encodeId(messageId)}/recall?conversation=${encodeId(id)}`, {
+            method: "POST"
+        }),
+        forward: (id, messageId, targets) => chatRequest(`/messages/${encodeId(messageId)}/forward?conversation=${encodeId(id)}`, {
+            method: "POST",
+            body: { targets: targets || [] }
+        }),
+        removeMessage: (id, messageId) => chatRequest(`/messages/${encodeId(messageId)}?conversation=${encodeId(id)}`, {
+            method: "DELETE"
+        }),
+        search: (query, conversation) => {
+            const params = new URLSearchParams({ q: query });
+            if (conversation) {
+                params.set("conversation", conversation);
+            }
+            return chatRequest(`/search?${params.toString()}`);
+        },
+        users: (query) => chatRequest(`/users?q=${encodeURIComponent(query || "")}`),
+        contacts: () => chatRequest("/contacts"),
+        requestFriend: (login, note) => chatRequest("/friends/requests", {
+            method: "POST",
+            body: { login, note: note || "" }
+        }),
+        decideFriend: (requestId, action) => chatRequest(`/friends/requests/${encodeId(requestId)}/${action}`, {
+            method: "POST"
+        }),
+        removeFriend: (login) => chatRequest(`/friends/${encodeId(login)}`, { method: "DELETE" }),
+        block: (login) => chatRequest("/blocks", { method: "POST", body: { login } }),
+        unblock: (login) => chatRequest(`/blocks/${encodeId(login)}`, { method: "DELETE" }),
+        addMembers: (id, members) => chatRequest(`/conversations/${encodeId(id)}/members`, {
+            method: "POST",
+            body: { members }
+        }),
+        removeMember: (id, login) => chatRequest(`/conversations/${encodeId(id)}/members/${encodeId(login)}`, {
+            method: "DELETE"
+        }),
+        transferOwner: (id, login) => chatRequest(`/conversations/${encodeId(id)}/owner`, {
+            method: "POST",
+            body: { login }
+        }),
+        addAdmin: (id, login) => chatRequest(`/conversations/${encodeId(id)}/admins`, {
+            method: "POST",
+            body: { login }
+        }),
+        removeAdmin: (id, login) => chatRequest(`/conversations/${encodeId(id)}/admins/${encodeId(login)}`, {
+            method: "DELETE"
+        }),
+        announcement: (id, text, pinned) => chatRequest(`/conversations/${encodeId(id)}/announcement`, {
+            method: "PUT",
+            body: { text, pinned }
+        }),
+        pinAnnouncement: (id, pinned) => chatRequest(`/conversations/${encodeId(id)}/announcement/pin`, {
+            method: "POST",
+            body: { pinned }
+        }),
+        setAlias: (id, alias) => chatRequest(`/conversations/${encodeId(id)}/me`, {
+            method: "PATCH",
+            body: { alias }
+        }),
+        upload: chatUpload,
+        mediaUrl: chatMediaUrl,
+        socketUrl: chatSocketUrl,
+        adminConversations: () => chatRequest("/admin/conversations"),
+        adminMessages: (id) => chatRequest(`/admin/conversations/${encodeId(id)}/messages`),
+        adminRemoveMessage: (id, messageId) => chatRequest(`/admin/messages/${encodeId(messageId)}?conversation=${encodeId(id)}`, {
+            method: "DELETE"
+        }),
+        adminRemoveConversation: (id) => chatRequest(`/admin/conversations/${encodeId(id)}`, { method: "DELETE" })
+    };
+
     window.VTXApi = {
         version: API_VERSION,
         request: apiRequest,
@@ -785,6 +981,9 @@
         adminUpdate,
         adminDelete,
         chatStatus,
+        chat,
+        chatSocketUrl: chatSocketUrl,
+        chatMediaUrl: chatMediaUrl,
         commit,
         readAll,
         loadConfig,

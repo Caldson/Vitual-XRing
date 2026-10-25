@@ -3,5 +3,8 @@
     "version": "1.0.0",
     "private": true,
     "type": "module",
-    "description": "Vitual XRing account API (Cloudflare Worker)"
+    "description": "Vitual XRing account API (Cloudflare Worker)",
+    "scripts": {
+      "test": "node --test test/*.test.mjs"
+    }
 }

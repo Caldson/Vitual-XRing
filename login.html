@@ -242,7 +242,7 @@
     </style>
 </head>
 <body>
-    <span class="version-badge">v8.0</span>
+    <span class="version-badge">v9.0</span>
     <main class="login-card">
         <div class="brand-mark" aria-hidden="true">V</div>
         <h1>欢迎回来</h1>
@@ -358,7 +358,15 @@
             } catch (error) {
                 /* 忽略 */
             }
-            window.location.href = "manager.html";
+            const params = new URLSearchParams(window.location.search);
+            const next = params.get("next") || "";
+            const safe = /^[A-Za-z0-9._-]+\.html$/.test(next) ? next : "manager.html";
+            const target = new URL(safe, window.location.href);
+            const apiBase = params.get("api");
+            if (apiBase) {
+                target.searchParams.set("api", apiBase);
+            }
+            window.location.href = target.href;
         }
 
         function remember(name, password) {

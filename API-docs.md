@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`8.0.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；**8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节**）
+- API 版本：`9.0.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；**9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送，见第 13 节**）
 
 ---
 
@@ -155,10 +155,50 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | PUT | `/api/admin/accounts/{登录名}` | 是（站主） | 修改用户名 / 密码 / 余额 |
 | DELETE | `/api/admin/accounts/{登录名}` | 是（站主） | 删除账户（不能删站主自己） |
 | GET | `/api/admin/log` | 是（站主） | 管理操作审计记录 |
-| GET | `/api/chat/status` | 否 | 聊天室状态（9.0 开放前的占位信息） |
-| GET | `/api/chat/messages` | 是 | 读取房间消息（`CHAT_ENABLED=false` 时返回 `503`） |
-| POST | `/api/chat/messages` | 是 | 发送消息（同上，受开关控制） |
-| DELETE | `/api/chat/messages/{id}` | 是（站主） | 删除一条消息 |
+| GET | `/api/chat/status` | 否 | 聊天室状态（版本、开关、实时通道、公共频道、媒体 TTL） |
+| GET | `/api/chat/ws` | 是（`?token=`） | WebSocket 实时通道（Durable Object `ChatHub`），不支持时降级轮询 |
+| GET | `/api/chat/conversations` | 是 | 会话列表（未读数、置顶、免打扰、最后一条消息） |
+| POST | `/api/chat/conversations/direct` | 是 | 与好友开启单聊 |
+| POST | `/api/chat/conversations/group` | 是 | 创建群聊 |
+| GET | `/api/chat/conversations/{id}` | 是 | 会话详情与成员列表 |
+| PATCH | `/api/chat/conversations/{id}` | 是 | 修改群名（群主 / 管理员 / 站主） |
+| DELETE | `/api/chat/conversations/{id}` | 是 | 删除会话（单聊）或解散群聊（群主 / 站主） |
+| GET | `/api/chat/conversations/{id}/messages` | 是 | 读取消息（`before` 分页、每会话保留最近 300 条） |
+| POST | `/api/chat/conversations/{id}/messages` | 是 | 发送文字 / 图片 / 文件消息（支持引用回复、@成员） |
+| POST | `/api/chat/conversations/{id}/read` | 是 | 标记已读 |
+| POST | `/api/chat/conversations/{id}/typing` | 是 | 正在输入提示 |
+| POST | `/api/chat/conversations/{id}/settings` | 是 | 会话置顶 / 免打扰 |
+| POST | `/api/chat/conversations/{id}/clear` | 是 | 清空自己的聊天记录 |
+| POST | `/api/chat/conversations/{id}/leave` | 是 | 退出群聊 / 公共频道 |
+| POST | `/api/chat/conversations/{id}/join` | 是 | 重新加入公共频道 |
+| POST | `/api/chat/conversations/{id}/members` | 是 | 邀请成员进群 |
+| DELETE | `/api/chat/conversations/{id}/members/{登录名}` | 是 | 移出成员（群主 / 管理员 / 站主） |
+| POST | `/api/chat/conversations/{id}/owner` | 是 | 转让群主 |
+| POST | `/api/chat/conversations/{id}/admins` | 是 | 设置群管理员（群主） |
+| DELETE | `/api/chat/conversations/{id}/admins/{登录名}` | 是 | 取消群管理员（群主） |
+| PUT | `/api/chat/conversations/{id}/announcement` | 是 | 发布 / 修改 / 删除群公告 |
+| POST | `/api/chat/conversations/{id}/announcement/pin` | 是 | 置顶 / 取消置顶群公告 |
+| PATCH | `/api/chat/conversations/{id}/me` | 是 | 修改自己的群昵称 |
+| POST | `/api/chat/messages/{id}/recall` | 是 | 撤回消息（发送者 2 分钟内；群主 / 站主不受限） |
+| POST | `/api/chat/messages/{id}/forward` | 是 | 转发到最多 9 个会话 |
+| DELETE | `/api/chat/messages/{id}` | 是 | 删除消息（发送者单聊 / 群管理 / 站主） |
+| GET | `/api/chat/search` | 是 | 搜索自己的聊天记录（可限定会话） |
+| GET | `/api/chat/users` | 是 | 搜索账户（用于加好友 / 发起聊天） |
+| GET | `/api/chat/contacts` | 是 | 好友、黑名单、收到 / 发出的好友申请 |
+| POST | `/api/chat/friends/requests` | 是 | 发送好友申请（对方也申请过时自动成为好友） |
+| POST | `/api/chat/friends/requests/{id}/accept` | 是 | 同意好友申请 |
+| POST | `/api/chat/friends/requests/{id}/decline` | 是 | 拒绝好友申请 |
+| DELETE | `/api/chat/friends/{登录名}` | 是 | 删除好友 |
+| POST | `/api/chat/blocks` | 是 | 拉黑用户（同时解除好友关系） |
+| DELETE | `/api/chat/blocks/{登录名}` | 是 | 解除拉黑 |
+| POST | `/api/chat/media` | 是 | 上传图片 / 文件（≤ 4 MB，KV 只保留 20 分钟） |
+| GET | `/api/chat/media/{id}` | 是（`?token=`） | 读取图片 / 文件；过期返回 `410 media_expired` |
+| GET | `/api/chat/admin/conversations` | 是（站主） | 查看全部群聊与单聊 |
+| GET | `/api/chat/admin/conversations/{id}/messages` | 是（站主） | 查看任意会话的消息 |
+| DELETE | `/api/chat/admin/messages/{id}` | 是（站主） | 永久删除任意消息 |
+| DELETE | `/api/chat/admin/conversations/{id}` | 是（站主） | 永久删除任意会话 |
+| GET | `/api/chat/messages` | 是 | 兼容旧接口：等价于 `general` / `trade` / `help` 的消息列表 |
+| POST | `/api/chat/messages` | 是 | 兼容旧接口：向公共频道发文字消息 |
 
 > **破坏性变更（1.4.0）**：`/api/me/data`（不带游戏名）现在返回 `400 bad_request`，并提示新用法。
 > 旧版平铺的 `data` 会被视为「键不是对象」，请把数据搬到 `data[游戏名称]` 下。
@@ -178,10 +218,10 @@ GET /api/health
 ```json
 {
     "name": "Vitual XRing API",
-    "version": "8.0.0",
+    "version": "9.0.0",
     "ok": true,
     "storage": "workers-kv",
-    "chat": { "version": "9.0", "enabled": false }
+    "chat": { "version": "9.0", "enabled": true }
 }
 ```
 
@@ -990,10 +1030,14 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 ### 9.2.3 聊天室（chatroom.html）
 
 - 地址：`https://xsmmc.caldson.us.ci/chatroom.html`
-- 8.0 只上线占位页：页面中央显示 `<h1>即将上线</h1>` 与 `<h2>版本9.0，我们聊天室见</h2>`，
-  **不包含任何聊天功能**（前端不读写 `/api/chat/*`）
-- 聊天服务已经部署在同一个 Worker 里（`/api/chat/status`、`/api/chat/messages`），由 `CHAT_ENABLED`
-  开关控制；9.0 版本打开开关后再把前端接上，详见第 12.4 节
+- 9.0 起为完整聊天室：左侧会话列表 / 通讯录 / 站主管理，右侧聊天窗口
+- 支持：单聊、群聊、创建群、修改群名、群公告与置顶群公告、群主 / 管理员 / 转让 / 踢人 / 解散、
+  好友申请与黑名单、消息撤回、引用回复、转发、聊天记录搜索、会话置顶、消息免打扰、
+  未读数、正在输入提示、在线状态、图片 / 文件消息
+- 实时消息通过 Durable Object `ChatHub` 的 WebSocket 推送；连接失败时自动降级为 7 秒轮询
+- 图片 / 文件上传后只保留 20 分钟（KV `expirationTtl`），过期后聊天记录仍在，但显示「已过期」
+- 站主（`ADMIN_ACCOUNT`，默认 `Kitawaga`）可以在「管理」页查看、删除全部群聊与单聊的消息
+- 详细接口见第 13 节
 
 ### 9.2.4 提款与转账的密码确认（6.0 变更）
 
@@ -1064,14 +1108,23 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 | `ADMIN_ACCOUNT` | `Kitawaga` | 拥有「账号修改」等管理权限的登录名 |
 | `MIGRATE_DELETE_REPO_FILE` | `true` | 首次迁移到 KV 后是否删除仓库里的公开 `account.json` |
 | `MIRROR_TO_GITHUB` | `false` | 是否把 KV 数据镜像回仓库 `account.json` |
-| `CHAT_ENABLED` | `false` | 聊天室接口开关（9.0 再打开） |
+| `CHAT_ENABLED` | `true` | 聊天室接口开关（9.0 起默认开放） |
 
-KV 绑定：
+KV + Durable Object 绑定：
 
 ```toml
 [[kv_namespaces]]
 binding = "ACCOUNTS_KV"
 id = "<npx wrangler kv namespace create ACCOUNTS_KV 输出的 id>"
+
+# 9.0 聊天室实时通道
+[[durable_objects.bindings]]
+name = "CHAT"
+class_name = "ChatHub"
+
+[[migrations]]
+tag = "v1-chat"
+new_sqlite_classes = ["ChatHub"]
 ```
 
 机密（用 `wrangler secret put` 设置，不要写进仓库）：
@@ -1209,24 +1262,256 @@ curl https://xsmmc.caldson.us.ci/api/admin/log -H "authorization: ******"
 > `PUT` 只接受 `username` / `password` / `money` 三个字段；`money` 必须是 ≥ 0 且最多两位小数。
 > 不能删除站主自己的账户，避免把自己锁在外面。
 
-### 12.4 聊天室接口（9.0 开放）
+### 12.4 聊天室接口（9.0 已上线）
 
-`chatroom.html` 目前只有 `<h1>即将上线</h1><h2>版本9.0，我们聊天室见</h2>`，**前端不包含任何聊天逻辑**。
-后端已部署在同一个 Worker 上，默认关闭：
+8.0 只提供 `/api/chat/status` 与 `general` / `trade` / `help` 三个房间的骨架；9.0 已扩展为完整聊天室。
+旧接口仍可用（`GET/POST /api/chat/messages?room=general`），新前端使用第 13 节的会话接口。
 
-```bash
-# 状态（公开）：即使关闭也能调用，用于展示占位信息
-curl https://xsmmc.caldson.us.ci/api/chat/status
-# {"ok":true,"version":"9.0","status":"coming_soon","enabled":false,"rooms":[...],"message":"版本9.0，我们聊天室见"}
+---
 
-# 打开开关（9.0）：wrangler.toml 里 CHAT_ENABLED = "true"
-curl https://xsmmc.caldson.us.ci/api/chat/messages?room=general -H "authorization: ******"
-curl -X POST https://xsmmc.caldson.us.ci/api/chat/messages -H "authorization: ******" \
-  -H "content-type: application/json" -d '{"room":"general","text":"你好"}'
+## 13. 9.0 更新：完整聊天室
+
+聊天记录、好友关系、群资料全部存在 Workers KV；实时消息由 Durable Object `ChatHub` 通过 WebSocket 广播。
+`CHAT_ENABLED=true`（9.0 默认）时所有聊天接口可用。
+
+### 13.1 数据模型与 KV 键
+
+| KV 键 | 内容 |
+|---|---|
+| `chat:user:{登录名}` | 会话索引（置顶 / 免打扰 / 已读位置 / 清空时间）、好友、黑名单、好友申请 |
+| `chat:conversation:{会话 id}` | 会话资料（类型、名称、成员、群主、管理员、群昵称、群公告、最后一条消息） |
+| `chat:messages:{会话 id}` | 消息数组，只保留最近 300 条 |
+| `chat:direct:{A}\|{B}` | 单聊去重：两个登录名 → 会话 id |
+| `chat:media:{id}` / `chat:media-meta:{id}` | 图片 / 文件与元数据，`expirationTtl = 1200`（20 分钟） |
+| `chat:index` | 全部会话 id（站主管理页使用，最多 2000 个） |
+
+- 会话 id：公共频道为 `general` / `trade` / `help`；群聊 `g_xxxxxxxxxxxx`；单聊 `dm_xxxxxxxxxxxx`
+- 消息结构（响应）：
+
+```json
+{
+    "id": "xxxxxxxxxxxx",
+    "conversation": "dm_xxxxxxxxxxxx",
+    "sender": "Alice",
+    "senderName": "爱丽丝",
+    "type": "text",
+    "text": "你好",
+    "media": null,
+    "replyTo": { "id": "…", "sender": "Bob", "senderName": "鲍勃", "type": "text", "preview": "…" },
+    "mentions": [],
+    "forwarded": false,
+    "recalled": false,
+    "system": false,
+    "at": 1760000000000,
+    "time": "2026/10/25 12:00:00"
+}
 ```
 
-- 房间：`general`（大厅）、`trade`（交易）、`help`（求助），房间名需匹配 `^[a-z0-9_-]{1,24}$`
-- 消息结构：`{ id, room, login, username, text, time }`，单条最长 500 字符，每房间保留最近 300 条
-- 限流：每个 IP 60 秒最多 30 条；`DELETE /api/chat/messages/{id}?room=general` 仅站主可用
-- 存储：KV 键 `chat:messages:{room}`
-- `CHAT_ENABLED=false` 时读写接口返回 `503 chat_not_ready`，body 里带「版本9.0，我们聊天室见」
+### 13.2 好友与联系人
+
+```bash
+# 搜索用户（加好友 / 发起聊天用）
+curl "https://xsmmc.caldson.us.ci/api/chat/users?q=ali" -H "authorization: ******"
+
+# 发送好友申请
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/friends/requests -H "authorization: ******" \
+  -H "content-type: application/json" -d '{"login":"Bob","note":"我是爱丽丝"}'
+
+# 对方同意 / 拒绝
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/friends/requests/fr_xxxx/accept -H "authorization: ******"
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/friends/requests/fr_xxxx/decline -H "authorization: ******"
+
+# 联系人总览（好友、黑名单、收到 / 发出的申请）
+curl https://xsmmc.caldson.us.ci/api/chat/contacts -H "authorization: ******"
+
+# 删除好友 / 拉黑 / 解除拉黑
+curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/friends/Bob -H "authorization: ******"
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/blocks -H "authorization: ******" \
+  -H "content-type: application/json" -d '{"login":"Bob"}'
+curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/blocks/Bob -H "authorization: ******"
+```
+
+- 只能和好友单聊；被拉黑后双方都不能继续发消息（历史记录仍可查看）
+- 拉黑会同时解除好友关系；解除拉黑不会自动恢复好友
+
+### 13.3 会话与群管理
+
+```bash
+# 会话列表（含未读数、置顶、免打扰）
+curl https://xsmmc.caldson.us.ci/api/chat/conversations -H "authorization: ******"
+
+# 与好友单聊（不存在则创建）
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/direct -H "authorization: ******" \
+  -H "content-type: application/json" -d '{"login":"Bob"}'
+
+# 创建群聊
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/group -H "authorization: ******" \
+  -H "content-type: application/json" -d '{"name":"周末开黑","members":["Bob","Carol"]}'
+
+# 修改群名（群主 / 管理员 / 站主）
+curl -X PATCH https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx -H "authorization: ******" \
+  -H "content-type: application/json" -d '{"name":"新的群名"}'
+
+# 群公告 + 置顶
+curl -X PUT https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx/announcement \
+  -H "authorization: ******" -H "content-type: application/json" -d '{"text":"周五开会","pinned":true}'
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx/announcement/pin \
+  -H "authorization: ******" -H "content-type: application/json" -d '{"pinned":false}'
+
+# 邀请 / 移出 / 转让群主 / 设置管理员 / 取消管理员
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx/members \
+  -H "authorization: ******" -H "content-type: application/json" -d '{"members":["Carol"]}'
+curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx/members/Carol -H "authorization: ******"
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx/owner \
+  -H "authorization: ******" -H "content-type: application/json" -d '{"login":"Bob"}'
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx/admins \
+  -H "authorization: ******" -H "content-type: application/json" -d '{"login":"Bob"}'
+curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx/admins/Bob -H "authorization: ******"
+
+# 我的群昵称
+curl -X PATCH https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx/me \
+  -H "authorization: ******" -H "content-type: application/json" -d '{"alias":"小明"}'
+
+# 退出 / 解散
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx/leave -H "authorization: ******"
+curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/conversations/g_xxxx -H "authorization: ******"
+```
+
+权限：
+
+| 操作 | 谁可以 |
+|---|---|
+| 修改群名、群公告、置顶公告 | 群主、群管理员、站主 |
+| 邀请成员 | 群内任意成员（公共频道无需邀请） |
+| 移出成员 | 群主、群管理员（不能移出群主；管理员只有群主能移出）、站主 |
+| 转让群主、设置 / 取消管理员 | 群主、站主 |
+| 解散群聊 | 群主、站主（公共频道不能解散） |
+| 退出群聊 | 所有成员；群主退出时自动转让给最早加入的成员 |
+
+其他会话操作：`POST /conversations/{id}/settings`（`{"pinned":true,"muted":true}`）、
+`POST /conversations/{id}/clear`（只清空自己的记录）、`POST /conversations/{id}/read`、
+`POST /conversations/{id}/join`（重新加入公共频道）。
+
+### 13.4 消息
+
+```bash
+# 读取消息（before 为毫秒时间戳，用于翻页）
+curl "https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/messages?limit=50" -H "authorization: ******"
+
+# 发送文字 / 引用回复 / @成员
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/messages \
+  -H "authorization: ******" -H "content-type: application/json" \
+  -d '{"text":"收到","replyTo":"消息 id","mentions":["Bob"]}'
+
+# 发送图片 / 文件（先上传，见 13.5）
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/messages \
+  -H "authorization: ******" -H "content-type: application/json" \
+  -d '{"type":"image","mediaId":"媒体 id","text":"配文"}'
+
+# 撤回（发送者 2 分钟内；群主 / 管理员 / 站主不受限）
+curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/recall?conversation=dm_xxxx" \
+  -H "authorization: ******"
+
+# 转发到最多 9 个会话
+curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/forward?conversation=dm_xxxx" \
+  -H "authorization: ******" -H "content-type: application/json" -d '{"targets":["g_xxxx","dm_yyyy"]}'
+
+# 搜索聊天记录（可限定会话）
+curl "https://xsmmc.caldson.us.ci/api/chat/search?q=开会&conversation=g_xxxx" -H "authorization: ******"
+
+# 正在输入（供 WebSocket 广播，失败不影响聊天）
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/typing -H "authorization: ******"
+```
+
+- 文字最长 500 字符；每个会话保留最近 300 条
+- 引用回复会保存原消息的发送者、类型与 40 字摘要
+- 只有自己的消息能在 2 分钟内撤回；群主 / 群管理员 / 站主可以撤回或删除任意消息
+
+### 13.5 图片与文件（20 分钟过期）
+
+```bash
+# 上传（原始二进制，最多 4 MB）
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/media \
+  -H "authorization: ******" -H "content-type: image/png" \
+  -H "x-file-name: $(python -c "import urllib.parse;print(urllib.parse.quote('截图.png'))")" \
+  --data-binary @截图.png
+
+# 读取（浏览器 <img> 用 ?token=）
+curl "https://xsmmc.caldson.us.ci/api/chat/media/媒体id?token=你的token" -o 截图.png
+```
+
+- KV 使用 `expirationTtl = 1200`：上传 20 分钟后图片 / 文件本体自动删除
+- 聊天记录里的消息仍然保留，`media.expiresAt` 过期后前端显示「图片/文件已过期」
+- 过期的媒体再次读取返回 `410 media_expired`
+- 只有上传者（或站主）可以把媒体作为消息发送
+
+### 13.6 WebSocket 实时推送
+
+```js
+const socket = new WebSocket(
+    `wss://xsmmc.caldson.us.ci/api/chat/ws?token=${encodeURIComponent(token)}`
+);
+socket.onmessage = (event) => console.log(JSON.parse(event.data));
+socket.send(JSON.stringify({ type: "ping" }));
+```
+
+浏览器无法给 WebSocket 设置请求头，因此 token 放在查询参数里；服务端校验通过后转发给 Durable Object。
+`wrangler.toml` 未绑定 `CHAT` 时，`/api/chat/ws` 返回 `503 chat_ws_unavailable`，前端自动改用轮询。
+
+事件类型：
+
+| `type` | 说明 |
+|---|---|
+| `hello` | 连接成功，带 `login` 与当前在线列表 `online` |
+| `presence` | 在线用户列表变化 |
+| `message` | 新消息（`conversation` 为会话视图，`message` 为消息） |
+| `message:recall` | 某条消息被撤回 |
+| `message:delete` | 某条消息被删除 |
+| `conversation:new` | 被拉进新群 / 新单聊 |
+| `conversation:update` | 群名、群公告、成员、管理员等变化 |
+| `conversation:remove` | 群聊被解散 / 你被移出 / 单聊被删除 |
+| `typing` | 有人正在输入（`login`、`name`） |
+| `friend:request` / `friend:accept` / `friend:decline` / `friend:remove` | 好友关系变化 |
+| `pong` | 回复 `ping` |
+
+### 13.7 站主管理
+
+`ADMIN_ACCOUNT`（默认 `Kitawaga`）可以管理**全部群聊与所有用户的单聊**：
+
+```bash
+curl https://xsmmc.caldson.us.ci/api/chat/admin/conversations -H "authorization: ******"
+curl https://xsmmc.caldson.us.ci/api/chat/admin/conversations/dm_xxxx/messages -H "authorization: ******"
+curl -X DELETE "https://xsmmc.caldson.us.ci/api/chat/admin/messages/消息id?conversation=dm_xxxx" -H "authorization: ******"
+curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/conversations/dm_xxxx -H "authorization: ******"
+```
+
+- 非站主调用返回 `403 forbidden`
+- 站主也可以直接在普通接口里读取任意会话、修改任意群资料、撤回 / 删除任意消息
+- 「管理」页在 `chatroom.html` 左侧导航中出现（仅站主可见）
+
+### 13.8 限流与错误码
+
+| 操作 | 限制 |
+|---|---|
+| 发送消息 | 每个 IP 60 秒 30 条 |
+| 上传媒体 | 每个 IP 60 秒 12 次 |
+| 正在输入 | 每个 IP + 会话 60 秒 120 次 |
+| 好友申请 / 会话操作 | 受全局写入限流保护 |
+
+| 状态码 | `error` | 说明 |
+|---|---|---|
+| `400` | `bad_request` | 参数不合法（名称、成员、消息内容等） |
+| `401` | `unauthorized` | 缺少或过期的 token |
+| `403` | `blocked` / `not_friend` / `forbidden` | 被拉黑、不是好友、没有管理权限 |
+| `404` | `not_found` | 会话 / 消息 / 用户不存在 |
+| `410` | `media_expired` | 图片 / 文件已超过 20 分钟 |
+| `413` | `payload_too_large` | 文件超过 4 MB |
+| `429` | `too_many_requests` | 触发限流 |
+| `503` | `chat_not_ready` | `CHAT_ENABLED=false` |
+| `503` | `chat_ws_unavailable` | 未绑定 `CHAT` Durable Object（可用轮询） |
+
+### 13.9 前端
+
+- `chatroom.html`：完整聊天界面（会话、通讯录、站主管理、群资料、转发、搜索、撤回、媒体上传）
+- `vtx-api.js`：`VTXApi.chat.*` 封装全部聊天接口，另有 `chatSocketUrl()` / `chatMediaUrl()` / `chat.upload(file)`
+- 登录页支持 `login.html?next=chatroom.html`，登录后直接回到聊天室

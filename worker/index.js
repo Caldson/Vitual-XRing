@@ -6,6 +6,9 @@
  *   然后（MIGRATE_DELETE_REPO_FILE 未关闭时）删除仓库中的那份公开文件。
  *   未绑定 ACCOUNTS_KV 时退回 7.0 的行为（直接读写仓库里的 account.json）。
  *
+ * 9.0 新增完整聊天室：聊天记录同样存在 KV，实时消息由 ChatHub（Durable Object）
+ * 通过 WebSocket 推送；图片 / 文件在 KV 里只保留 20 分钟。
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -14,14 +17,18 @@
  *   ADMIN_ACCOUNT               拥有管理权限的登录名，默认 Kitawaga
  *   MIGRATE_DELETE_REPO_FILE    迁移后是否删除仓库里的 account.json，默认 true
  *   MIRROR_TO_GITHUB            是否把 KV 数据镜像回仓库 account.json，默认 false
- *   CHAT_ENABLED                是否开放聊天室接口（9.0 才对外开放），默认 false
+ *   CHAT_ENABLED                是否开放聊天室接口，9.0 起默认 true
+ *
+ * 绑定：
+ *   ACCOUNTS_KV                 Workers KV：账户 + 聊天记录 + 聊天媒体
+ *   CHAT                        Durable Object（class_name = ChatHub）：WebSocket 实时推送
  *
  * 机密（wrangler secret put）：
  *   GITHUB_TOKEN                迁移 / 镜像时需要仓库 Contents 读写权限
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  */
 
-const VERSION = "8.0.0";
+const VERSION = "9.0.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -34,17 +41,35 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_ROOM_MESSAGE_LIMIT = 300;
+const CHAT_VERSION = "9.0";
+const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 const CHAT_WINDOW_MS = 60 * 1000;
 const CHAT_MAX_ATTEMPTS = 30;
-const CHAT_VERSION = "9.0";
-const CHAT_ROOMS = [
-    { id: "general", name: "大厅" },
-    { id: "trade", name: "交易" },
-    { id: "help", name: "求助" }
+const CHAT_MEDIA_WINDOW_MS = 60 * 1000;
+const CHAT_MEDIA_MAX_ATTEMPTS = 12;
+const CHAT_TYPING_WINDOW_MS = 60 * 1000;
+const CHAT_TYPING_MAX_ATTEMPTS = 120;
+const CHAT_RECALL_WINDOW_MS = 2 * 60 * 1000;
+const CHAT_MEDIA_TTL_SECONDS = 20 * 60;
+const CHAT_MEDIA_MAX_BYTES = 4 * 1024 * 1024;
+const CHAT_PAGE_LIMIT = 50;
+const CHAT_SEARCH_LIMIT = 50;
+const CHAT_GROUP_MAX_MEMBERS = 200;
+const CHAT_GROUP_NAME_MAX = 24;
+const CHAT_ANNOUNCEMENT_MAX = 1000;
+const CHAT_ALIAS_MAX = 20;
+const CHAT_NOTE_MAX = 100;
+const CHAT_INDEX_LIMIT = 2000;
+const CHAT_CONVERSATION_PATTERN = /^[A-Za-z0-9_-]{1,40}$/;
+const CHAT_MESSAGE_ID_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
+const CHAT_MEDIA_ID_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
+const CHAT_PUBLIC_GROUPS = [
+    { id: "general", name: "大厅", description: "所有人都可以发言的公共频道" },
+    { id: "trade", name: "交易", description: "VTX 交易与商店相关讨论" },
+    { id: "help", name: "求助", description: "遇到问题可以在这里提问" }
 ];
-const CHAT_ROOM_PATTERN = /^[a-z0-9_-]{1,24}$/;
+const CHAT_INDEX_KEY = "chat:index";
 const LOGIN_WINDOW_MS = 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
 const WRITE_WINDOW_MS = 60 * 1000;
@@ -73,6 +98,8 @@ const writeAttempts = new Map();
 const tradeAttempts = new Map();
 const registerAttempts = new Map();
 const chatAttempts = new Map();
+const chatMediaAttempts = new Map();
+const chatTypingAttempts = new Map();
 const adminAttempts = new Map();
 
 class HttpError extends Error {
@@ -221,8 +248,8 @@ function corsHeaders(env, request) {
         : (configured.includes(origin) ? origin : "");
 
     const headers = {
-        "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "access-control-allow-headers": "authorization,content-type",
+        "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        "access-control-allow-headers": "authorization,content-type,x-file-name",
         "access-control-max-age": "86400",
         "vary": "origin",
         "cache-control": "no-store"
@@ -641,8 +668,8 @@ function shanghaiDate() {
     return `${now.getUTCFullYear()}/${now.getUTCMonth() + 1}/${now.getUTCDate()}`;
 }
 
-function shanghaiTimestamp() {
-    const now = new Date(Date.now() + 8 * 60 * 60 * 1000);
+function shanghaiTimestamp(ms = Date.now()) {
+    const now = new Date(ms + 8 * 60 * 60 * 1000);
     const pad = (value) => String(value).padStart(2, "0");
     return `${now.getUTCFullYear()}/${pad(now.getUTCMonth() + 1)}/${pad(now.getUTCDate())} `
         + `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
@@ -2128,8 +2155,10 @@ async function handleAdminLog(request, env, cors) {
     return jsonResponse({ ok: true, storage: "kv", entries }, 200, cors);
 }
 
+/* ───────────────────────────── 9.0 聊天室 ───────────────────────────── */
+
 function chatEnabled(env) {
-    return String(env.CHAT_ENABLED || "false") === "true";
+    return String(env.CHAT_ENABLED || "true") === "true";
 }
 
 function chatNotReady(cors) {
@@ -2140,8 +2169,17 @@ function chatNotReady(cors) {
     }, 503, cors);
 }
 
-function chatRoomKey(env, room) {
-    return `chat:messages:${room}`;
+function chatGuard(env, cors) {
+    if (!hasKv(env)) {
+        return jsonResponse({
+            error: "chat_storage_unavailable",
+            message: "聊天室需要绑定 ACCOUNTS_KV"
+        }, 503, cors);
+    }
+    if (!chatEnabled(env)) {
+        return chatNotReady(cors);
+    }
+    return null;
 }
 
 function handleChatStatus(request, env, cors) {
@@ -2150,129 +2188,2951 @@ function handleChatStatus(request, env, cors) {
         version: CHAT_VERSION,
         status: chatEnabled(env) ? "ready" : "coming_soon",
         enabled: chatEnabled(env),
-        rooms: CHAT_ROOMS,
         storage: hasKv(env) ? "workers-kv" : "unavailable",
-        message: "版本9.0，我们聊天室见"
+        realtime: env.CHAT && typeof env.CHAT.idFromName === "function" ? "websocket" : "polling",
+        rooms: CHAT_PUBLIC_GROUPS.map((group) => ({ id: group.id, name: group.name })),
+        features: [
+            "friends", "direct", "groups", "group-admin", "announcement",
+            "recall", "forward", "reply", "search", "mute-pin", "files-images", "expiring-media"
+        ],
+        mediaTtlSeconds: CHAT_MEDIA_TTL_SECONDS,
+        message: chatEnabled(env) ? "聊天室已开放" : "版本9.0，我们聊天室见"
     }, 200, cors);
 }
 
-async function handleChatMessages(request, env, cors) {
+function chatUserKey(login) {
+    return `chat:user:${login}`;
+}
+
+function chatConversationKey(id) {
+    return `chat:conversation:${id}`;
+}
+
+function chatMessagesKey(id) {
+    return `chat:messages:${id}`;
+}
+
+function chatMediaKey(id) {
+    return `chat:media:${id}`;
+}
+
+function chatMediaMetaKey(id) {
+    return `chat:media-meta:${id}`;
+}
+
+function chatDirectKey(a, b) {
+    const pair = [a, b].sort().map((item) => encodeURIComponent(item));
+    return `chat:direct:${pair.join("|")}`;
+}
+
+function isPlatformAdmin(env, login) {
+    return String(login) === adminLogin(env);
+}
+
+function defaultChatUser() {
+    return { conversations: [], friends: [], blocked: [], incoming: [], outgoing: [] };
+}
+
+async function readChatUser(env, login) {
+    const stored = plainObject(await env.ACCOUNTS_KV.get(chatUserKey(login), "json"));
+    const record = { ...defaultChatUser(), ...stored };
+
+    for (const key of ["conversations", "friends", "blocked", "incoming", "outgoing"]) {
+        if (!Array.isArray(record[key])) {
+            record[key] = [];
+        }
+    }
+
+    record.conversations = record.conversations.filter((item) => item && typeof item === "object" && typeof item.id === "string");
+    record.friends = record.friends.filter((item) => item && typeof item.login === "string");
+    record.blocked = record.blocked.filter((item) => typeof item === "string");
+    record.incoming = record.incoming.filter((item) => item && typeof item.id === "string");
+    record.outgoing = record.outgoing.filter((item) => item && typeof item.id === "string");
+    return record;
+}
+
+async function saveChatUser(env, login, record) {
+    record.updatedAt = shanghaiTimestamp();
+    await env.ACCOUNTS_KV.put(chatUserKey(login), JSON.stringify(record));
+}
+
+function chatEntry(record, id) {
+    return record.conversations.find((item) => item.id === id) || null;
+}
+
+function ensurePublicSubscriptions(record) {
+    let changed = false;
+    for (const group of CHAT_PUBLIC_GROUPS) {
+        if (!chatEntry(record, group.id)) {
+            record.conversations.push({
+                id: group.id,
+                pinned: false,
+                muted: false,
+                joinedAt: shanghaiTimestamp(),
+                lastRead: 0,
+                clearedAt: 0,
+                hidden: false
+            });
+            changed = true;
+        }
+    }
+    return changed;
+}
+
+async function loadChatUser(env, login) {
+    const record = await readChatUser(env, login);
+    if (ensurePublicSubscriptions(record)) {
+        await saveChatUser(env, login, record);
+    }
+    return record;
+}
+
+async function ensureConversationEntry(env, login, id) {
+    const record = await readChatUser(env, login);
+    const entry = chatEntry(record, id);
+    if (!entry) {
+        record.conversations.push({
+            id,
+            pinned: false,
+            muted: false,
+            joinedAt: shanghaiTimestamp(),
+            lastRead: 0,
+            clearedAt: 0,
+            hidden: false
+        });
+        await saveChatUser(env, login, record);
+        return true;
+    }
+    if (entry.hidden) {
+        entry.hidden = false;
+        await saveChatUser(env, login, record);
+    }
+    return false;
+}
+
+async function readChatIndex(env) {
+    const stored = await env.ACCOUNTS_KV.get(CHAT_INDEX_KEY, "json");
+    return Array.isArray(stored) ? stored.filter((item) => typeof item === "string") : [];
+}
+
+async function saveChatIndex(env, index) {
+    await env.ACCOUNTS_KV.put(CHAT_INDEX_KEY, JSON.stringify(index.slice(-CHAT_INDEX_LIMIT)));
+}
+
+async function addToChatIndex(env, id) {
+    const index = await readChatIndex(env);
+    if (!index.includes(id)) {
+        index.push(id);
+        await saveChatIndex(env, index);
+    }
+}
+
+async function removeFromChatIndex(env, id) {
+    const index = await readChatIndex(env);
+    const kept = index.filter((item) => item !== id);
+    if (kept.length !== index.length) {
+        await saveChatIndex(env, kept);
+    }
+}
+
+async function readConversation(env, id) {
+    const conv = plainObject(await env.ACCOUNTS_KV.get(chatConversationKey(id), "json"));
+    if (!conv.id) {
+        return null;
+    }
+    if (!Array.isArray(conv.members)) {
+        conv.members = [];
+    }
+    if (!Array.isArray(conv.admins)) {
+        conv.admins = [];
+    }
+    if (!conv.aliases || typeof conv.aliases !== "object" || Array.isArray(conv.aliases)) {
+        conv.aliases = {};
+    }
+    return conv;
+}
+
+async function saveConversation(env, conv) {
+    await env.ACCOUNTS_KV.put(chatConversationKey(conv.id), JSON.stringify(conv));
+}
+
+async function readChatMessages(env, id) {
+    const stored = await env.ACCOUNTS_KV.get(chatMessagesKey(id), "json");
+    return Array.isArray(stored) ? stored.filter((item) => item && typeof item.id === "string") : [];
+}
+
+async function saveChatMessages(env, id, messages) {
+    await env.ACCOUNTS_KV.put(chatMessagesKey(id), JSON.stringify(messages.slice(-CHAT_MESSAGE_LIMIT)));
+}
+
+async function appendMessage(env, conv, message) {
+    const messages = await readChatMessages(env, conv.id);
+    messages.push(message);
+    await saveChatMessages(env, conv.id, messages);
+    conv.lastMessage = message;
+    conv.updatedAt = message.time;
+    return message;
+}
+
+async function appendSystemMessage(env, conv, text) {
+    const at = Date.now();
+    const message = {
+        id: randomCode(9),
+        conversation: conv.id,
+        sender: "system",
+        senderName: "系统",
+        type: "system",
+        system: true,
+        text: String(text).slice(0, MAX_CHAT_TEXT_LENGTH),
+        at,
+        time: shanghaiTimestamp(at)
+    };
+    await appendMessage(env, conv, message);
+    return message;
+}
+
+async function ensurePublicGroups(env) {
+    const index = await readChatIndex(env);
+    let changed = false;
+
+    for (const group of CHAT_PUBLIC_GROUPS) {
+        const existing = await readConversation(env, group.id);
+        if (existing) {
+            continue;
+        }
+        const now = shanghaiTimestamp();
+        await saveConversation(env, {
+            id: group.id,
+            type: "group",
+            name: group.name,
+            description: group.description,
+            public: true,
+            owner: adminLogin(env),
+            admins: [],
+            members: [],
+            aliases: {},
+            announcement: null,
+            createdAt: now,
+            updatedAt: now,
+            lastMessage: null
+        });
+        if (!index.includes(group.id)) {
+            index.push(group.id);
+        }
+        changed = true;
+    }
+
+    if (changed) {
+        await saveChatIndex(env, index);
+    }
+}
+
+function chatDisplayName(accounts, login) {
+    const account = accounts && accounts[login];
+    return String(account && account.username ? account.username : login);
+}
+
+function chatMemberAlias(conv, accounts, login) {
+    const alias = conv && conv.aliases ? conv.aliases[login] : "";
+    return String(alias || chatDisplayName(accounts, login));
+}
+
+function messagePreview(message) {
+    if (!message) {
+        return "";
+    }
+    if (message.recalled) {
+        return "消息已撤回";
+    }
+    if (message.type === "image") {
+        return "[图片]";
+    }
+    if (message.type === "file") {
+        return `[文件] ${message.media && message.media.name ? message.media.name : ""}`.trim();
+    }
+    return String(message.text || "");
+}
+
+function messageSnippet(message, limit = 80) {
+    const text = messagePreview(message);
+    return text.length > limit ? `${text.slice(0, limit)}…` : text;
+}
+
+function messageView(message) {
+    if (!message) {
+        return null;
+    }
+    return {
+        id: message.id,
+        conversation: message.conversation || "",
+        sender: message.sender,
+        senderName: message.senderName || "",
+        type: message.type || "text",
+        text: message.recalled ? "" : String(message.text || ""),
+        media: message.recalled ? null : (message.media || null),
+        replyTo: message.replyTo || null,
+        mentions: Array.isArray(message.mentions) ? message.mentions : [],
+        forwarded: Boolean(message.forwarded),
+        recalled: Boolean(message.recalled),
+        system: Boolean(message.system),
+        at: Number(message.at) || 0,
+        time: message.time || ""
+    };
+}
+
+function visibleChatMessages(messages, entry) {
+    const since = Math.max(Number(entry && entry.clearedAt) || 0, 0);
+    return messages.filter((item) => (Number(item.at) || 0) > since);
+}
+
+function chatUnreadCount(messages, entry, login) {
+    if (!entry) {
+        return 0;
+    }
+    const since = Math.max(Number(entry.lastRead) || 0, Number(entry.clearedAt) || 0);
+    return messages.filter((item) => (Number(item.at) || 0) > since && item.sender !== login && !item.system).length;
+}
+
+function conversationView(env, conv, entry, messages, login, accounts) {
+    const peerLogin = conv.type === "direct"
+        ? (conv.members || []).find((item) => item !== login) || ""
+        : "";
+    const name = conv.type === "direct"
+        ? chatDisplayName(accounts, peerLogin || login)
+        : String(conv.name || "群聊");
+
+    return {
+        id: conv.id,
+        type: conv.type,
+        name,
+        peer: peerLogin,
+        peerName: peerLogin ? chatDisplayName(accounts, peerLogin) : "",
+        public: Boolean(conv.public),
+        memberCount: conv.public ? Object.keys(accounts).length : (conv.members || []).length,
+        owner: conv.owner || "",
+        admins: conv.admins || [],
+        announcement: conv.announcement || null,
+        createdAt: conv.createdAt || "",
+        pinned: Boolean(entry && entry.pinned),
+        muted: Boolean(entry && entry.muted),
+        hidden: Boolean(entry && entry.hidden),
+        unread: chatUnreadCount(messages, entry, login),
+        lastRead: Number(entry && entry.lastRead) || 0,
+        lastMessage: messageView(conv.lastMessage),
+        updatedAt: Number(conv.lastMessage && conv.lastMessage.at) || 0
+    };
+}
+
+function conversationTargets(conv, accounts) {
+    if (conv.public) {
+        return Object.keys(accounts);
+    }
+    return Array.isArray(conv.members) ? conv.members.slice() : [];
+}
+
+function chatMemberOf(conv, login) {
+    if (conv.public) {
+        return true;
+    }
+    return Array.isArray(conv.members) && conv.members.includes(login);
+}
+
+function canManageGroup(env, conv, login) {
+    if (!conv || conv.type !== "group") {
+        return false;
+    }
+    return isPlatformAdmin(env, login)
+        || conv.owner === login
+        || (Array.isArray(conv.admins) && conv.admins.includes(login));
+}
+
+function canOwnGroup(env, conv, login) {
+    return isPlatformAdmin(env, login) || conv.owner === login;
+}
+
+async function notifyChat(env, targets, event, exclude) {
+    if (!env.CHAT || typeof env.CHAT.idFromName !== "function") {
+        return;
+    }
+    const list = Array.from(new Set((targets || []).filter((item) => typeof item === "string" && item))).slice(0, 500);
+    if (!list.length) {
+        return;
+    }
+    try {
+        const stub = env.CHAT.get(env.CHAT.idFromName("hub"));
+        await stub.fetch("https://chat-hub/notify", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ targets: list, event, exclude: exclude || "" })
+        });
+    } catch (error) {
+        /* 实时推送失败不能影响接口本身的成功 */
+    }
+}
+
+function chatConversationId(value) {
+    const id = String(value || "").trim();
+    return CHAT_CONVERSATION_PATTERN.test(id) ? id : "";
+}
+
+function chatNotAMember(cors) {
+    return jsonResponse({ error: "forbidden", message: "你不在这个会话里" }, 403, cors);
+}
+
+async function loadConversationFor(env, id, login, cors) {
+    const conv = await readConversation(env, id);
+    if (!conv) {
+        return { error: jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors) };
+    }
+    if (!chatMemberOf(conv, login) && !isPlatformAdmin(env, login)) {
+        return { error: chatNotAMember(cors) };
+    }
+    return { conv };
+}
+
+async function handleChatConversations(request, env, cors) {
     const session = await requireSession(request, env, cors);
     if (session.error) {
         return session.error;
     }
-
-    if (!chatEnabled(env) || !hasKv(env)) {
-        return chatNotReady(cors);
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
     }
 
-    const url = new URL(request.url);
-    const room = String(url.searchParams.get("room") || CHAT_ROOMS[0].id).trim();
-
-    if (!CHAT_ROOM_PATTERN.test(room)) {
-        return jsonResponse({ error: "bad_request", message: "房间名称不合法" }, 400, cors);
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    if (!accounts[login]) {
+        return jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors);
     }
 
-    const stored = await env.ACCOUNTS_KV.get(chatRoomKey(env, room), "json");
-    const messages = Array.isArray(stored) ? stored : [];
+    const conversations = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const record = await loadChatUser(env, login);
+        const output = [];
+
+        for (const entry of record.conversations) {
+            if (!entry || !chatConversationId(entry.id)) {
+                continue;
+            }
+            const conv = await readConversation(env, entry.id);
+            if (!conv) {
+                continue;
+            }
+            const messages = await readChatMessages(env, entry.id);
+            output.push(conversationView(env, conv, entry, messages, login, accounts));
+        }
+
+        return output;
+    });
+
+    conversations.sort((left, right) => {
+        if (left.pinned !== right.pinned) {
+            return left.pinned ? -1 : 1;
+        }
+        return right.updatedAt - left.updatedAt;
+    });
 
     return jsonResponse({
         ok: true,
-        room,
-        limit: CHAT_ROOM_MESSAGE_LIMIT,
-        messages: messages.slice(-CHAT_ROOM_MESSAGE_LIMIT)
+        login,
+        conversations: conversations.filter((item) => !item.hidden),
+        hidden: conversations.filter((item) => item.hidden).map((item) => item.id)
     }, 200, cors);
 }
 
-async function handleChatPost(request, env, cors) {
+async function ensureDirectConversation(env, a, b) {
+    const key = chatDirectKey(a, b);
+    const existingId = await env.ACCOUNTS_KV.get(key);
+
+    if (existingId) {
+        const existing = await readConversation(env, existingId);
+        if (existing) {
+            await ensureConversationEntry(env, a, existing.id);
+            await ensureConversationEntry(env, b, existing.id);
+            return existing;
+        }
+    }
+
+    const now = shanghaiTimestamp();
+    const conv = {
+        id: `dm_${randomCode(9)}`,
+        type: "direct",
+        members: [a, b],
+        admins: [],
+        aliases: {},
+        announcement: null,
+        createdAt: now,
+        updatedAt: now,
+        lastMessage: null
+    };
+
+    await saveConversation(env, conv);
+    await env.ACCOUNTS_KV.put(key, conv.id);
+    await addToChatIndex(env, conv.id);
+    await ensureConversationEntry(env, a, conv.id);
+    await ensureConversationEntry(env, b, conv.id);
+    return conv;
+}
+
+async function handleChatDirect(request, env, cors) {
     const session = await requireSession(request, env, cors);
     if (session.error) {
         return session.error;
     }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
 
-    if (!chatEnabled(env) || !hasKv(env)) {
-        return chatNotReady(cors);
+    const login = session.payload.sub;
+    const body = plainObject(await readJsonBody(request));
+    const target = String(body.login || "").trim();
+
+    if (!target || target === login) {
+        return jsonResponse({ error: "bad_request", message: "请选择要聊天的用户" }, 400, cors);
+    }
+
+    const accounts = await loadAccounts(env);
+    if (!accounts[login] || !accounts[target]) {
+        return jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors);
+    }
+
+    if (!isPlatformAdmin(env, login)) {
+        const mine = await readChatUser(env, login);
+        if (!mine.friends.some((item) => item.login === target)) {
+            return jsonResponse({ error: "not_friend", message: "只能和好友发起单聊，请先添加好友" }, 403, cors);
+        }
+        if (mine.blocked.includes(target)) {
+            return jsonResponse({ error: "blocked", message: "你已拉黑对方，无法发起聊天" }, 403, cors);
+        }
+        const peer = await readChatUser(env, target);
+        if (peer.blocked.includes(login)) {
+            return jsonResponse({ error: "blocked", message: "对方已将你拉黑" }, 403, cors);
+        }
+    }
+
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const conv = await ensureDirectConversation(env, login, target);
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        const view = conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts);
+        const peerRecord = await readChatUser(env, target);
+        return {
+            conv,
+            view,
+            peer: {
+                login: target,
+                username: chatDisplayName(accounts, target),
+                friend: record.friends.some((item) => item.login === target),
+                theyAreFriend: peerRecord.friends.some((item) => item.login === login)
+            }
+        };
+    });
+
+    return jsonResponse({ ok: true, conversation: result.view, peer: result.peer }, 200, cors);
+}
+
+function normalizeGroupName(value) {
+    const name = String(value || "").replace(/\s+/g, " ").trim();
+    if (!name) {
+        throw new HttpError(400, "bad_request", "群聊名称不能为空");
+    }
+    if (name.length > CHAT_GROUP_NAME_MAX) {
+        throw new HttpError(400, "bad_request", `群聊名称最长 ${CHAT_GROUP_NAME_MAX} 个字符`);
+    }
+    return name;
+}
+
+async function handleChatCreateGroup(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const body = plainObject(await readJsonBody(request));
+    const accounts = await loadAccounts(env);
+    if (!accounts[login]) {
+        return jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors);
+    }
+
+    const name = normalizeGroupName(body.name);
+    const requested = Array.isArray(body.members) ? body.members : [];
+    const members = Array.from(new Set([login, ...requested.map((item) => String(item || "").trim())].filter(Boolean)));
+
+    if (members.length > CHAT_GROUP_MAX_MEMBERS) {
+        return jsonResponse({ error: "bad_request", message: `群成员不能超过 ${CHAT_GROUP_MAX_MEMBERS} 人` }, 400, cors);
+    }
+    for (const member of members) {
+        if (!accounts[member]) {
+            return jsonResponse({ error: "bad_request", message: `用户 ${member} 不存在` }, 400, cors);
+        }
+    }
+
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const now = shanghaiTimestamp();
+        const conv = {
+            id: `g_${randomCode(9)}`,
+            type: "group",
+            name,
+            public: false,
+            owner: login,
+            admins: [],
+            members,
+            aliases: {},
+            announcement: null,
+            createdAt: now,
+            updatedAt: now,
+            lastMessage: null
+        };
+
+        await saveConversation(env, conv);
+        await addToChatIndex(env, conv.id);
+        for (const member of members) {
+            await ensureConversationEntry(env, member, conv.id);
+        }
+
+        const invited = members.filter((item) => item !== login);
+        if (invited.length) {
+            await appendSystemMessage(env, conv, `${chatDisplayName(accounts, login)} 邀请 ${invited.map((item) => chatDisplayName(accounts, item)).join("、")} 加入了群聊`);
+            await saveConversation(env, conv);
+        }
+
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        return {
+            view: conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts),
+            targets: conversationTargets(conv, accounts)
+        };
+    });
+
+    await notifyChat(env, result.targets, { type: "conversation:new", conversation: result.view });
+
+    return jsonResponse({ ok: true, conversation: result.view }, 201, cors);
+}
+
+async function handleChatConversationDetail(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    if (!accounts[login]) {
+        return jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        const view = conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts);
+        const memberLogins = conv.public ? Object.keys(accounts) : conv.members;
+        const members = memberLogins.map((member) => ({
+            login: member,
+            username: chatDisplayName(accounts, member),
+            alias: String(conv.aliases[member] || ""),
+            owner: conv.owner === member,
+            admin: (conv.admins || []).includes(member),
+            friend: record.friends.some((item) => item.login === member),
+            me: member === login
+        }));
+
+        return { view, members, conversation: conv };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return jsonResponse({
+        ok: true,
+        conversation: result.view,
+        members: result.members
+    }, 200, cors);
+}
+
+async function handleChatMessagesList(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const url = new URL(request.url);
+    const before = Number(url.searchParams.get("before")) || 0;
+    const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || CHAT_PAGE_LIMIT, 1), 100);
+
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        const record = await loadChatUser(env, login);
+        const entry = chatEntry(record, conv.id);
+        const all = visibleChatMessages(await readChatMessages(env, conv.id), entry);
+        const filtered = before > 0 ? all.filter((item) => (Number(item.at) || 0) < before) : all;
+        const page = filtered.slice(-limit);
+
+        return {
+            view: conversationView(env, conv, entry, all, login, accounts),
+            messages: page.map(messageView),
+            hasMore: filtered.length > page.length,
+            oldest: page.length ? Number(page[0].at) || 0 : 0
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return jsonResponse({
+        ok: true,
+        conversation: result.view,
+        messages: result.messages,
+        hasMore: result.hasMore,
+        oldest: result.oldest,
+        limit: CHAT_MESSAGE_LIMIT
+    }, 200, cors);
+}
+
+async function buildReplyTarget(messages, replyToId) {
+    if (!replyToId) {
+        return null;
+    }
+    const source = messages.find((item) => item.id === replyToId);
+    if (!source) {
+        throw new HttpError(400, "bad_request", "引用的消息不存在");
+    }
+    return {
+        id: source.id,
+        sender: source.sender,
+        senderName: source.senderName || "",
+        type: source.type || "text",
+        preview: messageSnippet(source, 40)
+    };
+}
+
+async function handleChatSend(request, env, cors, id, compatRoom = "") {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
     }
 
     if (throttled(chatAttempts, clientIp(request), CHAT_WINDOW_MS, CHAT_MAX_ATTEMPTS)) {
         return jsonResponse({ error: "too_many_requests", message: "发言过于频繁，请稍后再试" }, 429, cors);
     }
 
-    const body = plainObject(await readJsonBody(request));
-    const room = String(body.room || CHAT_ROOMS[0].id).trim();
-    const text = String(body.text ?? "").trim();
-
-    if (!CHAT_ROOM_PATTERN.test(room)) {
-        return jsonResponse({ error: "bad_request", message: "房间名称不合法" }, 400, cors);
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    if (!accounts[login]) {
+        return jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors);
     }
-    if (!text) {
+
+    const body = plainObject(await readJsonBody(request));
+    const type = ["text", "image", "file"].includes(String(body.type || "text")) ? String(body.type || "text") : "text";
+    const text = String(body.text ?? "").trim();
+    const mentions = Array.isArray(body.mentions)
+        ? Array.from(new Set(body.mentions.map((item) => String(item || "").trim()).filter(Boolean))).slice(0, 20)
+        : [];
+
+    if (type === "text" && !text) {
         return jsonResponse({ error: "bad_request", message: "消息内容不能为空" }, 400, cors);
     }
     if (text.length > MAX_CHAT_TEXT_LENGTH) {
         return jsonResponse({ error: "bad_request", message: `消息最长 ${MAX_CHAT_TEXT_LENGTH} 个字符` }, 400, cors);
     }
 
+    let media = null;
+    if (type === "image" || type === "file") {
+        const mediaId = String(body.mediaId || "").trim();
+        if (!CHAT_MEDIA_ID_PATTERN.test(mediaId)) {
+            return jsonResponse({ error: "bad_request", message: "缺少有效的 mediaId" }, 400, cors);
+        }
+        const meta = plainObject(await env.ACCOUNTS_KV.get(chatMediaMetaKey(mediaId), "json"));
+        if (!meta.id) {
+            return jsonResponse({ error: "media_expired", message: "图片或文件已过期（上传后 20 分钟自动删除）" }, 410, cors);
+        }
+        if (meta.uploader !== login && !isPlatformAdmin(env, login)) {
+            return jsonResponse({ error: "forbidden", message: "不能发送别人上传的文件" }, 403, cors);
+        }
+        if (Number(meta.expiresAt) && Number(meta.expiresAt) < Date.now()) {
+            return jsonResponse({ error: "media_expired", message: "图片或文件已过期（上传后 20 分钟自动删除）" }, 410, cors);
+        }
+        media = {
+            id: meta.id,
+            name: String(meta.name || "file"),
+            type: String(meta.type || "application/octet-stream"),
+            size: Number(meta.size) || 0,
+            expiresAt: Number(meta.expiresAt) || 0
+        };
+    }
+
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (conv.type === "direct") {
+            const peer = (conv.members || []).find((item) => item !== login);
+            const mine = await readChatUser(env, login);
+            const theirs = peer ? await readChatUser(env, peer) : null;
+            if (mine.blocked.includes(peer) || (theirs && theirs.blocked.includes(login))) {
+                return { error: jsonResponse({ error: "blocked", message: "对方已被拉黑，无法发送消息" }, 403, cors) };
+            }
+            if (!isPlatformAdmin(env, login) && peer && !mine.friends.some((item) => item.login === peer)) {
+                return { error: jsonResponse({ error: "not_friend", message: "你们已经不是好友了" }, 403, cors) };
+            }
+        }
+
+        const messages = await readChatMessages(env, conv.id);
+        const replyTo = await buildReplyTarget(messages, String(body.replyTo || "").trim());
+        const at = Date.now();
+        const memberList = conv.public ? Object.keys(accounts) : conv.members;
+        const validMentions = mentions.filter((item) => memberList.includes(item));
+        const message = {
+            id: randomCode(9),
+            conversation: conv.id,
+            sender: login,
+            senderName: chatMemberAlias(conv, accounts, login),
+            type,
+            text,
+            media,
+            replyTo,
+            mentions: validMentions,
+            forwarded: false,
+            at,
+            time: shanghaiTimestamp(at)
+        };
+
+        await appendMessage(env, conv, message);
+        await saveConversation(env, conv);
+
+        if (conv.type === "direct") {
+            for (const member of conv.members) {
+                await ensureConversationEntry(env, member, conv.id);
+            }
+        }
+
+        return {
+            conv,
+            message,
+            targets: conversationTargets(conv, accounts),
+            view: conversationView(
+                env,
+                conv,
+                chatEntry(await loadChatUser(env, login), conv.id),
+                [...messages, message],
+                login,
+                accounts
+            )
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    const event = {
+        type: "message",
+        conversation: result.view,
+        message: messageView(result.message)
+    };
+    await notifyChat(env, result.targets, event);
+
+    if (compatRoom) {
+        return jsonResponse({
+            ok: true,
+            room: compatRoom,
+            message: result.message,
+            view: messageView(result.message)
+        }, 201, cors);
+    }
+
+    return jsonResponse({
+        ok: true,
+        conversation: result.view,
+        message: messageView(result.message)
+    }, 201, cors);
+}
+
+async function handleChatRead(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const record = await loadChatUser(env, login);
+        let entry = chatEntry(record, id);
+        if (!entry) {
+            entry = { id, pinned: false, muted: false, joinedAt: shanghaiTimestamp(), lastRead: 0, clearedAt: 0, hidden: false };
+            record.conversations.push(entry);
+        }
+        entry.lastRead = Date.now();
+        await saveChatUser(env, login, record);
+        return { ok: true, lastRead: entry.lastRead };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return jsonResponse({ ok: true, conversation: id, lastRead: result.lastRead }, 200, cors);
+}
+
+async function handleChatTyping(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (throttled(chatTypingAttempts, `${clientIp(request)}:${id}`, CHAT_TYPING_WINDOW_MS, CHAT_TYPING_MAX_ATTEMPTS)) {
+        return jsonResponse({ ok: true, throttled: true }, 200, cors);
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
     const login = session.payload.sub;
     const accounts = await loadAccounts(env);
-    const account = accounts[login];
+    const conv = await readConversation(env, id);
+    if (!conv || !chatMemberOf(conv, login)) {
+        return jsonResponse({ ok: true, skipped: true }, 200, cors);
+    }
 
-    if (!account) {
+    const targets = conversationTargets(conv, accounts).filter((item) => item !== login);
+    await notifyChat(env, targets, {
+        type: "typing",
+        conversation: id,
+        login,
+        name: chatMemberAlias(conv, accounts, login)
+    });
+
+    return jsonResponse({ ok: true }, 200, cors);
+}
+
+async function handleChatSettings(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const body = plainObject(await readJsonBody(request));
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const record = await loadChatUser(env, login);
+        let entry = chatEntry(record, id);
+        if (!entry) {
+            entry = { id, pinned: false, muted: false, joinedAt: shanghaiTimestamp(), lastRead: 0, clearedAt: 0, hidden: false };
+            record.conversations.push(entry);
+        }
+        if (body.pinned !== undefined) {
+            entry.pinned = Boolean(body.pinned);
+        }
+        if (body.muted !== undefined) {
+            entry.muted = Boolean(body.muted);
+        }
+        if (body.hidden !== undefined) {
+            entry.hidden = Boolean(body.hidden);
+        }
+        await saveChatUser(env, login, record);
+        return { entry };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return jsonResponse({
+        ok: true,
+        conversation: id,
+        pinned: Boolean(result.entry.pinned),
+        muted: Boolean(result.entry.muted),
+        hidden: Boolean(result.entry.hidden)
+    }, 200, cors);
+}
+
+async function handleChatClear(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const record = await loadChatUser(env, login);
+        const entry = chatEntry(record, id);
+        if (entry) {
+            entry.clearedAt = Date.now();
+            entry.lastRead = entry.clearedAt;
+            await saveChatUser(env, login, record);
+        }
+        return { ok: true };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return jsonResponse({ ok: true, conversation: id }, 200, cors);
+}
+
+async function handleChatLeave(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        const record = await loadChatUser(env, login);
+
+        if (conv.type === "direct" || conv.public) {
+            record.conversations = record.conversations.filter((item) => item.id !== id);
+            await saveChatUser(env, login, record);
+            return { removed: true, targets: [login], system: "" };
+        }
+
+        if (conv.owner === login) {
+            const candidates = conv.members.filter((item) => item !== login);
+            if (!candidates.length) {
+                await deleteChatConversation(env, conv);
+                return { removed: true, dissolved: true, targets: conv.members.slice(), system: "" };
+            }
+            const nextOwner = candidates[0];
+            conv.owner = nextOwner;
+            conv.admins = conv.admins.filter((item) => item !== nextOwner);
+            await appendSystemMessage(env, conv, `${chatDisplayName(accounts, login)} 把群主转让给了 ${chatDisplayName(accounts, nextOwner)}，并退出了群聊`);
+        } else {
+            await appendSystemMessage(env, conv, `${chatMemberAlias(conv, accounts, login)} 退出了群聊`);
+        }
+
+        conv.members = conv.members.filter((item) => item !== login);
+        conv.admins = conv.admins.filter((item) => item !== login);
+        delete conv.aliases[login];
+        await saveConversation(env, conv);
+
+        const nextRecord = await readChatUser(env, login);
+        nextRecord.conversations = nextRecord.conversations.filter((item) => item.id !== id);
+        await saveChatUser(env, login, nextRecord);
+
+        return { removed: true, targets: conv.members.slice(), system: "" };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:remove", conversation: id, login });
+    return jsonResponse({ ok: true, conversation: id, left: true }, 200, cors);
+}
+
+async function deleteChatConversation(env, conv) {
+    await env.ACCOUNTS_KV.delete(chatMessagesKey(conv.id));
+    await env.ACCOUNTS_KV.delete(chatConversationKey(conv.id));
+    await removeFromChatIndex(env, conv.id);
+
+    if (conv.type === "direct") {
+        const [a, b] = conv.members || [];
+        if (a && b) {
+            await env.ACCOUNTS_KV.delete(chatDirectKey(a, b));
+        }
+    }
+
+    for (const member of conv.public ? [] : (conv.members || [])) {
+        const record = await readChatUser(env, member);
+        const kept = record.conversations.filter((item) => item.id !== conv.id);
+        if (kept.length !== record.conversations.length) {
+            record.conversations = kept;
+            await saveChatUser(env, member, record);
+        }
+    }
+}
+
+async function handleChatDeleteConversation(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+
+        if (conv.type === "direct") {
+            const record = await loadChatUser(env, login);
+            record.conversations = record.conversations.filter((item) => item.id !== id);
+            await saveChatUser(env, login, record);
+            return { mode: "hide", targets: [login] };
+        }
+
+        if (conv.public) {
+            return { error: jsonResponse({ error: "forbidden", message: "公共频道不能解散，可以退出" }, 400, cors) };
+        }
+
+        if (!canOwnGroup(env, conv, login)) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有群主或站主可以解散群聊" }, 403, cors) };
+        }
+
+        const targets = conv.members.slice();
+        await appendSystemMessage(env, conv, `${chatDisplayName(accounts, login)} 解散了群聊`);
+        await saveConversation(env, conv);
+        await deleteChatConversation(env, conv);
+        return { mode: "dissolve", targets };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:remove", conversation: id, login });
+    return jsonResponse({ ok: true, conversation: id, mode: result.mode }, 200, cors);
+}
+
+async function handleChatRename(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const body = plainObject(await readJsonBody(request));
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (conv.type !== "group" || !canManageGroup(env, conv, login)) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有群主或管理员可以修改群名" }, 403, cors) };
+        }
+        const name = normalizeGroupName(body.name);
+        const before = conv.name;
+        conv.name = name;
+        await appendSystemMessage(env, conv, `${chatDisplayName(accounts, login)} 把群名从「${before}」改成了「${name}」`);
+        await saveConversation(env, conv);
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        return {
+            view: conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts),
+            targets: conversationTargets(conv, accounts)
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:update", conversation: result.view });
+    return jsonResponse({ ok: true, conversation: result.view }, 200, cors);
+}
+
+async function handleChatAnnouncement(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const body = plainObject(await readJsonBody(request));
+    const text = String(body.text ?? "").trim();
+
+    if (text.length > CHAT_ANNOUNCEMENT_MAX) {
+        return jsonResponse({ error: "bad_request", message: `群公告最长 ${CHAT_ANNOUNCEMENT_MAX} 个字符` }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (conv.type !== "group" || !canManageGroup(env, conv, login)) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有群主或管理员可以发布群公告" }, 403, cors) };
+        }
+
+        if (!text) {
+            conv.announcement = null;
+        } else {
+            conv.announcement = {
+                text,
+                author: login,
+                authorName: chatDisplayName(accounts, login),
+                time: shanghaiTimestamp(),
+                pinned: body.pinned === undefined ? Boolean(conv.announcement && conv.announcement.pinned) : Boolean(body.pinned)
+            };
+            await appendSystemMessage(env, conv, `${chatDisplayName(accounts, login)} 更新了群公告`);
+        }
+        await saveConversation(env, conv);
+
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        return {
+            view: conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts),
+            targets: conversationTargets(conv, accounts)
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:update", conversation: result.view });
+    return jsonResponse({ ok: true, conversation: result.view }, 200, cors);
+}
+
+async function handleChatAnnouncementPin(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const body = plainObject(await readJsonBody(request));
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (conv.type !== "group" || !canManageGroup(env, conv, login)) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有群主或管理员可以置顶群公告" }, 403, cors) };
+        }
+        if (!conv.announcement) {
+            return { error: jsonResponse({ error: "not_found", message: "这个群还没有群公告" }, 404, cors) };
+        }
+        conv.announcement.pinned = body.pinned === undefined ? !conv.announcement.pinned : Boolean(body.pinned);
+        await saveConversation(env, conv);
+
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        return {
+            view: conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts),
+            targets: conversationTargets(conv, accounts)
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:update", conversation: result.view });
+    return jsonResponse({ ok: true, conversation: result.view }, 200, cors);
+}
+
+async function handleChatMemberAlias(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const body = plainObject(await readJsonBody(request));
+    const alias = String(body.alias ?? "").replace(/\s+/g, " ").trim();
+
+    if (alias.length > CHAT_ALIAS_MAX) {
+        return jsonResponse({ error: "bad_request", message: `群昵称最长 ${CHAT_ALIAS_MAX} 个字符` }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (conv.type !== "group") {
+            return { error: jsonResponse({ error: "bad_request", message: "单聊没有群昵称" }, 400, cors) };
+        }
+        if (alias) {
+            conv.aliases[login] = alias;
+        } else {
+            delete conv.aliases[login];
+        }
+        await saveConversation(env, conv);
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        return {
+            view: conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts),
+            targets: conversationTargets(conv, accounts)
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:update", conversation: result.view });
+    return jsonResponse({ ok: true, conversation: result.view }, 200, cors);
+}
+
+async function handleChatAddMembers(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const body = plainObject(await readJsonBody(request));
+    const requested = Array.isArray(body.members)
+        ? Array.from(new Set(body.members.map((item) => String(item || "").trim()).filter(Boolean)))
+        : [];
+
+    if (!requested.length) {
+        return jsonResponse({ error: "bad_request", message: "请选择要邀请的用户" }, 400, cors);
+    }
+    for (const member of requested) {
+        if (!accounts[member]) {
+            return jsonResponse({ error: "bad_request", message: `用户 ${member} 不存在` }, 400, cors);
+        }
+    }
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (conv.type !== "group") {
+            return { error: jsonResponse({ error: "bad_request", message: "单聊不能邀请成员" }, 400, cors) };
+        }
+        if (conv.public) {
+            return { error: jsonResponse({ error: "bad_request", message: "公共频道无需邀请" }, 400, cors) };
+        }
+
+        const added = requested.filter((item) => !conv.members.includes(item));
+        if (!added.length) {
+            return { error: jsonResponse({ error: "bad_request", message: "对方已经在群里了" }, 400, cors) };
+        }
+        if (conv.members.length + added.length > CHAT_GROUP_MAX_MEMBERS) {
+            return { error: jsonResponse({ error: "bad_request", message: `群成员不能超过 ${CHAT_GROUP_MAX_MEMBERS} 人` }, 400, cors) };
+        }
+
+        conv.members.push(...added);
+        await appendSystemMessage(env, conv, `${chatMemberAlias(conv, accounts, login)} 邀请 ${added.map((item) => chatDisplayName(accounts, item)).join("、")} 加入了群聊`);
+        await saveConversation(env, conv);
+
+        for (const member of added) {
+            await ensureConversationEntry(env, member, conv.id);
+        }
+
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        return {
+            view: conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts),
+            targets: conversationTargets(conv, accounts),
+            invited: added
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:update", conversation: result.view });
+    await notifyChat(env, result.invited, { type: "conversation:new", conversation: result.view });
+    return jsonResponse({ ok: true, conversation: result.view, added: result.invited }, 200, cors);
+}
+
+async function handleChatRemoveMember(request, env, cors, id, member) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const target = String(member || "").trim();
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (conv.type !== "group" || conv.public) {
+            return { error: jsonResponse({ error: "bad_request", message: "这个会话不支持移除成员" }, 400, cors) };
+        }
+        if (target === login) {
+            return { error: jsonResponse({ error: "bad_request", message: "退出群聊请使用 /leave" }, 400, cors) };
+        }
+        if (!conv.members.includes(target)) {
+            return { error: jsonResponse({ error: "not_found", message: "该用户不在群里" }, 404, cors) };
+        }
+        if (!canManageGroup(env, conv, login)) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有群主或管理员可以移出成员" }, 403, cors) };
+        }
+        if (target === conv.owner) {
+            return { error: jsonResponse({ error: "bad_request", message: "不能移出群主" }, 400, cors) };
+        }
+        if (conv.admins.includes(target) && conv.owner !== login && !isPlatformAdmin(env, login)) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有群主可以移出管理员" }, 403, cors) };
+        }
+
+        conv.members = conv.members.filter((item) => item !== target);
+        conv.admins = conv.admins.filter((item) => item !== target);
+        delete conv.aliases[target];
+        await appendSystemMessage(env, conv, `${chatMemberAlias(conv, accounts, login)} 把 ${chatDisplayName(accounts, target)} 移出了群聊`);
+        await saveConversation(env, conv);
+
+        const targetRecord = await readChatUser(env, target);
+        targetRecord.conversations = targetRecord.conversations.filter((item) => item.id !== id);
+        await saveChatUser(env, target, targetRecord);
+
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        return {
+            view: conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts),
+            targets: conversationTargets(conv, accounts),
+            removed: target
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:update", conversation: result.view });
+    await notifyChat(env, [result.removed], { type: "conversation:remove", conversation: id, login });
+    return jsonResponse({ ok: true, conversation: result.view, removed: result.removed }, 200, cors);
+}
+
+async function handleChatTransferOwner(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const body = plainObject(await readJsonBody(request));
+    const target = String(body.login || "").trim();
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (conv.type !== "group" || conv.public) {
+            return { error: jsonResponse({ error: "bad_request", message: "这个会话不能转让群主" }, 400, cors) };
+        }
+        if (!canOwnGroup(env, conv, login)) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有群主可以转让群主" }, 403, cors) };
+        }
+        if (!conv.members.includes(target)) {
+            return { error: jsonResponse({ error: "bad_request", message: "只能把群主转让给群成员" }, 400, cors) };
+        }
+        if (target === conv.owner) {
+            return { error: jsonResponse({ error: "bad_request", message: "对方已经是群主" }, 400, cors) };
+        }
+
+        conv.owner = target;
+        conv.admins = conv.admins.filter((item) => item !== target);
+        await appendSystemMessage(env, conv, `${chatDisplayName(accounts, login)} 把群主转让给了 ${chatDisplayName(accounts, target)}`);
+        await saveConversation(env, conv);
+
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        return {
+            view: conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts),
+            targets: conversationTargets(conv, accounts)
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:update", conversation: result.view });
+    return jsonResponse({ ok: true, conversation: result.view }, 200, cors);
+}
+
+async function handleChatAdmins(request, env, cors, id, member, removing) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const body = removing ? {} : plainObject(await readJsonBody(request));
+    const target = removing ? String(member || "").trim() : String(body.login || "").trim();
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (conv.type !== "group") {
+            return { error: jsonResponse({ error: "bad_request", message: "单聊没有管理员" }, 400, cors) };
+        }
+        if (!canOwnGroup(env, conv, login)) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有群主可以设置管理员" }, 403, cors) };
+        }
+        if (!conv.members.includes(target) || target === conv.owner) {
+            return { error: jsonResponse({ error: "bad_request", message: "只能设置群成员为管理员" }, 400, cors) };
+        }
+
+        if (removing) {
+            if (!conv.admins.includes(target)) {
+                return { error: jsonResponse({ error: "not_found", message: "对方不是管理员" }, 404, cors) };
+            }
+            conv.admins = conv.admins.filter((item) => item !== target);
+            await appendSystemMessage(env, conv, `${chatDisplayName(accounts, target)} 被取消了管理员`);
+        } else {
+            if (conv.admins.includes(target)) {
+                return { error: jsonResponse({ error: "bad_request", message: "对方已经是管理员" }, 400, cors) };
+            }
+            conv.admins.push(target);
+            await appendSystemMessage(env, conv, `${chatDisplayName(accounts, target)} 成为了群管理员`);
+        }
+        await saveConversation(env, conv);
+
+        const record = await loadChatUser(env, login);
+        const messages = await readChatMessages(env, conv.id);
+        return {
+            view: conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts),
+            targets: conversationTargets(conv, accounts)
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:update", conversation: result.view });
+    return jsonResponse({ ok: true, conversation: result.view }, 200, cors);
+}
+
+async function handleChatRecall(request, env, cors, messageId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const url = new URL(request.url);
+    const id = chatConversationId(url.searchParams.get("conversation"));
+
+    if (!id) {
+        return jsonResponse({ error: "bad_request", message: "缺少 conversation" }, 400, cors);
+    }
+    if (!CHAT_MESSAGE_ID_PATTERN.test(messageId)) {
+        return jsonResponse({ error: "bad_request", message: "消息 id 不合法" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        const messages = await readChatMessages(env, id);
+        const index = messages.findIndex((item) => item.id === messageId);
+        if (index < 0) {
+            return { error: jsonResponse({ error: "not_found", message: "消息不存在" }, 404, cors) };
+        }
+        const message = messages[index];
+
+        const withinWindow = Date.now() - (Number(message.at) || 0) <= CHAT_RECALL_WINDOW_MS;
+        const canRecall = message.sender === login
+            ? withinWindow
+            : (isPlatformAdmin(env, login) || (conv.type === "group" && canManageGroup(env, conv, login)));
+
+        if (!canRecall) {
+            return { error: jsonResponse({ error: "forbidden", message: "超过 2 分钟的消息不能撤回" }, 403, cors) };
+        }
+
+        messages[index] = {
+            ...message,
+            recalled: true,
+            text: "",
+            media: null,
+            mentions: [],
+            replyTo: null,
+            recalledAt: Date.now()
+        };
+        await saveChatMessages(env, id, messages);
+
+        if (conv.lastMessage && conv.lastMessage.id === messageId) {
+            conv.lastMessage = messages[index];
+            await saveConversation(env, conv);
+        }
+
+        const record = await loadChatUser(env, login);
+        const view = conversationView(env, conv, chatEntry(record, id), messages, login, accounts);
+        return { view, targets: conversationTargets(conv, accounts) };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, {
+        type: "message:recall",
+        conversation: result.view,
+        messageId,
+        by: login
+    });
+    return jsonResponse({ ok: true, conversation: id, messageId, recalled: true }, 200, cors);
+}
+
+async function handleChatForward(request, env, cors, messageId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const url = new URL(request.url);
+    const sourceId = chatConversationId(url.searchParams.get("conversation"));
+    const body = plainObject(await readJsonBody(request));
+    const targets = Array.isArray(body.targets)
+        ? Array.from(new Set(body.targets.map((item) => chatConversationId(item)).filter(Boolean))).slice(0, 9)
+        : [];
+
+    if (!sourceId) {
+        return jsonResponse({ error: "bad_request", message: "缺少 conversation" }, 400, cors);
+    }
+    if (!targets.length) {
+        return jsonResponse({ error: "bad_request", message: "请选择要转发到的会话" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const loadedSource = await loadConversationFor(env, sourceId, login, cors);
+        if (loadedSource.error) {
+            return { error: loadedSource.error };
+        }
+        const sourceMessages = await readChatMessages(env, sourceId);
+        const source = sourceMessages.find((item) => item.id === messageId);
+        if (!source || source.recalled) {
+            return { error: jsonResponse({ error: "not_found", message: "要转发的消息不存在或已撤回" }, 404, cors) };
+        }
+
+        const delivered = [];
+        for (const targetId of targets) {
+            const loaded = await loadConversationFor(env, targetId, login, cors);
+            if (loaded.error) {
+                continue;
+            }
+            const conv = loaded.conv;
+            const at = Date.now();
+            const message = {
+                id: randomCode(9),
+                conversation: conv.id,
+                sender: login,
+                senderName: chatMemberAlias(conv, accounts, login),
+                type: source.type === "system" ? "text" : source.type,
+                text: source.text,
+                media: source.media || null,
+                replyTo: null,
+                mentions: [],
+                forwarded: true,
+                forwardedFrom: source.senderName || "",
+                at,
+                time: shanghaiTimestamp(at)
+            };
+            await appendMessage(env, conv, message);
+            await saveConversation(env, conv);
+            if (conv.type === "direct") {
+                for (const member of conv.members) {
+                    await ensureConversationEntry(env, member, conv.id);
+                }
+            }
+            delivered.push({
+                conversation: conv.id,
+                targets: conversationTargets(conv, accounts),
+                message
+            });
+        }
+
+        return { delivered };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    for (const item of result.delivered) {
+        await notifyChat(env, item.targets, {
+            type: "message",
+            conversation: item.conversation,
+            message: messageView(item.message)
+        });
+    }
+
+    return jsonResponse({
+        ok: true,
+        count: result.delivered.length,
+        messages: result.delivered.map((item) => ({ conversation: item.conversation, message: messageView(item.message) }))
+    }, 201, cors);
+}
+
+async function handleChatDeleteMessage(request, env, cors, messageId, adminOnly) {
+    const session = adminOnly
+        ? await requireAdmin(request, env, cors)
+        : await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const url = new URL(request.url);
+    const id = chatConversationId(url.searchParams.get("conversation"));
+
+    if (!id) {
+        return jsonResponse({ error: "bad_request", message: "缺少 conversation" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        const messages = await readChatMessages(env, id);
+        const message = messages.find((item) => item.id === messageId);
+        if (!message) {
+            return { error: jsonResponse({ error: "not_found", message: "消息不存在" }, 404, cors) };
+        }
+
+        const allowed = isPlatformAdmin(env, login)
+            || (conv.type === "group" && canManageGroup(env, conv, login))
+            || (conv.type === "direct" && message.sender === login);
+
+        if (!allowed) {
+            return { error: jsonResponse({ error: "forbidden", message: "没有删除这条消息的权限" }, 403, cors) };
+        }
+
+        const kept = messages.filter((item) => item.id !== messageId);
+        await saveChatMessages(env, id, kept);
+
+        if (conv.lastMessage && conv.lastMessage.id === messageId) {
+            conv.lastMessage = kept.length ? kept[kept.length - 1] : null;
+            await saveConversation(env, conv);
+        }
+
+        return { targets: conversationTargets(conv, accounts) };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "message:delete", conversation: id, messageId });
+    return jsonResponse({ ok: true, conversation: id, messageId, deleted: true }, 200, cors);
+}
+
+async function handleChatSearch(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const url = new URL(request.url);
+    const query = String(url.searchParams.get("q") || "").trim();
+    const only = chatConversationId(url.searchParams.get("conversation"));
+
+    if (!query) {
+        return jsonResponse({ error: "bad_request", message: "请输入要搜索的内容" }, 400, cors);
+    }
+    if (query.length > 50) {
+        return jsonResponse({ error: "bad_request", message: "搜索内容最长 50 个字符" }, 400, cors);
+    }
+
+    const results = await withStoreLock(async () => {
+        const record = await loadChatUser(env, login);
+        const ids = only ? [only] : record.conversations.map((item) => item.id);
+        const needle = query.toLowerCase();
+        const output = [];
+
+        for (const id of ids) {
+            if (!chatConversationId(id)) {
+                continue;
+            }
+            const conv = await readConversation(env, id);
+            if (!conv || !chatMemberOf(conv, login)) {
+                continue;
+            }
+            const entry = chatEntry(record, id);
+            const messages = visibleChatMessages(await readChatMessages(env, id), entry);
+            const name = conv.type === "direct"
+                ? chatDisplayName(accounts, (conv.members || []).find((item) => item !== login))
+                : conv.name;
+
+            for (const message of messages) {
+                if (message.recalled || message.system) {
+                    continue;
+                }
+                const haystack = `${message.text || ""} ${message.media && message.media.name ? message.media.name : ""}`.toLowerCase();
+                if (!haystack.includes(needle)) {
+                    continue;
+                }
+                output.push({
+                    conversation: id,
+                    conversationName: name,
+                    conversationType: conv.type,
+                    message: messageView(message)
+                });
+            }
+        }
+
+        output.sort((left, right) => right.message.at - left.message.at);
+        return output.slice(0, CHAT_SEARCH_LIMIT);
+    });
+
+    return jsonResponse({ ok: true, query, count: results.length, results }, 200, cors);
+}
+
+async function handleChatUsers(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const url = new URL(request.url);
+    const query = String(url.searchParams.get("q") || "").trim().toLowerCase();
+    const record = await readChatUser(env, login);
+    const output = [];
+
+    for (const [name, account] of Object.entries(accounts)) {
+        if (name === login) {
+            continue;
+        }
+        const username = String(account && account.username || name);
+        if (query && !name.toLowerCase().includes(query) && !username.toLowerCase().includes(query)) {
+            continue;
+        }
+        output.push({
+            login: name,
+            username,
+            friend: record.friends.some((item) => item.login === name),
+            blocked: record.blocked.includes(name),
+            incoming: record.incoming.some((item) => item.from === name),
+            outgoing: record.outgoing.some((item) => item.to === name)
+        });
+    }
+
+    output.sort((left, right) => Number(right.friend) - Number(left.friend) || left.login.localeCompare(right.login));
+    return jsonResponse({ ok: true, query, users: output.slice(0, 30) }, 200, cors);
+}
+
+async function handleChatContacts(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const record = await loadChatUser(env, login);
+    const withName = (entry) => ({ ...entry, username: chatDisplayName(accounts, entry.login || entry.from || entry.to) });
+
+    return jsonResponse({
+        ok: true,
+        me: { login, username: chatDisplayName(accounts, login) },
+        friends: record.friends.map((item) => withName({ login: item.login, since: item.since || "" })),
+        blocked: record.blocked.map((item) => withName({ login: item })),
+        incoming: record.incoming.map((item) => ({
+            id: item.id,
+            from: item.from,
+            username: chatDisplayName(accounts, item.from),
+            note: item.note || "",
+            time: item.time || ""
+        })),
+        outgoing: record.outgoing.map((item) => ({
+            id: item.id,
+            to: item.to,
+            username: chatDisplayName(accounts, item.to),
+            note: item.note || "",
+            time: item.time || ""
+        }))
+    }, 200, cors);
+}
+
+async function handleChatFriendRequest(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const body = plainObject(await readJsonBody(request));
+    const target = String(body.login || "").trim();
+    const note = String(body.note || "").trim().slice(0, CHAT_NOTE_MAX);
+
+    if (!target || target === login) {
+        return jsonResponse({ error: "bad_request", message: "请选择要添加的用户" }, 400, cors);
+    }
+    if (!accounts[target]) {
+        return jsonResponse({ error: "not_found", message: "用户不存在" }, 404, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const mine = await readChatUser(env, login);
+        const theirs = await readChatUser(env, target);
+
+        if (mine.friends.some((item) => item.login === target)) {
+            return { error: jsonResponse({ error: "already_friends", message: "你们已经是好友了" }, 409, cors) };
+        }
+        if (mine.blocked.includes(target) || theirs.blocked.includes(login)) {
+            return { error: jsonResponse({ error: "blocked", message: "对方或你已把对方拉黑" }, 403, cors) };
+        }
+
+        const reciprocal = theirs.incoming.find((item) => item.from === login);
+        if (reciprocal) {
+            theirs.incoming = theirs.incoming.filter((item) => item.id !== reciprocal.id);
+            mine.outgoing = mine.outgoing.filter((item) => item.to !== target);
+            const now = shanghaiTimestamp();
+            mine.friends.push({ login: target, since: now });
+            theirs.friends.push({ login, since: now });
+            await saveChatUser(env, login, mine);
+            await saveChatUser(env, target, theirs);
+            const conv = await ensureDirectConversation(env, login, target);
+            const record = await loadChatUser(env, login);
+            const messages = await readChatMessages(env, conv.id);
+            return {
+                accepted: true,
+                view: conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts)
+            };
+        }
+
+        const existing = mine.outgoing.find((item) => item.to === target);
+        if (existing) {
+            return { error: jsonResponse({ error: "already_requested", message: "已经发送过好友申请" }, 409, cors) };
+        }
+
+        const request = {
+            id: `fr_${randomCode(6)}`,
+            from: login,
+            to: target,
+            note,
+            at: Date.now(),
+            time: shanghaiTimestamp()
+        };
+        mine.outgoing.push(request);
+        theirs.incoming.push(request);
+        await saveChatUser(env, login, mine);
+        await saveChatUser(env, target, theirs);
+        return { request };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    if (result.accepted) {
+        await notifyChat(env, [target], { type: "friend:accept", login, conversation: result.view });
+        return jsonResponse({ ok: true, accepted: true, conversation: result.view }, 200, cors);
+    }
+
+    await notifyChat(env, [target], {
+        type: "friend:request",
+        request: { id: result.request.id, from: login, username: chatDisplayName(accounts, login), note, time: result.request.time }
+    });
+    return jsonResponse({ ok: true, accepted: false, request: result.request }, 201, cors);
+}
+
+async function handleChatFriendDecision(request, env, cors, requestId, action) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const accept = action === "accept";
+
+    const result = await withStoreLock(async () => {
+        const mine = await readChatUser(env, login);
+        const incoming = mine.incoming.find((item) => item.id === requestId);
+        if (!incoming) {
+            return { error: jsonResponse({ error: "not_found", message: "好友申请不存在或已处理" }, 404, cors) };
+        }
+        if (!accounts[incoming.from]) {
+            return { error: jsonResponse({ error: "not_found", message: "申请人账户已不存在" }, 404, cors) };
+        }
+
+        mine.incoming = mine.incoming.filter((item) => item.id !== requestId);
+        const theirs = await readChatUser(env, incoming.from);
+        theirs.outgoing = theirs.outgoing.filter((item) => item.id !== requestId);
+
+        let view = null;
+        if (accept) {
+            const now = shanghaiTimestamp();
+            if (!mine.friends.some((item) => item.login === incoming.from)) {
+                mine.friends.push({ login: incoming.from, since: now });
+            }
+            if (!theirs.friends.some((item) => item.login === login)) {
+                theirs.friends.push({ login, since: now });
+            }
+            await saveChatUser(env, login, mine);
+            await saveChatUser(env, incoming.from, theirs);
+            const conv = await ensureDirectConversation(env, login, incoming.from);
+            const record = await loadChatUser(env, login);
+            const messages = await readChatMessages(env, conv.id);
+            view = conversationView(env, conv, chatEntry(record, conv.id), messages, login, accounts);
+        } else {
+            await saveChatUser(env, login, mine);
+            await saveChatUser(env, incoming.from, theirs);
+        }
+
+        return { accepted: accept, peer: incoming.from, view };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, [result.peer], {
+        type: accept ? "friend:accept" : "friend:decline",
+        login,
+        conversation: result.view
+    });
+    return jsonResponse({
+        ok: true,
+        accepted: result.accepted,
+        login: result.peer,
+        conversation: result.view
+    }, 200, cors);
+}
+
+async function handleChatRemoveFriend(request, env, cors, target) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const result = await withStoreLock(async () => {
+        const mine = await readChatUser(env, login);
+        const theirs = await readChatUser(env, target);
+        const had = mine.friends.some((item) => item.login === target);
+        if (!had) {
+            return { error: jsonResponse({ error: "not_found", message: "对方不是你的好友" }, 404, cors) };
+        }
+        mine.friends = mine.friends.filter((item) => item.login !== target);
+        theirs.friends = theirs.friends.filter((item) => item.login !== login);
+        await saveChatUser(env, login, mine);
+        await saveChatUser(env, target, theirs);
+        return { ok: true };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, [target], { type: "friend:remove", login });
+    return jsonResponse({ ok: true, login: target, removed: true }, 200, cors);
+}
+
+async function handleChatBlock(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const body = plainObject(await readJsonBody(request));
+    const target = String(body.login || "").trim();
+
+    if (!target || target === login) {
+        return jsonResponse({ error: "bad_request", message: "请选择要拉黑的用户" }, 400, cors);
+    }
+    if (!accounts[target]) {
+        return jsonResponse({ error: "not_found", message: "用户不存在" }, 404, cors);
+    }
+
+    await withStoreLock(async () => {
+        const mine = await readChatUser(env, login);
+        const theirs = await readChatUser(env, target);
+        if (!mine.blocked.includes(target)) {
+            mine.blocked.push(target);
+        }
+        mine.friends = mine.friends.filter((item) => item.login !== target);
+        theirs.friends = theirs.friends.filter((item) => item.login !== login);
+        await saveChatUser(env, login, mine);
+        await saveChatUser(env, target, theirs);
+    });
+
+    return jsonResponse({ ok: true, login: target, blocked: true }, 200, cors);
+}
+
+async function handleChatUnblock(request, env, cors, target) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const login = session.payload.sub;
+    const result = await withStoreLock(async () => {
+        const mine = await readChatUser(env, login);
+        if (!mine.blocked.includes(target)) {
+            return { error: jsonResponse({ error: "not_found", message: "对方不在黑名单里" }, 404, cors) };
+        }
+        mine.blocked = mine.blocked.filter((item) => item !== target);
+        await saveChatUser(env, login, mine);
+        return { ok: true };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return jsonResponse({ ok: true, login: target, blocked: false }, 200, cors);
+}
+
+async function handleChatMediaUpload(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    if (throttled(chatMediaAttempts, clientIp(request), CHAT_MEDIA_WINDOW_MS, CHAT_MEDIA_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "上传过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    if (!accounts[login]) {
         return jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors);
     }
 
-    const key = chatRoomKey(env, room);
-    const message = {
-        id: randomCode(12),
-        room,
-        login,
-        username: String(account.username || login),
-        text,
-        time: shanghaiTimestamp()
-    };
+    const declared = Number(request.headers.get("content-length") || 0);
+    if (declared > CHAT_MEDIA_MAX_BYTES) {
+        return jsonResponse({ error: "payload_too_large", message: "文件不能超过 4 MB" }, 413, cors);
+    }
 
-    await withStoreLock(async () => {
-        const stored = await env.ACCOUNTS_KV.get(key, "json");
-        const messages = Array.isArray(stored) ? stored : [];
-        messages.push(message);
-        await env.ACCOUNTS_KV.put(key, JSON.stringify(messages.slice(-CHAT_ROOM_MESSAGE_LIMIT)));
-    });
+    let body;
+    try {
+        body = await request.arrayBuffer();
+    } catch (error) {
+        return jsonResponse({ error: "bad_request", message: "读取文件失败" }, 400, cors);
+    }
 
-    return jsonResponse({ ok: true, message }, 201, cors);
+    if (!body || !body.byteLength) {
+        return jsonResponse({ error: "bad_request", message: "文件是空的" }, 400, cors);
+    }
+    if (body.byteLength > CHAT_MEDIA_MAX_BYTES) {
+        return jsonResponse({ error: "payload_too_large", message: "文件不能超过 4 MB" }, 413, cors);
+    }
+
+    const rawName = String(request.headers.get("x-file-name") || "file");
+    let name = "file";
+    try {
+        name = decodeURIComponent(rawName);
+    } catch (error) {
+        name = rawName;
+    }
+    name = name.replace(/[\r\n]+/g, " ").slice(0, 100) || "file";
+
+    const type = String(request.headers.get("content-type") || "application/octet-stream").split(";")[0].trim().toLowerCase()
+        || "application/octet-stream";
+    const id = randomCode(9);
+    const at = Date.now();
+    const expiresAt = at + CHAT_MEDIA_TTL_SECONDS * 1000;
+
+    await env.ACCOUNTS_KV.put(chatMediaKey(id), body, { expirationTtl: CHAT_MEDIA_TTL_SECONDS });
+    await env.ACCOUNTS_KV.put(chatMediaMetaKey(id), JSON.stringify({
+        id,
+        name,
+        type,
+        size: body.byteLength,
+        uploader: login,
+        at,
+        expiresAt
+    }), { expirationTtl: CHAT_MEDIA_TTL_SECONDS });
+
+    return jsonResponse({
+        ok: true,
+        media: { id, name, type, size: body.byteLength, expiresAt, ttlSeconds: CHAT_MEDIA_TTL_SECONDS }
+    }, 201, cors);
 }
 
-async function handleChatDelete(request, env, cors, id) {
+async function requireSessionOrToken(request, env, cors) {
+    const header = request.headers.get("Authorization") || "";
+    if (header.toLowerCase().startsWith("bearer ")) {
+        return await requireSession(request, env, cors);
+    }
+    const url = new URL(request.url);
+    const token = String(url.searchParams.get("token") || "");
+    if (!token) {
+        return await requireSession(request, env, cors);
+    }
+    const payload = await verifyToken(token, env.SIGNING_SECRET);
+    if (!payload) {
+        return { error: jsonResponse({ error: "unauthorized", message: "token 无效或已过期" }, 401, cors) };
+    }
+    return { payload };
+}
+
+async function handleChatMediaGet(request, env, cors, id) {
+    const session = await requireSessionOrToken(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const meta = plainObject(await env.ACCOUNTS_KV.get(chatMediaMetaKey(id), "json"));
+    if (!meta.id) {
+        return jsonResponse({
+            error: "media_expired",
+            message: "图片或文件已过期（上传后 20 分钟自动删除）"
+        }, 410, cors);
+    }
+
+    const body = await env.ACCOUNTS_KV.get(chatMediaKey(id), "arrayBuffer");
+    if (!body) {
+        return jsonResponse({ error: "media_expired", message: "图片或文件已过期" }, 410, cors);
+    }
+
+    return new Response(body, {
+        status: 200,
+        headers: {
+            ...cors,
+            "content-type": meta.type || "application/octet-stream",
+            "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(meta.name || "file")}`,
+            "cache-control": "private, max-age=120"
+        }
+    });
+}
+
+async function handleChatAdminConversations(request, env, cors) {
     const session = await requireAdmin(request, env, cors);
     if (session.error) {
         return session.error;
     }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
 
-    if (!hasKv(env)) {
+    const accounts = await loadAccounts(env);
+    const url = new URL(request.url);
+    const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 200, 1), 500);
+
+    const conversations = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const index = await readChatIndex(env);
+        const output = [];
+
+        for (const id of index.slice(-limit).reverse()) {
+            const conv = await readConversation(env, id);
+            if (!conv) {
+                continue;
+            }
+            const messages = await readChatMessages(env, id);
+            output.push({
+                ...conversationView(env, conv, null, messages, session.payload.sub, accounts),
+                members: conv.public ? Object.keys(accounts) : conv.members.slice(),
+                messageCount: messages.length
+            });
+        }
+
+        return output;
+    });
+
+    return jsonResponse({ ok: true, count: conversations.length, conversations }, 200, cors);
+}
+
+async function handleChatAdminMessages(request, env, cors, id) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const conv = await readConversation(env, id);
+    if (!conv) {
+        return jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors);
+    }
+
+    const url = new URL(request.url);
+    const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 100, 1), CHAT_MESSAGE_LIMIT);
+    const messages = await readChatMessages(env, id);
+    const accounts = await loadAccounts(env);
+
+    return jsonResponse({
+        ok: true,
+        conversation: conversationView(env, conv, null, messages, session.payload.sub, accounts),
+        members: conv.public ? Object.keys(accounts) : conv.members.slice(),
+        messages: messages.slice(-limit).map(messageView)
+    }, 200, cors);
+}
+
+async function handleChatAdminDeleteConversation(request, env, cors, id) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+
+    const result = await withStoreLock(async () => {
+        const conv = await readConversation(env, id);
+        if (!conv) {
+            return { error: jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors) };
+        }
+        const targets = conversationTargets(conv, await loadAccounts(env));
+        if (!conv.public) {
+            await appendSystemMessage(env, conv, "站主解散了这个会话");
+            await saveConversation(env, conv);
+        }
+        await deleteChatConversation(env, conv);
+        return { targets };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, { type: "conversation:remove", conversation: id, by: session.payload.sub });
+    return jsonResponse({ ok: true, conversation: id, deleted: true }, 200, cors);
+}
+
+async function handleChatRoomCompat(request, env, cors) {
+    const url = new URL(request.url);
+    const room = String(url.searchParams.get("room") || "").trim();
+
+    if (request.method === "GET") {
+        if (!chatConversationId(room)) {
+            return jsonResponse({ error: "bad_request", message: "房间名称不合法" }, 400, cors);
+        }
+        return await handleChatMessagesList(request, env, cors, room);
+    }
+
+    if (request.method === "POST") {
+        const body = plainObject(await readJsonBody(request));
+        const target = String(body.room || room || "").trim();
+        if (!chatConversationId(target)) {
+            return jsonResponse({ error: "bad_request", message: "房间名称不合法" }, 400, cors);
+        }
+        const cloned = new Request(request.url, {
+            method: "POST",
+            headers: request.headers,
+            body: JSON.stringify({ ...body, type: "text" })
+        });
+        return await handleChatSend(cloned, env, cors, target, target);
+    }
+
+    return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+}
+
+async function handleChatSocket(request, env, cors) {
+    if (!chatEnabled(env) || !hasKv(env)) {
         return chatNotReady(cors);
     }
 
     const url = new URL(request.url);
-    const room = String(url.searchParams.get("room") || CHAT_ROOMS[0].id).trim();
+    const token = String(url.searchParams.get("token") || "");
+    const header = request.headers.get("Authorization") || "";
+    const bearer = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
+    const payload = await verifyToken(token || bearer, env.SIGNING_SECRET);
 
-    if (!CHAT_ROOM_PATTERN.test(room)) {
-        return jsonResponse({ error: "bad_request", message: "房间名称不合法" }, 400, cors);
+    if (!payload) {
+        return jsonResponse({ error: "unauthorized", message: "token 无效或已过期" }, 401, cors);
     }
 
-    const key = chatRoomKey(env, room);
-    let removed = false;
-
-    await withStoreLock(async () => {
-        const stored = await env.ACCOUNTS_KV.get(key, "json");
-        const messages = Array.isArray(stored) ? stored : [];
-        const kept = messages.filter((item) => String(item && item.id) !== id);
-        removed = kept.length !== messages.length;
-        await env.ACCOUNTS_KV.put(key, JSON.stringify(kept));
-    });
-
-    if (!removed) {
-        return jsonResponse({ error: "not_found", message: "消息不存在" }, 404, cors);
+    if (!env.CHAT || typeof env.CHAT.idFromName !== "function") {
+        return jsonResponse({
+            error: "chat_ws_unavailable",
+            message: "实时通道未配置，请降级使用轮询",
+            realtime: "polling"
+        }, 503, cors);
     }
 
-    return jsonResponse({ ok: true, removed: id, room }, 200, cors);
+    const headers = new Headers();
+    headers.set("upgrade", "websocket");
+    headers.set("x-vtx-login", payload.sub);
+    const stub = env.CHAT.get(env.CHAT.idFromName("hub"));
+    return await stub.fetch("https://chat-hub/ws", { headers });
+}
+
+async function routeChat(request, env, cors) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const method = request.method;
+
+    if (path === "/api/chat/status" && method === "GET") {
+        return handleChatStatus(request, env, cors);
+    }
+
+    if (path === "/api/chat/ws" && method === "GET") {
+        return await handleChatSocket(request, env, cors);
+    }
+
+    if (path === "/api/chat/conversations" && method === "GET") {
+        return await handleChatConversations(request, env, cors);
+    }
+
+    if (path === "/api/chat/conversations/direct" && method === "POST") {
+        return await handleChatDirect(request, env, cors);
+    }
+
+    if (path === "/api/chat/conversations/group" && method === "POST") {
+        return await handleChatCreateGroup(request, env, cors);
+    }
+
+    if (path === "/api/chat/search" && method === "GET") {
+        return await handleChatSearch(request, env, cors);
+    }
+
+    if (path === "/api/chat/users" && method === "GET") {
+        return await handleChatUsers(request, env, cors);
+    }
+
+    if (path === "/api/chat/contacts" && method === "GET") {
+        return await handleChatContacts(request, env, cors);
+    }
+
+    if (path === "/api/chat/friends/requests" && method === "POST") {
+        return await handleChatFriendRequest(request, env, cors);
+    }
+
+    if (path === "/api/chat/blocks" && method === "POST") {
+        return await handleChatBlock(request, env, cors);
+    }
+
+    if (path === "/api/chat/media") {
+        if (method === "POST") {
+            return await handleChatMediaUpload(request, env, cors);
+        }
+    }
+
+    if (path === "/api/chat/messages") {
+        if (method === "GET" || method === "POST") {
+            return await handleChatRoomCompat(request, env, cors);
+        }
+    }
+
+    if (path === "/api/chat/admin/conversations" && method === "GET") {
+        return await handleChatAdminConversations(request, env, cors);
+    }
+
+    let match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/messages$/);
+    if (match) {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        if (method === "GET") {
+            return await handleChatMessagesList(request, env, cors, id);
+        }
+        if (method === "POST") {
+            return await handleChatSend(request, env, cors, id);
+        }
+    }
+
+    match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/(read|typing|settings|clear|leave|members|owner|admins|announcement|me|join)$/);
+    if (match) {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        const action = match[2];
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        if (action === "read" && method === "POST") {
+            return await handleChatRead(request, env, cors, id);
+        }
+        if (action === "typing" && method === "POST") {
+            return await handleChatTyping(request, env, cors, id);
+        }
+        if (action === "settings" && method === "POST") {
+            return await handleChatSettings(request, env, cors, id);
+        }
+        if (action === "clear" && method === "POST") {
+            return await handleChatClear(request, env, cors, id);
+        }
+        if (action === "leave" && method === "POST") {
+            return await handleChatLeave(request, env, cors, id);
+        }
+        if (action === "members" && method === "POST") {
+            return await handleChatAddMembers(request, env, cors, id);
+        }
+        if (action === "owner" && method === "POST") {
+            return await handleChatTransferOwner(request, env, cors, id);
+        }
+        if (action === "admins" && method === "POST") {
+            return await handleChatAdmins(request, env, cors, id, "", false);
+        }
+        if (action === "announcement" && method === "PUT") {
+            return await handleChatAnnouncement(request, env, cors, id);
+        }
+        if (action === "me" && method === "PATCH") {
+            return await handleChatMemberAlias(request, env, cors, id);
+        }
+        if (action === "join" && method === "POST") {
+            const session = await requireSession(request, env, cors);
+            if (session.error) {
+                return session.error;
+            }
+            const guard = chatGuard(env, cors);
+            if (guard) {
+                return guard;
+            }
+            const conv = await readConversation(env, id);
+            if (!conv) {
+                return jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors);
+            }
+            const login = session.payload.sub;
+            if (!conv.public && !chatMemberOf(conv, login)) {
+                return chatNotAMember(cors);
+            }
+            await withStoreLock(async () => {
+                const record = await loadChatUser(env, login);
+                const entry = chatEntry(record, id);
+                if (entry) {
+                    entry.hidden = false;
+                } else {
+                    record.conversations.push({
+                        id,
+                        pinned: false,
+                        muted: false,
+                        joinedAt: shanghaiTimestamp(),
+                        lastRead: 0,
+                        clearedAt: 0,
+                        hidden: false
+                    });
+                }
+                await saveChatUser(env, login, record);
+            });
+            return jsonResponse({ ok: true, conversation: id, joined: true }, 200, cors);
+        }
+    }
+
+    match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/members\/([^/]+)$/);
+    if (match && method === "DELETE") {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        return await handleChatRemoveMember(request, env, cors, id, decodeURIComponent(match[2]));
+    }
+
+    match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/admins\/([^/]+)$/);
+    if (match && method === "DELETE") {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        return await handleChatAdmins(request, env, cors, id, decodeURIComponent(match[2]), true);
+    }
+
+    match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/announcement\/pin$/);
+    if (match && method === "POST") {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        return await handleChatAnnouncementPin(request, env, cors, id);
+    }
+
+    match = path.match(/^\/api\/chat\/conversations\/([^/]+)$/);
+    if (match) {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        if (method === "GET") {
+            return await handleChatConversationDetail(request, env, cors, id);
+        }
+        if (method === "PATCH") {
+            return await handleChatRename(request, env, cors, id);
+        }
+        if (method === "DELETE") {
+            return await handleChatDeleteConversation(request, env, cors, id);
+        }
+    }
+
+    match = path.match(/^\/api\/chat\/messages\/([^/]+)\/recall$/);
+    if (match && method === "POST") {
+        return await handleChatRecall(request, env, cors, decodeURIComponent(match[1]));
+    }
+
+    match = path.match(/^\/api\/chat\/messages\/([^/]+)\/forward$/);
+    if (match && method === "POST") {
+        return await handleChatForward(request, env, cors, decodeURIComponent(match[1]));
+    }
+
+    match = path.match(/^\/api\/chat\/messages\/([^/]+)$/);
+    if (match && method === "DELETE") {
+        return await handleChatDeleteMessage(request, env, cors, decodeURIComponent(match[1]), false);
+    }
+
+    match = path.match(/^\/api\/chat\/friends\/requests\/([^/]+)\/(accept|decline)$/);
+    if (match && method === "POST") {
+        return await handleChatFriendDecision(request, env, cors, decodeURIComponent(match[1]), match[2]);
+    }
+
+    match = path.match(/^\/api\/chat\/friends\/([^/]+)$/);
+    if (match && method === "DELETE") {
+        return await handleChatRemoveFriend(request, env, cors, decodeURIComponent(match[1]));
+    }
+
+    match = path.match(/^\/api\/chat\/blocks\/([^/]+)$/);
+    if (match && method === "DELETE") {
+        return await handleChatUnblock(request, env, cors, decodeURIComponent(match[1]));
+    }
+
+    match = path.match(/^\/api\/chat\/media\/([^/]+)$/);
+    if (match && method === "GET") {
+        const id = String(decodeURIComponent(match[1]));
+        if (!CHAT_MEDIA_ID_PATTERN.test(id)) {
+            return jsonResponse({ error: "bad_request", message: "media id 不合法" }, 400, cors);
+        }
+        return await handleChatMediaGet(request, env, cors, id);
+    }
+
+    match = path.match(/^\/api\/chat\/admin\/conversations\/([^/]+)\/messages$/);
+    if (match && method === "GET") {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        return await handleChatAdminMessages(request, env, cors, id);
+    }
+
+    match = path.match(/^\/api\/chat\/admin\/conversations\/([^/]+)$/);
+    if (match && method === "DELETE") {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        return await handleChatAdminDeleteConversation(request, env, cors, id);
+    }
+
+    match = path.match(/^\/api\/chat\/admin\/messages\/([^/]+)$/);
+    if (match && method === "DELETE") {
+        return await handleChatDeleteMessage(request, env, cors, decodeURIComponent(match[1]), true);
+    }
+
+    return null;
+}
+
+/* ───────────────── ChatHub：WebSocket 实时推送 ───────────────── */
+
+export class ChatHub {
+    constructor(state, env) {
+        this.state = state;
+        this.env = env;
+        this.sockets = new Map();
+    }
+
+    async fetch(request) {
+        const url = new URL(request.url);
+
+        if (url.pathname === "/notify" && request.method === "POST") {
+            let payload = {};
+            try {
+                payload = await request.json();
+            } catch (error) {
+                payload = {};
+            }
+            const targets = Array.isArray(payload.targets) ? payload.targets : [];
+            const exclude = typeof payload.exclude === "string" ? payload.exclude : "";
+            this.publish(targets, payload.event || {}, exclude);
+            return jsonResponse({ ok: true, online: Array.from(this.sockets.keys()) }, 200, {});
+        }
+
+        if (url.pathname === "/presence" && request.method === "GET") {
+            return jsonResponse({ ok: true, online: Array.from(this.sockets.keys()) }, 200, {});
+        }
+
+        if (url.pathname === "/ws") {
+            const upgrade = String(request.headers.get("Upgrade") || request.headers.get("upgrade") || "").toLowerCase();
+            if (upgrade !== "websocket") {
+                return jsonResponse({ error: "upgrade_required", message: "需要 WebSocket 升级请求" }, 426, {});
+            }
+
+            const login = String(request.headers.get("x-vtx-login") || "").trim();
+            if (!login) {
+                return jsonResponse({ error: "unauthorized", message: "缺少登录信息" }, 401, {});
+            }
+
+            const pair = new WebSocketPair();
+            const client = pair[0];
+            const server = pair[1];
+            server.accept();
+            this.attach(login, server);
+
+            server.addEventListener("message", (event) => this.onMessage(login, server, event.data));
+            server.addEventListener("close", () => this.detach(login, server));
+            server.addEventListener("error", () => this.detach(login, server));
+
+            this.send(server, {
+                type: "hello",
+                login,
+                online: Array.from(this.sockets.keys()),
+                at: Date.now()
+            });
+            this.publish(Array.from(this.sockets.keys()), {
+                type: "presence",
+                online: Array.from(this.sockets.keys())
+            });
+
+            return new Response(null, { status: 101, webSocket: client });
+        }
+
+        return jsonResponse({ error: "not_found", message: "未知的 ChatHub 接口" }, 404, {});
+    }
+
+    attach(login, socket) {
+        let set = this.sockets.get(login);
+        if (!set) {
+            set = new Set();
+            this.sockets.set(login, set);
+        }
+        set.add(socket);
+    }
+
+    detach(login, socket) {
+        const set = this.sockets.get(login);
+        if (set) {
+            set.delete(socket);
+            if (!set.size) {
+                this.sockets.delete(login);
+            }
+        }
+        this.publish(Array.from(this.sockets.keys()), {
+            type: "presence",
+            online: Array.from(this.sockets.keys())
+        });
+    }
+
+    onMessage(login, socket, raw) {
+        let data = null;
+        try {
+            data = JSON.parse(String(raw));
+        } catch (error) {
+            data = null;
+        }
+        if (!data || typeof data !== "object") {
+            return;
+        }
+        if (data.type === "ping") {
+            this.send(socket, { type: "pong", at: Date.now() });
+        }
+        if (data.type === "presence") {
+            this.send(socket, { type: "presence", online: Array.from(this.sockets.keys()) });
+        }
+    }
+
+    send(socket, data) {
+        try {
+            socket.send(JSON.stringify(data));
+        } catch (error) {
+            /* 忽略已经关闭的连接 */
+        }
+    }
+
+    publish(targets, event, exclude) {
+        if (!event || typeof event !== "object") {
+            return;
+        }
+        const text = JSON.stringify(event);
+        const seen = new Set();
+
+        for (const login of targets) {
+            if (!login || login === exclude) {
+                continue;
+            }
+            const set = this.sockets.get(login);
+            if (!set) {
+                continue;
+            }
+            for (const socket of set) {
+                if (seen.has(socket)) {
+                    continue;
+                }
+                seen.add(socket);
+                try {
+                    socket.send(text);
+                } catch (error) {
+                    /* 忽略已经关闭的连接 */
+                }
+            }
+        }
+    }
 }
 
 export default {
@@ -2471,22 +5331,11 @@ export default {
                 }
             }
 
-            if (url.pathname === "/api/chat/status" && request.method === "GET") {
-                return handleChatStatus(request, env, cors);
-            }
-
-            if (url.pathname === "/api/chat/messages") {
-                if (request.method === "GET") {
-                    return await handleChatMessages(request, env, cors);
+            if (url.pathname.startsWith("/api/chat/")) {
+                const chatResponse = await routeChat(request, env, cors);
+                if (chatResponse) {
+                    return chatResponse;
                 }
-                if (request.method === "POST") {
-                    return await handleChatPost(request, env, cors);
-                }
-            }
-
-            const chatMessageRoute = url.pathname.match(/^\/api\/chat\/messages\/([^/]+)$/);
-            if (chatMessageRoute && request.method === "DELETE") {
-                return await handleChatDelete(request, env, cors, decodeURIComponent(chatMessageRoute[1]));
             }
 
             return jsonResponse({ error: "not_found", message: "接口不存在" }, 404, cors);
