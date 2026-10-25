@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`7.0.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节）
+- API 版本：`8.0.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；**8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节**）
 
 ---
 
@@ -142,6 +142,23 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | GET | `/api/receipt-codes/{code}` | 否 | 解析收款码（收款人、金额，不走缓存，刷新/撤销后立即失效） |
 | POST | `/api/receipt-codes/{code}/pay` | 是 | 扫收款码付款（需密码） |
 | POST | `/api/accounts/{登录名}/trades` | 是 | 同上，显式指定账户（只能是自己） |
+| PUT | `/api/me/username` | 是 | 修改用户名（显示名） |
+| PUT | `/api/me/password` | 是 | 修改密码，需要提供当前密码 |
+| POST | `/api/me/checkin` | 是 | 每日签到（服务端每天只允许一次，+5.00 VTX） |
+| POST | `/api/me/transfer` | 是 | 账户间转账（服务端校验密码并同时更新双方余额） |
+| POST | `/api/me/withdraw` | 是 | 提款（需密码），返回线下领取凭证文案 |
+| POST | `/api/me/billing` | 是 | AI 扣费 / 退款记账（`charge` / `refund`） |
+| POST | `/api/me/purchase` | 是 | 商店购买扣款（需密码），返回购买凭证 |
+| POST | `/api/me/login-location` | 是 | 记录一次登录位置（IP 由服务端取 `cf-connecting-ip`） |
+| GET | `/api/admin/accounts` | 是（站主） | 读取全部账户（含密码、登录记录） |
+| POST | `/api/admin/accounts` | 是（站主） | 直接创建账户 |
+| PUT | `/api/admin/accounts/{登录名}` | 是（站主） | 修改用户名 / 密码 / 余额 |
+| DELETE | `/api/admin/accounts/{登录名}` | 是（站主） | 删除账户（不能删站主自己） |
+| GET | `/api/admin/log` | 是（站主） | 管理操作审计记录 |
+| GET | `/api/chat/status` | 否 | 聊天室状态（9.0 开放前的占位信息） |
+| GET | `/api/chat/messages` | 是 | 读取房间消息（`CHAT_ENABLED=false` 时返回 `503`） |
+| POST | `/api/chat/messages` | 是 | 发送消息（同上，受开关控制） |
+| DELETE | `/api/chat/messages/{id}` | 是（站主） | 删除一条消息 |
 
 > **破坏性变更（1.4.0）**：`/api/me/data`（不带游戏名）现在返回 `400 bad_request`，并提示新用法。
 > 旧版平铺的 `data` 会被视为「键不是对象」，请把数据搬到 `data[游戏名称]` 下。
@@ -159,8 +176,16 @@ GET /api/health
 **响应 `200`**
 
 ```json
-{ "name": "Vitual XRing API", "version": "1.1.0", "ok": true }
+{
+    "name": "Vitual XRing API",
+    "version": "8.0.0",
+    "ok": true,
+    "storage": "workers-kv",
+    "chat": { "version": "9.0", "enabled": false }
+}
 ```
+
+`storage` 为 `workers-kv`（数据在 Workers KV，推荐）或 `github`（未绑定 KV，退回 7.0 的仓库读写）。
 
 ---
 
@@ -622,8 +647,9 @@ content-type: application/json
 | 413 | `payload_too_large` | 自定义数据超过 32 KB |
 | 429 | `too_many_requests` | 登录或写入过于频繁 |
 | 500 | `server_misconfigured` | 服务端缺少必要配置 |
-| 502 | `upstream_error` | 读写账户数据源（GitHub）失败 |
-| 503 | `write_unavailable` | 服务端未配置 `GITHUB_TOKEN`，无法写入 |
+| 502 | `upstream_error` | 读写账户数据源失败 |
+| 503 | `write_unavailable` | 服务端既没有 `ACCOUNTS_KV` 也没有 `GITHUB_TOKEN`，无法写入 |
+| 503 | `chat_not_ready` | 聊天室还没开放（`CHAT_ENABLED=false`），提示「版本9.0，我们聊天室见」 |
 
 ---
 
@@ -639,9 +665,15 @@ content-type: application/json
 
 ## 7. 缓存与数据来源
 
-- 数据来源：仓库 `Caldson/Vitual-XRing` 的 `account.json`
-- 存在 `GITHUB_TOKEN` 时走 GitHub Contents API；否则回退 `raw.githubusercontent.com`
-- Worker 内部缓存默认 **20 秒**（`CACHE_TTL_SECONDS`），因此账户变动最多延迟约 20 秒可见
+**8.0 起**：
+
+- 数据来源：绑定 `ACCOUNTS_KV` 的 Workers KV，键为 `accounts`（一份完整账户 JSON）
+- 首次读取时如果 KV 为空，会自动把仓库里的 `account.json` 导入 KV；
+  `MIGRATE_DELETE_REPO_FILE` 未设为 `false` 且配置了 `GITHUB_TOKEN` 时，导入后**删除仓库里的公开 account.json**
+- 写入直接落 KV，不需要等待 GitHub Pages；同一 isolate 内 5 秒内复用内存快照
+- `MIRROR_TO_GITHUB=true` 时每次写入会额外把数据镜像回仓库 `account.json`（默认关闭，避免数据再次公开）
+- 未绑定 `ACCOUNTS_KV` 时退回 7.0：读写仓库 `account.json`，存在 `GITHUB_TOKEN` 时走 Contents API，
+  否则回退 `raw.githubusercontent.com`；内部缓存默认 **20 秒**（`CACHE_TTL_SECONDS`）
 - 响应头统一 `cache-control: no-store`，浏览器不会缓存
 
 ---
@@ -895,10 +927,11 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 
 ---
 
-## 9.2 商店、管理员工具与聊天室（6.0 新增）
+## 9.2 商店、管理员工具与聊天室（6.0 新增，8.0 调整）
 
-以下页面直接使用 `secure.json` 中保存的 GitHub token 读写仓库（Contents API / Git Data API），**不经过 Worker 接口**，
-因此 API 端点与 5.2.0 完全一致。
+6.0 的页面原本直接使用 `secure.json` 中保存的 GitHub token 读写仓库。
+**8.0 起账户相关操作改为走 Workers 接口**（[vtx-api.js](./vtx-api.js)），只有 `shop.json` 仍然用仓库直连
+（Contents / Git Data API），`secure.json` 中的 token 作为 Workers 不可用时的备用通道保留。
 
 ### 9.2.1 商店（shop.html）
 
@@ -939,8 +972,8 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 | `category` | 选填，覆盖分组名 |
 | `image` | 选填，图片地址。相对路径以站点根目录为基准（如 `images/blankbook.png`），也可以填完整 `https://` 地址；留空或加载失败时显示「无图片预览」 |
 
-- 购买流程：选择数量 → 输入**账户密码**确认 → 扣款并写入一条 `name` 为 `购买商品` 的交易记录
-- 购买会在一次提交中同时更新 `shop.json`（原分类内库存减少）与 `account.json`（余额减少、写入交易记录）
+- 购买流程：选择数量 → 输入**账户密码**确认 → 由 `POST /api/me/purchase` 校验密码与余额并扣款，写入一条 `name` 为 `购买商品` 的交易记录
+- 扣款成功后页面更新 `shop.json`（原分类内库存减少）；库存写入失败时会自动调用 `POST /api/me/billing`（`refund`）退款
 - 成功后页面显示购买凭证，需要截图发到 XRingCR 群，次日线下领取
 
 ### 9.2.2 管理员仓库修改器（admin.html）
@@ -957,7 +990,10 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 ### 9.2.3 聊天室（chatroom.html）
 
 - 地址：`https://xsmmc.caldson.us.ci/chatroom.html`
-- 6.0 版本仅显示「功能开发中，敬请期待。」
+- 8.0 只上线占位页：页面中央显示 `<h1>即将上线</h1>` 与 `<h2>版本9.0，我们聊天室见</h2>`，
+  **不包含任何聊天功能**（前端不读写 `/api/chat/*`）
+- 聊天服务已经部署在同一个 Worker 里（`/api/chat/status`、`/api/chat/messages`），由 `CHAT_ENABLED`
+  开关控制；9.0 版本打开开关后再把前端接上，详见第 12.4 节
 
 ### 9.2.4 提款与转账的密码确认（6.0 变更）
 
@@ -999,14 +1035,17 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 | `city` / `region` / `country` | string | IP 归属地的城市 / 省份 / 国家 |
 | `isp` | string | 运营商或机构名称；取不到时省略 |
 
-- 只在**登录成功后**记录：`login.html` 在跳转前把登录名写入 `sessionStorage.vtxLoginPending`，
-  `manager.html` 读取后调用 `vtx-geo.js` 的 `VTXGeo.recordLogin()` 写入，不阻塞登录跳转
+- **8.0 起由服务端记录**：`POST /api/login`（以及注册）成功后，Worker 会把本次登录写进账户的 `loginHistory`，
+  公网 IP 一律取 `cf-connecting-ip`（不接受前端伪造），经纬度优先用浏览器 `vtx-geo.js` 传来的定位，
+  没有则用 Cloudflare 提供的 `request.cf` 经纬度；最多保留最近 **20** 条
+- 登录页（`login.html`）会在登录前调用 `VTXGeo.locate()` 取一次粗略位置，随 `geo` 字段一起提交
 - 位置来源依次尝试 `https://ipwho.is/`、`https://ipinfo.io/json`、`https://api.ip.sb/geoip`、
-  `https://ipapi.co/json/`、`https://api.ipify.org/?format=json`；全部失败时只记录时间，不影响登录
-- 最多保留最近 **20** 条，每条会新增一次 `登录记录：<登录名> <IP>` 的 Git 提交
+  `https://api.ipapi.co/json/`、`https://api.ipify.org/?format=json`；全部失败时不影响登录
+- 需要补记一次位置时（例如脚本调用）：`POST /api/me/login-location`，body 为 `{ latitude, longitude, city, region, country, isp }`
 - 地图使用 Leaflet（jsDelivr → unpkg 依次回退）；瓦片优先高德（`webrd0{1-4}.is.autonavi.com`），
   连续加载失败时切换到 OpenStreetMap；Leaflet 两个 CDN 都加载失败时回退到 OpenStreetMap 的嵌入 iframe
-- `GET /api/accounts` 等接口**不会返回** `loginHistory`，只有直接读写 `account.json` 的页面能看到
+- `GET /api/accounts`、`GET /api/accounts/{登录名}` **不会返回** `loginHistory`（避免把别人的 IP 暴露给所有登录用户）；
+  `GET /api/me` 与登录响应会返回本人的记录
 
 ---
 
@@ -1016,31 +1055,53 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `REPO` | `Caldson/Vitual-XRing` | 账户文件所在仓库 |
+| `REPO` | `Caldson/Vitual-XRing` | 迁移数据来源仓库（旧 `account.json`） |
 | `BRANCH` | `main` | 分支 |
 | `PATH` | `account.json` | 文件路径 |
 | `ALLOWED_ORIGINS` | `*` | CORS 白名单，逗号分隔 |
 | `TOKEN_TTL_SECONDS` | `43200` | token 有效期（秒） |
-| `CACHE_TTL_SECONDS` | `20` | 账户数据缓存（秒） |
+| `CACHE_TTL_SECONDS` | `20` | 旧模式（未绑定 KV）下账户数据缓存（秒） |
+| `ADMIN_ACCOUNT` | `Kitawaga` | 拥有「账号修改」等管理权限的登录名 |
+| `MIGRATE_DELETE_REPO_FILE` | `true` | 首次迁移到 KV 后是否删除仓库里的公开 `account.json` |
+| `MIRROR_TO_GITHUB` | `false` | 是否把 KV 数据镜像回仓库 `account.json` |
+| `CHAT_ENABLED` | `false` | 聊天室接口开关（9.0 再打开） |
+
+KV 绑定：
+
+```toml
+[[kv_namespaces]]
+binding = "ACCOUNTS_KV"
+id = "<npx wrangler kv namespace create ACCOUNTS_KV 输出的 id>"
+```
 
 机密（用 `wrangler secret put` 设置，不要写进仓库）：
 
 | 名称 | 必需 | 说明 |
 |---|---|---|
 | `SIGNING_SECRET` | 是 | token 签名密钥，泄露后需更换（所有 token 立即失效） |
-| `GITHUB_TOKEN` | 否 | 读写仓库用；**不配置则只能读**（回退 `raw.githubusercontent.com`），写入接口返回 `503` |
+| `GITHUB_TOKEN` | 否 | 迁移旧 `account.json` / 镜像时需要仓库 Contents 读写权限；不配置则无法迁移与镜像 |
 
 部署：
 
 ```bash
 cd worker
 npx wrangler login
+npx wrangler kv namespace create ACCOUNTS_KV     # 把 id 填进 wrangler.toml
 npx wrangler secret put GITHUB_TOKEN
 npx wrangler secret put SIGNING_SECRET
 npx wrangler deploy
 ```
 
 路由绑定见 [worker/wrangler.toml](./worker/wrangler.toml)（`xsmmc.caldson.us.ci/api/*`）。
+
+**迁移步骤（8.0 首次上线）**
+
+1. 先 `npx wrangler kv namespace create ACCOUNTS_KV` 并填写 id，配置好 `GITHUB_TOKEN`
+2. `npx wrangler deploy`
+3. 打开一次 `https://xsmmc.caldson.us.ci/api/health`，确认返回 `"storage": "workers-kv"`
+4. 随便调用一次需要账户数据的接口（例如用任意账户 `POST /api/login`）：KV 为空时会自动从仓库导入，
+   并删除仓库里的 `account.json`（`MIGRATE_DELETE_REPO_FILE=true`）
+5. 删除后 `account.json` 从 GitHub Pages 上消失，账户数据只能通过 Worker 接口读取
 
 ### 本地调试
 
@@ -1081,9 +1142,91 @@ http://127.0.0.1:3000/API_LOGIN.html?api=http://127.0.0.1:8787
 
 ## 11. 安全说明
 
-- 所有接口都不会返回密码字段
-- 登录失败按 IP 限流：60 秒内最多 10 次
+- 所有接口都不会返回密码字段（**管理员接口除外**：`/api/admin/*` 仅站主可用，会返回 `password` 以便修改）
+- 登录失败按 IP 限流：60 秒内最多 10 次；写入、记账、提款、转账、购买、聊天各有独立限流
 - token 由 HMAC-SHA256 签名，篡改或过期即失效
-- **当前 `account.json` 中密码仍为明文且公开可读**，任何人都能直接读取
-  `https://xsmmc.caldson.us.ci/account.json` 获取全部账户密码，
-  这将使本 API 的鉴权失去意义。建议后续改为 PBKDF2 哈希存储。
+- **8.0 起账户数据不再公开**：账户、密码、余额、交易、游戏数据、登录 IP 记录全部存进 Workers KV，
+  仓库里的 `account.json` 在首次迁移后会被自动删除，`/api/accounts` 之类的接口必须携带有效 token 才能读取
+- `loginHistory`（登录 IP）只在 `GET /api/me` / 登录响应里返回给本人，`GET /api/accounts` 不含该字段
+- 转账、提款、购买在**服务端**校验密码与余额，前端不再拿密码做本地比较；修改密码需要提供当前密码
+- 管理操作（创建 / 修改 / 删除账户）会写入 KV 里的审计记录（`admin-log`，最多 200 条），通过 `GET /api/admin/log` 查看
+- 仍未改变的一点：密码在 KV 中仍是明文（服务端需要与旧数据兼容）。后续建议改为 PBKDF2 哈希存储，
+  并在登录时做一次透明升级。
+
+---
+
+## 12. 8.0 更新：账户入 Workers、账号修改与聊天室准备
+
+### 12.1 数据迁移
+
+见第 7 节与第 10 节的迁移步骤。要点：
+
+- KV 键 `accounts` 存整份账户 JSON，结构仍是 `{ "登录名": { username, password, money, trades, data, loginHistory, receipt } }`
+- 迁移是一次性的：KV 有数据后不再读 GitHub；`migrated-from-github` 记录删除仓库文件的时间
+- 未绑定 `ACCOUNTS_KV` 时行为与 7.0 完全一致（向后兼容）
+
+### 12.2 账户自助接口
+
+| 接口 | body | 说明 |
+|---|---|---|
+| `PUT /api/me/username` | `{"username":"新显示名"}` | 2-24 字符，不能与当前相同 |
+| `PUT /api/me/password` | `{"currentPassword":"旧","newPassword":"新"}` | 新密码至少 6 位 |
+| `POST /api/me/checkin` | — | 每天一次（北京时间），+5.00 VTX，重复签到返回 `400 already_checked_in` |
+| `POST /api/me/transfer` | `{"to":"收款登录名","amount":"1.00","password":"...","description":"备注"}` | 双方余额与交易记录同时更新 |
+| `POST /api/me/withdraw` | `{"amount":"1.00","password":"..."}` | 返回 `receipt` 凭证文案 |
+| `POST /api/me/billing` | `{"type":"charge","amount":"0.01","name":"AI 聊天","description":"..."}` | `type` 取 `charge`（扣）或 `refund`（退） |
+| `POST /api/me/purchase` | `{"item":"商品名","quantity":1,"amount":"5.00","password":"..."}` | 返回 `receipt` 凭证文案 |
+| `POST /api/me/login-location` | `{"latitude":..,"longitude":..,"city":".."}` | IP 由服务端填写 |
+
+以上接口返回的 `account` 都是**本人视角**（含 `loginHistory`，不含 `password`）。
+
+### 12.3 「账号修改」（账号管理，站主专用）
+
+页面：`https://xsmmc.caldson.us.ci/accounts-admin.html`（`manager.html` 顶部站主专属入口「账号修改」）
+
+- 仅 `sessionStorage.vtxAccount === "Kitawaga"`（且服务端 `ADMIN_ACCOUNT` 匹配）时可访问；服务端会再校验一次
+- 功能：账户列表、查看交易笔数与最近登录 IP、修改用户名 / 密码 / 余额、创建账户、删除账户、查看审计记录
+- 接口：
+
+```bash
+# 读取全部账户（含密码、登录记录）
+curl https://xsmmc.caldson.us.ci/api/admin/accounts -H "authorization: ******"
+
+# 修改余额
+curl -X PUT https://xsmmc.caldson.us.ci/api/admin/accounts/账户名 \
+  -H "authorization: ******" -H "content-type: application/json" \
+  -d '{"money":"100.00"}'
+
+# 创建 / 删除
+curl -X POST https://xsmmc.caldson.us.ci/api/admin/accounts -H "authorization: ******" \
+  -H "content-type: application/json" -d '{"login":"newuser","password":"secret123","username":"新人","money":"0.00"}'
+curl -X DELETE https://xsmmc.caldson.us.ci/api/admin/accounts/newuser -H "authorization: ******"
+
+# 审计记录
+curl https://xsmmc.caldson.us.ci/api/admin/log -H "authorization: ******"
+```
+
+> `PUT` 只接受 `username` / `password` / `money` 三个字段；`money` 必须是 ≥ 0 且最多两位小数。
+> 不能删除站主自己的账户，避免把自己锁在外面。
+
+### 12.4 聊天室接口（9.0 开放）
+
+`chatroom.html` 目前只有 `<h1>即将上线</h1><h2>版本9.0，我们聊天室见</h2>`，**前端不包含任何聊天逻辑**。
+后端已部署在同一个 Worker 上，默认关闭：
+
+```bash
+# 状态（公开）：即使关闭也能调用，用于展示占位信息
+curl https://xsmmc.caldson.us.ci/api/chat/status
+# {"ok":true,"version":"9.0","status":"coming_soon","enabled":false,"rooms":[...],"message":"版本9.0，我们聊天室见"}
+
+# 打开开关（9.0）：wrangler.toml 里 CHAT_ENABLED = "true"
+curl https://xsmmc.caldson.us.ci/api/chat/messages?room=general -H "authorization: ******"
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/messages -H "authorization: ******" \
+  -H "content-type: application/json" -d '{"room":"general","text":"你好"}'
+```
+
+- 房间：`general`（大厅）、`trade`（交易）、`help`（求助），房间名需匹配 `^[a-z0-9_-]{1,24}$`
+- 消息结构：`{ id, room, login, username, text, time }`，单条最长 500 字符，每房间保留最近 300 条
+- 限流：每个 IP 60 秒最多 30 条；`DELETE /api/chat/messages/{id}?room=general` 仅站主可用
+- 存储：KV 键 `chat:messages:{room}`
+- `CHAT_ENABLED=false` 时读写接口返回 `503 chat_not_ready`，body 里带「版本9.0，我们聊天室见」

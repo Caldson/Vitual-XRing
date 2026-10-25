@@ -317,7 +317,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v7.0</span>
+            <span class="version">v8.0</span>
             <a class="topbar-link" href="shop.html">商店</a>
             <a class="topbar-link" href="chat.html">AI 聊天</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -610,56 +610,27 @@
         }
 
         async function charge(costCents, model, prompt) {
-            const updated = await window.VTXApi.commit((data) => {
-                const target = data[accountName];
-                if (!target) {
-                    throw new Error("当前账户在 account.json 中不存在。");
-                }
-                if (toCents(target.money) < costCents) {
-                    throw new Error("余额不足。");
-                }
-
-                target.money = fromCents(toCents(target.money) - costCents);
-                target.trades = Array.isArray(target.trades) ? target.trades : [];
-                target.trades.push({
-                    name: "AI 生图",
-                    description: `${model.label} · 提示词 ${chars(prompt)} 字符`,
-                    price: `-${fromCents(costCents)}`,
-                    time: now(),
-                    from: target.username || accountName,
-                    to: "AI"
-                });
-
-                return `AI 生图：${target.username || accountName} -${fromCents(costCents)} VTX（${model.label}）`;
+            const result = await window.VTXApi.billing({
+                type: "charge",
+                amount: fromCents(costCents),
+                name: "AI 生图",
+                description: `${model.label} · 提示词 ${chars(prompt)} 字符`
             });
 
-            account = updated[accountName];
+            account = result.account;
             renderBalance();
         }
 
         async function refund(costCents, model, reason) {
             try {
-                const updated = await window.VTXApi.commit((data) => {
-                    const target = data[accountName];
-                    if (!target) {
-                        throw new Error("账户不存在");
-                    }
-
-                    target.money = fromCents(toCents(target.money) + costCents);
-                    target.trades = Array.isArray(target.trades) ? target.trades : [];
-                    target.trades.push({
-                        name: "生图退款",
-                        description: `${model.label} · ${reason}`,
-                        price: `+${fromCents(costCents)}`,
-                        time: now(),
-                        from: "官方",
-                        to: target.username || accountName
-                    });
-
-                    return `生图退款：${target.username || accountName} +${fromCents(costCents)} VTX`;
+                const result = await window.VTXApi.billing({
+                    type: "refund",
+                    amount: fromCents(costCents),
+                    name: "生图退款",
+                    description: `${model.label} · ${reason}`
                 });
 
-                account = updated[accountName];
+                account = result.account;
                 renderBalance();
                 return true;
             } catch (error) {
@@ -778,7 +749,7 @@
         elements.button.addEventListener("click", generate);
 
         async function init() {
-            if (!accountName) {
+            if (!accountName || !window.VTXApi.hasSession()) {
                 window.location.replace("login.html");
                 return;
             }
@@ -787,10 +758,10 @@
             renderGallery();
 
             try {
-                const accounts = await window.VTXApi.readAll();
-                account = accounts[accountName];
+                account = await window.VTXApi.loadAccount(accountName);
 
                 if (!account) {
+                    window.VTXApi.clearSession();
                     sessionStorage.removeItem("vtxAccount");
                     window.location.replace("login.html");
                     return;

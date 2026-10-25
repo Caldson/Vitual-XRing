@@ -510,7 +510,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v7.0</span>
+            <span class="version">v8.0</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -972,12 +972,9 @@
 
         async function loadAccount() {
             try {
-                accountsData = await window.VTXApi.readAll();
+                accountsData = await window.VTXApi.accounts();
             } catch (error) {
-                const response = await fetch("account.json", { cache: "no-store" });
-                if (response.ok) {
-                    accountsData = await response.json();
-                }
+                return;
             }
             renderBalance();
         }
@@ -1031,7 +1028,7 @@
                 showMessage(`购买成功：${item.name} ×${quantity}，共 ${fromCents(totalCents)} VTX。`, "success");
             } catch (error) {
                 showMessage(
-                    networkMessage(error, "网络请求失败，请确认可以访问 api.github.com 后重试。"),
+                    networkMessage(error, "网络请求失败，请检查网络后重试。"),
                     "error"
                 );
             } finally {
@@ -1041,69 +1038,109 @@
         }
 
         async function buyItem(itemId, quantity, totalCents, password) {
-            let lastError;
+            const shop = await window.VTXRepo.readJson("shop.json");
+            const shopFile = shop.data;
+            const found = findInShop(shopFile, itemId);
 
-            for (let attempt = 0; attempt < 3; attempt += 1) {
-                const shop = await window.VTXRepo.readJson("shop.json");
-                const accounts = await window.VTXApi.readAll();
-                const shopFile = shop.data;
-                const found = findInShop(shopFile, itemId);
-                const account = accounts[accountName];
-
-                if (!found) {
-                    throw new Error("商品已下架，请刷新页面。");
-                }
-                const item = found.item;
-                if (!account) {
-                    throw new Error("当前账户在 account.json 中不存在。");
-                }
-                if (account.password !== password) {
-                    throw new Error("账户密码不正确。");
-                }
-                if (stockOf(item) < quantity) {
-                    throw new Error(`库存不足，当前只剩 ${stockOf(item)} 件。`);
-                }
-                if (toCents(account.money) < totalCents) {
-                    throw new Error(`余额不足，当前余额 ${fromCents(toCents(account.money))} VTX。`);
-                }
-
-                const time = timestamp();
-                const amount = fromCents(totalCents);
-
-                item.stock = stockOf(item) - quantity;
-
-                account.money = fromCents(toCents(account.money) - totalCents);
-                account.trades = Array.isArray(account.trades) ? account.trades : [];
-                account.trades.push({
-                    name: "购买商品",
-                    description: `${item.name} ×${quantity}`,
-                    price: `-${amount}`,
-                    time,
-                    from: account.username || accountName,
-                    to: "XRingCR"
-                });
-
-                const receipt = `购买成功：${item.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`;
-
-                try {
-                    await window.VTXRepo.commitFiles(
-                        [
-                            { path: "shop.json", content: `${JSON.stringify(shopFile, null, 4)}\n` },
-                            { path: "account.json", content: `${JSON.stringify(accounts, null, 4)}\n` }
-                        ],
-                        `购买商品：${account.username || accountName} 购买 ${item.name} ×${quantity}`,
-                        { attempts: 1 }
-                    );
-                    return { accounts, shop: shopFile, receipt };
-                } catch (error) {
-                    if (error.status !== 409 && error.status !== 422) {
-                        throw error;
-                    }
-                    lastError = error;
-                }
+            if (!found) {
+                throw new Error("商品已下架，请刷新页面。");
             }
 
-            throw lastError || new Error("购买写入冲突，请重试。");
+            const item = found.item;
+
+            if (stockOf(item) < quantity) {
+                throw new Error(`库存不足，当前只剩 ${stockOf(item)} 件。`);
+            }
+
+            const amount = fromCents(totalCents);
+
+            // 先由 Workers 校验密码、余额并扣款，再更新仓库里的库存
+            let payment;
+            try {
+                payment = await window.VTXApi.purchase({
+                    item: item.name,
+                    quantity,
+                    amount,
+                    password,
+                    description: `${item.name} ×${quantity}`
+                });
+            } catch (error) {
+                if (!window.VTXApi.isOffline(error)) {
+                    throw error;
+                }
+                return await buyItemViaRepo(item, quantity, totalCents, password, shopFile);
+            }
+
+            item.stock = stockOf(item) - quantity;
+
+            try {
+                await window.VTXRepo.commitFiles(
+                    [{ path: "shop.json", content: `${JSON.stringify(shopFile, null, 4)}\n` }],
+                    `购买商品：${(payment.account && payment.account.username) || accountName} 购买 ${item.name} ×${quantity}`
+                );
+            } catch (error) {
+                try {
+                    await window.VTXApi.billing({
+                        type: "refund",
+                        amount,
+                        name: "商品退款",
+                        description: `${item.name} ×${quantity} · 库存更新失败`
+                    });
+                } catch (refundError) {
+                    /* 退款失败时把原始错误抛给页面 */
+                }
+                throw new Error("库存更新失败，本次付款已自动退回，请重试。");
+            }
+
+            const accounts = { ...(accountsData || {}), [accountName]: payment.account };
+            return { accounts, shop: shopFile, receipt: payment.receipt };
+        }
+
+        // 备用通道：Workers 完全连不上时，退回仓库直连（需要 secure.json 里的 token）
+        async function buyItemViaRepo(item, quantity, totalCents, password, shopFile) {
+            const accounts = await window.VTXApi.accounts();
+            const account = accounts[accountName];
+
+            if (!account) {
+                throw new Error("当前账户不存在，请重新登录。");
+            }
+            if (account.password !== undefined && account.password !== password) {
+                throw new Error("账户密码不正确。");
+            }
+            if (toCents(account.money) < totalCents) {
+                throw new Error(`余额不足，当前余额 ${fromCents(toCents(account.money))} VTX。`);
+            }
+
+            const time = timestamp();
+            const amount = fromCents(totalCents);
+
+            item.stock = stockOf(item) - quantity;
+
+            account.money = fromCents(toCents(account.money) - totalCents);
+            account.trades = Array.isArray(account.trades) ? account.trades : [];
+            account.trades.push({
+                name: "购买商品",
+                description: `${item.name} ×${quantity}`,
+                price: `-${amount}`,
+                time,
+                from: account.username || accountName,
+                to: "XRingCR"
+            });
+
+            await window.VTXRepo.commitFiles(
+                [
+                    { path: "shop.json", content: `${JSON.stringify(shopFile, null, 4)}\n` },
+                    { path: "account.json", content: `${JSON.stringify(accounts, null, 4)}\n` }
+                ],
+                `购买商品：${account.username || accountName} 购买 ${item.name} ×${quantity}`,
+                { attempts: 1 }
+            );
+
+            return {
+                accounts,
+                shop: shopFile,
+                receipt: `购买成功：${item.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`
+            };
         }
 
         document.getElementById("checkout-cancel").addEventListener("click", closeCheckout);
@@ -1111,11 +1148,11 @@
         quantityInput.addEventListener("input", renderTotal);
 
         async function init() {
-            if (!accountName) {
-                return;
-            }
             try {
-                await Promise.all([loadShop(), loadAccount()]);
+                await loadShop();
+                if (accountName && window.VTXApi.hasSession()) {
+                    await loadAccount();
+                }
             } catch (error) {
                 showMessage(
                     networkMessage(error, "无法读取商店数据，请确认页面通过 https 打开后重试。"),

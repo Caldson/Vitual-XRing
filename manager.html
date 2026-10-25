@@ -705,7 +705,8 @@
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="API_VTXPAY.html?type=code">收款码</a>
             <a id="admin-button" class="admin-link" href="admin.html" hidden>管理员仓库修改器</a>
-            <span class="version">v7.0</span>
+            <a id="accounts-admin-button" class="admin-link" href="accounts-admin.html" hidden>账号修改</a>
+            <span class="version">v8.0</span>
             <button id="logout-button" class="logout-button" type="button">退出登录</button>
         </div>
     </header>
@@ -759,7 +760,7 @@
 
         <section class="settings-card" aria-labelledby="settings-title">
             <h2 id="settings-title">账户设置</h2>
-            <p class="transfer-hint">修改会直接写入 account.json，并新增一条 Git 提交。</p>
+            <p class="transfer-hint">修改会写入 Workers 中的账户数据，立即生效。</p>
 
             <div class="settings-block">
                 <h3>更改用户名</h3>
@@ -775,6 +776,10 @@
             <div class="settings-block">
                 <h3>更改密码</h3>
                 <form id="password-form" class="settings-row">
+                    <div class="field">
+                        <label for="password-current">当前密码</label>
+                        <input id="password-current" type="password" autocomplete="current-password" required>
+                    </div>
                     <div class="field">
                         <label for="password-value">新密码</label>
                         <input id="password-value" type="password" minlength="6" autocomplete="new-password" required>
@@ -792,7 +797,7 @@
 
         <section id="transfer-card" class="transfer-card" aria-labelledby="transfer-title" hidden>
             <h2 id="transfer-title">转账</h2>
-            <p class="transfer-hint">转账会直接写入仓库里的 account.json，使用 secure.json 中保存的 token 自动完成。</p>
+            <p class="transfer-hint">转账会写入 Workers 中的账户数据，服务端校验密码后同时更新双方余额。</p>
 
             <form id="transfer-form">
                 <div class="form-grid">
@@ -816,7 +821,7 @@
 
                 <div class="transfer-actions">
                     <button id="transfer-submit" class="primary-button" type="submit">确认转账</button>
-                    <span class="transfer-note">提交后会新增一条 Git 提交，余额改动即时生效。</span>
+                    <span class="transfer-note">提交后余额立即更新，双方会各记一笔「转账」。</span>
                 </div>
 
                 <p id="transfer-message" class="status" role="status" aria-live="polite" hidden></p>
@@ -860,9 +865,9 @@
 
     <footer>Vitual XRing · 账户余额以账户数据为准 · <a href="crypto.html">加密工具</a></footer>
 
-    <script src="vtx-crypto.js?v=7.0"></script>
-    <script src="vtx-api.js?v=7.0"></script>
-    <script src="vtx-geo.js?v=7.0"></script>
+    <script src="vtx-crypto.js?v=8.0"></script>
+    <script src="vtx-api.js?v=8.0"></script>
+    <script src="vtx-geo.js?v=8.0"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";
@@ -873,10 +878,12 @@
 
         if (accountName === ADMIN_ACCOUNT) {
             document.getElementById("admin-button").hidden = false;
+            document.getElementById("accounts-admin-button").hidden = false;
         }
 
         document.getElementById("logout-button").addEventListener("click", () => {
             sessionStorage.removeItem("vtxAccount");
+            window.VTXApi.clearSession();
             try {
                 localStorage.removeItem("vtxRemembered");
             } catch (error) {
@@ -884,6 +891,34 @@
             }
             window.location.replace("login.html");
         });
+
+        // 账户数据统一由 Workers API 返回；这里把本次操作的结果合并回本地快照
+        function applyAccountResult(result) {
+            if (!result) {
+                return accountsData;
+            }
+            if (result.accounts) {
+                return result.accounts;
+            }
+            if (result.account) {
+                accountsData = accountsData || {};
+                accountsData[accountName] = result.account;
+            }
+            if (result.target && result.target.account) {
+                accountsData = accountsData || {};
+                accountsData[result.target.login] = result.target.account;
+            }
+            return accountsData;
+        }
+
+        function handleAuthError(error) {
+            if (error && error.status === 401) {
+                window.VTXApi.clearSession();
+                window.location.replace("login.html");
+                return true;
+            }
+            return false;
+        }
 
         function setAccountMessage(text, kind) {
             message.textContent = text;
@@ -947,31 +982,9 @@
             button.textContent = "签到中…";
 
             try {
-                const accounts = await window.VTXApi.commit((data) => {
-                    const account = data[accountName];
-                    if (!account) {
-                        throw new Error("当前账户在 account.json 中不存在。");
-                    }
-                    if (checkedInToday(account)) {
-                        throw new Error("今天已经签到过了。");
-                    }
-
-                    account.trades = Array.isArray(account.trades) ? account.trades : [];
-                    account.money = fromCents(toCents(account.money) + 500);
-                    account.trades.push({
-                        name: "每日签到",
-                        description: "每日签到奖励",
-                        price: "+5.00",
-                        time: today(),
-                        from: "官方",
-                        to: account.username || accountName
-                    });
-
-                    return `签到：${accountName} +5.00 VTX`;
-                });
-
-                accountsData = accounts;
-                renderAccount(accounts[accountName]);
+                const result = await window.VTXApi.checkin();
+                accountsData = applyAccountResult(result);
+                renderAccount(result.account);
                 populateRecipients();
                 setAccountMessage("签到成功，+5.00 VTX。", "success");
             } catch (error) {
@@ -1002,18 +1015,9 @@
             button.textContent = "处理中…";
 
             try {
-                const accounts = await window.VTXApi.commit((data) => {
-                    const account = data[accountName];
-                    if (!account) {
-                        throw new Error("当前账户在 account.json 中不存在。");
-                    }
-
-                    account.username = newName;
-                    return `更改用户名：${accountName} → ${newName}`;
-                });
-
-                accountsData = accounts;
-                renderAccount(accounts[accountName]);
+                const result = await window.VTXApi.rename(newName);
+                accountsData = applyAccountResult(result);
+                renderAccount(result.account);
                 populateRecipients();
                 input.value = "";
                 setSettingsMessage(`用户名已更改为 ${newName}（登录名仍为 ${accountName}）。`, "success");
@@ -1029,11 +1033,16 @@
             event.preventDefault();
 
             const button = document.getElementById("password-button");
+            const current = document.getElementById("password-current");
             const value = document.getElementById("password-value");
             const confirm = document.getElementById("password-confirm");
 
             document.getElementById("settings-message").hidden = true;
 
+            if (!current.value) {
+                setSettingsMessage("请输入当前密码。", "error");
+                return;
+            }
             if (value.value.length < 6) {
                 setSettingsMessage("密码至少 6 个字符。", "error");
                 return;
@@ -1047,17 +1056,9 @@
             button.textContent = "处理中…";
 
             try {
-                const accounts = await window.VTXApi.commit((data) => {
-                    const account = data[accountName];
-                    if (!account) {
-                        throw new Error("当前账户在 account.json 中不存在。");
-                    }
-
-                    account.password = value.value;
-                    return `修改密码：${accountName}`;
-                });
-
-                accountsData = accounts;
+                const result = await window.VTXApi.changePassword(current.value, value.value);
+                accountsData = applyAccountResult(result);
+                current.value = "";
                 value.value = "";
                 confirm.value = "";
                 setSettingsMessage("密码已更新。", "success");
@@ -1136,60 +1137,33 @@
                 setTransferMessage("请输入账户密码确认转账。", "error");
                 return;
             }
-            if (accountsData[accountName] && accountsData[accountName].password !== password) {
-                setTransferMessage("账户密码不正确。", "error");
-                return;
-            }
 
             button.disabled = true;
             button.textContent = "处理中…";
 
             try {
-                const accounts = await window.VTXApi.commit((data) => {
-                    const sender = data[accountName];
-                    const target = data[recipient];
-
-                    if (!sender) {
-                        throw new Error("当前账户在 account.json 中不存在。");
-                    }
-                    if (sender.password !== password) {
-                        throw new Error("账户密码不正确。");
-                    }
-                    if (!target) {
-                        throw new Error(`收款账户 ${recipient} 不存在。`);
-                    }
-                    if (toCents(sender.money) < amountCents) {
-                        throw new Error("余额不足。");
-                    }
-
-                    const time = today();
-                    const description = note || "账户转账";
-                    const senderName = sender.username || accountName;
-                    const targetName = target.username || recipient;
-                    const common = { name: "转账", description, time, from: senderName, to: targetName };
-
-                    sender.money = fromCents(toCents(sender.money) - amountCents);
-                    target.money = fromCents(toCents(target.money) + amountCents);
-                    sender.trades = Array.isArray(sender.trades) ? sender.trades : [];
-                    target.trades = Array.isArray(target.trades) ? target.trades : [];
-                    sender.trades.push({ ...common, price: `-${fromCents(amountCents)}` });
-                    target.trades.push({ ...common, price: `+${fromCents(amountCents)}` });
-
-                    return `转账：${senderName} → ${targetName} ${fromCents(amountCents)} VTX`;
+                const result = await window.VTXApi.transfer({
+                    to: recipient,
+                    amount: fromCents(amountCents),
+                    password,
+                    description: note
                 });
 
-                accountsData = accounts;
-                renderAccount(accounts[accountName]);
+                accountsData = applyAccountResult(result);
+                renderAccount(result.account);
                 populateRecipients();
                 document.getElementById("transfer-form").reset();
                 setTransferMessage(
-                    `已转账 ${fromCents(amountCents)} VTX 给 ${recipient}。GitHub Pages 更新可能需要几分钟，届时刷新即可看到最新余额。`,
+                    `已转账 ${fromCents(amountCents)} VTX 给 ${recipient}，余额已实时更新。`,
                     "success"
                 );
             } catch (error) {
+                if (handleAuthError(error)) {
+                    return;
+                }
                 setTransferMessage(
                     error instanceof TypeError
-                        ? "网络请求失败。请确认页面通过 https 打开，且能访问 api.github.com。"
+                        ? "网络请求失败，请检查网络后重试。"
                         : error.message,
                     "error"
                 );
@@ -1200,13 +1174,6 @@
         }
 
         document.getElementById("transfer-form").addEventListener("submit", handleTransfer);
-
-        function timestamp() {
-            const now = new Date();
-            const pad = (value) => String(value).padStart(2, "0");
-            return `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())} `
-                + `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-        }
 
         function setWithdrawMessage(text, kind) {
             const feedback = document.getElementById("withdraw-message");
@@ -1238,58 +1205,31 @@
                 setWithdrawMessage("请输入账户密码确认提款。", "error");
                 return;
             }
-            if (accountsData[accountName].password !== passwordInput.value) {
-                setWithdrawMessage("账户密码不正确。", "error");
-                return;
-            }
 
             button.disabled = true;
             button.textContent = "处理中…";
             receipt.hidden = true;
 
             try {
-                const amount = fromCents(amountCents);
-                let receiptText = "";
-
-                const accounts = await window.VTXApi.commit((data) => {
-                    const account = data[accountName];
-                    if (!account) {
-                        throw new Error("当前账户在 account.json 中不存在。");
-                    }
-                    if (account.password !== passwordInput.value) {
-                        throw new Error("账户密码不正确。");
-                    }
-                    if (toCents(account.money) < amountCents) {
-                        throw new Error("余额不足。");
-                    }
-
-                    const time = timestamp();
-                    account.money = fromCents(toCents(account.money) - amountCents);
-                    account.trades = Array.isArray(account.trades) ? account.trades : [];
-                    account.trades.push({
-                        name: "提款",
-                        description: "线下提款",
-                        price: `-${amount}`,
-                        time,
-                        from: account.username || accountName,
-                        to: "XRingCR"
-                    });
-
-                    receiptText = `提款成功：${amount}VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给您纸币。提款时间：${time}`;
-                    return `提款：${account.username || accountName} -${amount} VTX`;
+                const result = await window.VTXApi.withdraw({
+                    amount: fromCents(amountCents),
+                    password: passwordInput.value
                 });
 
-                accountsData = accounts;
-                renderAccount(accounts[accountName]);
+                accountsData = applyAccountResult(result);
+                renderAccount(result.account);
                 populateRecipients();
                 input.value = "";
                 passwordInput.value = "";
-                document.getElementById("withdraw-receipt-text").textContent = receiptText;
+                document.getElementById("withdraw-receipt-text").textContent = result.receipt;
                 receipt.hidden = false;
             } catch (error) {
+                if (handleAuthError(error)) {
+                    return;
+                }
                 setWithdrawMessage(
                     error instanceof TypeError
-                        ? "网络请求失败。请确认页面通过 https 打开，且能访问 api.github.com。"
+                        ? "网络请求失败，请检查网络后重试。"
                         : error.message,
                     "error"
                 );
@@ -1398,7 +1338,6 @@
             }
         }
 
-        const LOGIN_PENDING_KEY = "vtxLoginPending";
         const LEAFLET_BASES = [
             "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist",
             "https://unpkg.com/leaflet@1.9.4/dist"
@@ -1407,32 +1346,6 @@
         let loginMap = null;
         let loginMarkers = [];
         let leafletLoader = null;
-
-        function takePendingLogin() {
-            try {
-                const pending = sessionStorage.getItem(LOGIN_PENDING_KEY);
-                sessionStorage.removeItem(LOGIN_PENDING_KEY);
-                return pending;
-            } catch (error) {
-                return null;
-            }
-        }
-
-        async function recordLoginHistory(name) {
-            if (!window.VTXGeo) {
-                return;
-            }
-
-            const result = await window.VTXGeo.recordLogin(name);
-            if (!result) {
-                return;
-            }
-
-            accountsData = result.accounts;
-            if (accountsData[name]) {
-                renderLoginLocations(accountsData[name]);
-            }
-        }
 
         function loadLeaflet() {
             if (window.L) {
@@ -1704,46 +1617,35 @@
                 && Number.isFinite(Number(account.money)) && Number(account.money) >= 0;
         }
 
-        async function readAccountSnapshot() {
-            const response = await fetch("account.json", { cache: "no-store" });
-            if (!response.ok) {
-                throw new Error(`读取账户数据失败（HTTP ${response.status}）`);
-            }
-            return response.json();
-        }
-
         async function loadAccount() {
-            if (!accountName) {
+            if (!accountName || !window.VTXApi.hasSession()) {
                 window.location.replace("login.html");
                 return;
             }
 
             try {
-                let accounts = await readAccountSnapshot();
-                let account = accounts[accountName];
+                const accounts = await window.VTXApi.accounts();
+                const account = await window.VTXApi.loadAccount(accountName);
 
                 if (!isValidAccount(account)) {
-                    accounts = await window.VTXApi.readAll();
-                    account = accounts[accountName];
-                }
-
-                if (!isValidAccount(account)) {
+                    window.VTXApi.clearSession();
                     sessionStorage.removeItem("vtxAccount");
-                    showError("账户数据不存在或格式无效，请重新登录或检查账户数据文件。");
+                    showError("账户数据不存在或格式无效，请重新登录。");
                     return;
                 }
 
-                accountsData = accounts;
+                accountsData = accounts || {};
+                accountsData[accountName] = account;
+
                 renderAccount(account);
                 populateRecipients();
                 renderLoginLocations(account);
-
-                if (takePendingLogin() === accountName) {
-                    recordLoginHistory(accountName);
-                }
             } catch (error) {
+                if (handleAuthError(error)) {
+                    return;
+                }
                 showError(error instanceof TypeError
-                    ? "无法读取账户数据。请通过本地服务器或网站打开此页面，不要直接以 file:// 打开。"
+                    ? "无法连接服务器，请检查网络后重试。"
                     : error.message);
             }
         }

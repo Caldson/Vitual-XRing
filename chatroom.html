@@ -52,11 +52,29 @@
             font-weight: 800;
         }
 
-        p {
-            margin: 24px 0 0;
+        .coming-soon {
+            margin: 28px 0 0;
+        }
+
+        .coming-soon h1 {
+            margin: 0;
+            color: #172033;
+            font-size: clamp(24px, 4vw, 32px);
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+
+        .coming-soon h2 {
+            margin: 10px 0 0;
             color: #3158d1;
-            font-size: 18px;
+            font-size: clamp(15px, 2.4vw, 18px);
             font-weight: 700;
+        }
+
+        p.hint-text {
+            margin: 18px 0 0;
+            color: #68768d;
+            font-size: 13.5px;
             line-height: 1.7;
         }
 
@@ -86,10 +104,14 @@
     </style>
 </head>
 <body>
-    <span class="version-badge">v7.0</span>
+    <span class="version-badge">v8.0</span>
     <main class="placeholder-card">
         <div class="brand-mark" aria-hidden="true">V</div>
-        <p>功能开发中，敬请期待。</p>
+        <div class="coming-soon">
+            <h1>即将上线</h1>
+            <h2>版本9.0，我们聊天室见</h2>
+        </div>
+        <p class="hint-text">聊天服务已部署到 Workers，9.0 版本开放后即可在这里与其他用户实时聊天。</p>
         <a href="manager.html">← 返回账户</a>
     </main>
 </body>

@@ -433,7 +433,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v7.0</span>
+            <span class="version">v8.0</span>
             <a class="topbar-link" href="shop.html">商店</a>
             <a class="topbar-link" href="image.html">AI 生图</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -910,29 +910,14 @@
                 const time = now();
                 const modelShort = model.label.replace(/（.*?）/g, "").trim();
 
-                const updated = await window.VTXApi.commit((data) => {
-                    const target = data[accountName];
-                    if (!target) {
-                        throw new Error("当前账户在 account.json 中不存在。");
-                    }
-
-                    const charge = Math.min(toCents(target.money), totalCents);
-                    target.money = fromCents(toCents(target.money) - charge);
-                    target.trades = Array.isArray(target.trades) ? target.trades : [];
-                    target.trades.push({
-                        name: "AI 聊天",
-                        description: `${modelShort} · 输入 ${chars(text)} 字符 / 输出 ${chars(reply)} 字符`,
-                        price: `-${fromCents(charge)}`,
-                        time,
-                        from: target.username || accountName,
-                        to: "AI"
-                    });
-
-                    return `AI 聊天：${target.username || accountName} -${fromCents(charge)} VTX（${modelShort}）`;
+                const result = await window.VTXApi.billing({
+                    type: "charge",
+                    amount: fromCents(totalCents),
+                    name: "AI 聊天",
+                    description: `${modelShort} · 输入 ${chars(text)} 字符 / 输出 ${chars(reply)} 字符`
                 });
 
-                const refreshed = updated;
-                account = refreshed[accountName] || account;
+                account = result.account || account;
 
                 chat.messages = Array.isArray(chat.messages) ? chat.messages : [];
                 chat.messages.push({ role: "user", content: text, time, cost: fromCents(inputCost), model: modelShort });
@@ -1010,7 +995,7 @@
         document.getElementById("composer").addEventListener("submit", sendMessage);
 
         async function init() {
-            if (!accountName) {
+            if (!accountName || !window.VTXApi.hasSession()) {
                 window.location.replace("login.html");
                 return;
             }
@@ -1018,10 +1003,10 @@
             initModelSelect();
 
             try {
-                const accounts = await window.VTXApi.readAll();
-                account = accounts[accountName];
+                account = await window.VTXApi.loadAccount(accountName);
 
                 if (!account) {
+                    window.VTXApi.clearSession();
                     sessionStorage.removeItem("vtxAccount");
                     window.location.replace("login.html");
                     return;

@@ -242,7 +242,7 @@
     </style>
 </head>
 <body>
-    <span class="version-badge">v7.0</span>
+    <span class="version-badge">v8.0</span>
     <main class="login-card">
         <div class="brand-mark" aria-hidden="true">V</div>
         <h1>欢迎回来</h1>
@@ -291,8 +291,9 @@
         <a class="back-link" href="index.html">← 返回首页</a>
     </main>
 
-    <script src="vtx-crypto.js?v=7.0"></script>
-    <script src="vtx-api.js?v=7.0"></script>
+    <script src="vtx-crypto.js?v=8.0"></script>
+    <script src="vtx-api.js?v=8.0"></script>
+    <script src="vtx-geo.js?v=8.0"></script>
 
     <script>
         const loginForm = document.getElementById("login-form");
@@ -317,46 +318,47 @@
         loginTab.addEventListener("click", () => selectTab("login"));
         registerTab.addEventListener("click", () => selectTab("register"));
 
-        async function readAccounts() {
-            const response = await fetch("account.json", { cache: "no-store" });
-            if (!response.ok) {
-                throw new Error(`读取账户数据失败（HTTP ${response.status}）`);
-            }
-            return response.json();
-        }
-
         function networkMessage(error, fallback) {
             return error instanceof TypeError ? fallback : error.message;
         }
 
+        // 定位服务最多等 2 秒，超时就先登录（Worker 仍会记录 cf-connecting-ip）
+        function browserGeo() {
+            if (!window.VTXGeo) {
+                return Promise.resolve(undefined);
+            }
+            const timeout = new Promise((resolve) => setTimeout(() => resolve(undefined), 2000));
+            return Promise.race([
+                Promise.resolve(window.VTXGeo.locate()).catch(() => undefined),
+                timeout
+            ]);
+        }
+
+        // 登录成功时 Workers 会顺便把本次登录的公网 IP 与位置写进账户记录
+        async function signIn(name, password) {
+            const geo = await browserGeo();
+            const data = await window.VTXApi.login(name, password, geo);
+            return data.account;
+        }
+
         async function verifyCredentials(name, password) {
-            let accounts = await readAccounts();
-            let account = accounts[name];
-
-            if (!account || account.password !== password) {
-                accounts = await window.VTXApi.readAll();
-                account = accounts[name];
+            try {
+                return await signIn(name, password);
+            } catch (error) {
+                if (error.status === 401) {
+                    return null;
+                }
+                throw error;
             }
-
-            if (!account || account.password !== password) {
-                return null;
-            }
-            return account;
         }
 
         function enterAccount(name) {
-            sessionStorage.setItem("vtxAccount", name);
-            markLoginPending(name);
-            window.location.href = "manager.html";
-        }
-
-        // manager.html 读取该标记后记录本次登录的公网 IP 与经纬度
-        function markLoginPending(name) {
             try {
-                sessionStorage.setItem("vtxLoginPending", name);
+                sessionStorage.setItem("vtxAccount", name);
             } catch (error) {
                 /* 忽略 */
             }
+            window.location.href = "manager.html";
         }
 
         function remember(name, password) {
@@ -496,23 +498,15 @@
             button.textContent = "正在创建…";
 
             try {
-                await window.VTXApi.commit((accounts) => {
-                    if (accounts[name]) {
-                        throw new Error(`账户名称 ${name} 已被占用。`);
-                    }
+                const geo = await browserGeo();
+                await window.VTXApi.register({ login: name, password, username: name, geo });
 
-                    accounts[name] = { username: name, password, money: "0.00", trades: [] };
-                    return `创建账户：${name}`;
-                });
-
-                sessionStorage.setItem("vtxAccount", name);
                 remember(name, password);
-                markLoginPending(name);
-                window.location.href = "manager.html";
+                enterAccount(name);
             } catch (error) {
                 registerMessage.textContent = networkMessage(
                     error,
-                    "无法连接 GitHub。请确认网络与 secure.json 配置正常。"
+                    "无法连接 Vitual XRing 服务，请检查网络后重试。"
                 );
             } finally {
                 button.disabled = false;

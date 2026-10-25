@@ -1,5 +1,4 @@
 (function () {
-    const HISTORY_LIMIT = 20;
     const REQUEST_TIMEOUT = 6000;
     const MAX_IP_LENGTH = 45;
     const MAX_TEXT_LENGTH = 40;
@@ -191,17 +190,9 @@
         const entry = { time: timestamp(), ...(await locate()) };
 
         try {
-            const accounts = await window.VTXApi.commit((data) => {
-                const account = data[accountName];
-                if (!account) {
-                    throw new Error("账户不存在");
-                }
-                const history = Array.isArray(account.loginHistory) ? account.loginHistory : [];
-                history.push(entry);
-                account.loginHistory = history.slice(-HISTORY_LIMIT);
-                return `登录记录：${accountName}${entry.ip ? ` ${entry.ip}` : ""}`;
-            });
-            return { entry, accounts };
+            // 8.0：位置记录写进 Workers KV，公网 IP 以 Worker 看到的为准
+            const result = await window.VTXApi.recordLoginLocation(entry);
+            return { entry: result.entry || entry, account: result.account, accounts: result.accounts };
         } catch (error) {
             /* 登录记录失败不能影响登录本身 */
             return null;
