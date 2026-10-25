@@ -951,7 +951,7 @@
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
-            <span class="version-badge">v9.2 聊天室</span>
+            <span class="version-badge">v9.3 聊天室</span>
         </div>
         <div class="topbar-spacer"></div>
         <span class="status"><span class="status-dot" id="conn-dot"></span><span id="conn-text">连接中…</span></span>
@@ -1005,11 +1005,20 @@
     </div>
 </div>
 
+<div class="gate" id="stale" hidden>
+    <div class="gate-card">
+        <div class="brand-mark" style="margin: 0 auto; width: 46px; height: 46px; font-size: 20px;">V</div>
+        <h1>页面资源需要更新</h1>
+        <p id="stale-detail">浏览器缓存里的 vtx-api.js 还是旧版本，缺少聊天室需要的新接口。</p>
+        <button type="button" class="btn primary" id="stale-reload">重新加载</button>
+    </div>
+</div>
+
 <div class="modal-root" id="modal-root"></div>
 <div class="menu" id="menu"></div>
 <div class="toast" id="toast"></div>
 
-<script src="vtx-api.js"></script>
+<script src="vtx-api.js?v=9.3"></script>
 <script>
 (function () {
     "use strict";
@@ -1042,7 +1051,57 @@
         publicGroups: []
     };
 
-    const api = window.VTXApi;
+    let api = window.VTXApi;
+    const REQUIRED_API_VERSION = "9.3.0";
+    const SDK_URL = "vtx-api.js";
+
+    function compareVersion(left, right) {
+        const a = String(left || "").split(".").map((item) => Number(item) || 0);
+        const b = String(right || "").split(".").map((item) => Number(item) || 0);
+        for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+            const diff = (a[index] || 0) - (b[index] || 0);
+            if (diff !== 0) {
+                return diff > 0 ? 1 : -1;
+            }
+        }
+        return 0;
+    }
+
+    function sdkReady() {
+        return Boolean(window.VTXApi && window.VTXApi.version
+            && compareVersion(window.VTXApi.version, REQUIRED_API_VERSION) >= 0);
+    }
+
+    function loadSdk(src) {
+        return new Promise((resolve) => {
+            const script = document.createElement("script");
+            script.src = src;
+            script.onload = () => resolve(sdkReady());
+            script.onerror = () => resolve(false);
+            document.head.appendChild(script);
+        });
+    }
+
+    function showStale(detail) {
+        el("app").hidden = true;
+        el("gate").hidden = true;
+        el("stale-detail").textContent = detail;
+        el("stale").hidden = false;
+    }
+
+    async function ensureSdk() {
+        if (sdkReady()) {
+            return true;
+        }
+        /* 页面缓存的 SDK 可能是旧版本（缺少新接口），先强制加载一次最新文件 */
+        if (await loadSdk(`${SDK_URL}?v=${REQUIRED_API_VERSION}&t=${Date.now()}`)) {
+            api = window.VTXApi;
+            return true;
+        }
+        const found = window.VTXApi && window.VTXApi.version ? window.VTXApi.version : "未知";
+        showStale(`当前加载的 ${SDK_URL} 版本是 ${found}，聊天室需要 ${REQUIRED_API_VERSION}。请点下面按钮重新加载。`);
+        return false;
+    }
 
     function escapeHtml(value) {
         return String(value == null ? "" : value)
@@ -1069,7 +1128,10 @@
     }
 
     function report(error) {
-        const message = error && error.message ? error.message : String(error || "操作失败");
+        const raw = error && error.message ? error.message : String(error || "操作失败");
+        const message = /is not a function/.test(raw)
+            ? `${raw}（页面资源版本过旧，请按 Ctrl+F5 刷新）`
+            : raw;
         toast(message, "error");
         if (error && error.status === 401) {
             setTimeout(showGate, 600);
@@ -1140,6 +1202,9 @@
     }
 
     async function boot() {
+        if (!(await ensureSdk())) {
+            return;
+        }
         if (!api || !api.hasSession || !api.hasSession()) {
             showGate();
             return;
@@ -3219,6 +3284,17 @@
     }
 
     document.addEventListener("DOMContentLoaded", boot);
+    el("gate-retry").addEventListener("click", () => location.reload());
+    el("stale-reload").addEventListener("click", async () => {
+        el("stale-reload").disabled = true;
+        if (await loadSdk(`${SDK_URL}?v=${REQUIRED_API_VERSION}&t=${Date.now()}`)) {
+            api = window.VTXApi;
+            location.reload();
+            return;
+        }
+        el("stale-reload").disabled = false;
+        showStale("重新加载失败，请手动刷新页面（Ctrl+F5），或稍后再试。");
+    });
 })();
 </script>
 </body>

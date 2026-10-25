@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`9.2.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读，历史消息保留，见第 13.3 节；**9.2 站主可以新增、改名、解散公共频道，见第 13.9 节**）
+- API 版本：`9.3.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读，历史消息保留，见第 13.3 节；9.2 站主可以新增、改名、解散公共频道，见第 13.9 节；**9.3 修复前端脚本被浏览器缓存导致「api.chat.xxx is not a function」，见第 13.11 节**）
 
 ---
 
@@ -222,10 +222,10 @@ GET /api/health
 ```json
 {
     "name": "Vitual XRing API",
-    "version": "9.2.0",
+    "version": "9.3.0",
     "ok": true,
     "storage": "workers-kv",
-    "chat": { "version": "9.2", "enabled": true }
+    "chat": { "version": "9.3", "enabled": true }
 }
 ```
 
@@ -1576,3 +1576,23 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/public-groups/event \
 - `chatroom.html`：完整聊天界面（会话、通讯录、站主管理、群资料、转发、搜索、撤回、媒体上传）
 - `vtx-api.js`：`VTXApi.chat.*` 封装全部聊天接口，另有 `chatSocketUrl()` / `chatMediaUrl()` / `chat.upload(file)`
 - 登录页支持 `login.html?next=chatroom.html`，登录后直接回到聊天室
+
+### 13.11 前端脚本缓存与版本校验（9.3）
+
+**问题**：`chatroom.html` 早期引用 SDK 时没写版本参数（`<script src="vtx-api.js">`）。
+GitHub Pages 与浏览器会长期缓存这个 URL，于是页面在 9.2 上线后仍然用着 9.1 的 SDK，
+点「解散公共频道」直接抛 `api.chat.removePublicGroup is not a function`。
+
+**修复**：
+
+1. 全站脚本引用统一带上版本参数，例如 `<script src="vtx-api.js?v=9.3"></script>`，
+   `?v=` 变化会让浏览器与 CDN 必须重新取文件。发布新版本时**必须一起改这个参数**。
+2. `chatroom.html` 启动时校验 `VTXApi.version`：
+   - 低于页面要求的版本（当前 `REQUIRED_API_VERSION = "9.3.0"`）就自动按
+     `vtx-api.js?v=<版本>&t=<时间戳>` 重新加载一次；
+   - 仍然不达标时显示「页面资源需要更新」提示页，给一个「重新加载」按钮，
+     而不是让用户对着 `xxx is not a function` 发愣。
+3. 其他页面的 `report()` 遇到 `is not a function` 时会附带「请按 Ctrl+F5 刷新」的提示。
+
+**约定**：`vtx-api.js` 的 `API_VERSION`、`chatroom.html` 的 `REQUIRED_API_VERSION`、
+各页面 `<script>` 的 `?v=`、Worker 的 `VERSION` / `CHAT_VERSION` 必须同步升级。
