@@ -7,3 +7,7 @@ node_modules/
 
 # 8.0：账户数据已迁移到 Workers KV，仓库不再保存 account.json
 account.json
+# 手绘稿 / 设计草图（本地参考，不入库）
+IMG_*.HEIC
+IMG_*.heic
+IMG_*.jpg

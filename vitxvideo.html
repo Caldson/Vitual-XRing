@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>Vitx® 视频 | Vitual XRing</title>
+    <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            --blue: #3867e8;
+            --blue-soft: #eef2ff;
+            --ink: #172033;
+            --muted: #68768d;
+            --line: #e7ebf2;
+            --bg: #f4f7fb;
+            --card: #ffffff;
+            --warn: #f0a13b;
+            --ok: #2f9e6f;
+        }
+
+        * { box-sizing: border-box; }
+
+        [hidden] { display: none !important; }
+
+        html, body { margin: 0; }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 12% 0%, #eaf0ff 0, transparent 38%),
+                radial-gradient(circle at 88% 8%, #e9f7f0 0, transparent 34%),
+                var(--bg);
+            color: var(--ink);
+            -webkit-text-size-adjust: 100%;
+        }
+
+        button, input, textarea, select {
+            font: inherit;
+            color: inherit;
+        }
+
+        button { cursor: pointer; touch-action: manipulation; }
+
+        a { color: var(--blue); }
+
+        /* ───────── 顶栏 ───────── */
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 18px;
+            padding-top: calc(10px + env(safe-area-inset-top, 0px));
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 0 0 auto;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            border-radius: 11px;
+            background: linear-gradient(135deg, #3867e8, #6c8cff);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+        .brand-text strong { font-size: 16px; letter-spacing: 0.01em; }
+        .brand-text strong sup { font-size: 9px; vertical-align: super; }
+        .brand-text small { color: var(--muted); font-size: 11.5px; }
+
+        .cats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px 4px;
+            flex: 1 1 auto;
+            min-width: 0;
+            padding: 2px 0;
+        }
+
+        .cats button {
+            flex: 0 0 auto;
+            padding: 6px 12px;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: var(--muted);
+            font-size: 13.5px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .cats button:hover { background: #f2f5fb; color: var(--ink); }
+        .cats button.active { background: var(--blue); color: #fff; }
+
+        .search {
+            flex: 0 1 300px;
+            display: flex;
+            align-items: center;
+            min-width: 150px;
+            padding: 3px 3px 3px 12px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: #f8fafd;
+        }
+
+        .search:focus-within { border-color: #b9c8f5; background: #fff; }
+
+        .search input {
+            flex: 1;
+            min-width: 0;
+            border: 0;
+            outline: none;
+            background: transparent;
+            font-size: 13.5px;
+        }
+
+        .search button {
+            flex: 0 0 auto;
+            width: 30px;
+            height: 30px;
+            border: 0;
+            border-radius: 50%;
+            background: var(--blue);
+            color: #fff;
+            font-size: 13px;
+            line-height: 1;
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+        .icon-btn {
+            position: relative;
+            width: 34px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fff;
+            font-size: 15px;
+            line-height: 1;
+        }
+
+        .icon-btn:hover { border-color: #b9c8f5; background: var(--blue-soft); }
+        .icon-btn.on { border-color: #b9c8f5; background: var(--blue-soft); color: var(--blue); }
+
+        .icon-btn .dot {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #ff5a5f;
+        }
+
+        .primary-btn {
+            padding: 8px 16px;
+            border: 0;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #3867e8, #5b83ff);
+            color: #fff;
+            font-size: 13.5px;
+            font-weight: 700;
+        }
+
+        .version {
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: var(--blue-soft);
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .back {
+            color: var(--muted);
+            font-size: 13px;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .back:hover { color: var(--blue); }
+
+        /* ───────── 主体 ───────── */
+
+        .wrap {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 18px 18px 40px;
+        }
+
+        .hero {
+            display: flex;
+            gap: 18px;
+            align-items: stretch;
+            margin-bottom: 16px;
+            padding: 20px 22px;
+            border: 1px solid #dde6fb;
+            border-radius: 20px;
+            background:
+                radial-gradient(circle at 88% 20%, #dfe9ff 0, transparent 46%),
+                linear-gradient(135deg, #f7faff, #ffffff 62%);
+            overflow: hidden;
+        }
+
+        .hero-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .hero-mark {
+            flex: 0 0 auto;
+            width: 52px;
+            height: 52px;
+            display: grid;
+            place-items: center;
+            border-radius: 15px;
+            background: linear-gradient(135deg, #3867e8, #6c8cff);
+            color: #fff;
+            font-size: 24px;
+            font-weight: 800;
+            box-shadow: 0 10px 24px rgba(56, 103, 232, 0.28);
+        }
+
+        .eyebrow {
+            margin: 0 0 4px;
+            color: var(--blue);
+            font-size: 12.5px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        .hero h1 {
+            margin: 0 0 6px;
+            font-size: 23px;
+            line-height: 1.4;
+        }
+
+        .hero-sub {
+            margin: 0 0 12px;
+            color: var(--muted);
+            font-size: 13.5px;
+            line-height: 1.7;
+        }
+
+        .versions {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            padding: 4px 11px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 12.5px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .chip.hot {
+            border-color: #b9c8f5;
+            background: var(--blue-soft);
+            color: var(--blue);
+        }
+
+        .arrow { color: #9aa5b6; }
+
+        .hero-dismiss {
+            margin-left: 4px;
+            padding: 4px 11px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+        .hero-dismiss:hover { color: var(--blue); border-color: #b9c8f5; }
+
+        .hero-side {
+            flex: 0 0 auto;
+            align-self: stretch;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-left: 14px;
+            border-left: 1px dashed #cdd9f5;
+            color: #b9c8e8;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: var(--card);
+            box-shadow: 0 10px 30px rgba(23, 32, 51, 0.05);
+        }
+
+        .browse { padding: 16px 18px 8px; }
+
+        .panel-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .panel-head h2 {
+            margin: 0;
+            font-size: 17px;
+            flex: 0 0 auto;
+        }
+
+        .panel-head .hint {
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+        .quick {
+            margin-left: auto;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .quick button {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 10px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fbfcfe;
+            color: var(--muted);
+            font-size: 12.5px;
+            font-weight: 600;
+        }
+
+        .quick button:hover { border-color: #b9c8f5; color: var(--blue); background: var(--blue-soft); }
+        .quick button.on { border-color: #b9c8f5; color: var(--blue); background: var(--blue-soft); }
+
+        .row { padding: 14px 0 6px; }
+        .row + .row { border-top: 1px solid var(--line); }
+
+        .row-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .row-head h3 {
+            margin: 0;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .row-head .tag {
+            padding: 1px 7px;
+            border-radius: 6px;
+            background: #f0f3f9;
+            color: #7c8798;
+            font-size: 10.5px;
+            font-weight: 700;
+        }
+
+        .row-head .tag.big {
+            background: #fdf1dd;
+            color: #b7791f;
+        }
+
+        .row-head .row-count { color: var(--muted); font-size: 12.5px; }
+
+        .row-head .row-action {
+            margin-left: auto;
+            padding: 4px 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+        .row-head .row-action:hover { color: var(--blue); border-color: #b9c8f5; }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            display: block;
+            width: 100%;
+            padding: 0;
+            border: 1px solid transparent;
+            border-radius: 14px;
+            background: transparent;
+            text-align: left;
+        }
+
+        .card:hover .cover { transform: translateY(-2px); box-shadow: 0 14px 26px rgba(23, 32, 51, 0.14); }
+        .card:hover .card-title { color: var(--blue); }
+
+        .cover {
+            position: relative;
+            display: block;
+            aspect-ratio: 16 / 9;
+            border-radius: 12px;
+            background:
+                radial-gradient(circle at 26% 18%, hsla(var(--h), 92%, 78%, 0.95) 0, transparent 58%),
+                linear-gradient(140deg, hsla(var(--h), 82%, 62%, 1), hsla(calc(var(--h) + 42), 76%, 52%, 1));
+            transition: transform 0.16s ease, box-shadow 0.16s ease;
+            overflow: hidden;
+        }
+
+        .cover::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.14) 0 2px, transparent 2px 16px);
+            opacity: 0.5;
+        }
+
+        .cover .dur {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            z-index: 1;
+            padding: 1px 6px;
+            border-radius: 6px;
+            background: rgba(12, 18, 30, 0.72);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .cover .badge {
+            position: absolute;
+            left: 8px;
+            top: 8px;
+            z-index: 1;
+            padding: 1px 7px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #b7791f;
+            font-size: 10.5px;
+            font-weight: 700;
+        }
+
+        .cover .play {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: grid;
+            place-items: center;
+            color: #fff;
+            font-size: 26px;
+            text-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
+            opacity: 0;
+            transition: opacity 0.16s ease;
+        }
+
+        .card:hover .cover .play { opacity: 1; }
+
+        .card-title {
+            display: block;
+            margin-top: 8px;
+            font-size: 13.5px;
+            font-weight: 600;
+            line-height: 1.5;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .card-meta {
+            display: block;
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .empty {
+            padding: 26px 10px;
+            color: var(--muted);
+            font-size: 13px;
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        .panel-foot {
+            margin-top: 8px;
+            padding: 10px 0 12px;
+            border-top: 1px solid var(--line);
+            display: flex;
+            justify-content: flex-end;
+            color: #b3bccb;
+            font-size: 11.5px;
+            letter-spacing: 0.02em;
+        }
+
+        /* ───────── 投稿 ───────── */
+
+        .upload { padding: 16px 16px 18px; }
+
+        .upload h2 { margin: 0 0 12px; font-size: 16px; }
+
+        .upload-drop {
+            width: 100%;
+            padding: 18px 12px;
+            border: 1px dashed #c6d3ee;
+            border-radius: 14px;
+            background: #f8faff;
+            color: var(--blue);
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .upload-drop:hover { border-color: var(--blue); background: var(--blue-soft); }
+        .upload-drop.has-file { color: var(--ink); border-style: solid; border-color: #cfe3d6; background: #f4fbf7; }
+        .upload-drop small { display: block; margin-top: 6px; color: var(--muted); font-size: 11.5px; font-weight: 500; }
+
+        .field { margin-top: 13px; }
+
+        .field label {
+            display: block;
+            margin-bottom: 5px;
+            color: #4a5a75;
+            font-size: 12.5px;
+            font-weight: 600;
+        }
+
+        .field input[type="text"],
+        .field textarea,
+        .field select {
+            width: 100%;
+            padding: 9px 11px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fbfcfe;
+            outline: none;
+            font-size: 13.5px;
+        }
+
+        .field textarea { min-height: 78px; resize: vertical; line-height: 1.6; }
+
+        .field input:focus,
+        .field textarea:focus,
+        .field select:focus {
+            border-color: #b9c8f5;
+            background: #fff;
+        }
+
+        .field .row-inline { display: flex; gap: 14px; align-items: center; }
+        .field .row-inline label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 500; }
+        .field .count { float: right; color: #a9b3c3; font-size: 11.5px; font-weight: 500; }
+
+        .upload-actions {
+            display: flex;
+            gap: 9px;
+            margin-top: 16px;
+        }
+
+        .upload-actions .primary-btn { flex: 1; padding: 10px 16px; }
+        .upload-actions .ghost-btn {
+            padding: 10px 16px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 13.5px;
+        }
+
+        .upload-actions .ghost-btn:hover { color: var(--blue); border-color: #b9c8f5; }
+
+        /* ───────── 列表 / 通知 / 播放器 ───────── */
+
+        .list-panel { margin-top: 16px; padding: 16px 18px 18px; }
+
+        .list-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .list-head h2 { margin: 0; font-size: 16px; }
+        .list-head .close {
+            margin-left: auto;
+            padding: 5px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+        .pop {
+            position: fixed;
+            z-index: 60;
+            width: min(calc(100vw - 32px), 340px);
+            padding: 16px 16px 14px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 24px 60px rgba(23, 32, 51, 0.18);
+        }
+
+        .pop h3 { margin: 0 0 10px; font-size: 15px; }
+
+        .notify-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 0;
+            border-top: 1px solid var(--line);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .notify-row:first-of-type { border-top: 0; }
+        .notify-row span { flex: 1; }
+        .notify-row input { width: 16px; height: 16px; accent-color: var(--blue); }
+
+        .pop .pop-note { margin: 8px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.7; }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            z-index: 70;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            padding-top: calc(20px + env(safe-area-inset-top, 0px));
+            padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+            background: rgba(15, 23, 42, 0.55);
+            overflow-y: auto;
+        }
+
+        .player {
+            width: min(100%, 860px);
+            border-radius: 18px;
+            background: #121826;
+            color: #eef2f8;
+            overflow: hidden;
+            box-shadow: 0 40px 90px rgba(0, 0, 0, 0.45);
+        }
+
+        .stage {
+            position: relative;
+            aspect-ratio: 16 / 9;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(circle at 26% 18%, hsla(var(--h, 210), 88%, 62%, 0.82) 0, transparent 60%),
+                radial-gradient(circle at 82% 88%, hsla(calc(var(--h, 210) + 40), 76%, 52%, 0.5) 0, transparent 52%),
+                linear-gradient(140deg, hsl(var(--h, 210), 46%, 22%), #0e1420 78%);
+            text-align: center;
+            padding: 18px;
+        }
+
+        .stage-title { margin: 0 0 6px; font-size: 19px; }
+        .stage-up { margin: 0; color: #a8b3c6; font-size: 12.5px; }
+
+        .stage-play {
+            position: absolute;
+            right: 16px;
+            bottom: 14px;
+            width: 46px;
+            height: 46px;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.16);
+            color: #fff;
+            font-size: 18px;
+            backdrop-filter: blur(6px);
+        }
+
+        .stage-play:hover { background: rgba(255, 255, 255, 0.28); }
+
+        .player-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 12px 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .player-bar input[type="range"] {
+            flex: 1;
+            min-width: 120px;
+            accent-color: #6c8cff;
+        }
+
+        .player-bar .time {
+            color: #a8b3c6;
+            font-size: 12px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .player-bar button {
+            padding: 6px 11px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #e6ecf7;
+            font-size: 12.5px;
+            white-space: nowrap;
+        }
+
+        .player-bar button:hover { background: rgba(255, 255, 255, 0.16); }
+        .player-bar button.on { border-color: #7f9bff; background: rgba(127, 155, 255, 0.24); color: #fff; }
+        .player-bar .close { margin-left: auto; }
+
+        .player-note {
+            margin: 0;
+            padding: 0 14px 12px;
+            color: #7d8798;
+            font-size: 11.5px;
+            line-height: 1.7;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 34px;
+            z-index: 90;
+            transform: translate(-50%, 20px);
+            max-width: min(calc(100vw - 40px), 520px);
+            padding: 11px 18px;
+            border-radius: 12px;
+            background: rgba(23, 32, 51, 0.94);
+            color: #fff;
+            font-size: 13.5px;
+            line-height: 1.5;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+        .site-foot {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 18px;
+            justify-content: space-between;
+            margin-top: 22px;
+            padding: 14px 4px 0;
+            color: #9aa5b6;
+            font-size: 12px;
+        }
+
+        .site-foot b { color: #6f7c90; letter-spacing: 0.02em; }
+
+        /* ───────── 响应式 ───────── */
+
+        @media (max-width: 1080px) {
+            .workspace { grid-template-columns: minmax(0, 1fr); }
+            .upload { order: 2; }
+            .hero-side { display: none; }
+        }
+
+        @media (max-width: 860px) {
+            .search { flex: 1 1 100%; order: 3; }
+            .topbar { flex-wrap: wrap; }
+            .cats { order: 4; flex: 1 1 100%; }
+            .hero { padding: 16px; }
+            .hero h1 { font-size: 19px; }
+            .hero-mark { width: 44px; height: 44px; font-size: 20px; }
+            .quick { margin-left: 0; }
+        }
+
+        @media (max-width: 560px) {
+            .wrap { padding: 12px 12px 30px; }
+            .cards { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
+            .topbar-actions .version,
+            .topbar-actions .back { display: none; }
+            .hero-main { gap: 12px; }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            input, textarea, select { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="vitxvideo.html" title="Vitx® 视频">
+            <span class="brand-mark">V</span>
+            <span class="brand-text">
+                <strong>Vitx<sup>®</sup></strong>
+                <small>Vitx Video</small>
+            </span>
+        </a>
+
+        <nav class="cats" id="cats" aria-label="分区"></nav>
+
+        <form class="search" id="search-form" role="search">
+            <input id="search-input" type="search" placeholder="搜索视频、UP 主或视频 ID" autocomplete="off" aria-label="搜索视频">
+            <button type="submit" title="搜索" aria-label="搜索">🔍</button>
+        </form>
+
+        <div class="topbar-actions">
+            <button class="icon-btn" type="button" id="btn-likes" title="我点赞过的">👍</button>
+            <button class="icon-btn" type="button" id="btn-favs" title="我的收藏">★</button>
+            <button class="icon-btn" type="button" id="btn-history" title="观看历史">🕘</button>
+            <button class="icon-btn" type="button" id="btn-notify" title="通知设置">
+                🔔<span class="dot" id="notify-dot" hidden></span>
+            </button>
+            <button class="primary-btn" type="button" id="btn-upload">投稿</button>
+            <span class="version">v1.6.0</span>
+            <a class="back" href="manager.html">← 返回账户</a>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <section class="hero" id="hero">
+            <div class="hero-main">
+                <div class="hero-mark">V</div>
+                <div>
+                    <p class="eyebrow">Vitual XRing 新功能预告</p>
+                    <h1>你想要的一切，影视和视频，都在这里</h1>
+                    <p class="hero-sub">Vitx® 视频上线：多栏查找、按分区浏览、个性化推荐、一键投稿。视频、合集与 UP 主都会出现在同一条时间线上。</p>
+                    <div class="versions">
+                        <span class="chip">1.5.0</span>
+                        <span class="arrow">→</span>
+                        <span class="chip hot">1.6.0</span>
+                        <button class="hero-dismiss" type="button" id="hero-dismiss">知道了</button>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-side" aria-hidden="true">你的一切都在这里</div>
+        </section>
+
+        <div class="workspace">
+            <section class="panel browse">
+                <div class="panel-head">
+                    <h2>多栏查找</h2>
+                    <span class="hint" id="browse-hint">全部分区</span>
+                    <div class="quick">
+                        <button type="button" data-quick="like">👍 点赞</button>
+                        <button type="button" data-quick="coin">🪙 投币</button>
+                        <button type="button" data-quick="fav">★ 收藏</button>
+                        <button type="button" data-quick="history">🕘 历史</button>
+                        <button type="button" data-quick="upload">⬆ 投稿</button>
+                    </div>
+                </div>
+
+                <section class="row" id="row-search" hidden>
+                    <div class="row-head">
+                        <h3 id="search-title">搜索结果</h3>
+                        <span class="row-count" id="search-count"></span>
+                        <button class="row-action" type="button" id="search-clear">清除搜索</button>
+                    </div>
+                    <div class="cards" id="cards-search"></div>
+                </section>
+
+                <section class="row" id="row-hot">
+                    <div class="row-head">
+                        <h3>今日最热<span class="tag">大数据</span></h3>
+                        <span class="row-count" id="hot-count"></span>
+                        <button class="row-action" type="button" id="hot-shuffle">换一批</button>
+                    </div>
+                    <div class="cards" id="cards-hot"></div>
+                </section>
+
+                <section class="row" id="row-guess">
+                    <div class="row-head">
+                        <h3>猜你想看<span class="tag big">最新</span></h3>
+                        <span class="row-count" id="guess-count"></span>
+                    </div>
+                    <div class="cards" id="cards-guess"></div>
+                </section>
+
+                <div class="panel-foot"><span>Vitx® · 内容由 Vitual XRing 账户投稿</span></div>
+            </section>
+
+            <aside class="panel upload" id="upload-panel">
+                <h2>投稿</h2>
+                <button class="upload-drop" type="button" id="pick-file">
+                    上传
+                    <small id="pick-hint">点击选择视频文件（mp4 / webm / mov）</small>
+                </button>
+                <input id="file-input" type="file" accept="video/*" hidden>
+
+                <form id="upload-form" novalidate>
+                    <div class="field">
+                        <label for="up-title">标题<span class="count" id="title-count">0 / 60</span></label>
+                        <input id="up-title" type="text" maxlength="60" placeholder="给视频起个标题">
+                    </div>
+                    <div class="field">
+                        <label for="up-desc">简介<span class="count" id="desc-count">0 / 300</span></label>
+                        <textarea id="up-desc" maxlength="300" placeholder="介绍一下内容、看点或创作过程"></textarea>
+                    </div>
+                    <div class="field">
+                        <label for="up-tags">标签</label>
+                        <input id="up-tags" type="text" placeholder="用逗号分隔，最多 5 个">
+                    </div>
+                    <div class="field">
+                        <label>原创</label>
+                        <div class="row-inline">
+                            <label><input type="radio" name="original" value="yes" checked> 是</label>
+                            <label><input type="radio" name="original" value="no"> 否</label>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="up-cat">分区</label>
+                        <select id="up-cat"></select>
+                    </div>
+                    <div class="upload-actions">
+                        <button class="primary-btn" type="submit">发布</button>
+                        <button class="ghost-btn" type="button" id="upload-reset">清空</button>
+                    </div>
+                </form>
+            </aside>
+        </div>
+
+        <section class="panel list-panel" id="list-panel" hidden>
+            <div class="list-head">
+                <h2 id="list-title">我的收藏</h2>
+                <span class="row-count" id="list-count"></span>
+                <button class="close" type="button" id="list-close">收起</button>
+            </div>
+            <div class="cards" id="list-cards"></div>
+        </section>
+
+        <footer class="site-foot">
+            <span><b>Contributors</b>：Caldson</span>
+            <span>Copyright © 2026 Vitual XRing · Vitx® 视频</span>
+        </footer>
+    </main>
+
+    <div class="pop" id="notify-panel" hidden>
+        <h3>通知</h3>
+        <label class="notify-row">
+            <span>追的视频 / 合集更新</span>
+            <input type="checkbox" id="notify-follow" checked>
+        </label>
+        <label class="notify-row">
+            <span>点赞、评论 / 你的视频 / 合集</span>
+            <input type="checkbox" id="notify-interact" checked>
+        </label>
+        <p class="pop-note">勾选「有通知」后，对应事件会在顶部铃铛上提示；设置只保存在本机。</p>
+    </div>
+
+    <div class="modal" id="player-modal" hidden>
+        <div class="player" role="dialog" aria-modal="true" aria-labelledby="stage-title">
+            <div class="stage" id="stage">
+                <div>
+                    <p class="stage-up" id="stage-id"></p>
+                    <h2 class="stage-title" id="stage-title"></h2>
+                    <p class="stage-up" id="stage-up"></p>
+                </div>
+                <button class="stage-play" type="button" id="stage-toggle" title="播放 / 暂停">▶</button>
+            </div>
+            <div class="player-bar">
+                <button type="button" id="bar-toggle">播放</button>
+                <input type="range" id="player-seek" min="0" max="1000" value="0" aria-label="播放进度">
+                <span class="time" id="player-time">00:00 / 00:00</span>
+                <button type="button" data-act="like">👍 <span id="cnt-like">0</span></button>
+                <button type="button" data-act="coin">🪙 <span id="cnt-coin">0</span></button>
+                <button type="button" data-act="fav">★ <span id="cnt-fav">0</span></button>
+                <button type="button" class="close" id="player-close">关闭</button>
+            </div>
+            <p class="player-note">示例播放器：没有真实视频源，播放按视频时长推进；点赞 / 投币 / 收藏会保存在本机。</p>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        (function () {
+            "use strict";
+
+            /* ───────── 数据 ───────── */
+
+            const CATS = ["首页", "游戏", "娱乐", "音乐", "VLOG", "生活", "饮食", "学习"];
+
+            const VIDEOS = [
+                { id: "vt-0001", title: "Welcome", up: "Caldson", cat: "生活", views: 10000, dur: "01:31", h: 214, tags: ["欢迎", "开箱"] },
+                { id: "vt-0002", title: "Hello", up: "Caldson", cat: "生活", views: 10000, dur: "00:29", h: 286, tags: ["短片"] },
+                { id: "vt-0003", title: "Phigros 第 3 章全 S 评级", up: "节奏手", cat: "游戏", views: 12000, dur: "21:48", h: 268, tags: ["音游", "手元"] },
+                { id: "vt-0004", title: "MAIMAI 13+ 初见", up: "节奏手", cat: "游戏", views: 34000, dur: "22:30", h: 342, tags: ["音游", "街机"] },
+                { id: "vt-0005", title: "五分钟讲完一个故事", up: "阿短", cat: "娱乐", views: 86000, dur: "05:12", h: 28, tags: ["故事"] },
+                { id: "vt-0006", title: "整活：用 Scratch 做播放器", up: "阿短", cat: "娱乐", views: 47000, dur: "08:40", h: 12, tags: ["整活", "编程"] },
+                { id: "vt-0007", title: "峡谷钢琴曲串烧", up: "琴键", cat: "音乐", views: 23000, dur: "12:06", h: 196, tags: ["钢琴", "串烧"] },
+                { id: "vt-0008", title: "凌晨三点的自习室 VLOG", up: "夜猫", cat: "VLOG", views: 15000, dur: "09:18", h: 246, tags: ["自习", "日常"] },
+                { id: "vt-0009", title: "把书桌收拾干净的 30 分钟", up: "夜猫", cat: "生活", views: 6200, dur: "14:02", h: 152, tags: ["整理", "生活"] },
+                { id: "vt-0010", title: "十分钟做一顿晚饭", up: "小锅", cat: "饮食", views: 51000, dur: "10:24", h: 22, tags: ["家常菜", "快手"] },
+                { id: "vt-0011", title: "番茄炒蛋的三个误区", up: "小锅", cat: "饮食", views: 78000, dur: "06:33", h: 8, tags: ["美食", "教程"] },
+                { id: "vt-0012", title: "高中信息学竞赛入门路线", up: "Caldson", cat: "学习", views: 19000, dur: "17:45", h: 224, tags: ["竞赛", "规划"] }
+            ];
+
+            /* ───────── 工具 ───────── */
+
+            const el = (id) => document.getElementById(id);
+
+            function esc(value) {
+                return String(value == null ? "" : value)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+            }
+
+            function readStore(key, fallback) {
+                try {
+                    const raw = localStorage.getItem(`vitx:${key}`);
+                    return raw ? JSON.parse(raw) : fallback;
+                } catch (error) {
+                    return fallback;
+                }
+            }
+
+            function writeStore(key, value) {
+                try {
+                    localStorage.setItem(`vitx:${key}`, JSON.stringify(value));
+                } catch (error) {
+                    /* 隐私模式忽略 */
+                }
+            }
+
+            function formatCount(value) {
+                const number = Number(value) || 0;
+                if (number >= 10000) {
+                    return `${(number / 10000).toFixed(number % 10000 === 0 ? 0 : 1)} 万`;
+                }
+                return String(Math.round(number));
+            }
+
+            function toSeconds(text) {
+                const parts = String(text || "").split(":").map((item) => Number(item) || 0);
+                return parts.length === 2 ? parts[0] * 60 + parts[1] : 0;
+            }
+
+            function toClock(seconds) {
+                const total = Math.max(0, Math.round(seconds));
+                const minutes = Math.floor(total / 60);
+                const rest = total % 60;
+                return `${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+            }
+
+            let toastTimer = null;
+            function toast(message) {
+                const node = el("toast");
+                node.textContent = message;
+                node.classList.add("show");
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => node.classList.remove("show"), 2800);
+            }
+
+            /* ───────── 状态 ───────── */
+
+            const state = {
+                cat: "首页",
+                query: "",
+                likes: readStore("likes", []),
+                coins: readStore("coins", []),
+                favs: readStore("favs", []),
+                history: readStore("history", []),
+                pending: readStore("pending", []),
+                notifyFollow: readStore("notifyFollow", true),
+                notifyInteract: readStore("notifyInteract", true),
+                playing: null,
+                pos: 0,
+                total: 0,
+                timer: null,
+                hotOffset: 0,
+                listKind: ""
+            };
+
+            function allVideos() {
+                return [...state.pending, ...VIDEOS];
+            }
+
+            function findVideo(id) {
+                return allVideos().find((item) => item.id === id) || null;
+            }
+
+            function byCategory(list) {
+                if (state.cat === "首页") {
+                    return list;
+                }
+                return list.filter((item) => item.cat === state.cat);
+            }
+
+            /* ───────── 卡片 ───────── */
+
+            function cardHtml(video) {
+                const liked = state.likes.includes(video.id);
+                return `<button class="card" type="button" data-play="${esc(video.id)}" title="${esc(video.title)}">
+                    <span class="cover" style="--h:${Number(video.h) || 210}">
+                        ${video.review ? '<span class="badge">审核中</span>' : (liked ? '<span class="badge">已点赞</span>' : "")}
+                        <span class="play">▶</span>
+                        <span class="dur">${esc(video.dur)}</span>
+                    </span>
+                    <span class="card-title">${esc(video.title)}</span>
+                    <span class="card-meta">▶ ${formatCount(video.views)} · ${esc(video.cat)} · ${esc(video.up)}</span>
+                </button>`;
+            }
+
+            function renderCards(container, list, emptyText) {
+                if (!list.length) {
+                    container.innerHTML = `<div class="empty">${esc(emptyText || "这里还没有内容")}</div>`;
+                    return;
+                }
+                container.innerHTML = list.map(cardHtml).join("");
+            }
+
+            /* ───────── 首页渲染 ───────── */
+
+            function renderCats() {
+                el("cats").innerHTML = CATS.map((name) => `<button type="button" data-cat="${esc(name)}" class="${name === state.cat ? "active" : ""}">${esc(name)}</button>`).join("");
+            }
+
+            function hotList() {
+                const list = byCategory(allVideos());
+                const pending = list.filter((item) => item.review);
+                const pool = list.filter((item) => !item.review)
+                    .sort((left, right) => (right.views || 0) - (left.views || 0));
+                const start = pool.length ? state.hotOffset % pool.length : 0;
+                const rotated = [...pool.slice(start), ...pool.slice(0, start)];
+                return [...pending, ...rotated].slice(0, 6);
+            }
+
+            function guessList() {
+                const pool = byCategory(allVideos()).filter((item) => !item.review);
+                const picked = [];
+                for (let index = 0; index < pool.length && picked.length < 6; index += 1) {
+                    const offset = (index * 5 + 3) % pool.length;
+                    const video = pool[offset];
+                    if (video && !picked.includes(video)) {
+                        picked.push(video);
+                    }
+                }
+                return picked;
+            }
+
+            function renderHome() {
+                const hot = hotList();
+                const guess = guessList();
+                renderCards(el("cards-hot"), hot, "这个分区还没有热门视频");
+                renderCards(el("cards-guess"), guess, "先看几个视频，推荐就会聪明起来");
+                el("hot-count").textContent = hot.length ? `${hot.length} 个` : "";
+                el("guess-count").textContent = guess.length ? `${guess.length} 个` : "";
+                el("browse-hint").textContent = state.cat === "首页" ? "全部分区" : `${state.cat}分区`;
+            }
+
+            function renderSearch() {
+                const row = el("row-search");
+                const query = state.query.trim();
+                if (!query) {
+                    row.hidden = true;
+                    return;
+                }
+                row.hidden = false;
+                const keyword = query.toLowerCase();
+                const list = allVideos().filter((video) => (
+                    String(video.title).toLowerCase().includes(keyword)
+                    || String(video.up).toLowerCase().includes(keyword)
+                    || String(video.id).toLowerCase().includes(keyword)
+                    || (video.tags || []).some((tag) => String(tag).toLowerCase().includes(keyword))
+                ));
+                el("search-title").textContent = `搜索「${query}」`;
+                el("search-count").textContent = `${list.length} 个结果`;
+                renderCards(el("cards-search"), list, "没有找到相关视频，试试别的关键词或视频 ID");
+            }
+
+            function renderAll() {
+                renderCats();
+                renderHome();
+                renderSearch();
+                renderQuickState();
+            }
+
+            /* ───────── 工具栏 / 列表 ───────── */
+
+            function renderQuickState() {
+                document.querySelectorAll("[data-quick]").forEach((button) => {
+                    const key = button.dataset.quick;
+                    const map = { like: "likes", coin: "coins", fav: "favs", history: "history" };
+                    if (!map[key]) {
+                        return;
+                    }
+                    button.classList.toggle("on", state[map[key]].length > 0);
+                });
+                el("btn-likes").classList.toggle("on", state.likes.length > 0);
+                el("btn-favs").classList.toggle("on", state.favs.length > 0);
+                el("btn-history").classList.toggle("on", state.history.length > 0);
+            }
+
+            const LIST_TITLES = {
+                like: "我点赞过的",
+                coin: "我投过币的",
+                fav: "我的收藏",
+                history: "观看历史"
+            };
+
+            function openList(kind) {
+                const ids = kind === "like" ? state.likes
+                    : kind === "coin" ? state.coins
+                    : kind === "fav" ? state.favs
+                    : state.history;
+                const list = ids.map(findVideo).filter(Boolean);
+                state.listKind = kind;
+                el("list-panel").hidden = false;
+                el("list-title").textContent = LIST_TITLES[kind] || "列表";
+                el("list-count").textContent = `${list.length} 个`;
+                renderCards(el("list-cards"), list, `${LIST_TITLES[kind] || "列表"}还是空的，去首页挑几个视频吧`);
+                el("list-panel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
+
+            /* ───────── 播放器 ───────── */
+
+            function stopTimer() {
+                if (state.timer) {
+                    clearInterval(state.timer);
+                    state.timer = null;
+                }
+            }
+
+            function renderPlayerTime() {
+                el("player-time").textContent = `${toClock(state.pos)} / ${toClock(state.total)}`;
+                const ratio = state.total ? state.pos / state.total : 0;
+                el("player-seek").value = String(Math.round(ratio * 1000));
+            }
+
+            function setPlayingUI(playing) {
+                el("stage-toggle").textContent = playing ? "⏸" : "▶";
+                el("bar-toggle").textContent = playing ? "暂停" : "播放";
+            }
+
+            function stopPlayback() {
+                stopTimer();
+                setPlayingUI(false);
+            }
+
+            function play() {
+                if (!state.playing) {
+                    return;
+                }
+                if (state.pos >= state.total) {
+                    state.pos = 0;
+                    renderPlayerTime();
+                }
+                setPlayingUI(true);
+                stopTimer();
+                state.timer = setInterval(() => {
+                    state.pos += 1;
+                    if (state.pos >= state.total) {
+                        state.pos = state.total;
+                        renderPlayerTime();
+                        stopPlayback();
+                        toast("播放结束");
+                        return;
+                    }
+                    renderPlayerTime();
+                }, 1000);
+            }
+
+            function togglePlay() {
+                if (!state.playing) {
+                    return;
+                }
+                if (state.timer) {
+                    stopTimer();
+                    setPlayingUI(false);
+                } else {
+                    play();
+                }
+            }
+
+            function renderPlayerActions(video) {
+                el("cnt-like").textContent = String(formatCount((video.views || 0) / 12 + (state.likes.includes(video.id) ? 1 : 0)));
+                el("cnt-coin").textContent = String(formatCount((video.views || 0) / 40 + (state.coins.includes(video.id) ? 1 : 0)));
+                el("cnt-fav").textContent = String(formatCount((video.views || 0) / 25 + (state.favs.includes(video.id) ? 1 : 0)));
+                document.querySelectorAll(".player-bar [data-act]").forEach((button) => {
+                    const act = button.dataset.act;
+                    const on = act === "like" ? state.likes.includes(video.id)
+                        : act === "coin" ? state.coins.includes(video.id)
+                        : state.favs.includes(video.id);
+                    button.classList.toggle("on", on);
+                });
+            }
+
+            function openPlayer(id) {
+                const video = findVideo(id);
+                if (!video) {
+                    toast("视频不存在或已下架");
+                    return;
+                }
+                if (video.review) {
+                    toast("这个视频还在审核中，审核通过后才能播放");
+                    return;
+                }
+                state.playing = video;
+                state.pos = 0;
+                state.total = toSeconds(video.dur);
+                el("stage").style.setProperty("--h", String(video.h || 210));
+                el("stage-id").textContent = `${video.id} · ${video.cat}${video.tags && video.tags.length ? ` · ${video.tags.join(" / ")}` : ""}`;
+                el("stage-title").textContent = video.title;
+                el("stage-up").textContent = `UP 主 ${video.up} · ${formatCount(video.views)} 次播放`;
+                el("player-modal").hidden = false;
+                document.body.style.overflow = "hidden";
+                renderPlayerTime();
+                renderPlayerActions(video);
+                stopPlayback();
+                play();
+
+                state.history = [id, ...state.history.filter((item) => item !== id)].slice(0, 30);
+                writeStore("history", state.history);
+                renderQuickState();
+            }
+
+            function closePlayer() {
+                stopPlayback();
+                state.playing = null;
+                el("player-modal").hidden = true;
+                document.body.style.overflow = "";
+            }
+
+            function toggleMark(kind) {
+                const video = state.playing;
+                if (!video) {
+                    return;
+                }
+                const key = kind === "like" ? "likes" : kind === "coin" ? "coins" : "favs";
+                const list = state[key];
+                const index = list.indexOf(video.id);
+                if (index >= 0) {
+                    list.splice(index, 1);
+                    toast(kind === "like" ? "已取消点赞" : kind === "coin" ? "已收回硬币" : "已取消收藏");
+                } else {
+                    list.unshift(video.id);
+                    toast(kind === "like" ? "点赞成功" : kind === "coin" ? "投币成功（示例不会扣 VTX）" : "已加入收藏");
+                }
+                writeStore(key, list);
+                renderPlayerActions(video);
+                renderHome();
+                renderSearch();
+                renderQuickState();
+                if (!el("list-panel").hidden && state.listKind) {
+                    openList(state.listKind);
+                }
+            }
+
+            /* ───────── 投稿 ───────── */
+
+            let selectedFile = null;
+
+            function fillCategorySelect() {
+                el("up-cat").innerHTML = CATS.filter((name) => name !== "首页")
+                    .map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+            }
+
+            function updateCounts() {
+                el("title-count").textContent = `${el("up-title").value.length} / 60`;
+                el("desc-count").textContent = `${el("up-desc").value.length} / 300`;
+            }
+
+            function resetUpload() {
+                selectedFile = null;
+                el("file-input").value = "";
+                el("pick-file").classList.remove("has-file");
+                el("pick-file").innerHTML = `上传<small id="pick-hint">点击选择视频文件（mp4 / webm / mov）</small>`;
+                el("up-title").value = "";
+                el("up-desc").value = "";
+                el("up-tags").value = "";
+                document.querySelector('input[name="original"][value="yes"]').checked = true;
+                updateCounts();
+            }
+
+            function submitUpload() {
+                const title = el("up-title").value.trim();
+                const desc = el("up-desc").value.trim();
+                const tags = el("up-tags").value.split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean).slice(0, 5);
+                const cat = el("up-cat").value || "生活";
+                const original = document.querySelector('input[name="original"]:checked');
+
+                if (!selectedFile) {
+                    toast("请先点「上传」选择视频文件");
+                    return;
+                }
+                if (title.length < 2) {
+                    toast("标题至少 2 个字");
+                    el("up-title").focus();
+                    return;
+                }
+
+                const video = {
+                    id: `vt-p${String(Date.now()).slice(-6)}`,
+                    title,
+                    up: "我",
+                    cat,
+                    views: 0,
+                    dur: "00:00",
+                    h: 200 + (title.length * 17) % 120,
+                    tags,
+                    desc,
+                    original: original && original.value === "yes",
+                    review: true
+                };
+                state.pending = [video, ...state.pending].slice(0, 20);
+                writeStore("pending", state.pending);
+                resetUpload();
+                state.cat = "首页";
+                renderAll();
+                toast("发布成功，请等待审核通过");
+                el("row-hot").scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
+
+            /* ───────── 通知 ───────── */
+
+            function renderNotify() {
+                el("notify-follow").checked = state.notifyFollow;
+                el("notify-interact").checked = state.notifyInteract;
+                el("notify-dot").hidden = !(state.notifyFollow || state.notifyInteract);
+            }
+
+            function saveNotify() {
+                state.notifyFollow = el("notify-follow").checked;
+                state.notifyInteract = el("notify-interact").checked;
+                writeStore("notifyFollow", state.notifyFollow);
+                writeStore("notifyInteract", state.notifyInteract);
+                renderNotify();
+                toast(state.notifyFollow || state.notifyInteract ? "通知设置已保存" : "已关闭全部通知");
+            }
+
+            function toggleNotifyPanel(force) {
+                const panel = el("notify-panel");
+                const show = typeof force === "boolean" ? force : panel.hidden;
+                panel.hidden = !show;
+                if (!show) {
+                    return;
+                }
+                const rect = el("btn-notify").getBoundingClientRect();
+                const width = Math.min(window.innerWidth - 32, 340);
+                panel.style.left = `${Math.max(16, Math.min(rect.right - width, window.innerWidth - width - 16))}px`;
+                panel.style.top = `${rect.bottom + 8}px`;
+            }
+
+            /* ───────── 事件绑定 ───────── */
+
+            function bind() {
+                el("cats").addEventListener("click", (event) => {
+                    const button = event.target.closest("[data-cat]");
+                    if (!button) {
+                        return;
+                    }
+                    state.cat = button.dataset.cat;
+                    state.hotOffset = 0;
+                    renderAll();
+                });
+
+                el("search-form").addEventListener("submit", (event) => {
+                    event.preventDefault();
+                    state.query = el("search-input").value;
+                    renderSearch();
+                    if (state.query.trim()) {
+                        el("row-search").scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    }
+                });
+
+                el("search-input").addEventListener("input", () => {
+                    state.query = el("search-input").value;
+                    renderSearch();
+                });
+
+                el("search-clear").addEventListener("click", () => {
+                    state.query = "";
+                    el("search-input").value = "";
+                    renderSearch();
+                });
+
+                el("hot-shuffle").addEventListener("click", () => {
+                    state.hotOffset += 1;
+                    renderHome();
+                    toast("换了一批热门视频");
+                });
+
+                document.addEventListener("click", (event) => {
+                    const play = event.target.closest("[data-play]");
+                    if (play) {
+                        openPlayer(play.dataset.play);
+                        return;
+                    }
+                    if (!event.target.closest("#notify-panel") && !event.target.closest("#btn-notify")) {
+                        el("notify-panel").hidden = true;
+                    }
+                });
+
+                document.querySelectorAll("[data-quick]").forEach((button) => {
+                    button.addEventListener("click", () => {
+                        const kind = button.dataset.quick;
+                        if (kind === "upload") {
+                            el("upload-panel").scrollIntoView({ behavior: "smooth", block: "center" });
+                            el("up-title").focus();
+                            return;
+                        }
+                        openList(kind);
+                    });
+                });
+
+                el("btn-likes").addEventListener("click", () => openList("like"));
+                el("btn-favs").addEventListener("click", () => openList("fav"));
+                el("btn-history").addEventListener("click", () => openList("history"));
+                el("list-close").addEventListener("click", () => { el("list-panel").hidden = true; });
+
+                el("btn-notify").addEventListener("click", () => toggleNotifyPanel());
+                el("notify-follow").addEventListener("change", saveNotify);
+                el("notify-interact").addEventListener("change", saveNotify);
+                window.addEventListener("resize", () => { el("notify-panel").hidden = true; });
+
+                el("btn-upload").addEventListener("click", () => {
+                    el("upload-panel").scrollIntoView({ behavior: "smooth", block: "center" });
+                    el("up-title").focus();
+                });
+
+                el("pick-file").addEventListener("click", () => el("file-input").click());
+                el("file-input").addEventListener("change", () => {
+                    const file = el("file-input").files && el("file-input").files[0];
+                    if (!file) {
+                        return;
+                    }
+                    if (file.size > 2 * 1024 * 1024 * 1024) {
+                        toast("文件不能超过 2 GB");
+                        el("file-input").value = "";
+                        return;
+                    }
+                    selectedFile = file;
+                    const size = file.size >= 1024 * 1024
+                        ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
+                        : `${Math.max(1, Math.round(file.size / 1024))} KB`;
+                    el("pick-file").classList.add("has-file");
+                    el("pick-file").innerHTML = `已选择：${esc(file.name)}<small>${size} · 点击可重新选择</small>`;
+                });
+
+                el("upload-form").addEventListener("submit", (event) => {
+                    event.preventDefault();
+                    submitUpload();
+                });
+                el("upload-reset").addEventListener("click", resetUpload);
+                el("up-title").addEventListener("input", updateCounts);
+                el("up-desc").addEventListener("input", updateCounts);
+
+                el("stage-toggle").addEventListener("click", togglePlay);
+                el("bar-toggle").addEventListener("click", togglePlay);
+                el("player-close").addEventListener("click", closePlayer);
+                el("player-modal").addEventListener("click", (event) => {
+                    if (event.target === el("player-modal")) {
+                        closePlayer();
+                    }
+                });
+                el("player-seek").addEventListener("input", () => {
+                    if (!state.playing) {
+                        return;
+                    }
+                    state.pos = Math.round((Number(el("player-seek").value) / 1000) * state.total);
+                    renderPlayerTime();
+                });
+                document.querySelectorAll(".player-bar [data-act]").forEach((button) => {
+                    button.addEventListener("click", () => toggleMark(button.dataset.act));
+                });
+
+                el("hero-dismiss").addEventListener("click", () => {
+                    el("hero").hidden = true;
+                    writeStore("heroDismissed", true);
+                    toast("预告已收起");
+                });
+
+                document.addEventListener("keydown", (event) => {
+                    if (event.key === "Escape") {
+                        if (!el("player-modal").hidden) {
+                            closePlayer();
+                        }
+                        el("notify-panel").hidden = true;
+                    }
+                    if (!el("player-modal").hidden && (event.key === " " || event.code === "Space")) {
+                        const tag = (event.target.tagName || "").toLowerCase();
+                        if (tag === "input" || tag === "textarea" || tag === "select") {
+                            return;
+                        }
+                        event.preventDefault();
+                        togglePlay();
+                    }
+                });
+            }
+
+            /* ───────── 启动 ───────── */
+
+            fillCategorySelect();
+            renderNotify();
+            renderAll();
+            updateCounts();
+            if (readStore("heroDismissed", false)) {
+                el("hero").hidden = true;
+            }
+            bind();
+        })();
+    </script>
+</body>
+</html>
