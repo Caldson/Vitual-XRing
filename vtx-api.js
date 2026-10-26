@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "1.6.1";
+    const API_VERSION = "1.7.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -1047,6 +1047,101 @@
         )
     };
 
+    /* ───────── 1.7.0：Vitx® 视频（服务端存储） ───────── */
+
+    function videoBase() {
+        return chatBase();
+    }
+
+    function videoRequest(path, options = {}) {
+        return apiRequest(`/videos${path}`, options);
+    }
+
+    async function videoUpload(file, meta) {
+        const created = await videoRequest("", { method: "POST", body: meta });
+        const id = created && created.video ? created.video.id : "";
+        if (!id) {
+            throw new Error("服务端没有返回视频 ID");
+        }
+
+        const token = sessionToken();
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        const timer = controller ? setTimeout(() => controller.abort(), 180000) : null;
+        let response;
+
+        try {
+            response = await fetch(`${videoBase()}/videos/${encodeId(id)}/file`, {
+                method: "PUT",
+                headers: {
+                    authorization: `Bearer ${token}`,
+                    "content-type": file.type || "application/octet-stream"
+                },
+                body: file,
+                signal: controller ? controller.signal : undefined
+            });
+        } catch (error) {
+            throw networkError("上传视频失败", error);
+        } finally {
+            if (timer) {
+                clearTimeout(timer);
+            }
+        }
+
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (error) {
+            data = null;
+        }
+
+        if (!response.ok) {
+            const error = new Error((data && data.message) || `上传失败（HTTP ${response.status}）`);
+            error.status = response.status;
+            error.code = data && data.error;
+            throw error;
+        }
+
+        return data.video;
+    }
+
+    function videoFileUrl(id) {
+        const token = sessionToken();
+        const query = token ? `?token=${encodeURIComponent(token)}` : "";
+        return `${videoBase()}/videos/${encodeId(id)}/file${query}`;
+    }
+
+    const video = {
+        status: () => videoRequest("/status", { auth: false }),
+        list: (options = {}) => {
+            const params = new URLSearchParams();
+            if (options.cat) {
+                params.set("cat", options.cat);
+            }
+            if (options.q) {
+                params.set("q", options.q);
+            }
+            const query = params.toString();
+            return videoRequest(query ? `?${query}` : "");
+        },
+        get: (id) => videoRequest(`/${encodeId(id)}`),
+        upload: videoUpload,
+        fileUrl: videoFileUrl,
+        view: (id) => videoRequest(`/${encodeId(id)}/view`, { method: "POST" }),
+        like: (id) => videoRequest(`/${encodeId(id)}/like`, { method: "POST" }),
+        remove: (id) => videoRequest(`/${encodeId(id)}`, { method: "DELETE" }),
+        approve: (id) => videoRequest(`/${encodeId(id)}/approve`, { method: "POST" }),
+        reject: (id) => videoRequest(`/${encodeId(id)}/reject`, { method: "POST" }),
+        comment: (id, text) => videoRequest(`/${encodeId(id)}/comments`, { method: "POST", body: { text } }),
+        likeComment: (id, commentId) => videoRequest(
+            `/${encodeId(id)}/comments/${encodeId(commentId)}/like`,
+            { method: "POST" }
+        ),
+        removeComment: (id, commentId) => videoRequest(
+            `/${encodeId(id)}/comments/${encodeId(commentId)}`,
+            { method: "DELETE" }
+        )
+    };
+
     window.VTXApi = {
         version: API_VERSION,
         request: apiRequest,
@@ -1079,6 +1174,7 @@
         chat,
         chatSocketUrl: chatSocketUrl,
         chatMediaUrl: chatMediaUrl,
+        video,
         commit,
         readAll,
         loadConfig,

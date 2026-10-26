@@ -1,4 +1,4 @@
-﻿/**
+﻿/*
  * Vitual XRing 账户 API
  *
  * 8.0 起账户数据默认存放在 Workers KV（ACCOUNTS_KV）里，不再依赖公开的 account.json：
@@ -55,7 +55,7 @@
  *   PASSWORD_VIEW_KEY           （可选，1.4.0）给管理员看的密码副本加密密钥；不配就不存副本
  */
 
-const VERSION = "1.6.1";
+const VERSION = "1.7.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -68,7 +68,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.6.1";
+const CHAT_VERSION = "1.7.0";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 /* 1.4.0：聊天室全部去掉按 IP 限流（发言 / 正在输入 / 上传媒体），删除了 CHAT_*_WINDOW_MS / CHAT_*_MAX_ATTEMPTS */
@@ -6660,6 +6660,748 @@ async function handleChatSocket(request, env, cors) {
     return await stub.fetch("https://chat-hub/ws", { headers });
 }
 
+/* ───────── 1.7.0：Vitx® 视频（站点级存储，KV） ─────────
+   投稿的视频、元信息与评论都存在 ACCOUNTS_KV 里，任何设备打开站点都能看到：
+     video:index            → [视频 id, ...]（新的在前）
+     video:meta:<id>        → 元信息（JSON）
+     video:file:<id>        → 视频文件（ArrayBuffer，KV 单值上限 25 MB，这里限制 20 MB）
+     video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
+   状态：draft（刚建、还没传文件）→ pending（等审核）→ published / rejected。 */
+
+const VIDEO_VERSION = "1.7.0";
+const VIDEO_MAX_BYTES = 20 * 1024 * 1024;
+const VIDEO_TITLE_MAX = 60;
+const VIDEO_DESC_MAX = 300;
+const VIDEO_TAG_MAX = 5;
+const VIDEO_TAG_LEN = 16;
+const VIDEO_LIST_LIMIT = 60;
+const VIDEO_INDEX_LIMIT = 500;
+const VIDEO_COMMENT_MAX = 300;
+const VIDEO_COMMENT_KEEP = 300;
+const VIDEO_CATEGORIES = new Set(["游戏", "娱乐", "音乐", "VLOG", "生活", "饮食", "学习"]);
+const VIDEO_DECLARATIONS = new Set(["ai", "marketing", "fiction", "repost", "sponsor", "warning"]);
+const VIDEO_INDEX_KEY = "video:index";
+const VIDEO_META_PREFIX = "video:meta:";
+const VIDEO_FILE_PREFIX = "video:file:";
+const VIDEO_COMMENT_PREFIX = "video:comments:";
+const VIDEO_SEEDED_KEY = "video:seeded";
+const VIDEO_ID_PATTERN = /^v_[A-Za-z0-9_-]{4,32}$/;
+
+function videoMetaKey(id) {
+    return `${VIDEO_META_PREFIX}${id}`;
+}
+
+function videoFileKey(id) {
+    return `${VIDEO_FILE_PREFIX}${id}`;
+}
+
+function videoCommentKey(id) {
+    return `${VIDEO_COMMENT_PREFIX}${id}`;
+}
+
+async function readVideoIndex(env) {
+    const list = await env.ACCOUNTS_KV.get(VIDEO_INDEX_KEY, "json");
+    return Array.isArray(list) ? list.filter((item) => typeof item === "string" && item) : [];
+}
+
+async function writeVideoIndex(env, ids) {
+    await env.ACCOUNTS_KV.put(VIDEO_INDEX_KEY, JSON.stringify(ids.slice(0, VIDEO_INDEX_LIMIT)));
+}
+
+function newVideoId() {
+    return `v_${randomCode(9).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 12)}`;
+}
+
+async function readVideoMeta(env, id) {
+    if (!VIDEO_ID_PATTERN.test(String(id || ""))) {
+        return null;
+    }
+    return plainObject(await env.ACCOUNTS_KV.get(videoMetaKey(id), "json"));
+}
+
+async function saveVideoMeta(env, meta) {
+    await env.ACCOUNTS_KV.put(videoMetaKey(meta.id), JSON.stringify(meta));
+    return meta;
+}
+
+async function readVideoComments(env, id) {
+    const list = await env.ACCOUNTS_KV.get(videoCommentKey(id), "json");
+    return Array.isArray(list) ? list : [];
+}
+
+async function saveVideoComments(env, id, list) {
+    await env.ACCOUNTS_KV.put(videoCommentKey(id), JSON.stringify(list.slice(-VIDEO_COMMENT_KEEP)));
+}
+
+function videoVisibleTo(meta, login, isAdmin) {
+    if (!meta) {
+        return false;
+    }
+    if (meta.status === "published") {
+        return true;
+    }
+    return Boolean(isAdmin || (login && meta.owner === login));
+}
+
+function videoView(meta, login, isAdmin) {
+    const likes = Array.isArray(meta.likes) ? meta.likes : [];
+    return {
+        id: meta.id,
+        title: meta.title || "",
+        desc: meta.desc || "",
+        tags: Array.isArray(meta.tags) ? meta.tags : [],
+        cat: meta.cat || "",
+        original: Boolean(meta.original),
+        declarations: Array.isArray(meta.declarations) ? meta.declarations : [],
+        fileName: meta.fileName || "",
+        fileType: meta.fileType || "",
+        fileSize: Number(meta.fileSize) || 0,
+        dur: meta.dur || "00:00",
+        owner: meta.owner || "",
+        ownerName: meta.ownerName || meta.owner || "",
+        status: meta.status || "pending",
+        at: Number(meta.at) || 0,
+        time: meta.time || "",
+        views: Number(meta.views) || 0,
+        likes: (Number(meta.baseLikes) || 0) + likes.length,
+        liked: Boolean(login && likes.includes(login)),
+        comments: Number(meta.commentCount) || 0,
+        seed: Boolean(meta.seed),
+        mine: Boolean(login && meta.owner === login),
+        canReview: Boolean(isAdmin),
+        playable: meta.status === "published" || meta.seed === true || (isAdmin && meta.status === "pending")
+    };
+}
+
+function videoCommentView(comment, login, isAdmin) {
+    const likes = Array.isArray(comment.likes) ? comment.likes : [];
+    return {
+        id: comment.id,
+        user: comment.user || "",
+        userName: comment.userName || comment.user || "",
+        text: comment.text || "",
+        at: Number(comment.at) || 0,
+        likes: (Number(comment.baseLikes) || 0) + likes.length,
+        liked: Boolean(login && likes.includes(login)),
+        mine: Boolean(login && comment.user === login),
+        canRemove: Boolean(isAdmin || (login && comment.user === login))
+    };
+}
+
+/* 把示例视频灌进 KV，只做一次；之后的列表全部来自服务端 */
+const VIDEO_SEED = [
+    { id: "v_demo0001", title: "Welcome", cat: "生活", dur: "01:31", views: 10000, baseLikes: 820, tags: ["欢迎", "开箱"], desc: "Vitx® 视频的欢迎短片。", owner: "Caldson" },
+    { id: "v_demo0002", title: "Hello", cat: "生活", dur: "00:29", views: 10000, baseLikes: 610, tags: ["短片"], desc: "打个招呼。", owner: "Caldson" },
+    { id: "v_demo0003", title: "Phigros 第 3 章全 S 评级", cat: "游戏", dur: "21:48", views: 12000, baseLikes: 940, tags: ["音游", "手元"], desc: "第三章全 S 的手元记录。", owner: "节奏手" },
+    { id: "v_demo0004", title: "MAIMAI 13+ 初见", cat: "游戏", dur: "22:30", views: 34000, baseLikes: 2600, tags: ["音游", "街机"], desc: "13+ 初见实况。", owner: "节奏手" },
+    { id: "v_demo0005", title: "五分钟讲完一个故事", cat: "娱乐", dur: "05:12", views: 86000, baseLikes: 7100, tags: ["故事"], desc: "五分钟，一个故事。", owner: "阿短" },
+    { id: "v_demo0006", title: "整活：用 Scratch 做播放器", cat: "娱乐", dur: "08:40", views: 47000, baseLikes: 3800, tags: ["整活", "编程"], desc: "Scratch 也能做播放器。", owner: "阿短" },
+    { id: "v_demo0007", title: "峡谷钢琴曲串烧", cat: "音乐", dur: "12:06", views: 23000, baseLikes: 1900, tags: ["钢琴", "串烧"], desc: "一段钢琴串烧。", owner: "琴键" },
+    { id: "v_demo0008", title: "凌晨三点的自习室 VLOG", cat: "VLOG", dur: "09:18", views: 15000, baseLikes: 1200, tags: ["自习", "日常"], desc: "凌晨三点的自习室。", owner: "夜猫" },
+    { id: "v_demo0009", title: "把书桌收拾干净的 30 分钟", cat: "生活", dur: "14:02", views: 6200, baseLikes: 480, tags: ["整理", "生活"], desc: "整理书桌。", owner: "夜猫" },
+    { id: "v_demo0010", title: "十分钟做一顿晚饭", cat: "饮食", dur: "10:24", views: 51000, baseLikes: 4200, tags: ["家常菜", "快手"], desc: "十分钟晚饭。", owner: "小锅" },
+    { id: "v_demo0011", title: "番茄炒蛋的三个误区", cat: "饮食", dur: "06:33", views: 78000, baseLikes: 6400, tags: ["美食", "教程"], desc: "番茄炒蛋常见误区。", owner: "小锅" },
+    { id: "v_demo0012", title: "高中信息学竞赛入门路线", cat: "学习", dur: "17:45", views: 19000, baseLikes: 1500, tags: ["竞赛", "规划"], desc: "信竞入门路线。", owner: "Caldson" }
+];
+
+async function ensureSeedVideos(env) {
+    if (!env.ACCOUNTS_KV) {
+        return;
+    }
+    if (await env.ACCOUNTS_KV.get(VIDEO_SEEDED_KEY)) {
+        return;
+    }
+    const index = await readVideoIndex(env);
+    const now = Date.now();
+    for (const item of VIDEO_SEED) {
+        const existing = await readVideoMeta(env, item.id);
+        if (existing && existing.id) {
+            continue;
+        }
+        await saveVideoMeta(env, {
+            id: item.id,
+            title: item.title,
+            desc: item.desc,
+            tags: item.tags,
+            cat: item.cat,
+            original: true,
+            declarations: [],
+            fileName: "",
+            fileType: "",
+            fileSize: 0,
+            dur: item.dur,
+            owner: item.owner,
+            ownerName: item.owner,
+            status: "published",
+            seed: true,
+            views: item.views,
+            baseLikes: item.baseLikes,
+            likes: [],
+            commentCount: 0,
+            at: now - 86400000,
+            time: shanghaiTimestamp(now)
+        });
+        if (!index.includes(item.id)) {
+            index.push(item.id);
+        }
+    }
+    await writeVideoIndex(env, index);
+    await env.ACCOUNTS_KV.put(VIDEO_SEEDED_KEY, String(now));
+}
+
+
+async function handleVideoList(request, env, cors) {
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV，暂时不能投稿" }, 503, cors);
+    }
+    await ensureSeedVideos(env);
+    const session = await requireSession(request, env, cors);
+    const login = session.error ? "" : session.payload.sub;
+    const isAdmin = login ? isPlatformAdmin(env, login) : false;
+    const url = new URL(request.url);
+    const cat = String(url.searchParams.get("cat") || "").trim();
+    const keyword = String(url.searchParams.get("q") || "").trim().toLowerCase();
+
+    const ids = await readVideoIndex(env);
+    const videos = [];
+    for (const id of ids.slice(0, VIDEO_LIST_LIMIT * 2)) {
+        const meta = await readVideoMeta(env, id);
+        if (!meta || !meta.id) {
+            continue;
+        }
+        const visible = meta.status === "published" || isAdmin || (login && meta.owner === login);
+        if (!visible) {
+            continue;
+        }
+        if (cat && meta.cat !== cat) {
+            continue;
+        }
+        if (keyword) {
+            const haystack = `${meta.title || ""} ${meta.owner || ""} ${(meta.tags || []).join(" ")} ${meta.id}`.toLowerCase();
+            if (!haystack.includes(keyword)) {
+                continue;
+            }
+        }
+        videos.push(videoView(meta, login, isAdmin));
+        if (videos.length >= VIDEO_LIST_LIMIT) {
+            break;
+        }
+    }
+
+    videos.sort((left, right) => (right.at || 0) - (left.at || 0));
+    return jsonResponse({
+        ok: true,
+        version: VIDEO_VERSION,
+        maxBytes: VIDEO_MAX_BYTES,
+        login,
+        isAdmin,
+        count: videos.length,
+        videos
+    }, 200, cors);
+}
+
+async function handleVideoCreate(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV，暂时不能投稿" }, 503, cors);
+    }
+    await ensureSeedVideos(env);
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const account = accounts[login];
+    if (!account) {
+        return jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const title = String(body.title || "").trim();
+    const desc = String(body.desc || "").trim();
+    const cat = String(body.cat || "").trim();
+    const fileName = String(body.fileName || "").trim().slice(0, 120);
+    const fileType = String(body.fileType || "").trim().slice(0, 80);
+    const fileSize = Math.round(Number(body.fileSize) || 0);
+    const dur = /^\d{1,3}:\d{2}$/.test(String(body.dur || "")) ? String(body.dur) : "00:00";
+    const tags = Array.isArray(body.tags)
+        ? Array.from(new Set(body.tags.map((item) => String(item || "").trim()).filter(Boolean))).slice(0, VIDEO_TAG_MAX)
+        : [];
+    const declarations = Array.isArray(body.declarations)
+        ? Array.from(new Set(body.declarations.map((item) => String(item || "").trim())))
+            .filter((item) => VIDEO_DECLARATIONS.has(item))
+        : [];
+
+    if (title.length < 2 || title.length > VIDEO_TITLE_MAX) {
+        return jsonResponse({ error: "bad_request", message: `标题需要 2-${VIDEO_TITLE_MAX} 个字` }, 400, cors);
+    }
+    if (desc.length > VIDEO_DESC_MAX) {
+        return jsonResponse({ error: "bad_request", message: `简介最长 ${VIDEO_DESC_MAX} 个字` }, 400, cors);
+    }
+    if (tags.some((tag) => tag.length > VIDEO_TAG_LEN)) {
+        return jsonResponse({ error: "bad_request", message: `每个标签最长 ${VIDEO_TAG_LEN} 个字` }, 400, cors);
+    }
+    if (!VIDEO_CATEGORIES.has(cat)) {
+        return jsonResponse({ error: "bad_request", message: "分区不存在" }, 400, cors);
+    }
+    if (!fileName) {
+        return jsonResponse({ error: "bad_request", message: "缺少文件名" }, 400, cors);
+    }
+    if (fileSize <= 0 || fileSize > VIDEO_MAX_BYTES) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: `视频文件需要在 0 B ~ ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)} MB 之间`
+        }, 413, cors);
+    }
+
+    const now = Date.now();
+    const meta = {
+        id: newVideoId(),
+        title,
+        desc,
+        tags,
+        cat,
+        original: body.original !== false,
+        declarations,
+        fileName,
+        fileType,
+        fileSize,
+        dur,
+        owner: login,
+        ownerName: chatDisplayName(accounts, login),
+        status: "draft",
+        views: 0,
+        baseLikes: 0,
+        likes: [],
+        commentCount: 0,
+        at: now,
+        time: shanghaiTimestamp(now)
+    };
+
+    await saveVideoMeta(env, meta);
+    const index = await readVideoIndex(env);
+    await writeVideoIndex(env, [meta.id, ...index.filter((item) => item !== meta.id)]);
+
+    return jsonResponse({ ok: true, video: videoView(meta, login, isPlatformAdmin(env, login)) }, 201, cors);
+}
+
+async function handleVideoFileUpload(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV，暂时不能投稿" }, 503, cors);
+    }
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "不能给别人上传视频文件" }, 403, cors);
+    }
+    if (meta.status !== "draft") {
+        return jsonResponse({ error: "conflict", message: "这个视频已经上传过文件了" }, 409, cors);
+    }
+
+    const declared = Number(request.headers.get("content-length") || 0);
+    if (declared > VIDEO_MAX_BYTES) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: `视频不能超过 ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)} MB`
+        }, 413, cors);
+    }
+
+    let buffer;
+    try {
+        buffer = await request.arrayBuffer();
+    } catch (error) {
+        return jsonResponse({ error: "bad_request", message: "读取视频内容失败" }, 400, cors);
+    }
+    if (!buffer || buffer.byteLength === 0) {
+        return jsonResponse({ error: "bad_request", message: "视频内容为空" }, 400, cors);
+    }
+    if (buffer.byteLength > VIDEO_MAX_BYTES) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: `视频不能超过 ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)} MB`
+        }, 413, cors);
+    }
+
+    const fileType = String(request.headers.get("content-type") || meta.fileType || "application/octet-stream")
+        .split(";")[0].trim().slice(0, 80) || "application/octet-stream";
+
+    try {
+        await env.ACCOUNTS_KV.put(videoFileKey(id), buffer);
+    } catch (error) {
+        await env.ACCOUNTS_KV.delete(videoMetaKey(id));
+        const index = await readVideoIndex(env);
+        await writeVideoIndex(env, index.filter((item) => item !== id));
+        return jsonResponse({
+            error: "storage_failed",
+            message: "文件太大或存储空间不足，视频没有保存成功"
+        }, 507, cors);
+    }
+
+    meta.fileType = fileType;
+    meta.fileSize = buffer.byteLength;
+    meta.status = "pending";
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        video: videoView(meta, login, isPlatformAdmin(env, login))
+    }, 200, cors);
+}
+
+async function handleVideoDetail(request, env, cors, id) {
+    await ensureSeedVideos(env);
+    const session = await requireSession(request, env, cors);
+    const login = session.error ? "" : session.payload.sub;
+    const isAdmin = login ? isPlatformAdmin(env, login) : false;
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+    if (!videoVisibleTo(meta, login, isAdmin)) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+
+    return jsonResponse({
+        ok: true,
+        video: videoView(meta, login, isAdmin),
+        comments: (await readVideoComments(env, id))
+            .slice(-VIDEO_COMMENT_KEEP)
+            .reverse()
+            .map((item) => videoCommentView(item, login, isAdmin))
+    }, 200, cors);
+}
+
+async function handleVideoFile(request, env, cors, id) {
+    // 允许 ?token=：<video src> 没法带 Authorization 头
+    const session = await requireSessionOrToken(request, env, cors);
+    const login = session.error ? "" : session.payload.sub;
+    const isAdmin = login ? isPlatformAdmin(env, login) : false;
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id || !videoVisibleTo(meta, login, isAdmin)) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+
+    const buffer = await env.ACCOUNTS_KV.get(videoFileKey(id), "arrayBuffer");
+    if (!buffer || !buffer.byteLength) {
+        return jsonResponse({ error: "no_file", message: "这个视频没有可播放的文件" }, 404, cors);
+    }
+
+    const total = buffer.byteLength;
+    const headers = { ...cors };
+    headers["content-type"] = meta.fileType || "application/octet-stream";
+    headers["accept-ranges"] = "bytes";
+    headers["cache-control"] = "public, max-age=604800";
+    headers["content-disposition"] = `inline; filename*=UTF-8''${encodeURIComponent(meta.fileName || `${id}.mp4`)}`;
+
+    const range = request.headers.get("range") || "";
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+    if (match) {
+        let start = match[1] === "" ? NaN : Number(match[1]);
+        let end = match[2] === "" ? NaN : Number(match[2]);
+        if (!Number.isFinite(start)) {
+            start = Math.max(0, total - (Number.isFinite(end) ? end : 0));
+            end = total - 1;
+        }
+        if (!Number.isFinite(end)) {
+            end = total - 1;
+        }
+        start = Math.max(0, Math.min(start, total - 1));
+        end = Math.max(start, Math.min(end, total - 1));
+        const slice = buffer.slice(start, end + 1);
+        headers["content-range"] = `bytes ${start}-${end}/${total}`;
+        headers["content-length"] = String(slice.byteLength);
+        return new Response(slice, { status: 206, headers });
+    }
+
+    headers["content-length"] = String(total);
+    return new Response(buffer, { status: 200, headers });
+}
+
+async function handleVideoDelete(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "只能删除自己投稿的视频" }, 403, cors);
+    }
+
+    await env.ACCOUNTS_KV.delete(videoFileKey(id));
+    await env.ACCOUNTS_KV.delete(videoMetaKey(id));
+    await env.ACCOUNTS_KV.delete(videoCommentKey(id));
+    const index = await readVideoIndex(env);
+    await writeVideoIndex(env, index.filter((item) => item !== id));
+
+    return jsonResponse({ ok: true, removed: id }, 200, cors);
+}
+
+async function handleVideoReview(request, env, cors, id, action) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    meta.status = action === "approve" ? "published" : "rejected";
+    meta.reviewedAt = Date.now();
+    meta.reviewedBy = session.payload.sub;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        video: videoView(meta, session.payload.sub, true)
+    }, 200, cors);
+}
+
+async function handleVideoLike(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (!videoVisibleTo(meta, login, isPlatformAdmin(env, login))) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+
+    const likes = Array.isArray(meta.likes) ? meta.likes : [];
+    const at = likes.indexOf(login);
+    if (at >= 0) {
+        likes.splice(at, 1);
+    } else {
+        likes.push(login);
+    }
+    meta.likes = likes;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        liked: at < 0,
+        likes: (Number(meta.baseLikes) || 0) + likes.length
+    }, 200, cors);
+}
+async function handleVideoView(request, env, cors, id) {
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    meta.views = (Number(meta.views) || 0) + 1;
+    await saveVideoMeta(env, meta);
+    return jsonResponse({ ok: true, views: meta.views }, 200, cors);
+}
+
+async function handleVideoComments(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    if (!videoVisibleTo(meta, session.payload.sub, isPlatformAdmin(env, session.payload.sub))) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const text = String(body.text || "").trim();
+    if (!text || text.length > VIDEO_COMMENT_MAX) {
+        return jsonResponse({ error: "bad_request", message: `评论需要 1-${VIDEO_COMMENT_MAX} 个字` }, 400, cors);
+    }
+
+    const accounts = await loadAccounts(env);
+    const login = session.payload.sub;
+    const list = await readVideoComments(env, id);
+    const comment = {
+        id: `c_${randomCode(8).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 10)}`,
+        user: login,
+        userName: chatDisplayName(accounts, login),
+        text,
+        at: Date.now(),
+        likes: [],
+        baseLikes: 0
+    };
+    list.push(comment);
+    await saveVideoComments(env, id, list);
+    meta.commentCount = list.length;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        comment: videoCommentView(comment, login, isPlatformAdmin(env, login)),
+        count: list.length
+    }, 201, cors);
+}
+
+async function handleVideoCommentLike(request, env, cors, id, commentId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const login = session.payload.sub;
+    const list = await readVideoComments(env, id);
+    const index = list.findIndex((item) => item.id === commentId);
+    if (index < 0) {
+        return jsonResponse({ error: "not_found", message: "评论不存在" }, 404, cors);
+    }
+    const comment = list[index];
+    const likes = Array.isArray(comment.likes) ? comment.likes : [];
+    const at = likes.indexOf(login);
+    if (at >= 0) {
+        likes.splice(at, 1);
+    } else {
+        likes.push(login);
+    }
+    comment.likes = likes;
+    list[index] = comment;
+    await saveVideoComments(env, id, list);
+
+    const meta = await readVideoMeta(env, id);
+    return jsonResponse({
+        ok: true,
+        comment: videoCommentView(comment, login, isPlatformAdmin(env, login)),
+        likes: (Number(comment.baseLikes) || 0) + likes.length,
+        count: Number(meta && meta.commentCount) || list.length
+    }, 200, cors);
+}
+
+async function handleVideoCommentDelete(request, env, cors, id, commentId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const login = session.payload.sub;
+    const isAdmin = isPlatformAdmin(env, login);
+    const list = await readVideoComments(env, id);
+    const target = list.find((item) => item.id === commentId);
+    if (!target) {
+        return jsonResponse({ error: "not_found", message: "评论不存在" }, 404, cors);
+    }
+    if (target.user !== login && !isAdmin) {
+        return jsonResponse({ error: "forbidden", message: "只能删除自己的评论" }, 403, cors);
+    }
+    const next = list.filter((item) => item.id !== commentId);
+    await saveVideoComments(env, id, next);
+    const meta = await readVideoMeta(env, id);
+    if (meta && meta.id) {
+        meta.commentCount = next.length;
+        await saveVideoMeta(env, meta);
+    }
+    return jsonResponse({ ok: true, removed: commentId, count: next.length }, 200, cors);
+}
+
+async function routeVideos(request, env, cors) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const method = request.method;
+
+    if (path === "/api/videos" || path === "/api/videos/") {
+        if (method === "GET") {
+            return await handleVideoList(request, env, cors);
+        }
+        if (method === "POST") {
+            return await handleVideoCreate(request, env, cors);
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    if (path === "/api/videos/status" && method === "GET") {
+        return jsonResponse({
+            ok: true,
+            version: VIDEO_VERSION,
+            enabled: hasKv(env),
+            maxBytes: VIDEO_MAX_BYTES,
+            categories: Array.from(VIDEO_CATEGORIES),
+            declarations: Array.from(VIDEO_DECLARATIONS)
+        }, 200, cors);
+    }
+
+    let match = path.match(/^\/api\/videos\/([^/]+)\/(file|view|comments)$/);
+    if (match) {
+        const id = decodeURIComponent(match[1]);
+        const action = match[2];
+        if (action === "file") {
+            if (method === "GET") {
+                return await handleVideoFile(request, env, cors, id);
+            }
+            if (method === "PUT" || method === "POST") {
+                return await handleVideoFileUpload(request, env, cors, id);
+            }
+        }
+        if (action === "view" && method === "POST") {
+            return await handleVideoView(request, env, cors, id);
+        }
+        if (action === "comments") {
+            if (method === "POST") {
+                return await handleVideoComments(request, env, cors, id);
+            }
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/comments\/([^/]+)$/);
+    if (match) {
+        const id = decodeURIComponent(match[1]);
+        const commentId = decodeURIComponent(match[2]);
+        if (method === "DELETE") {
+            return await handleVideoCommentDelete(request, env, cors, id, commentId);
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/comments\/([^/]+)\/like$/);
+    if (match) {
+        if (method === "POST") {
+            return await handleVideoCommentLike(request, env, cors, decodeURIComponent(match[1]), decodeURIComponent(match[2]));
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/like$/);
+    if (match && method === "POST") {
+        return await handleVideoLike(request, env, cors, decodeURIComponent(match[1]));
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/(approve|reject)$/);
+    if (match && method === "POST") {
+        return await handleVideoReview(request, env, cors, decodeURIComponent(match[1]), match[2]);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)$/);
+    if (match) {
+        const id = decodeURIComponent(match[1]);
+        if (method === "GET") {
+            return await handleVideoDetail(request, env, cors, id);
+        }
+        if (method === "DELETE") {
+            return await handleVideoDelete(request, env, cors, id);
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    return jsonResponse({ error: "not_found", message: "接口不存在" }, 404, cors);
+}
 async function routeChat(request, env, cors) {
     const url = new URL(request.url);
     const path = url.pathname;
@@ -7395,6 +8137,10 @@ export default {
                 if (request.method === "DELETE") {
                     return await handleAdminDelete(request, env, cors, login);
                 }
+            }
+
+            if (url.pathname.startsWith("/api/videos")) {
+                return await routeVideos(request, env, cors);
             }
 
             if (url.pathname.startsWith("/api/chat/")) {

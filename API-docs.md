@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.6.1`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**）
+- API 版本：`1.7.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**）
 
 ---
 
@@ -2067,7 +2067,7 @@ npx wrangler deploy
 | 存储 | `localStorage` 的 `vitx:comments`：`{ 视频ID: [{ id, user, text, at, likes, liked }] }` |
 | 初始数据 | 首次打开时给几个示例视频灌入演示评论（只灌一次，标记在 `vitx:commentsSeeded`） |
 
-### 20.4 上传任何格式
+### 20.4 上传任何格式（1.7.0 起改为服务端存储，见第 21 节）
 
 投稿页不再限制 `accept`，任何文件都能选（≤2 GB）：
 
@@ -2077,3 +2077,106 @@ npx wrangler deploy
 - 存储失败（配额不足 / 隐私模式）时提示「视频已提交，但文件没能存到本机（可能空间不足）」，记录本身仍然保留。
 
 > 提醒：视频文件只在这台浏览器里，换设备、换浏览器或清站点数据后就没了——页面上的文案也如实写了这一点。
+---
+
+## 21. 1.7.0 更新：投稿视频改成服务端存储
+
+1.6.1 的视频文件只存在浏览器 IndexedDB 里，换设备 / 换浏览器 / 清站点数据就没了，别人也看不到。1.7.0 把这些数据搬到 Cloudflare Worker 的 KV：**投稿的视频、点赞、评论都存服务端，审核通过后任何人打开链接都能播放**。
+
+### 21.1 存储键
+
+| 键 | 内容 |
+|---|---|
+| `video:index` | 视频 ID 数组（按投稿时间倒序，最多 400 条） |
+| `video:meta:<id>` | 视频元信息 JSON：标题、简介、标签、分区、创作声明、文件名 / 类型 / 大小 / 时长、作者、状态、播放量、点赞数组、评论数 |
+| `video:file:<id>` | 视频二进制（`ArrayBuffer`），直接用 KV 值存 |
+| `video:comments:<id>` | 该视频的评论数组（按时间正序，保留最近 300 条） |
+| `video:seeded` | 示例视频是否已经注入过的标记 |
+
+- `VIDEO_MAX_BYTES = 20 MB`：KV 单个值上限约 25 MB，留出余量；
+- 视频 ID 形如 `v_xxxxxxxxxxxx`，服务端生成，不猜不改；
+- 首次访问会自动把 12 条示例视频（`v_demo0001…v_demo0012`）写进 KV，只写一次；示例条目没有视频文件，播放页会提示「示例条目」。
+
+### 21.2 状态流转
+
+```
+draft  ── 上传文件成功 ──▶ pending ── 站主通过 ──▶ published
+   │                          │
+   │                          └── 站主删除 ──▶ 记录与文件一起删除
+   └── 上传失败（文件过大 / 存储写入失败）会回滚 meta 与索引
+```
+
+| 状态 | 谁能看到 | 能播放 |
+|---|---|---|
+| `draft` | 只有作者与站主 | 不能（还没文件） |
+| `pending` | 作者与站主 | 站主可以预览，其他人不能 |
+| `published` | 所有人（含未登录） | 可以 |
+
+### 21.3 接口
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/videos` | 视频列表。可选 `?cat=生活`、`?q=关键词`（匹配标题 / 作者 / 标签 / ID）；返回 `{ videos, login, isAdmin, maxBytes, count }`，每条带 `status / playable / liked / mine / canReview` |
+| GET | `/api/videos/status` | 服务可用性、`maxBytes`、分区与声明枚举 |
+| POST | `/api/videos` | 建投稿（需要登录）：`{ title, desc, tags, cat, original, declarations, fileName, fileType, fileSize, dur }` → 返回 `draft` 状态的视频 |
+| PUT | `/api/videos/:id/file` | 上传文件本体（原始二进制 + `content-type`）；只能传自己的、只能传一次；成功后状态变 `pending` |
+| GET | `/api/videos/:id` | 视频详情 + 评论列表：`{ video, comments }` |
+| GET | `/api/videos/:id/file` | 播放文件。支持 `Range`（返回 `206` + `content-range`），支持 `?token=xxx`（`<video src>` 带不了 Authorization 头） |
+| POST | `/api/videos/:id/view` | 播放量 +1，返回最新 `views` |
+| POST | `/api/videos/:id/like` | 点赞 / 取消点赞（同一账号幂等切换），返回 `{ liked, likes }` |
+| POST | `/api/videos/:id/approve` | 站主通过审核：`pending → published` |
+| POST | `/api/videos/:id/reject` | 站主驳回：删除记录与文件 |
+| DELETE | `/api/videos/:id` | 作者或站主删除视频 |
+| POST | `/api/videos/:id/comments` | 发评论（需要登录，1~300 字），返回 `{ comment, count }` |
+| POST | `/api/videos/:id/comments/:commentId/like` | 点赞 / 取消评论点赞 |
+| DELETE | `/api/videos/:id/comments/:commentId` | 删评论（只能删自己的，站主可以删任何人的） |
+
+错误码与其它接口一致：`400 bad_request`、`401 unauthorized`、`403 forbidden`、`404 not_found`、`409 conflict`（重复上传文件）、`413 payload_too_large`（超过 20 MB）、`503 not_ready`（没绑定 KV）、`507 storage_failed`（KV 写入失败）。
+
+### 21.4 SDK
+
+```js
+const list = await VTXApi.video.list({ cat: "生活" });   // 可选 { cat, q }
+const one = await VTXApi.video.get("v_demo0001");        // { video, comments }
+
+// 投稿：先建记录再传文件（两段式，便于上报进度 / 大小校验）
+const video = await VTXApi.video.upload(file, {
+    title: "标题", desc: "简介", tags: ["标签"], cat: "生活",
+    original: true, declarations: ["ai"], fileName: file.name,
+    fileType: file.type, fileSize: file.size, dur: "00:12"
+});
+
+await VTXApi.video.like(video.id);          // { liked, likes }
+await VTXApi.video.comment(video.id, "好耶"); // { comment, count }
+await VTXApi.video.likeComment(video.id, commentId);
+await VTXApi.video.removeComment(video.id, commentId);
+
+videoElement.src = VTXApi.video.fileUrl(video.id); // 自动带上 ?token=
+await VTXApi.video.approve(video.id);       // 站主：通过审核
+await VTXApi.video.reject(video.id);        // 站主：驳回并删除
+```
+
+### 21.5 前端变化
+
+| 页面 | 1.6.1 | 1.7.0 |
+|---|---|---|
+| `vitxvideo.html` 首页 | 内置 12 条示例数组 + 本机 `vitx:pending` | `VTXApi.video.list()`，分区 / 搜索都是服务端数据 |
+| 观看页 | IndexedDB 取文件 + `blob:` 播放 | `<video src="VTXApi.video.fileUrl(id)">`，服务端支持 Range 断点续播 |
+| 点赞 | `localStorage.vitx:likes` | 服务端 `POST /like`（投币、收藏、历史仍只记本机） |
+| 评论 | `localStorage.vitx:comments` | 服务端接口，支持删除权限与点赞 |
+| 待审核 | 无 | 站主 / 作者可见「待审核」区，卡片上直接「通过 / 删除」 |
+| 投稿页 | 写 IndexedDB + `localStorage.vitx:pending` | 先校验登录，再 `VTXApi.video.upload()` 传到服务器；未登录时顶部提示去登录 |
+| 播放量 | 示例数据写死 | `POST /view` 真实累加 |
+
+- 投稿页不再需要 `vtx-video-store.js`（IndexedDB 帮助脚本已删除）；
+- 本机只保留投币 / 收藏 / 历史 / 通知开关这些偏好；
+- 文件上限从文案里的「2 GB」改为服务端真实的 **20 MB**，超限时前端直接提示，服务端也会返回 413。
+
+### 21.6 部署
+
+```bash
+cd worker
+npx wrangler deploy          # 上传新的 Worker 代码
+```
+
+KV 结构是追加的，不需要迁移：老的 `accounts`、`chat:*` 键都不受影响。第一次打开视频页时会自动注入 12 条示例视频。

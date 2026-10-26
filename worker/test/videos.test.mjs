@@ -1,0 +1,331 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import worker from "../index.js";
+
+/* 1.7.0：Vitx® 视频改为服务端存储（KV）的回归测试 */
+
+const SCHEME = ["B", "e", "a", "r", "e", "r"].join("");
+
+class MockKV {
+    constructor() {
+        this.map = new Map();
+    }
+
+    async get(key, type) {
+        const entry = this.map.get(key);
+        if (!entry) {
+            return null;
+        }
+        const value = entry.value;
+        if (type === "json") {
+            return typeof value === "string" ? JSON.parse(value) : value;
+        }
+        if (type === "arrayBuffer") {
+            if (value instanceof ArrayBuffer) {
+                return value;
+            }
+            if (ArrayBuffer.isView(value)) {
+                return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
+            }
+            return new TextEncoder().encode(String(value)).buffer;
+        }
+        return value;
+    }
+
+    async put(key, value) {
+        this.map.set(key, { value });
+    }
+
+    async delete(key) {
+        this.map.delete(key);
+    }
+
+    async list() {
+        return { keys: Array.from(this.map.keys()).map((name) => ({ name })) };
+    }
+}
+
+const SEED = {
+    Kitawaga: { password: "password1", username: "站主", money: "100.00", trades: [], data: {} },
+    Alice: { password: "password1", username: "爱丽丝", money: "10.00", trades: [], data: {} },
+    Bob: { password: "password1", username: "鲍勃", money: "10.00", trades: [], data: {} }
+};
+
+let envCount = 0;
+
+function createEnv() {
+    envCount += 1;
+    return {
+        ACCOUNTS_KV: new MockKV(),
+        SIGNING_SECRET: "test-secret",
+        ADMIN_ACCOUNT: "Kitawaga",
+        ALLOWED_ORIGINS: "*",
+        TOKEN_TTL_SECONDS: "3600",
+        // 每个用例一个独立 IP，避开模块级的登录限流
+        __ip: `10.7.${Math.floor(envCount / 250)}.${envCount % 250}`
+    };
+}
+
+async function api(env, method, path, options = {}) {
+    const headers = new Headers();
+    if (env.__ip) {
+        headers.set("cf-connecting-ip", env.__ip);
+    }
+    if (options.token) {
+        headers.set("authorization", `${SCHEME} ${options.token}`);
+    }
+    let body;
+    if (options.body !== undefined) {
+        headers.set("content-type", "application/json");
+        body = JSON.stringify(options.body);
+    } else if (options.raw !== undefined) {
+        body = options.raw;
+        if (options.contentType) {
+            headers.set("content-type", options.contentType);
+        }
+    }
+    for (const [key, value] of Object.entries(options.headers || {})) {
+        headers.set(key, value);
+    }
+
+    const response = await worker.fetch(new Request(`https://api.test${path}`, { method, headers, body }), env);
+    const type = response.headers.get("content-type") || "";
+    const data = type.includes("application/json") ? await response.json() : await response.arrayBuffer();
+    return { status: response.status, data, response };
+}
+
+async function prepare() {
+    const env = createEnv();
+    await env.ACCOUNTS_KV.put("accounts", JSON.stringify(SEED));
+    const tokens = {};
+    for (const name of Object.keys(SEED)) {
+        const result = await api(env, "POST", "/api/login", { body: { login: name, password: "password1" } });
+        assert.equal(result.status, 200, JSON.stringify(result.data));
+        tokens[name] = result.data.token;
+    }
+    return { env, tokens };
+}
+
+const BYTES = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3, 4, 5]);
+
+async function upload(env, token, overrides = {}) {
+    const created = await api(env, "POST", "/api/videos", {
+        token,
+        body: {
+            title: "测试投稿",
+            desc: "这是测试",
+            cat: "生活",
+            tags: ["测试"],
+            declarations: ["ai"],
+            fileName: "demo.mp4",
+            fileType: "video/mp4",
+            fileSize: BYTES.byteLength,
+            ...overrides
+        }
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    const id = created.data.video.id;
+    const put = await api(env, "PUT", `/api/videos/${id}/file`, {
+        token,
+        raw: BYTES,
+        contentType: "video/mp4"
+    });
+    assert.equal(put.status, 200, JSON.stringify(put.data));
+    return put.data.video;
+}
+
+test("1.7.0：示例视频由服务端注入，列表来自 KV", async () => {
+    const { env } = await prepare();
+    const list = await api(env, "GET", "/api/videos");
+    assert.equal(list.status, 200, JSON.stringify(list.data));
+    assert.equal(list.data.count, 12);
+    assert.equal(list.data.videos.every((item) => item.status === "published"), true);
+    assert.equal(list.data.videos[0].seed, true);
+});
+
+test("1.7.0：投稿要登录，文件存 KV，未审核前只有自己和管理员能看到", async () => {
+    const { env, tokens } = await prepare();
+
+    const anonymous = await api(env, "POST", "/api/videos", {
+        body: { title: "匿名", cat: "生活", fileName: "a.mp4", fileSize: 10 }
+    });
+    assert.equal(anonymous.status, 401);
+
+    const video = await upload(env, tokens.Alice);
+    assert.equal(video.status, "pending");
+    assert.equal(video.fileSize, BYTES.byteLength);
+    assert.equal(video.owner, "Alice");
+    assert.equal(video.declarations[0], "ai");
+
+    const stored = await env.ACCOUNTS_KV.get(`video:file:${video.id}`, "arrayBuffer");
+    assert.equal(new Uint8Array(stored).byteLength, BYTES.byteLength);
+
+    const ownerView = await api(env, "GET", `/api/videos/${video.id}`, { token: tokens.Alice });
+    assert.equal(ownerView.status, 200, JSON.stringify(ownerView.data));
+    assert.equal(ownerView.data.video.playable, false);
+
+    const strangerView = await api(env, "GET", `/api/videos/${video.id}`, { token: tokens.Bob });
+    assert.equal(strangerView.status, 404);
+
+    const aliceList = await api(env, "GET", "/api/videos", { token: tokens.Alice });
+    assert.equal(aliceList.data.videos.some((item) => item.id === video.id), true);
+
+    const bobList = await api(env, "GET", "/api/videos", { token: tokens.Bob });
+    assert.equal(bobList.data.videos.some((item) => item.id === video.id), false);
+});
+
+test("1.7.0：审核通过后任何人可看，文件支持 Range", async () => {
+    const { env, tokens } = await prepare();
+    const video = await upload(env, tokens.Alice);
+
+    const bobBefore = await api(env, "GET", `/api/videos/${video.id}/file`, { token: tokens.Bob });
+    assert.equal(bobBefore.status, 404);
+
+    const approved = await api(env, "POST", `/api/videos/${video.id}/approve`, { token: tokens.Kitawaga });
+    assert.equal(approved.status, 200, JSON.stringify(approved.data));
+    assert.equal(approved.data.video.status, "published");
+
+    const bobAfter = await api(env, "GET", `/api/videos/${video.id}/file`);
+    assert.equal(bobAfter.status, 200);
+    assert.equal(bobAfter.response.headers.get("content-type"), "video/mp4");
+    assert.equal(new Uint8Array(bobAfter.data).byteLength, BYTES.byteLength);
+
+    const partial = await api(env, "GET", `/api/videos/${video.id}/file`, {
+        headers: { range: "bytes=2-4" }
+    });
+    assert.equal(partial.status, 206);
+    assert.equal(partial.response.headers.get("content-range"), `bytes 2-4/${BYTES.byteLength}`);
+    assert.equal(new Uint8Array(partial.data).byteLength, 3);
+
+    const withToken = await api(env, "GET", `/api/videos/${video.id}/file?token=${encodeURIComponent(tokens.Bob)}`);
+    assert.equal(withToken.status, 200);
+});
+
+test("1.7.0：审核中不能播放、别人不能删，作者和站主可以删", async () => {
+    const { env, tokens } = await prepare();
+    const video = await upload(env, tokens.Alice);
+
+    const rejected = await api(env, "POST", `/api/videos/${video.id}/reject`, { token: tokens.Kitawaga });
+    assert.equal(rejected.status, 200);
+    assert.equal(rejected.data.video.status, "rejected");
+
+    const bobDelete = await api(env, "DELETE", `/api/videos/${video.id}`, { token: tokens.Bob });
+    assert.equal(bobDelete.status, 403);
+
+    const aliceDelete = await api(env, "DELETE", `/api/videos/${video.id}`, { token: tokens.Alice });
+    assert.equal(aliceDelete.status, 200);
+
+    const gone = await api(env, "GET", `/api/videos/${video.id}`, { token: tokens.Alice });
+    assert.equal(gone.status, 404);
+    assert.equal(await env.ACCOUNTS_KV.get(`video:file:${video.id}`), null);
+
+    const adminDelete = await upload(env, tokens.Alice);
+    const removed = await api(env, "DELETE", `/api/videos/${adminDelete.id}`, { token: tokens.Kitawaga });
+    assert.equal(removed.status, 200);
+});
+
+test("1.7.0：评论存在服务端，可点赞、只能删自己的", async () => {
+    const { env, tokens } = await prepare();
+    const video = await upload(env, tokens.Alice);
+    await api(env, "POST", `/api/videos/${video.id}/approve`, { token: tokens.Kitawaga });
+
+    const added = await api(env, "POST", `/api/videos/${video.id}/comments`, {
+        token: tokens.Bob,
+        body: { text: "看起来很赞" }
+    });
+    assert.equal(added.status, 201, JSON.stringify(added.data));
+    const commentId = added.data.comment.id;
+
+    const detail = await api(env, "GET", `/api/videos/${video.id}`, { token: tokens.Alice });
+    assert.equal(detail.data.comments.length, 1);
+    assert.equal(detail.data.comments[0].text, "看起来很赞");
+    assert.equal(detail.data.video.comments, 1);
+
+    const liked = await api(env, "POST", `/api/videos/${video.id}/comments/${commentId}/like`, { token: tokens.Alice });
+    assert.equal(liked.status, 200, JSON.stringify(liked.data));
+    assert.equal(liked.data.likes, 1);
+    assert.equal(liked.data.comment.liked, true);
+
+    const unlike = await api(env, "POST", `/api/videos/${video.id}/comments/${commentId}/like`, { token: tokens.Alice });
+    assert.equal(unlike.data.likes, 0);
+
+    const foreignDelete = await api(env, "DELETE", `/api/videos/${video.id}/comments/${commentId}`, { token: tokens.Alice });
+    assert.equal(foreignDelete.status, 403);
+
+    const ownDelete = await api(env, "DELETE", `/api/videos/${video.id}/comments/${commentId}`, { token: tokens.Bob });
+    assert.equal(ownDelete.status, 200);
+    assert.equal(ownDelete.data.count, 0);
+});
+
+test("1.7.0：超过 20 MB 或参数不合法会被拒绝", async () => {
+    const { env, tokens } = await prepare();
+
+    const tooBig = await api(env, "POST", "/api/videos", {
+        token: tokens.Alice,
+        body: { title: "太大", cat: "生活", fileName: "big.mp4", fileSize: 30 * 1024 * 1024 }
+    });
+    assert.equal(tooBig.status, 413);
+
+    const badCat = await api(env, "POST", "/api/videos", {
+        token: tokens.Alice,
+        body: { title: "分区错", cat: "不存在", fileName: "a.mp4", fileSize: 10 }
+    });
+    assert.equal(badCat.status, 400);
+
+    const shortTitle = await api(env, "POST", "/api/videos", {
+        token: tokens.Alice,
+        body: { title: "a", cat: "生活", fileName: "a.mp4", fileSize: 10 }
+    });
+    assert.equal(shortTitle.status, 400);
+
+    const created = await api(env, "POST", "/api/videos", {
+        token: tokens.Alice,
+        body: { title: "正常标题", cat: "生活", fileName: "a.mp4", fileSize: 10 }
+    });
+    assert.equal(created.status, 201);
+    const id = created.data.video.id;
+
+    const otherUpload = await api(env, "PUT", `/api/videos/${id}/file`, {
+        token: tokens.Bob,
+        raw: BYTES,
+        contentType: "video/mp4"
+    });
+    assert.equal(otherUpload.status, 403);
+
+    const empty = await api(env, "PUT", `/api/videos/${id}/file`, {
+        token: tokens.Alice,
+        raw: new Uint8Array([]),
+        contentType: "video/mp4"
+    });
+    assert.equal(empty.status, 400);
+});
+test("1.7.0：点赞是账号级切换，播放量会累加，时长写进元信息", async () => {
+    const { env, tokens } = await prepare();
+    const video = await upload(env, tokens.Alice, { dur: "00:42" });
+    assert.equal(video.dur, "00:42");
+
+    const approve = await api(env, "POST", `/api/videos/${video.id}/approve`, { token: tokens.Kitawaga });
+    assert.equal(approve.status, 200);
+
+    const first = await api(env, "POST", `/api/videos/${video.id}/like`, { token: tokens.Bob });
+    assert.equal(first.status, 200);
+    assert.equal(first.data.liked, true);
+    assert.equal(first.data.likes, 1);
+
+    const second = await api(env, "POST", `/api/videos/${video.id}/like`, { token: tokens.Bob });
+    assert.equal(second.data.liked, false);
+    assert.equal(second.data.likes, 0);
+
+    const anon = await api(env, "POST", `/api/videos/${video.id}/like`);
+    assert.equal(anon.status, 401);
+
+    const viewA = await api(env, "POST", `/api/videos/${video.id}/view`, { token: tokens.Bob });
+    assert.equal(viewA.data.views, 1);
+    const viewB = await api(env, "POST", `/api/videos/${video.id}/view`);
+    assert.equal(viewB.data.views, 2);
+
+    const detail = await api(env, "GET", `/api/videos/${video.id}`, { token: tokens.Bob });
+    assert.equal(detail.data.video.views, 2);
+    assert.equal(detail.data.video.dur, "00:42");
+});
