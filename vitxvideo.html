@@ -1599,6 +1599,15 @@
                     el("guess-count").textContent = "";
                     return;
                 }
+                if (!state.videos.length) {
+                    el("cards-hot").innerHTML = '<div class="empty">还没有任何视频，<a href="vitxvideopublish.html">去投稿</a>第一个吧</div>';
+                    el("cards-guess").innerHTML = '<div class="empty">投稿通过审核后，视频会出现在这里</div>';
+                    el("hot-count").textContent = "";
+                    el("guess-count").textContent = "";
+                    el("browse-hint").textContent = "全部分区";
+                    renderReview();
+                    return;
+                }
                 const hot = hotList();
                 const guess = guessList();
                 renderCards(el("cards-hot"), hot, "这个分区还没有热门视频");
@@ -1786,8 +1795,8 @@
                 player.addEventListener("error", () => {
                     player.hidden = true;
                     fallback.hidden = false;
-                    note.textContent = video.seeded && !video.fileName
-                        ? "这是示例条目，服务器上没有对应视频文件。"
+                    note.textContent = !video.fileName
+                        ? "服务器上没有这个视频的文件，可能上传中途被打断了，重新投稿后再试。"
                         : `浏览器无法播放这个文件（${video.fileName || "未知格式"}），试试换浏览器或转码后再投稿。`;
                 }, { once: true });
             }
@@ -1998,7 +2007,7 @@
                 el("watch-desc").textContent = video.desc || "这个视频还没有简介。";
                 el("watch-file").textContent = video.fileName
                     ? `文件：${video.fileName}（${video.fileType || "未知类型"} · ${formatBytes(video.fileSize)}）· 存放在服务端`
-                    : "示例条目：服务端没有上传文件";
+                    : "服务端没有这个视频的文件";
 
                 state.commentSort = state.commentSort || "new";
                 el("comment-input").value = "";

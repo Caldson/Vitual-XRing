@@ -135,15 +135,60 @@ async function upload(env, token, overrides = {}) {
     return put.data.video;
 }
 
-test("1.7.0：示例视频由服务端注入，列表来自 KV", async () => {
-    const { env } = await prepare();
-    const list = await api(env, "GET", "/api/videos");
-    assert.equal(list.status, 200, JSON.stringify(list.data));
-    assert.equal(list.data.count, 12);
-    assert.equal(list.data.videos.every((item) => item.status === "published"), true);
-    assert.equal(list.data.videos[0].seed, true);
-});
+test("1.7.0：列表一开始是空的，老的示例视频会被清理掉", async () => {
+    const { env, tokens } = await prepare();
 
+    // 模拟早期版本写进 KV 的 v_demo* 数据（在第一次请求前写入）
+    await env.ACCOUNTS_KV.put("video:meta:v_demo0001", JSON.stringify({
+        id: "v_demo0001",
+        title: "旧示例",
+        cat: "生活",
+        owner: "Caldson",
+        status: "published",
+        seed: true,
+        views: 100,
+        likes: [],
+        at: Date.now()
+    }));
+    await env.ACCOUNTS_KV.put("video:file:v_demo0001", new Uint8Array([1, 2, 3]));
+    await env.ACCOUNTS_KV.put("video:comments:v_demo0001", JSON.stringify([]));
+    await env.ACCOUNTS_KV.put("video:index", JSON.stringify(["v_demo0001"]));
+
+    // 第一次请求就把它们清干净
+    const list = await api(env, "GET", "/api/videos", { token: tokens.Kitawaga });
+    assert.equal(list.status, 200, JSON.stringify(list.data));
+    assert.equal(list.data.count, 0);
+    assert.deepEqual(list.data.videos, []);
+    assert.equal(await env.ACCOUNTS_KV.get("video:meta:v_demo0001"), null);
+    assert.equal(await env.ACCOUNTS_KV.get("video:file:v_demo0001"), null);
+    assert.equal(await env.ACCOUNTS_KV.get("video:comments:v_demo0001"), null);
+
+    // 清理跑过之后再写进来的脏数据也不会露出来
+    await env.ACCOUNTS_KV.put("video:meta:v_demo9999", JSON.stringify({
+        id: "v_demo9999",
+        title: "又一条旧示例",
+        cat: "生活",
+        owner: "Caldson",
+        status: "published",
+        seed: true,
+        views: 5,
+        likes: [],
+        at: Date.now()
+    }));
+    await env.ACCOUNTS_KV.put("video:index", JSON.stringify(["v_demo9999"]));
+
+    const again = await api(env, "GET", "/api/videos", { token: tokens.Kitawaga });
+    assert.equal(again.data.count, 0);
+    const gone = await api(env, "GET", "/api/videos/v_demo9999", { token: tokens.Kitawaga });
+    assert.equal(gone.status, 404);
+
+    // 真实投稿不受影响
+    const video = await upload(env, tokens.Alice, {});
+
+    const mine = await api(env, "GET", "/api/videos", { token: tokens.Alice });
+    assert.equal(mine.data.count, 1);
+    assert.equal(mine.data.videos[0].id, video.id);
+});
 test("1.7.0：投稿要登录，文件存 KV，未审核前只有自己和管理员能看到", async () => {
     const { env, tokens } = await prepare();
 

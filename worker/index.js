@@ -6733,8 +6733,13 @@ async function saveVideoComments(env, id, list) {
     await env.ACCOUNTS_KV.put(videoCommentKey(id), JSON.stringify(list.slice(-VIDEO_COMMENT_KEEP)));
 }
 
+/* 1.7.0：老的示例视频（v_demo*）一律当作不存在，清理没跑到也不会露出来 */
+function isLegacySeedVideo(meta) {
+    return Boolean(meta) && (String(meta.id || "").startsWith(VIDEO_LEGACY_ID_PREFIX) || meta.seed === true);
+}
+
 function videoVisibleTo(meta, login, isAdmin) {
-    if (!meta) {
+    if (!meta || isLegacySeedVideo(meta)) {
         return false;
     }
     if (meta.status === "published") {
@@ -6788,65 +6793,57 @@ function videoCommentView(comment, login, isAdmin) {
     };
 }
 
-/* 把示例视频灌进 KV，只做一次；之后的列表全部来自服务端 */
-const VIDEO_SEED = [
-    { id: "v_demo0001", title: "Welcome", cat: "生活", dur: "01:31", views: 10000, baseLikes: 820, tags: ["欢迎", "开箱"], desc: "Vitx® 视频的欢迎短片。", owner: "Caldson" },
-    { id: "v_demo0002", title: "Hello", cat: "生活", dur: "00:29", views: 10000, baseLikes: 610, tags: ["短片"], desc: "打个招呼。", owner: "Caldson" },
-    { id: "v_demo0003", title: "Phigros 第 3 章全 S 评级", cat: "游戏", dur: "21:48", views: 12000, baseLikes: 940, tags: ["音游", "手元"], desc: "第三章全 S 的手元记录。", owner: "节奏手" },
-    { id: "v_demo0004", title: "MAIMAI 13+ 初见", cat: "游戏", dur: "22:30", views: 34000, baseLikes: 2600, tags: ["音游", "街机"], desc: "13+ 初见实况。", owner: "节奏手" },
-    { id: "v_demo0005", title: "五分钟讲完一个故事", cat: "娱乐", dur: "05:12", views: 86000, baseLikes: 7100, tags: ["故事"], desc: "五分钟，一个故事。", owner: "阿短" },
-    { id: "v_demo0006", title: "整活：用 Scratch 做播放器", cat: "娱乐", dur: "08:40", views: 47000, baseLikes: 3800, tags: ["整活", "编程"], desc: "Scratch 也能做播放器。", owner: "阿短" },
-    { id: "v_demo0007", title: "峡谷钢琴曲串烧", cat: "音乐", dur: "12:06", views: 23000, baseLikes: 1900, tags: ["钢琴", "串烧"], desc: "一段钢琴串烧。", owner: "琴键" },
-    { id: "v_demo0008", title: "凌晨三点的自习室 VLOG", cat: "VLOG", dur: "09:18", views: 15000, baseLikes: 1200, tags: ["自习", "日常"], desc: "凌晨三点的自习室。", owner: "夜猫" },
-    { id: "v_demo0009", title: "把书桌收拾干净的 30 分钟", cat: "生活", dur: "14:02", views: 6200, baseLikes: 480, tags: ["整理", "生活"], desc: "整理书桌。", owner: "夜猫" },
-    { id: "v_demo0010", title: "十分钟做一顿晚饭", cat: "饮食", dur: "10:24", views: 51000, baseLikes: 4200, tags: ["家常菜", "快手"], desc: "十分钟晚饭。", owner: "小锅" },
-    { id: "v_demo0011", title: "番茄炒蛋的三个误区", cat: "饮食", dur: "06:33", views: 78000, baseLikes: 6400, tags: ["美食", "教程"], desc: "番茄炒蛋常见误区。", owner: "小锅" },
-    { id: "v_demo0012", title: "高中信息学竞赛入门路线", cat: "学习", dur: "17:45", views: 19000, baseLikes: 1500, tags: ["竞赛", "规划"], desc: "信竞入门路线。", owner: "Caldson" }
-];
+/* 1.7.0：不再注入示例视频；这里做一次性清理，把早期写进 KV 的 v_demo* 全部删掉 */
+const VIDEO_PURGED_KEY = "video:purged-seed";
+const VIDEO_LEGACY_ID_PREFIX = "v_demo";
 
-async function ensureSeedVideos(env) {
+async function purgeLegacySeedVideos(env) {
     if (!env.ACCOUNTS_KV) {
         return;
     }
-    if (await env.ACCOUNTS_KV.get(VIDEO_SEEDED_KEY)) {
+    if (await env.ACCOUNTS_KV.get(VIDEO_PURGED_KEY)) {
         return;
     }
+
     const index = await readVideoIndex(env);
-    const now = Date.now();
-    for (const item of VIDEO_SEED) {
-        const existing = await readVideoMeta(env, item.id);
-        if (existing && existing.id) {
+    const kept = [];
+    for (const id of index) {
+        const meta = await readVideoMeta(env, id);
+        const legacy = String(id).startsWith(VIDEO_LEGACY_ID_PREFIX) || Boolean(meta && meta.seed === true);
+        if (legacy) {
+            await env.ACCOUNTS_KV.delete(videoMetaKey(id));
+            await env.ACCOUNTS_KV.delete(videoFileKey(id));
+            await env.ACCOUNTS_KV.delete(videoCommentKey(id));
             continue;
         }
-        await saveVideoMeta(env, {
-            id: item.id,
-            title: item.title,
-            desc: item.desc,
-            tags: item.tags,
-            cat: item.cat,
-            original: true,
-            declarations: [],
-            fileName: "",
-            fileType: "",
-            fileSize: 0,
-            dur: item.dur,
-            owner: item.owner,
-            ownerName: item.owner,
-            status: "published",
-            seed: true,
-            views: item.views,
-            baseLikes: item.baseLikes,
-            likes: [],
-            commentCount: 0,
-            at: now - 86400000,
-            time: shanghaiTimestamp(now)
-        });
-        if (!index.includes(item.id)) {
-            index.push(item.id);
-        }
+        kept.push(id);
     }
-    await writeVideoIndex(env, index);
-    await env.ACCOUNTS_KV.put(VIDEO_SEEDED_KEY, String(now));
+    if (kept.length !== index.length) {
+        await writeVideoIndex(env, kept);
+    }
+
+    try {
+        const listing = await env.ACCOUNTS_KV.list({ prefix: "video:meta:" });
+        const keys = Array.isArray(listing && listing.keys) ? listing.keys : [];
+        for (const entry of keys) {
+            const name = String(entry && entry.name ? entry.name : "");
+            if (!name.startsWith("video:meta:")) {
+                continue;
+            }
+            const id = name.slice("video:meta:".length);
+            if (!id.startsWith(VIDEO_LEGACY_ID_PREFIX)) {
+                continue;
+            }
+            await env.ACCOUNTS_KV.delete(videoMetaKey(id));
+            await env.ACCOUNTS_KV.delete(videoFileKey(id));
+            await env.ACCOUNTS_KV.delete(videoCommentKey(id));
+        }
+    } catch (error) {
+        /* 列不出来就算了，索引那一步已经清过 */
+    }
+
+    await env.ACCOUNTS_KV.delete(VIDEO_SEEDED_KEY);
+    await env.ACCOUNTS_KV.put(VIDEO_PURGED_KEY, String(Date.now()));
 }
 
 
@@ -6854,7 +6851,7 @@ async function handleVideoList(request, env, cors) {
     if (!hasKv(env)) {
         return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV，暂时不能投稿" }, 503, cors);
     }
-    await ensureSeedVideos(env);
+    await purgeLegacySeedVideos(env);
     const session = await requireSession(request, env, cors);
     const login = session.error ? "" : session.payload.sub;
     const isAdmin = login ? isPlatformAdmin(env, login) : false;
@@ -6869,7 +6866,8 @@ async function handleVideoList(request, env, cors) {
         if (!meta || !meta.id) {
             continue;
         }
-        const visible = meta.status === "published" || isAdmin || (login && meta.owner === login);
+        const visible = !isLegacySeedVideo(meta)
+            && (meta.status === "published" || isAdmin || (login && meta.owner === login));
         if (!visible) {
             continue;
         }
@@ -6908,7 +6906,7 @@ async function handleVideoCreate(request, env, cors) {
     if (!hasKv(env)) {
         return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV，暂时不能投稿" }, 503, cors);
     }
-    await ensureSeedVideos(env);
+    await purgeLegacySeedVideos(env);
 
     const login = session.payload.sub;
     const accounts = await loadAccounts(env);
@@ -7058,7 +7056,7 @@ async function handleVideoFileUpload(request, env, cors, id) {
 }
 
 async function handleVideoDetail(request, env, cors, id) {
-    await ensureSeedVideos(env);
+    await purgeLegacySeedVideos(env);
     const session = await requireSession(request, env, cors);
     const login = session.error ? "" : session.payload.sub;
     const isAdmin = login ? isPlatformAdmin(env, login) : false;

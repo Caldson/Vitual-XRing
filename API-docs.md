@@ -2091,11 +2091,11 @@ npx wrangler deploy
 | `video:meta:<id>` | 视频元信息 JSON：标题、简介、标签、分区、创作声明、文件名 / 类型 / 大小 / 时长、作者、状态、播放量、点赞数组、评论数 |
 | `video:file:<id>` | 视频二进制（`ArrayBuffer`），直接用 KV 值存 |
 | `video:comments:<id>` | 该视频的评论数组（按时间正序，保留最近 300 条） |
-| `video:seeded` | 示例视频是否已经注入过的标记 |
+| `video:purged-seed` | 老的示例视频（`v_demo*`）是否已经清理过的标记 |
 
 - `VIDEO_MAX_BYTES = 20 MB`：KV 单个值上限约 25 MB，留出余量；
 - 视频 ID 形如 `v_xxxxxxxxxxxx`，服务端生成，不猜不改；
-- 首次访问会自动把 12 条示例视频（`v_demo0001…v_demo0012`）写进 KV，只写一次；示例条目没有视频文件，播放页会提示「示例条目」。
+- **不再内置任何示例视频**：新部署后列表一开始就是空的；早期版本若往 KV 写过 `v_demo*`，第一次请求会连同文件与评论一起删掉，并且 `v_demo*` / `seed` 记录永远不会出现在列表与详情里。
 
 ### 21.2 状态流转
 
@@ -2137,7 +2137,7 @@ draft  ── 上传文件成功 ──▶ pending ── 站主通过 ──▶
 
 ```js
 const list = await VTXApi.video.list({ cat: "生活" });   // 可选 { cat, q }
-const one = await VTXApi.video.get("v_demo0001");        // { video, comments }
+const one = await VTXApi.video.get(videoId);             // { video, comments }
 
 // 投稿：先建记录再传文件（两段式，便于上报进度 / 大小校验）
 const video = await VTXApi.video.upload(file, {
@@ -2160,7 +2160,7 @@ await VTXApi.video.reject(video.id);        // 站主：驳回并删除
 
 | 页面 | 1.6.1 | 1.7.0 |
 |---|---|---|
-| `vitxvideo.html` 首页 | 内置 12 条示例数组 + 本机 `vitx:pending` | `VTXApi.video.list()`，分区 / 搜索都是服务端数据 |
+| `vitxvideo.html` 首页 | 内置 12 条示例数组 + 本机 `vitx:pending` | `VTXApi.video.list()`，分区 / 搜索都是服务端数据；没有视频时显示「还没有任何视频，去投稿」 |
 | 观看页 | IndexedDB 取文件 + `blob:` 播放 | `<video src="VTXApi.video.fileUrl(id)">`，服务端支持 Range 断点续播 |
 | 点赞 | `localStorage.vitx:likes` | 服务端 `POST /like`（投币、收藏、历史仍只记本机） |
 | 评论 | `localStorage.vitx:comments` | 服务端接口，支持删除权限与点赞 |
@@ -2179,4 +2179,4 @@ cd worker
 npx wrangler deploy          # 上传新的 Worker 代码
 ```
 
-KV 结构是追加的，不需要迁移：老的 `accounts`、`chat:*` 键都不受影响。第一次打开视频页时会自动注入 12 条示例视频。
+KV 结构是追加的，不需要迁移：老的 `accounts`、`chat:*` 键都不受影响。首次请求会顺手清理早期注入的 `v_demo*` 示例视频，站点从零开始（没有假数据）。
