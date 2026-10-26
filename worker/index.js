@@ -55,7 +55,7 @@
  *   PASSWORD_VIEW_KEY           （可选，1.4.0）给管理员看的密码副本加密密钥；不配就不存副本
  */
 
-const VERSION = "1.6.0";
+const VERSION = "1.6.1";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -68,7 +68,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.6";
+const CHAT_VERSION = "1.6.1";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 /* 1.4.0：聊天室全部去掉按 IP 限流（发言 / 正在输入 / 上传媒体），删除了 CHAT_*_WINDOW_MS / CHAT_*_MAX_ATTEMPTS */

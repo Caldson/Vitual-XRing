@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#f4f7fb">
     <title>Vitx® 视频 | Vitual XRing</title>
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+    <script src="vtx-video-store.js"></script>
     <style>
         :root {
             color-scheme: light;
@@ -449,7 +450,9 @@
             border: 1px solid transparent;
             border-radius: 14px;
             background: transparent;
+            color: inherit;
             text-align: left;
+            text-decoration: none;
         }
 
         .card:hover .cover { transform: translateY(-2px); box-shadow: 0 14px 26px rgba(23, 32, 51, 0.14); }
@@ -553,6 +556,318 @@
             font-size: 10.5px;
             font-style: normal;
             font-weight: 700;
+        }
+
+        /* ───────── 1.6.1：观看页 ───────── */
+
+        .watch-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 316px;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .watch-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+        .watch-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+        .watch-player { overflow: hidden; }
+
+        .watch-player .stage {
+            position: relative;
+            aspect-ratio: 16 / 9;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(circle at 26% 18%, hsla(var(--h, 210), 88%, 60%, 0.7) 0, transparent 60%),
+                radial-gradient(circle at 82% 88%, hsla(calc(var(--h, 210) + 40), 74%, 48%, 0.45) 0, transparent 52%),
+                linear-gradient(140deg, hsl(var(--h, 210), 42%, 20%), #0d1320 78%);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .watch-player video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            object-fit: contain;
+        }
+
+        .stage-fallback { color: #eef2f8; max-width: 520px; }
+        .stage-fallback h2 { margin: 10px 0 8px; font-size: 19px; }
+        .stage-fallback p { margin: 0; color: #a8b3c6; font-size: 12.5px; line-height: 1.7; }
+
+        .fallback-mark {
+            width: 54px;
+            height: 54px;
+            margin: 0 auto;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.14);
+            font-size: 20px;
+            backdrop-filter: blur(6px);
+        }
+
+        .watch-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 10px 14px;
+            border-top: 1px solid var(--line);
+            background: #fff;
+        }
+
+        .watch-bar .spacer { flex: 1; }
+
+        .watch-bar button,
+        .watch-bar a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 13px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fbfcfe;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .watch-bar button:hover,
+        .watch-bar a:hover { border-color: #b9c8f5; color: var(--blue); background: var(--blue-soft); }
+        .watch-bar button.on { border-color: #b9c8f5; color: var(--blue); background: var(--blue-soft); }
+
+        .watch-info { padding: 18px 20px 20px; }
+
+        .watch-info h1 { margin: 0 0 8px; font-size: 20px; line-height: 1.45; }
+
+        .watch-sub {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 14px;
+            margin: 0 0 12px;
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+        .watch-sub b { color: var(--ink); font-weight: 600; }
+
+        .watch-declares {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .watch-declares span {
+            padding: 2px 9px;
+            border-radius: 6px;
+            background: #fdf1dd;
+            color: #b7791f;
+            font-size: 11.5px;
+            font-weight: 700;
+        }
+
+        .watch-declares span.muted { background: #f0f3f9; color: #7c8798; font-weight: 600; }
+        .watch-declares span.review { background: #eef2ff; color: #3867e8; }
+
+        .watch-desc {
+            margin: 0 0 10px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: #f8fafd;
+            color: #3d4a5f;
+            font-size: 13.5px;
+            line-height: 1.85;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .watch-file { margin: 0; color: #97a2b4; font-size: 11.5px; }
+
+        /* 评论区 */
+
+        .comments { padding: 18px 20px 22px; }
+
+        .comments-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .comments-head h2 { margin: 0; font-size: 16px; }
+        .comments-head .count { color: var(--muted); font-size: 12.5px; }
+
+        .comment-sort { margin-left: auto; display: flex; gap: 4px; }
+
+        .comment-sort button {
+            padding: 5px 11px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+        .comment-sort button.active { border-color: #b9c8f5; color: var(--blue); background: var(--blue-soft); }
+
+        .comment-form { display: flex; gap: 10px; margin-bottom: 16px; }
+
+        .comment-form .avatar { width: 34px; height: 34px; border-radius: 10px; font-size: 13px; }
+
+        .comment-form-body { flex: 1; min-width: 0; }
+
+        .comment-form textarea {
+            width: 100%;
+            min-height: 74px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fbfcfe;
+            outline: none;
+            font-size: 13.5px;
+            line-height: 1.6;
+            resize: vertical;
+        }
+
+        .comment-form textarea:focus { border-color: #b9c8f5; background: #fff; }
+
+        .comment-form-foot {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 7px;
+        }
+
+        .comment-form-foot .count { color: #a9b3c3; font-size: 11.5px; }
+
+        .comment-form-foot button {
+            margin-left: auto;
+            padding: 8px 18px;
+            border: 0;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #3867e8, #5b83ff);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .comment {
+            display: flex;
+            gap: 10px;
+            padding: 12px 0;
+            border-top: 1px solid var(--line);
+        }
+
+        .comment:first-child { border-top: 0; }
+        .comment .avatar { width: 34px; height: 34px; border-radius: 10px; font-size: 13px; }
+        .comment-main { flex: 1; min-width: 0; }
+
+        .comment-head {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-bottom: 4px;
+            font-size: 12.5px;
+        }
+
+        .comment-head b { color: #4a5a75; font-size: 13px; }
+        .comment-time { color: #a9b3c3; }
+
+        .tag-me {
+            padding: 0 6px;
+            border-radius: 5px;
+            background: var(--blue-soft);
+            color: var(--blue);
+            font-size: 10.5px;
+            font-style: normal;
+            font-weight: 700;
+        }
+
+        .comment-text {
+            margin: 0 0 7px;
+            color: #2c3a4f;
+            font-size: 13.5px;
+            line-height: 1.75;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .comment-actions { display: flex; gap: 4px; }
+
+        .comment-actions button {
+            padding: 3px 9px;
+            border: 1px solid transparent;
+            border-radius: 7px;
+            background: transparent;
+            color: #97a2b4;
+            font-size: 12px;
+        }
+
+        .comment-actions button:hover { background: #f2f5fb; color: var(--blue); }
+        .comment-actions button.on { color: var(--blue); font-weight: 700; }
+
+        /* 相关推荐 */
+
+        .related { padding: 16px 16px 18px; }
+        .related h2 { margin: 0 0 10px; font-size: 15px; }
+
+        .rel-item {
+            display: flex;
+            gap: 10px;
+            padding: 8px 0;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .rel-item + .rel-item { border-top: 1px solid var(--line); }
+
+        .rel-cover {
+            position: relative;
+            flex: 0 0 104px;
+            aspect-ratio: 16 / 9;
+            border-radius: 8px;
+            background:
+                radial-gradient(circle at 26% 18%, hsla(var(--h), 92%, 76%, 0.92) 0, transparent 58%),
+                linear-gradient(140deg, hsla(var(--h), 82%, 60%, 1), hsla(calc(var(--h) + 42), 76%, 50%, 1));
+        }
+
+        .rel-cover .rel-dur {
+            position: absolute;
+            right: 4px;
+            bottom: 4px;
+            padding: 0 4px;
+            border-radius: 4px;
+            background: rgba(12, 18, 30, 0.72);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .rel-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+
+        .rel-main b {
+            font-size: 12.5px;
+            font-weight: 600;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .rel-main small { color: var(--muted); font-size: 11.5px; }
+        .rel-item:hover b { color: var(--blue); }
+
+        @media (max-width: 1080px) {
+            .watch-grid { grid-template-columns: minmax(0, 1fr); }
         }
 
         .empty {
@@ -805,12 +1120,12 @@
                 🔔<span class="dot" id="notify-dot" hidden></span>
             </button>
             <a class="primary-btn" href="vitxvideopublish.html" style="text-decoration: none;">投稿</a>
-            <span class="version">v1.6.0</span>
+            <span class="version">v1.6.1</span>
             <a class="back" href="manager.html">← 返回账户</a>
         </div>
     </header>
 
-    <main class="wrap">
+    <main class="wrap" id="home-view">
         <section class="hero" id="hero">
             <div class="hero-main">
                 <div class="hero-mark">V</div>
@@ -891,6 +1206,76 @@
         </footer>
     </main>
 
+    <main class="wrap" id="watch-view" hidden>
+        <div class="watch-grid">
+            <div class="watch-main">
+                <section class="panel watch-player">
+                    <div class="stage" id="stage">
+                        <video id="watch-video" controls playsinline preload="metadata" hidden></video>
+                        <div class="stage-fallback" id="stage-fallback">
+                            <div class="fallback-mark" id="stage-mark">▶</div>
+                            <h2 id="stage-title">视频标题</h2>
+                            <p id="stage-note">正在读取视频…</p>
+                        </div>
+                    </div>
+                    <div class="watch-bar">
+                        <button type="button" id="watch-like" data-act="like">👍 <span id="cnt-like">0</span></button>
+                        <button type="button" id="watch-coin" data-act="coin">🪙 <span id="cnt-coin">0</span></button>
+                        <button type="button" id="watch-fav" data-act="fav">★ <span id="cnt-fav">0</span></button>
+                        <button type="button" id="watch-share">🔗 复制链接</button>
+                        <span class="spacer"></span>
+                        <a href="vitxvideo.html" id="watch-home">← 回首页</a>
+                    </div>
+                </section>
+
+                <section class="panel watch-info">
+                    <h1 id="watch-title">视频标题</h1>
+                    <p class="watch-sub">
+                        <span>UP 主 <b id="watch-up">—</b></span>
+                        <span id="watch-meta">—</span>
+                    </p>
+                    <div class="watch-declares" id="watch-declares"></div>
+                    <p class="watch-desc" id="watch-desc"></p>
+                    <p class="watch-file" id="watch-file"></p>
+                </section>
+
+                <section class="panel comments">
+                    <div class="comments-head">
+                        <h2>评论</h2>
+                        <span class="count" id="comment-count">0 条</span>
+                        <div class="comment-sort" id="comment-sort">
+                            <button type="button" data-sort="new" class="active">最新</button>
+                            <button type="button" data-sort="hot">最热</button>
+                        </div>
+                    </div>
+                    <form class="comment-form" id="comment-form">
+                        <span class="avatar">我</span>
+                        <div class="comment-form-body">
+                            <textarea id="comment-input" maxlength="300" placeholder="发一条友善的评论…"></textarea>
+                            <div class="comment-form-foot">
+                                <span class="count" id="comment-count-input">0 / 300</span>
+                                <button type="submit">发送</button>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="comment-list"></div>
+                </section>
+            </div>
+
+            <aside class="watch-side">
+                <section class="panel related">
+                    <h2>相关推荐</h2>
+                    <div id="related-list"></div>
+                </section>
+            </aside>
+        </div>
+
+        <footer class="site-foot">
+            <span><b>Contributors</b>：Caldson</span>
+            <span>Copyright © 2026 Vitual XRing · Vitx® 视频</span>
+        </footer>
+    </main>
+
     <div class="pop" id="notify-panel" hidden>
         <h3>通知</h3>
         <label class="notify-row">
@@ -902,29 +1287,6 @@
             <input type="checkbox" id="notify-interact" checked>
         </label>
         <p class="pop-note">勾选「有通知」后，对应事件会在顶部铃铛上提示；设置只保存在本机。</p>
-    </div>
-
-    <div class="modal" id="player-modal" hidden>
-        <div class="player" role="dialog" aria-modal="true" aria-labelledby="stage-title">
-            <div class="stage" id="stage">
-                <div>
-                    <p class="stage-up" id="stage-id"></p>
-                    <h2 class="stage-title" id="stage-title"></h2>
-                    <p class="stage-up" id="stage-up"></p>
-                </div>
-                <button class="stage-play" type="button" id="stage-toggle" title="播放 / 暂停">▶</button>
-            </div>
-            <div class="player-bar">
-                <button type="button" id="bar-toggle">播放</button>
-                <input type="range" id="player-seek" min="0" max="1000" value="0" aria-label="播放进度">
-                <span class="time" id="player-time">00:00 / 00:00</span>
-                <button type="button" data-act="like">👍 <span id="cnt-like">0</span></button>
-                <button type="button" data-act="coin">🪙 <span id="cnt-coin">0</span></button>
-                <button type="button" data-act="fav">★ <span id="cnt-fav">0</span></button>
-                <button type="button" class="close" id="player-close">关闭</button>
-            </div>
-            <p class="player-note">示例播放器：没有真实视频源，播放按视频时长推进；点赞 / 投币 / 收藏会保存在本机。</p>
-        </div>
     </div>
 
     <div class="toast" id="toast"></div>
@@ -963,6 +1325,11 @@
                     .replace(/>/g, "&gt;")
                     .replace(/"/g, "&quot;")
                     .replace(/'/g, "&#39;");
+            }
+
+            function initial(value) {
+                const text = String(value || "?").trim();
+                return esc(text.slice(0, 1).toUpperCase());
             }
 
             function readStore(key, fallback) {
@@ -1023,10 +1390,8 @@
                 pending: readStore("pending", []),
                 notifyFollow: readStore("notifyFollow", true),
                 notifyInteract: readStore("notifyInteract", true),
-                playing: null,
-                pos: 0,
-                total: 0,
-                timer: null,
+                watch: null,
+                commentSort: "new",
                 hotOffset: 0,
                 listKind: ""
             };
@@ -1051,7 +1416,7 @@
             function cardHtml(video) {
                 const liked = state.likes.includes(video.id);
                 const declares = declarationLabels(video);
-                return `<button class="card" type="button" data-play="${esc(video.id)}" title="${esc(video.title)}">
+                return `<a class="card" href="${esc(videoUrl(video.id))}" data-play="${esc(video.id)}" title="${esc(video.title)}">
                     <span class="cover" style="--h:${Number(video.h) || 210}">
                         ${video.review ? '<span class="badge">审核中</span>' : (liked ? '<span class="badge">已点赞</span>' : "")}
                         <span class="play">▶</span>
@@ -1060,7 +1425,7 @@
                     <span class="card-title">${esc(video.title)}</span>
                     <span class="card-meta">▶ ${formatCount(video.views)} · ${esc(video.cat)} · ${esc(video.up)}</span>
                     ${declares.length ? `<span class="card-tags">${declares.map((label) => `<i>${esc(label)}</i>`).join("")}</span>` : ""}
-                </button>`;
+                </a>`;
             }
 
             function renderCards(container, list, emptyText) {
@@ -1174,80 +1539,357 @@
                 el("list-panel").scrollIntoView({ behavior: "smooth", block: "nearest" });
             }
 
-            /* ───────── 播放器 ───────── */
+            /* ───────── 观看页（vitxvideo.html?videoid=xxx） ───────── */
 
-            function stopTimer() {
-                if (state.timer) {
-                    clearInterval(state.timer);
-                    state.timer = null;
+            const COMMENTS_KEY = "comments";
+            const COMMENT_MAX = 300;
+
+            function videoUrl(id) {
+                return `vitxvideo.html?videoid=${encodeURIComponent(id)}`;
+            }
+
+            function currentVideoId() {
+                try {
+                    return new URLSearchParams(window.location.search).get("videoid") || "";
+                } catch (error) {
+                    return "";
                 }
             }
 
-            function renderPlayerTime() {
-                el("player-time").textContent = `${toClock(state.pos)} / ${toClock(state.total)}`;
-                const ratio = state.total ? state.pos / state.total : 0;
-                el("player-seek").value = String(Math.round(ratio * 1000));
+            function meName() {
+                try {
+                    return sessionStorage.getItem("vtxAccount") || "";
+                } catch (error) {
+                    return "";
+                }
             }
 
-            function setPlayingUI(playing) {
-                el("stage-toggle").textContent = playing ? "⏸" : "▶";
-                el("bar-toggle").textContent = playing ? "暂停" : "播放";
-            }
+            /* 演示用的初始评论：只在第一次打开时灌一次 */
+            const SEED_COMMENTS = {
+                "vt-0001": [
+                    { user: "鲍勃", text: "终于等到新站上线，界面挺清爽的。", likes: 12, minutesAgo: 120 },
+                    { user: "卡罗尔", text: "V 标好看，希望后面能加弹幕。", likes: 5, minutesAgo: 60 }
+                ],
+                "vt-0003": [
+                    { user: "节奏手", text: "第三章手感确实比前面好，S 评级稳。", likes: 23, minutesAgo: 300 },
+                    { user: "夜猫", text: "up 手速是开了倍速吗😂", likes: 8, minutesAgo: 90 }
+                ],
+                "vt-0004": [
+                    { user: "阿短", text: "11 级以后就完全跟不上了。", likes: 4, minutesAgo: 200 }
+                ]
+            };
 
-            function stopPlayback() {
-                stopTimer();
-                setPlayingUI(false);
-            }
-
-            function play() {
-                if (!state.playing) {
+            function ensureSeedComments() {
+                if (readStore("commentsSeeded", false)) {
                     return;
                 }
-                if (state.pos >= state.total) {
-                    state.pos = 0;
-                    renderPlayerTime();
-                }
-                setPlayingUI(true);
-                stopTimer();
-                state.timer = setInterval(() => {
-                    state.pos += 1;
-                    if (state.pos >= state.total) {
-                        state.pos = state.total;
-                        renderPlayerTime();
-                        stopPlayback();
-                        toast("播放结束");
+                const map = readStore(COMMENTS_KEY, {});
+                const now = Date.now();
+                Object.keys(SEED_COMMENTS).forEach((id, index) => {
+                    if (Array.isArray(map[id]) && map[id].length) {
                         return;
                     }
-                    renderPlayerTime();
-                }, 1000);
+                    map[id] = SEED_COMMENTS[id].map((item, order) => ({
+                        id: `c-demo-${index}-${order}`,
+                        user: item.user,
+                        text: item.text,
+                        at: now - item.minutesAgo * 60 * 1000,
+                        likes: item.likes,
+                        liked: false
+                    }));
+                });
+                writeStore(COMMENTS_KEY, map);
+                writeStore("commentsSeeded", true);
             }
 
-            function togglePlay() {
-                if (!state.playing) {
-                    return;
-                }
-                if (state.timer) {
-                    stopTimer();
-                    setPlayingUI(false);
-                } else {
-                    play();
-                }
+            function commentsOf(id) {
+                const map = readStore(COMMENTS_KEY, {});
+                const list = Array.isArray(map[id]) ? map[id] : [];
+                return list.slice().sort((left, right) => (right.at || 0) - (left.at || 0));
             }
 
-            function renderPlayerActions(video) {
-                el("cnt-like").textContent = String(formatCount((video.views || 0) / 12 + (state.likes.includes(video.id) ? 1 : 0)));
-                el("cnt-coin").textContent = String(formatCount((video.views || 0) / 40 + (state.coins.includes(video.id) ? 1 : 0)));
-                el("cnt-fav").textContent = String(formatCount((video.views || 0) / 25 + (state.favs.includes(video.id) ? 1 : 0)));
-                document.querySelectorAll(".player-bar [data-act]").forEach((button) => {
-                    const act = button.dataset.act;
-                    const on = act === "like" ? state.likes.includes(video.id)
-                        : act === "coin" ? state.coins.includes(video.id)
-                        : state.favs.includes(video.id);
-                    button.classList.toggle("on", on);
+            function saveCommentsOf(id, list) {
+                const map = readStore(COMMENTS_KEY, {});
+                map[id] = list;
+                writeStore(COMMENTS_KEY, map);
+            }
+
+            function commentKeyFor(id, commentId) {
+                return `${id}:${commentId}`;
+            }
+
+            function relativeTime(at) {                const diff = Date.now() - (Number(at) || 0);
+                if (diff < 60 * 1000) {
+                    return "刚刚";
+                }
+                if (diff < 60 * 60 * 1000) {
+                    return `${Math.floor(diff / 60000)} 分钟前`;
+                }
+                if (diff < 24 * 60 * 60 * 1000) {
+                    return `${Math.floor(diff / 3600000)} 小时前`;
+                }
+                if (diff < 30 * 24 * 60 * 60 * 1000) {
+                    return `${Math.floor(diff / 86400000)} 天前`;
+                }
+                const date = new Date(Number(at) || 0);
+                return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
+            }
+
+            function markCount(video, kind) {
+                const list = kind === "like" ? state.likes : kind === "coin" ? state.coins : state.favs;
+                const base = kind === "like" ? (video.views || 0) / 12
+                    : kind === "coin" ? (video.views || 0) / 40
+                    : (video.views || 0) / 25;
+                return Math.round(base + (list.includes(video.id) ? 1 : 0));
+            }
+
+            function renderWatchMarks(video) {
+                [
+                    ["like", "cnt-like", "watch-like"],
+                    ["coin", "cnt-coin", "watch-coin"],
+                    ["fav", "cnt-fav", "watch-fav"]
+                ].forEach(([kind, countId, buttonId]) => {
+                    const count = el(countId);
+                    if (count) {
+                        count.textContent = formatCount(markCount(video, kind));
+                    }
+                    const button = el(buttonId);
+                    if (button) {
+                        const on = kind === "like" ? state.likes.includes(video.id)
+                            : kind === "coin" ? state.coins.includes(video.id)
+                            : state.favs.includes(video.id);
+                        button.classList.toggle("on", on);
+                    }
                 });
             }
 
-            function openPlayer(id) {
+            /* 有本机文件就真播，没有就显示说明（演示内容 / 文件已被清理） */
+            async function attachMedia(video) {
+                const player = el("watch-video");
+                const fallback = el("stage-fallback");
+                const note = el("stage-note");
+                if (!player || !fallback) {
+                    return;
+                }
+                if (player.src) {
+                    URL.revokeObjectURL(player.src);
+                    player.removeAttribute("src");
+                    player.load();
+                }
+                player.hidden = true;
+                fallback.hidden = false;
+
+                let blob = null;
+                if (window.VTXVideoStore) {
+                    blob = await window.VTXVideoStore.get(video.id);
+                }
+                if (!blob) {
+                    note.textContent = video.fileName
+                        ? "本机找不到这个视频的文件（可能换了浏览器或清过站点数据），暂时无法播放。"
+                        : "这是示例视频，没有真实文件；投稿的视频会保存在本机并在这里播放。";
+                    return;
+                }
+                player.src = URL.createObjectURL(blob);
+                player.hidden = false;
+                fallback.hidden = true;
+                note.textContent = "";
+                player.addEventListener("error", () => {
+                    player.hidden = true;
+                    fallback.hidden = false;
+                    note.textContent = `浏览器无法解码这个文件（${video.fileName || "未知格式"}），换一个播放器或转码后再试。`;
+                }, { once: true });
+            }
+
+            function renderComments(video) {
+                const listNode = el("comment-list");
+                const countNode = el("comment-count");
+                const me = meName() || "我";
+                const all = commentsOf(video.id);
+                const sort = state.commentSort;
+                const list = sort === "hot"
+                    ? all.slice().sort((left, right) => (right.likes || 0) - (left.likes || 0) || (right.at || 0) - (left.at || 0))
+                    : all;
+
+                countNode.textContent = `${all.length} 条`;
+                if (!list.length) {
+                    listNode.innerHTML = '<div class="empty">还没有评论，来说点什么吧</div>';
+                    return;
+                }
+                listNode.innerHTML = list.map((item) => {
+                    const own = item.user && item.user === me;
+                    const showTag = own && item.user !== "我";
+                    return `<div class="comment" data-comment="${esc(item.id)}">
+                        <span class="avatar">${initial(item.user || "访")}</span>
+                        <div class="comment-main">
+                            <div class="comment-head">
+                                <b>${esc(item.user || "访客")}</b>${showTag ? '<i class="tag-me">我</i>' : ""}
+                                <span class="comment-time">${esc(relativeTime(item.at))}</span>
+                            </div>
+                            <p class="comment-text">${esc(item.text)}</p>
+                            <div class="comment-actions">
+                                <button type="button" data-comment-like="${esc(item.id)}" class="${item.liked ? "on" : ""}">👍 ${Number(item.likes) || 0}</button>
+                                <button type="button" data-comment-reply="${esc(item.id)}">回复</button>
+                                ${own ? `<button type="button" data-comment-delete="${esc(item.id)}">删除</button>` : ""}
+                            </div>
+                        </div>
+                    </div>`;
+                }).join("");
+            }
+
+            function submitComment(video) {
+                const input = el("comment-input");
+                const text = input.value.trim();
+                const me = meName() || "我";
+                if (!text) {
+                    toast("先写点内容再发送");
+                    return;
+                }
+                if (text.length > COMMENT_MAX) {
+                    toast(`评论最长 ${COMMENT_MAX} 个字`);
+                    return;
+                }
+                const list = readStore(COMMENTS_KEY, {})[video.id] || [];
+                list.push({
+                    id: `c-${Date.now().toString(36)}`,
+                    user: me,
+                    text,
+                    at: Date.now(),
+                    likes: 0,
+                    liked: false
+                });
+                saveCommentsOf(video.id, list);
+                input.value = "";
+                updateCommentCounts();
+                renderComments(video);
+                toast("评论已发布");
+            }
+
+            function toggleCommentLike(video, commentId) {
+                const list = (readStore(COMMENTS_KEY, {})[video.id] || []).map((item) => {
+                    if (item.id !== commentId) {
+                        return item;
+                    }
+                    const liked = !item.liked;
+                    return { ...item, liked, likes: Math.max(0, (Number(item.likes) || 0) + (liked ? 1 : -1)) };
+                });
+                saveCommentsOf(video.id, list);
+                renderComments(video);
+            }
+
+            function deleteComment(video, commentId) {
+                const list = (readStore(COMMENTS_KEY, {})[video.id] || []).filter((item) => item.id !== commentId);
+                saveCommentsOf(video.id, list);
+                renderComments(video);
+                toast("评论已删除");
+            }
+
+            function replyComment(video, commentId) {
+                const target = (readStore(COMMENTS_KEY, {})[video.id] || []).find((item) => item.id === commentId);
+                const input = el("comment-input");
+                if (!target || !input) {
+                    return;
+                }
+                const prefix = `回复 @${target.user}：`;
+                input.value = input.value.startsWith(prefix) ? input.value : prefix + input.value;
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+            }
+
+            function updateCommentCounts() {
+                const input = el("comment-input");
+                el("comment-count-input").textContent = `${input.value.length} / ${COMMENT_MAX}`;
+            }
+
+            function renderRelated(video) {
+                const pool = allVideos().filter((item) => item.id !== video.id && !item.review);
+                const same = pool.filter((item) => item.cat === video.cat);
+                const rest = pool.filter((item) => item.cat !== video.cat);
+                const list = [...same, ...rest].slice(0, 8);
+                el("related-list").innerHTML = list.length
+                    ? list.map((item) => `<a class="rel-item" href="${esc(videoUrl(item.id))}" data-video="${esc(item.id)}">
+                        <span class="rel-cover" style="--h:${Number(item.h) || 210}"><span class="rel-dur">${esc(item.dur)}</span></span>
+                        <span class="rel-main">
+                            <b>${esc(item.title)}</b>
+                            <small>${esc(item.up)} · ${formatCount(item.views)} 次播放</small>
+                        </span>
+                    </a>`).join("")
+                    : '<div class="empty">暂时没有相关推荐</div>';
+            }
+
+            function renderWatch(id) {
+                const video = findVideo(id);
+                const view = el("watch-view");
+                const home = el("home-view");
+                if (!video) {
+                    home.hidden = false;
+                    view.hidden = true;
+                    toast("视频不存在或已下架");
+                    return;
+                }
+                home.hidden = true;
+                list_hidden_guard();
+                view.hidden = false;
+                document.title = `${video.title} | Vitx® 视频`;
+
+                el("watch-title").textContent = video.title;
+                el("stage-title").textContent = video.title;
+                el("watch-up").textContent = video.up || "未知";
+                el("watch-meta").textContent = `${video.id} · ${video.cat}`
+                    + (video.tags && video.tags.length ? ` · ${video.tags.join(" / ")}` : "")
+                    + ` · ${formatCount(video.views)} 次播放`;
+                const declares = declarationLabels(video);
+                const reviewTag = video.review ? '<span class="review">审核中</span>' : "";
+                el("watch-declares").innerHTML = reviewTag + (declares.length
+                    ? declares.map((label) => `<span>${esc(label)}</span>`).join("")
+                    : (video.review ? "" : '<span class="muted">未填写创作声明</span>'));
+                el("watch-desc").textContent = video.desc || "这个视频还没有简介。";
+                el("watch-file").textContent = video.fileName
+                    ? `文件：${video.fileName}（${video.fileType || "未知类型"}）`
+                    : "示例条目：没有真实视频文件";
+
+                state.watch = video;
+                state.commentSort = state.commentSort || "new";
+                el("comment-input").value = "";
+                updateCommentCounts();
+                renderWatchMarks(video);
+                renderComments(video);
+                renderRelated(video);
+                attachMedia(video);
+
+                state.history = [id, ...state.history.filter((item) => item !== id)].slice(0, 30);
+                writeStore("history", state.history);
+                renderQuickState();
+
+                document.querySelectorAll("#comment-sort button").forEach((button) => {
+                    button.classList.toggle("active", button.dataset.sort === state.commentSort);
+                });
+                window.scrollTo({ top: 0, behavior: "auto" });
+            }
+
+            /* 播放页要用到的几个面板需要先复位，避免首页状态干扰 */
+            function list_hidden_guard() {
+                const panel = el("list-panel");
+                if (panel) {
+                    panel.hidden = true;
+                }
+                el("notify-panel").hidden = true;
+            }
+
+            function goHome(push) {
+                const video = el("watch-video");
+                if (video && video.src) {
+                    video.pause();
+                }
+                el("watch-view").hidden = true;
+                el("home-view").hidden = false;
+                document.title = "Vitx® 视频 | Vitual XRing";
+                state.watch = null;
+                if (push !== false) {
+                    history.pushState({ view: "home" }, "", "vitxvideo.html");
+                }
+            }
+
+            function openVideo(id, push) {
                 const video = findVideo(id);
                 if (!video) {
                     toast("视频不存在或已下架");
@@ -1257,37 +1899,14 @@
                     toast("这个视频还在审核中，审核通过后才能播放");
                     return;
                 }
-                state.playing = video;
-                state.pos = 0;
-                state.total = toSeconds(video.dur);
-                el("stage").style.setProperty("--h", String(video.h || 210));
-                const declares = declarationLabels(video);
-                el("stage-id").textContent = `${video.id} · ${video.cat}`
-                    + (video.tags && video.tags.length ? ` · ${video.tags.join(" / ")}` : "")
-                    + (declares.length ? ` · 声明：${declares.join("、")}` : "");
-                el("stage-title").textContent = video.title;
-                el("stage-up").textContent = `UP 主 ${video.up} · ${formatCount(video.views)} 次播放`;
-                el("player-modal").hidden = false;
-                document.body.style.overflow = "hidden";
-                renderPlayerTime();
-                renderPlayerActions(video);
-                stopPlayback();
-                play();
-
-                state.history = [id, ...state.history.filter((item) => item !== id)].slice(0, 30);
-                writeStore("history", state.history);
-                renderQuickState();
-            }
-
-            function closePlayer() {
-                stopPlayback();
-                state.playing = null;
-                el("player-modal").hidden = true;
-                document.body.style.overflow = "";
+                if (push !== false) {
+                    history.pushState({ view: "watch", id }, "", videoUrl(id));
+                }
+                renderWatch(id);
             }
 
             function toggleMark(kind) {
-                const video = state.playing;
+                const video = state.watch || state.playing;
                 if (!video) {
                     return;
                 }
@@ -1302,15 +1921,15 @@
                     toast(kind === "like" ? "点赞成功" : kind === "coin" ? "投币成功（示例不会扣 VTX）" : "已加入收藏");
                 }
                 writeStore(key, list);
-                renderPlayerActions(video);
+                renderWatchMarks(video);
                 renderHome();
                 renderSearch();
                 renderQuickState();
+                renderRelated(video);
                 if (!el("list-panel").hidden && state.listKind) {
                     openList(state.listKind);
                 }
             }
-
             /* ───────── 投稿（独立页面 vitxvideopublish.html） ───────── */
 
             const DECLARE_LABELS = {
@@ -1405,7 +2024,8 @@
                 document.addEventListener("click", (event) => {
                     const play = event.target.closest("[data-play]");
                     if (play) {
-                        openPlayer(play.dataset.play);
+                        event.preventDefault();
+                        openVideo(play.dataset.play);
                         return;
                     }
                     if (!event.target.closest("#notify-panel") && !event.target.closest("#btn-notify")) {
@@ -1430,25 +2050,95 @@
                     if (!event.key || event.key === "vitx:pending") {
                         reloadPending();
                     }
+                    if (!event.key || event.key === "vitx:comments") {
+                        if (state.watch) {
+                            renderComments(state.watch);
+                        }
+                    }
                 });
 
-                el("stage-toggle").addEventListener("click", togglePlay);
-                el("bar-toggle").addEventListener("click", togglePlay);
-                el("player-close").addEventListener("click", closePlayer);
-                el("player-modal").addEventListener("click", (event) => {
-                    if (event.target === el("player-modal")) {
-                        closePlayer();
-                    }
+                /* 观看页：点赞 / 投币 / 收藏 / 分享 */
+                document.querySelectorAll(".watch-bar [data-act]").forEach((button) => {
+                    button.addEventListener("click", () => toggleMark(button.dataset.act));
                 });
-                el("player-seek").addEventListener("input", () => {
-                    if (!state.playing) {
+                el("watch-share").addEventListener("click", () => {
+                    const link = new URL(videoUrl(currentVideoId() || ""), window.location.href).href;
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(link).then(
+                            () => toast("播放地址已复制"),
+                            () => toast(link)
+                        );
                         return;
                     }
-                    state.pos = Math.round((Number(el("player-seek").value) / 1000) * state.total);
-                    renderPlayerTime();
+                    toast(link);
                 });
-                document.querySelectorAll(".player-bar [data-act]").forEach((button) => {
-                    button.addEventListener("click", () => toggleMark(button.dataset.act));
+                el("watch-home").addEventListener("click", (event) => {
+                    event.preventDefault();
+                    goHome();
+                });
+
+                /* 评论区 */
+                el("comment-form").addEventListener("submit", (event) => {
+                    event.preventDefault();
+                    if (state.watch) {
+                        submitComment(state.watch);
+                    }
+                });
+                el("comment-input").addEventListener("input", updateCommentCounts);
+                el("comment-input").addEventListener("keydown", (event) => {
+                    if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && state.watch) {
+                        event.preventDefault();
+                        submitComment(state.watch);
+                    }
+                });
+                el("comment-sort").addEventListener("click", (event) => {
+                    const button = event.target.closest("[data-sort]");
+                    if (!button || !state.watch) {
+                        return;
+                    }
+                    state.commentSort = button.dataset.sort;
+                    document.querySelectorAll("#comment-sort button").forEach((node) => {
+                        node.classList.toggle("active", node === button);
+                    });
+                    renderComments(state.watch);
+                });
+                el("comment-list").addEventListener("click", (event) => {
+                    if (!state.watch) {
+                        return;
+                    }
+                    const like = event.target.closest("[data-comment-like]");
+                    if (like) {
+                        toggleCommentLike(state.watch, like.dataset.commentLike);
+                        return;
+                    }
+                    const reply = event.target.closest("[data-comment-reply]");
+                    if (reply) {
+                        replyComment(state.watch, reply.dataset.commentReply);
+                        return;
+                    }
+                    const remove = event.target.closest("[data-comment-delete]");
+                    if (remove) {
+                        deleteComment(state.watch, remove.dataset.commentDelete);
+                    }
+                });
+
+                /* 相关推荐 */
+                el("related-list").addEventListener("click", (event) => {
+                    const link = event.target.closest("[data-video]");
+                    if (!link) {
+                        return;
+                    }
+                    event.preventDefault();
+                    openVideo(link.dataset.video);
+                });
+
+                window.addEventListener("popstate", route);
+                el("watch-video").addEventListener("play", () => {
+                    if (state.watch) {
+                        state.history = [state.watch.id, ...state.history.filter((item) => item !== state.watch.id)].slice(0, 30);
+                        writeStore("history", state.history);
+                        renderQuickState();
+                    }
                 });
 
                 el("hero-dismiss").addEventListener("click", () => {
@@ -1459,30 +2149,31 @@
 
                 document.addEventListener("keydown", (event) => {
                     if (event.key === "Escape") {
-                        if (!el("player-modal").hidden) {
-                            closePlayer();
-                        }
                         el("notify-panel").hidden = true;
-                    }
-                    if (!el("player-modal").hidden && (event.key === " " || event.code === "Space")) {
-                        const tag = (event.target.tagName || "").toLowerCase();
-                        if (tag === "input" || tag === "textarea" || tag === "select") {
-                            return;
-                        }
-                        event.preventDefault();
-                        togglePlay();
                     }
                 });
             }
 
+            /* 地址栏决定显示首页还是观看页（vitxvideo.html?videoid=xxx） */
+            function route() {
+                const id = currentVideoId();
+                if (id) {
+                    renderWatch(id);
+                } else if (!el("watch-view").hidden) {
+                    goHome(false);
+                }
+            }
+
             /* ───────── 启动 ───────── */
 
+            ensureSeedComments();
             renderNotify();
             renderAll();
             if (readStore("heroDismissed", false)) {
                 el("hero").hidden = true;
             }
             bind();
+            route();
         })();
     </script>
 </body>

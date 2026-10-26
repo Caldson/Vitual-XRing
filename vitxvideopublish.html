@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#f4f7fb">
     <title>投稿 | Vitx® 视频</title>
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+    <script src="vtx-video-store.js"></script>
     <style>
         :root {
             color-scheme: light;
@@ -152,6 +153,29 @@
         .upload-drop:hover { border-color: var(--blue); background: var(--blue-soft); }
         .upload-drop.has-file { color: var(--ink); border-style: solid; border-color: #cfe3d6; background: #f4fbf7; }
         .upload-drop small { display: block; margin-top: 7px; color: var(--muted); font-size: 11.5px; font-weight: 500; }
+
+        .preview {
+            margin-top: 12px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fbfcfe;
+        }
+
+        .preview video {
+            display: block;
+            width: 100%;
+            max-height: 320px;
+            border-radius: 10px;
+            background: #0e1420;
+        }
+
+        .preview p {
+            margin: 8px 0 0;
+            color: var(--muted);
+            font-size: 11.5px;
+            line-height: 1.7;
+        }
 
         .field { margin-top: 15px; }
 
@@ -361,7 +385,7 @@
         <div class="topbar-right">
             <a class="link-btn" href="vitxvideo.html">← 返回视频</a>
             <a class="link-btn" href="manager.html">返回账户</a>
-            <span class="version">v1.6.0</span>
+            <span class="version">v1.6.1</span>
         </div>
     </header>
 
@@ -372,9 +396,13 @@
 
             <button class="upload-drop" type="button" id="pick-file">
                 上传
-                <small id="pick-hint">点击选择视频文件（mp4 / webm / mov）</small>
+                <small id="pick-hint">点击选择视频文件（任何格式都可以，≤2 GB）</small>
             </button>
-            <input id="file-input" type="file" accept="video/*" hidden>
+            <input id="file-input" type="file" hidden>
+            <div class="preview" id="preview" hidden>
+                <video id="preview-video" controls playsinline preload="metadata" hidden></video>
+                <p id="preview-note"></p>
+            </div>
 
             <form id="publish-form" novalidate>
                 <div class="field">
@@ -420,10 +448,11 @@
         <aside class="panel side">
             <h2>投稿须知</h2>
             <ol>
-                <li>视频文件仅用于本机预览与表单校验，不会真的上传到服务器。</li>
+                <li>视频格式不限（mp4 / mov / mkv / avi / flv / ts… 都能选），文件只保存在本机浏览器里，不会上传服务器。</li>
                 <li>标题 2~60 个字，简介最多 300 字，标签最多 5 个。</li>
                 <li>勾选声明后会在视频页标注；含 AI 内容与营销内容必须如实勾选。</li>
                 <li>提交后进入审核，审核通过前视频会以「审核中」出现在今日最热。</li>
+                <li>播放页地址形如 <code>vitxvideo.html?videoid=视频ID</code>，可以直接分享给同机的自己。</li>
             </ol>
 
             <div class="pending" id="pending-box" hidden>
@@ -537,9 +566,10 @@
 
             function resetForm() {
                 selectedFile = null;
+                clearPreview();
                 el("file-input").value = "";
                 el("pick-file").classList.remove("has-file");
-                el("pick-file").innerHTML = `上传<small id="pick-hint">点击选择视频文件（mp4 / webm / mov）</small>`;
+                el("pick-file").innerHTML = `上传<small id="pick-hint">点击选择视频文件（任何格式都可以，≤2 GB）</small>`;
                 el("up-title").value = "";
                 el("up-desc").value = "";
                 el("up-tags").value = "";
@@ -547,6 +577,33 @@
                 el("up-cat").selectedIndex = 0;
                 document.querySelectorAll("#declare-list input").forEach((input) => { input.checked = false; });
                 updateCounts();
+            }
+
+            /* 选文件后立刻本机预览：浏览器能解码就直接播，不能解码就只显示文件信息 */
+            function clearPreview() {
+                const box = el("preview");
+                const video = el("preview-video");
+                if (video.src) {
+                    URL.revokeObjectURL(video.src);
+                    video.removeAttribute("src");
+                    video.load();
+                }
+                video.hidden = true;
+                box.hidden = true;
+            }
+
+            function showPreview(file) {
+                const box = el("preview");
+                const video = el("preview-video");
+                const note = el("preview-note");
+                box.hidden = false;
+                video.hidden = false;
+                video.src = URL.createObjectURL(file);
+                note.textContent = `${file.type || "未知类型"} · 浏览器能解码的格式（mp4 / webm / ogg 等）会直接显示画面；其它格式仍可提交，播放页会提示本机无法解码。`;
+                video.addEventListener("error", () => {
+                    video.hidden = true;
+                    note.textContent = "这个格式浏览器没法解码，预览不可用；视频仍会保存到本机，播放页会显示同样的提示。";
+                }, { once: true });
             }
 
             function describe(id) {
@@ -596,13 +653,23 @@
                     desc,
                     original: original && original.value === "yes",
                     declarations,
+                    fileName: selectedFile.name,
+                    fileType: selectedFile.type || "",
                     review: true
                 };
+                const file = selectedFile;
                 pending = [video, ...pending].slice(0, 20);
                 writeStore("pending", pending);
                 renderPending();
                 resetForm();
                 showDone(video);
+                if (window.VTXVideoStore) {
+                    window.VTXVideoStore.save(video.id, file).then((ok) => {
+                        if (!ok) {
+                            toast("视频已提交，但文件没能存到本机（可能空间不足）");
+                        }
+                    });
+                }
             }
 
             function bind() {
@@ -623,6 +690,7 @@
                         : `${Math.max(1, Math.round(file.size / 1024))} KB`;
                     el("pick-file").classList.add("has-file");
                     el("pick-file").innerHTML = `已选择：${esc(file.name)}<small>${size} · 点击可重新选择</small>`;
+                    showPreview(file);
                 });
 
                 el("publish-form").addEventListener("submit", (event) => {
