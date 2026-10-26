@@ -1920,3 +1920,29 @@ npx wrangler deploy
    - 左侧「聊天」入口：有未读 @ 时徽标变成橙色的 `@N`；
    - 标签页标题变成 `(N 条@你) 聊天室 | Vitual XRing`；
    - 收到别人 @ 我、且当前没打开那个会话时，右下角弹一条提示。
+
+### 18.3 停服守卫（`vtx-closed.js` + `WebsiteClose.html`）
+
+停服期间打开站内任何页面都会在渲染前跳到 `WebsiteClose.html`。版本号仍是 `1.5.0`，
+守卫脚本用时间戳加载，改完时间表立刻生效，不需要改版本参数。
+
+| 文件 | 作用 |
+|---|---|
+| `vtx-closed.js` | 时间表 `WINDOWS`（北京时间，`YYYY-MM-DD HH:mm` 的 `[开始, 结束]`）与守卫逻辑；命中窗口且当前不在停服页时 `location.replace("WebsiteClose.html?from=<相对路径>")` |
+| `WebsiteClose.html` | 停服公告页：大标题、状态、倒计时（到 `end` 归零）、维护窗口、恢复后「回到刚才的页面」按钮；`?from=` 只接受站内相对路径（`//`、`scheme:`、`\` 一律丢弃，回落 `index.html`） |
+| `websiteclose.txt` | 同一份时间的人工填写模板，共 6 行：开始 `YYYYMMDD`、开始时、开始分、结束 `YYYYMMDD`、结束时、结束分 |
+
+引入方式（已加在每个页面 `<head>` 的 charset 之后，纯静态站点没有服务端可以做跳转）：
+
+```html
+<script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+```
+
+- 用 `document.write` 而不是普通 `<script src>`：带上 `Date.now()` 可以绕开浏览器 / GitHub Pages 的 10 分钟缓存，
+  停服前几分钟改时间表也能立刻生效；
+- `WebsiteClose.html` 自身也会加载该脚本，但会在「已经在停服页」时直接返回，不会死循环；
+- 停服结束后，公告页会自动变成「已恢复」状态，并显示「回到刚才的页面」；直接打开站点则恢复正常；
+- `WindowsVersion_branch/` 里的旧版快照页也加了同一段守卫与同样的 `vtx-closed.js` / `WebsiteClose.html`，
+  所以 `/WindowsVersion_branch/xxx.html` 在停服期间同样会被拦下（`?from=` 按站点根目录解析，不会拼错路径）；
+- 脚本加载失败（例如文件没部署）时页面照常可用，不会把全站锁死；
+- 浏览器禁用 JS 时守卫失效——纯静态站点无法在服务端拦截，这是已知限制。
