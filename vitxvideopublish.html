@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f4f7fb">
     <title>投稿 | Vitx® 视频</title>
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
-    <script src="vtx-api.js?v=1.7.1"></script>
+    <script src="vtx-api.js?v=1.7.2"></script>
     <style>
         :root {
             color-scheme: light;
@@ -424,7 +424,7 @@
         <div class="topbar-right">
             <a class="link-btn" href="vitxvideo.html">← 返回视频</a>
             <a class="link-btn" href="manager.html">返回账户</a>
-            <span class="version">v1.7.1</span>
+            <span class="version">v1.7.2</span>
         </div>
     </header>
 
@@ -443,7 +443,7 @@
 
             <button class="upload-drop" type="button" id="pick-file">
                 上传
-                <small id="pick-hint">点击选择视频文件（任何格式，≤5 GB，时长 ≤100 小时）</small>
+                <small id="pick-hint">点击选择视频文件（任何格式，上限见下方说明）</small>
             </button>
             <input id="file-input" type="file" hidden>
             <div class="progress" id="upload-progress" hidden><i></i></div>
@@ -496,7 +496,7 @@
         <aside class="panel side">
             <h2>投稿须知</h2>
             <ol>
-                <li>视频格式不限（mp4 / mov / mkv / avi / flv / ts… 都能选），文件会上传到网站服务器（<b id="limit-inline">5 GB，时长最长 100 小时</b>）；大文件自动切成 8 MB 分片上传。</li>
+                <li>视频格式不限（mp4 / mov / mkv / avi / flv / ts… 都能选），文件会上传到网站服务器（<b id="limit-inline">5 GB，时长最长 100 小时</b>）；大文件自动分片上传，断了只要补传缺的那几片。</li>
                 <li>投稿需要登录 Vitual XRing 账户；标题 2~60 个字，简介最多 300 字，标签最多 5 个。</li>
                 <li>勾选声明后会在视频页标注；含 AI 内容与营销内容必须如实勾选。</li>
                 <li>提交后进入审核，审核通过前视频会以「审核中」出现在待审核区，只有你自己和站主能看到。</li>

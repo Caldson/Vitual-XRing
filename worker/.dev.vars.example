@@ -3,6 +3,8 @@
 SIGNING_SECRET = "在这里填一个足够长的随机字符串"
 # 8.0 起账户数据在 Workers KV 里；本地调试时 wrangler dev 会自动创建本地 KV，
 # wrangler.toml 里的占位 id 在本地模式下可以直接用（不会真的建云端命名空间）
-GITHUB_TOKEN = "github_pat_在这里填你的_PAT（迁移旧 account.json / 镜像时才需要）"
+# 迁移旧 account.json / 镜像时需要 Contents 读写权限；
+# 1.7.2 起它也是视频文件存储（没绑 R2 时存 GitHub Release）的凭据，同样要 Contents 读写
+GITHUB_TOKEN = "github_pat_在这里填你的_PAT"
 # 本地想看聊天室接口就设成 "true"（9.0 起线上默认 true）
 CHAT_ENABLED = "true"

@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "1.7.1";
+    const API_VERSION = "1.7.2";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -1152,18 +1152,17 @@
             throw new Error("服务端没有返回视频 ID");
         }
 
-        if (created.r2) {
-            let started = null;
-            try {
-                started = await videoRequest(`/${encodeId(id)}/upload/start`, { method: "POST" });
-            } catch (error) {
-                started = null;
-            }
-            if (started && started.ok) {
-                const video = await videoUploadChunked(id, file, started, onProgress);
-                if (video) {
-                    return video;
-                }
+        // 分片上传对 R2 与 KV 分块都可用，优先走这条；失败再退回整包
+        let started = null;
+        try {
+            started = await videoRequest(`/${encodeId(id)}/upload/start`, { method: "POST" });
+        } catch (error) {
+            started = null;
+        }
+        if (started && started.ok) {
+            const video = await videoUploadChunked(id, file, started, onProgress);
+            if (video) {
+                return video;
             }
         }
 

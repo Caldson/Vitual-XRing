@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.7.1`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**）
+- API 版本：`1.7.1`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**）
 
 ---
 
@@ -2191,11 +2191,13 @@ KV 结构是追加的，不需要迁移：老的 `accounts`、`chat:*` 键都不
 
 | 绑定 | 文件存放 | 单文件上限 | 上传方式 |
 |---|---|---|---|
-| `VIDEO_BUCKET`（R2） | R2 对象 `video:file:<id>` | **5 GB** | 8 MB 分片（R2 multipart） |
-| 未绑定 | `ACCOUNTS_KV` 的 `video:file:<id>` | 受 KV 单值限制（约 25 MB） | 一次 PUT 传完 |
+| `VIDEO_BUCKET`（R2） | R2 对象 `video:file:<id>` | **5 GB** | 20 MB 分片（R2 multipart） |
+| 未绑定 | `ACCOUNTS_KV` 的 `video:chunk:<id>:<n>` / `video:file:<id>` | 分片上传可到 5 GB（受 KV 免费额度 1 GB 限制），整包约 25 MB | 分片或一次 PUT |
+
+> 1.7.2 起，没绑 R2 但配置了 `GITHUB_TOKEN` 时会走 GitHub Release 存储，见第 23 节；上表「未绑定」一行只在两者都没有时生效。
 
 - 元信息与评论仍然在 KV：`video:index` / `video:meta:<id>` / `video:comments:<id>`；
-- 分片大小 `VIDEO_CHUNK_BYTES = 8 MB`，5 GB 大约 640 片（R2 上限 10000 片）；
+- 分片大小 `VIDEO_CHUNK_BYTES = 20 MB`，5 GB 大约 256 片（R2 上限 10000 片）；
 - 播放走同一个 `/file` 接口，R2 与 KV 都支持 `Range`（206 + `content-range`）。
 
 ```toml
@@ -2230,8 +2232,8 @@ npx wrangler deploy
 | POST | `/api/videos/:id/upload/abort` | 放弃这次分片上传（回到 `draft`） |
 
 - 只有作者与站主能上传；
-- 未绑定 R2 时 `start` 直接返回 `503 no_r2`，前端会退回「一次 PUT 传完」；
-- `PUT /api/videos/:id/file` 仍然保留：R2 存在时写 R2，否则写 KV。
+- 1.7.2 起 `start` 不再因为「没绑 R2」而失败：按 R2 → GitHub Release → KV 分块 的顺序挑一个可用存储，返回里带 `storage` 与对应的 `chunkBytes`；
+- `PUT /api/videos/:id/file` 仍然保留：整包上传会写到当前存储（R2 / GitHub 单资源 / KV 单值）。
 
 ### 22.4 投币
 
@@ -2274,3 +2276,59 @@ await VTXApi.video.coin(video.id);   // { coined, coins, coinCents, cost, accoun
 | `vitxvideopublish.html` | 提示改为「任何格式，≤5 GB，时长 ≤100 小时」；选文件后探测真实时长，超 100 小时直接拦下；上传过程中按钮显示百分比并有进度条 |
 | `vitxvideo.html` | 投币改为服务端（按钮计数 = 真实投币数）；未登录提示先登录；余额不足、审核中都会提示；「我投过币的」列表按服务端 `coined` 生成 |
 | 版本号 | 全套同步到 `1.7.1`（`VERSION` / `CHAT_VERSION` / `VIDEO_VERSION` / `API_VERSION` / 各页 `?v=`） |
+
+## 23. 1.7.2 更新：没开通 R2 时文件改存 GitHub Release
+
+Cloudflare 的 R2 必须先绑定支付方式才能开通，否则 `npx wrangler r2 bucket create` 会直接抛 `code: 10042 / Please enable R2 through the Cloudflare Dashboard`。1.7.2 起，**没绑 R2 但配置了 `GITHUB_TOKEN`** 时，投稿文件改存到仓库的 GitHub Release：单文件上限从「KV 单值约 25 MB」提到 **2 GB**，时长上限仍然是 **100 小时**，分片上传和 `Range` 播放都不受影响。
+
+### 23.1 文件存在哪
+
+每个视频一个**草稿** release，tag 为 `video-store/<视频 id>`，文件按 32 MB 切片，存成 release 资源 `p001`、`p002`…
+
+| 存储 | 触发条件 | 单文件上限 | 分片大小 | 读文件 |
+|---|---|---|---|---|
+| R2 | 绑了 `VIDEO_BUCKET` | 5 GB | 20 MB | Worker → R2 |
+| GitHub Release | 没绑 R2，且 `GITHUB_TOKEN` 可用 | 2 GB | 32 MB（一片一个资源） | Worker → GitHub（带令牌） |
+| KV 分块 | 两者都没有 | 5 GB（实际受 KV 免费额度 1 GB 限制） | 20 MB | Worker → KV |
+
+- 草稿 release 不公开：外部没有直链，`/file` 仍然只给「已通过审核」或作者 / 站主看，可见性规则和 R2 / KV 完全一致；
+- 删除视频 = 删掉那个草稿 release，文件跟着一起清掉（一次 API 调用，不用逐片删）；
+- 元信息、评论、索引还是在 `ACCOUNTS_KV`，存储位置记在 `meta.storage` 与 `meta.gh`。
+
+### 23.2 需要什么
+
+| 项 | 说明 |
+|---|---|
+| `GITHUB_TOKEN` | 现有 secret 直接能用，需要仓库 **Contents: Read and write** |
+| 仓库 | 默认取 `wrangler.toml` 里的 `REPO`，也可以用 `VIDEO_GH_REPO` 指向另一个仓库 |
+| Workers 套餐 | 免费版的 50 次子请求够用：上传一片只发 1 次请求，播放一次只读 1 片 |
+
+> 一个视频一条草稿 release，仓库的 Releases 页面里只有管理员能看到（草稿不公开），删视频时一起删掉。GitHub 单个资源上限 2 GB，我们切片只有 32 MB，不会碰到。
+
+### 23.3 与 1.7.1 的差异
+
+| 项 | 1.7.1 | 1.7.2 |
+|---|---|---|
+| 没绑 R2 时 | 只能整包传，约 25 MB | 分片上传，2 GB |
+| `chunkBytes` | 固定 20 MB | 按存储返回：R2 20 MB / GitHub 32 MB / KV 20 MB |
+| `/api/videos/status` | 只有 `r2` | 增加 `storage: "r2"｜"gh"｜"kv-chunks"` |
+| `/api/videos`（POST）与 `/upload/start` | `r2` + 固定 `chunkBytes` | 同样带 `storage` 与对应 `chunkBytes` / `maxBytes` |
+| 删除视频 | 逐片删 | GitHub 存储下删 release |
+| 版本号 | 1.7.1 | 全套同步到 `1.7.2` |
+
+SDK 不用改：`VTXApi.video.upload()` 本来就是「先 `upload/start` 拿 `chunkBytes`，按片上传，失败再退回整包」，三种存储共用这一条路。
+
+### 23.4 运维
+
+```bash
+# 仓库里的 GITHUB_TOKEN 已经是 secret，确认它有 Contents 读写权限即可
+npx wrangler secret put GITHUB_TOKEN
+
+# 部署后确认走了哪个存储
+curl https://xsmmc.caldson.us.ci/api/videos/status
+# → { "storage": "gh", "maxBytes": 2147483648, "chunkBytes": 33554432, ... }
+```
+
+- 想改回 R2：把 `[[r2_buckets]]` 放开并建桶，优先级高于 GitHub；
+- 想强制退回 KV：在 `wrangler.toml` 的 `[vars]` 里加 `VIDEO_GH_REPO = "off"`（不影响 `GITHUB_TOKEN` 的其他用途），单文件上限会掉回受 KV 限制；
+- 草稿 release 只在「开始上传后没传完、也没点放弃」时才会残留，`/upload/abort` 或删视频都会清掉。

@@ -537,7 +537,7 @@ test("1.7.1：绑定 R2 后用分片上传大文件，并按 Range 播放", asyn
 
     const started = await api(env, "POST", `/api/videos/${id}/upload/start`, { token: tokens.Alice });
     assert.equal(started.status, 200, JSON.stringify(started.data));
-    assert.equal(started.data.chunkBytes, 8 * 1024 * 1024);
+    assert.equal(started.data.chunkBytes, 20 * 1024 * 1024);
 
     const partOne = await api(env, "PUT", `/api/videos/${id}/upload/1`, {
         token: tokens.Alice,
@@ -657,3 +657,335 @@ test("1.7.1：投币一次扣 5.00 VTX 给投稿人，取消投币不退钱", as
     assert.equal(detail.data.video.coinCents, 1000);
 });
 
+/* 1.7.2：没开通 R2 时文件存 GitHub Release。这里用一个极简的 GitHub 替身，
+   只实现草稿 release、资源上传 / 删除、带 Range 的下载这四件事。 */
+class MockGitHub {
+    constructor() {
+        this.releases = new Map();
+        this.nextRelease = 0;
+        this.nextAsset = 0;
+        this.rangeSupported = true;
+        this.calls = [];
+        this.previous = null;
+    }
+
+    install() {
+        this.previous = globalThis.fetch;
+        const self = this;
+        globalThis.fetch = async (input, init) => self.handle(String(input), init || {});
+        return this;
+    }
+
+    restore() {
+        if (this.previous) {
+            globalThis.fetch = this.previous;
+        }
+    }
+
+    releaseByTag(tag) {
+        for (const release of this.releases.values()) {
+            if (release.tag === tag) {
+                return release;
+            }
+        }
+        return null;
+    }
+
+    allAssets() {
+        const list = [];
+        for (const release of this.releases.values()) {
+            for (const asset of release.assets.values()) {
+                list.push(asset);
+            }
+        }
+        return list;
+    }
+
+    async handle(url, init) {
+        const method = String(init.method || "GET").toUpperCase();
+        const parsed = new URL(url);
+        this.calls.push(`${method} ${parsed.origin}${parsed.pathname}`);
+
+        let match = parsed.pathname.match(/^\/repos\/[^/]+\/[^/]+\/releases$/);
+        if (match && method === "POST") {
+            const body = JSON.parse(String(init.body || "{}"));
+            if (this.releaseByTag(body.tag_name)) {
+                return new Response(JSON.stringify({ message: "already_exists" }), { status: 422 });
+            }
+            this.nextRelease += 1;
+            this.releases.set(this.nextRelease, {
+                id: this.nextRelease,
+                tag: body.tag_name,
+                draft: body.draft === true,
+                assets: new Map()
+            });
+            return new Response(JSON.stringify({ id: this.nextRelease, tag_name: body.tag_name }), { status: 201 });
+        }
+
+        match = parsed.pathname.match(/^\/repos\/[^/]+\/[^/]+\/releases\/(\d+)$/);
+        if (match && method === "DELETE") {
+            this.releases.delete(Number(match[1]));
+            return new Response(null, { status: 204 });
+        }
+
+        match = parsed.pathname.match(/^\/repos\/[^/]+\/[^/]+\/releases\/assets\/(\d+)$/);
+        if (match && method === "DELETE") {
+            const assetId = Number(match[1]);
+            for (const release of this.releases.values()) {
+                release.assets.delete(assetId);
+            }
+            return new Response(null, { status: 204 });
+        }
+
+        match = parsed.pathname.match(/^\/repos\/[^/]+\/[^/]+\/releases\/(\d+)\/assets$/);
+        if (match && method === "POST") {
+            const release = this.releases.get(Number(match[1]));
+            if (!release) {
+                return new Response(JSON.stringify({ message: "not_found" }), { status: 404 });
+            }
+            const name = parsed.searchParams.get("name") || "";
+            for (const asset of release.assets.values()) {
+                if (asset.name === name) {
+                    return new Response(JSON.stringify({ message: "already_exists" }), { status: 422 });
+                }
+            }
+            this.nextAsset += 1;
+            const data = MockGitHub.toBuffer(init.body);
+            release.assets.set(this.nextAsset, { id: this.nextAsset, name, data });
+            return new Response(JSON.stringify({
+                id: this.nextAsset,
+                name,
+                size: data.byteLength
+            }), { status: 201 });
+        }
+
+        match = parsed.pathname.match(/^\/repos\/[^/]+\/[^/]+\/releases\/assets\/(\d+)$/);
+        if (match && method === "GET") {
+            const assetId = Number(match[1]);
+            let found = null;
+            for (const release of this.releases.values()) {
+                if (release.assets.has(assetId)) {
+                    found = release.assets.get(assetId);
+                }
+            }
+            if (!found) {
+                return new Response(JSON.stringify({ message: "not_found" }), { status: 404 });
+            }
+            const bytes = new Uint8Array(found.data);
+            const header = new Headers(init.headers).get("range") || "";
+            const range = /^bytes=(\d+)-(\d+)$/.exec(header);
+            if (range && this.rangeSupported) {
+                const start = Number(range[1]);
+                const end = Math.min(Number(range[2]), bytes.byteLength - 1);
+                return new Response(bytes.slice(start, end + 1), {
+                    status: 206,
+                    headers: { "content-range": `bytes ${start}-${end}/${bytes.byteLength}` }
+                });
+            }
+            return new Response(bytes, { status: 200 });
+        }
+
+        return new Response(JSON.stringify({ message: `unexpected ${method} ${parsed.pathname}` }), { status: 500 });
+    }
+
+    static toBuffer(value) {
+        if (value instanceof ArrayBuffer) {
+            return value;
+        }
+        if (ArrayBuffer.isView(value)) {
+            return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
+        }
+        return new TextEncoder().encode(String(value)).buffer;
+    }
+}
+
+async function prepareGithub() {
+    const env = createEnv();
+    env.REPO = "Caldson/Vitual-XRing";
+    env.GITHUB_TOKEN = "ghp_test_token";
+    const hub = new MockGitHub().install();
+    await env.ACCOUNTS_KV.put("accounts", JSON.stringify(SEED));
+    const tokens = {};
+    for (const name of Object.keys(SEED)) {
+        const result = await api(env, "POST", "/api/login", { body: { login: name, password: "password1" } });
+        assert.equal(result.status, 200, JSON.stringify(result.data));
+        tokens[name] = result.data.token;
+    }
+    return { env, hub, tokens };
+}
+
+test("1.7.2：没绑 R2 时文件改存 GitHub 草稿 release，分片上传与 Range 播放都通", async () => {
+    const { env, hub, tokens } = await prepareGithub();
+    try {
+        const status = await api(env, "GET", "/api/videos/status");
+        assert.equal(status.data.storage, "gh");
+        assert.equal(status.data.r2, false);
+        assert.equal(status.data.chunkBytes, 32 * 1024 * 1024);
+        assert.equal(status.data.maxBytes, 2 * 1024 * 1024 * 1024);
+
+        const created = await api(env, "POST", "/api/videos", {
+            token: tokens.Alice,
+            body: {
+                title: "GitHub 存储测试",
+                cat: "生活",
+                fileName: "gh.mp4",
+                fileType: "video/mp4",
+                fileSize: 12,
+                durSeconds: 65
+            }
+        });
+        assert.equal(created.status, 201, JSON.stringify(created.data));
+        assert.equal(created.data.storage, "gh");
+        assert.equal(created.data.chunkBytes, 32 * 1024 * 1024);
+        const id = created.data.video.id;
+
+        const started = await api(env, "POST", `/api/videos/${id}/upload/start`, { token: tokens.Alice });
+        assert.equal(started.status, 200, JSON.stringify(started.data));
+        assert.equal(started.data.storage, "gh");
+        assert.equal(started.data.chunkBytes, 32 * 1024 * 1024);
+
+        const partOne = await api(env, "PUT", `/api/videos/${id}/upload/1`, {
+            token: tokens.Alice,
+            raw: new Uint8Array([1, 2, 3, 4, 5, 6]),
+            contentType: "video/mp4"
+        });
+        assert.equal(partOne.status, 200, JSON.stringify(partOne.data));
+        const partTwo = await api(env, "PUT", `/api/videos/${id}/upload/2`, {
+            token: tokens.Alice,
+            raw: new Uint8Array([7, 8, 9, 10, 11, 12]),
+            contentType: "video/mp4"
+        });
+        assert.equal(partTwo.status, 200, JSON.stringify(partTwo.data));
+
+        const done = await api(env, "POST", `/api/videos/${id}/upload/complete`, { token: tokens.Alice });
+        assert.equal(done.status, 200, JSON.stringify(done.data));
+
+        // 两片两个资源，release 是草稿
+        const assets = hub.allAssets();
+        assert.equal(assets.length, 2);
+        const release = [...hub.releases.values()][0];
+        assert.equal(release.draft, true);
+
+        const approve = await api(env, "POST", `/api/videos/${id}/approve`, { token: tokens.Kitawaga });
+        assert.equal(approve.status, 200, JSON.stringify(approve.data));
+
+        // 第一片里的 Range
+        const head = await api(env, "GET", `/api/videos/${id}/file`, {
+            token: tokens.Alice,
+            headers: { range: "bytes=1-2" }
+        });
+        assert.equal(head.status, 206);
+        assert.equal(head.response.headers.get("content-range"), "bytes 1-2/12");
+        assert.deepEqual(Array.from(new Uint8Array(head.data)), [2, 3]);
+
+        // 跨片 Range 只回当前这一片，播放器自己会接着要下一段
+        const cross = await api(env, "GET", `/api/videos/${id}/file`, {
+            token: tokens.Alice,
+            headers: { range: "bytes=4-9" }
+        });
+        assert.equal(cross.status, 206);
+        assert.equal(cross.response.headers.get("content-range"), "bytes 4-5/12");
+        assert.deepEqual(Array.from(new Uint8Array(cross.data)), [5, 6]);
+
+        const tail = await api(env, "GET", `/api/videos/${id}/file`, {
+            token: tokens.Alice,
+            headers: { range: "bytes=6-11" }
+        });
+        assert.equal(tail.response.headers.get("content-range"), "bytes 6-11/12");
+        assert.deepEqual(Array.from(new Uint8Array(tail.data)), [7, 8, 9, 10, 11, 12]);
+
+        // 不带 Range 时先回第一片，带 accept-ranges
+        const open = await api(env, "GET", `/api/videos/${id}/file`, { token: tokens.Alice });
+        assert.equal(open.status, 206);
+        assert.equal(open.response.headers.get("content-range"), "bytes 0-5/12");
+        assert.equal(open.response.headers.get("accept-ranges"), "bytes");
+
+        // 审核中的视频对别人依然不可见（GitHub 上是草稿 release，外面拿不到直链）
+        const pendingVideo = await api(env, "POST", "/api/videos", {
+            token: tokens.Alice,
+            body: { title: "还没审核", cat: "生活", fileName: "p.mp4", fileType: "video/mp4", fileSize: 3 }
+        });
+        const pendingId = pendingVideo.data.video.id;
+        const pendingFile = await api(env, "GET", `/api/videos/${pendingId}/file`, { token: tokens.Bob });
+        assert.equal(pendingFile.status, 404);
+
+        // 删除会把草稿 release 一起清掉
+        const remove = await api(env, "DELETE", `/api/videos/${id}`, { token: tokens.Alice });
+        assert.equal(remove.status, 200);
+        assert.equal(hub.allAssets().length, 0);
+        assert.equal(hub.releases.size, 0);
+    } finally {
+        hub.restore();
+    }
+});
+
+test("1.7.2：GitHub 存储整包上传能播；上游不认 Range 时由 Worker 自己切字节", async () => {
+    const { env, hub, tokens } = await prepareGithub();
+    try {
+        const created = await api(env, "POST", "/api/videos", {
+            token: tokens.Alice,
+            body: {
+                title: "整包上传",
+                cat: "生活",
+                fileName: "one.mp4",
+                fileType: "video/mp4",
+                fileSize: BYTES.byteLength
+            }
+        });
+        const id = created.data.video.id;
+        const put = await api(env, "PUT", `/api/videos/${id}/file`, {
+            token: tokens.Alice,
+            raw: BYTES,
+            contentType: "video/mp4"
+        });
+        assert.equal(put.status, 200, JSON.stringify(put.data));
+        assert.equal(hub.allAssets().length, 1);
+
+        const approve = await api(env, "POST", `/api/videos/${id}/approve`, { token: tokens.Kitawaga });
+        assert.equal(approve.status, 200);
+
+        // 上游老老实实按 Range 回 206
+        const ranged = await api(env, "GET", `/api/videos/${id}/file`, {
+            token: tokens.Alice,
+            headers: { range: "bytes=2-4" }
+        });
+        assert.equal(ranged.status, 206);
+        assert.equal(ranged.response.headers.get("content-range"), "bytes 2-4/9");
+        assert.deepEqual(Array.from(new Uint8Array(ranged.data)), Array.from(BYTES.slice(2, 5)));
+
+        // 上游无视 Range 回 200 整片：Worker 得自己切
+        hub.rangeSupported = false;
+        const sliced = await api(env, "GET", `/api/videos/${id}/file`, {
+            token: tokens.Alice,
+            headers: { range: "bytes=6-8" }
+        });
+        assert.equal(sliced.status, 206);
+        assert.equal(sliced.response.headers.get("content-range"), "bytes 6-8/9");
+        assert.deepEqual(Array.from(new Uint8Array(sliced.data)), Array.from(BYTES.slice(6, 9)));
+
+        // 分片异常时删除也能清干净
+        const remove = await api(env, "DELETE", `/api/videos/${id}`, { token: tokens.Alice });
+        assert.equal(remove.status, 200);
+        assert.equal(hub.allAssets().length, 0);
+    } finally {
+        hub.restore();
+    }
+});
+
+
+test("1.7.2：VIDEO_GH_REPO = off 时强制退回 KV 分块，不碰 GitHub", async () => {
+    const env = createEnv();
+    env.REPO = "Caldson/Vitual-XRing";
+    env.GITHUB_TOKEN = "ghp_test_token";
+    env.VIDEO_GH_REPO = "off";
+    const hub = new MockGitHub().install();
+    try {
+        const status = await api(env, "GET", "/api/videos/status");
+        assert.equal(status.data.storage, "kv-chunks");
+        assert.equal(status.data.chunkBytes, 20 * 1024 * 1024);
+        assert.equal(status.data.maxBytes, 5 * 1024 * 1024 * 1024);
+        assert.equal(hub.calls.length, 0);
+    } finally {
+        hub.restore();
+    }
+});

@@ -44,18 +44,21 @@
  *   MIGRATE_DELETE_REPO_FILE    迁移后是否删除仓库里的 account.json，默认 true
  *   MIRROR_TO_GITHUB            是否把 KV 数据镜像回仓库 account.json，默认 false
  *   CHAT_ENABLED                是否开放聊天室接口，9.0 起默认 true
+ *   VIDEO_GH_REPO               1.7.2：视频文件存进哪个仓库的 Release，默认取 REPO；
+ *                               填 "off" 可以强制把文件留在 KV
  *
  * 绑定：
  *   ACCOUNTS_KV                 Workers KV：账户 + 聊天记录 + 聊天媒体
  *   CHAT                        Durable Object（class_name = ChatHub）：WebSocket 实时推送
+ *   VIDEO_BUCKET                （可选）R2 桶：视频文件。不绑就依次退到 GitHub Release、KV
  *
  * 机密（wrangler secret put）：
- *   GITHUB_TOKEN                迁移 / 镜像时需要仓库 Contents 读写权限
+ *   GITHUB_TOKEN                迁移 / 镜像 / 1.7.2 视频存储都需要仓库 Contents 读写权限
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
  *   PASSWORD_VIEW_KEY           （可选，1.4.0）给管理员看的密码副本加密密钥；不配就不存副本
  */
 
-const VERSION = "1.7.1";
+const VERSION = "1.7.2";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -68,7 +71,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.7.1";
+const CHAT_VERSION = "1.7.2";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 /* 1.4.0：聊天室全部去掉按 IP 限流（发言 / 正在输入 / 上传媒体），删除了 CHAT_*_WINDOW_MS / CHAT_*_MAX_ATTEMPTS */
@@ -6668,11 +6671,21 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "1.7.1";
+const VIDEO_VERSION = "1.7.2";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
-const VIDEO_CHUNK_BYTES = 8 * 1024 * 1024;
+const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
 const VIDEO_MAX_PARTS = 10000;
+
+/* 1.7.2：没开通 R2 时，文件改存 GitHub Release（每个视频一个「草稿」release，
+   资源名 p001、p002…）。草稿 release 不对外公开，播放仍然要经过 Worker 鉴权和
+   Range，可见性规则跟 R2 / KV 完全一样。分片取 32 MB：1 GB 约 32 片，每次请求
+   只传几秒的数据，断线可以只补缺的那几片；GitHub 单资源上限 2 GB。 */
+const VIDEO_GH_TAG_PREFIX = "video-store/";
+const VIDEO_GH_CHUNK_BYTES = 32 * 1024 * 1024;
+const VIDEO_GH_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+const GH_API_BASE = "https://api.github.com";
+const GH_UPLOAD_BASE = "https://uploads.github.com";
 const VIDEO_COIN_CENTS = 500;
 const VIDEO_TITLE_MAX = 60;
 const VIDEO_DESC_MAX = 300;
@@ -6688,6 +6701,7 @@ const VIDEO_INDEX_KEY = "video:index";
 const VIDEO_META_PREFIX = "video:meta:";
 const VIDEO_FILE_PREFIX = "video:file:";
 const VIDEO_COMMENT_PREFIX = "video:comments:";
+const VIDEO_CHUNK_PREFIX = "video:chunk:";
 const VIDEO_SEEDED_KEY = "video:seeded";
 const VIDEO_ID_PATTERN = /^v_[A-Za-z0-9_-]{4,32}$/;
 
@@ -6703,11 +6717,205 @@ function videoCommentKey(id) {
     return `${VIDEO_COMMENT_PREFIX}${id}`;
 }
 
+/* 没有 R2 时，文件按 20 MB 切片存进 KV：video:chunk:<id>:<n>（n 从 1 开始） */
+function videoChunkKey(id, index) {
+    return `${VIDEO_CHUNK_PREFIX}${id}:${index}`;
+}
+
 /* 1.7.1：大文件走 R2；没绑定就返回 null，相关接口改用 KV */
 
 function videoBucket(env) {
     const bucket = env && env.VIDEO_BUCKET;
     return bucket && typeof bucket.get === "function" ? bucket : null;
+}
+
+/* 1.7.2：GitHub 存储。要 GITHUB_TOKEN（Contents 读写）和仓库名（默认 env.REPO，
+   也可以用 VIDEO_GH_REPO 指向别的仓库）。令牌或仓库名缺一个就不启用；
+   想把文件强制留在 KV，就把 VIDEO_GH_REPO 设成 "off"。 */
+function videoGithub(env) {
+    const token = String((env && env.GITHUB_TOKEN) || "").trim();
+    const repo = String((env && (env.VIDEO_GH_REPO || env.REPO)) || "").trim();
+    if (/^(off|none|kv)$/i.test(repo)) {
+        return null;
+    }
+    if (!token || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
+        return null;
+    }
+    return { token, repo };
+}
+
+/* 文件存哪儿：R2 > GitHub Release > KV 分块（跟 1.7.1 的优先级一致，绑了 R2 就用 R2） */
+function videoStorageKind(env) {
+    if (videoBucket(env)) {
+        return "r2";
+    }
+    return videoGithub(env) ? "gh" : "kv";
+}
+
+/* 每个后端的分片大小和单文件上限都不一样，接口统一从这里取 */
+function videoLimits(env) {
+    const kind = videoStorageKind(env);
+    if (kind === "gh") {
+        return { kind, chunkBytes: VIDEO_GH_CHUNK_BYTES, maxBytes: VIDEO_GH_MAX_BYTES };
+    }
+    return { kind, chunkBytes: VIDEO_CHUNK_BYTES, maxBytes: VIDEO_MAX_BYTES };
+}
+
+function ghReleaseTag(id) {
+    return `${VIDEO_GH_TAG_PREFIX}${id}`;
+}
+
+/* 片号 → 资源名。GitHub 的 release 里资源名必须唯一，重传前要先删旧的 */
+function ghPartName(index) {
+    return `p${String(index).padStart(3, "0")}`;
+}
+
+async function ghFailure(response, action) {
+    let detail = "";
+    try {
+        const text = await response.text();
+        try {
+            const data = JSON.parse(text);
+            detail = String((data && (data.message || data.error)) || "");
+        } catch (error) {
+            detail = text;
+        }
+    } catch (error) {
+        detail = "";
+    }
+    const suffix = detail ? `：${detail.slice(0, 160)}` : "";
+    return new Error(`${action}失败（GitHub HTTP ${response.status}）${suffix}`);
+}
+
+async function ghCall(storage, url, init) {
+    const options = { ...(init || {}) };
+    const headers = new Headers(options.headers || undefined);
+    headers.set("authorization", `Bearer ${storage.token}`);
+    headers.set("x-github-api-version", "2022-11-28");
+    headers.set("user-agent", "vtx-api-video-storage");
+    if (!headers.has("accept")) {
+        headers.set("accept", "application/vnd.github+json");
+    }
+    options.headers = headers;
+    return await fetch(url, options);
+}
+
+/* 一个视频一个草稿 release：删视频只要删这个 release，附带的资源一起没 */
+async function ghCreateRelease(storage, id) {
+    const response = await ghCall(storage, `${GH_API_BASE}/repos/${storage.repo}/releases`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+            tag_name: ghReleaseTag(id),
+            name: `视频存储 ${id}`,
+            body: "Vitx® 视频文件存储（草稿，不公开）。请不要手动发布或删除这个 release。",
+            draft: true,
+            prerelease: false
+        })
+    });
+    if (!response.ok) {
+        throw await ghFailure(response, "创建 GitHub 存储 release ");
+    }
+    const data = await response.json().catch(() => null);
+    const releaseId = Number(data && data.id);
+    if (!releaseId) {
+        throw new Error("创建 GitHub 存储 release 失败：返回里没有 id");
+    }
+    return releaseId;
+}
+
+async function ghUploadPart(storage, releaseId, index, buffer) {
+    const name = ghPartName(index);
+    const url = `${GH_UPLOAD_BASE}/repos/${storage.repo}/releases/${releaseId}/assets?name=${encodeURIComponent(name)}`;
+    const response = await ghCall(storage, url, {
+        method: "POST",
+        headers: { "content-type": "application/octet-stream", accept: "application/vnd.github+json" },
+        body: buffer
+    });
+    if (!response.ok) {
+        throw await ghFailure(response, `上传第 ${index} 个分片`);
+    }
+    const data = await response.json().catch(() => null);
+    const assetId = Number(data && data.id);
+    if (!assetId) {
+        throw new Error(`上传第 ${index} 个分片失败：返回里没有 asset id`);
+    }
+    return { assetId, size: Number(data && data.size) || buffer.byteLength };
+}
+
+async function ghDeleteAsset(storage, assetId) {
+    if (!assetId) {
+        return;
+    }
+    try {
+        await ghCall(storage, `${GH_API_BASE}/repos/${storage.repo}/releases/assets/${assetId}`, { method: "DELETE" });
+    } catch (error) {
+        /* 资源本来就没了，不影响后续清理 */
+    }
+}
+
+async function ghDeleteRelease(storage, releaseId) {
+    if (!releaseId) {
+        return;
+    }
+    try {
+        await ghCall(storage, `${GH_API_BASE}/repos/${storage.repo}/releases/${releaseId}`, { method: "DELETE" });
+    } catch (error) {
+        /* 同上 */
+    }
+}
+
+/* 读一片：草稿 release 的资源要带令牌，先拿 302，再跟到签名地址取字节 */
+async function ghOpenAsset(storage, assetId, range) {
+    const headers = { accept: "application/octet-stream" };
+    if (range) {
+        headers.range = `bytes=${range.start}-${range.end}`;
+    }
+    return await ghCall(storage, `${GH_API_BASE}/repos/${storage.repo}/releases/assets/${assetId}`, { headers });
+}
+
+/* 上游不认 Range（回 200 整片）时，从这里切出真正要的字节，不整片读进内存 */
+function videoStreamSlice(body, from, to) {
+    const reader = body.getReader();
+    let seen = 0;
+    let closed = false;
+    return new ReadableStream({
+        async pull(controller) {
+            if (closed) {
+                controller.close();
+                return;
+            }
+            while (true) {
+                const step = await reader.read();
+                if (step.done) {
+                    closed = true;
+                    controller.close();
+                    return;
+                }
+                const chunk = step.value;
+                const base = seen;
+                seen += chunk.byteLength;
+                if (seen <= from) {
+                    continue;
+                }
+                const start = Math.max(0, from - base);
+                const end = Math.min(chunk.byteLength, to - base + 1);
+                if (end > start) {
+                    controller.enqueue(chunk.slice(start, end));
+                }
+                if (seen > to) {
+                    closed = true;
+                    controller.close();
+                    return;
+                }
+                return;
+            }
+        },
+        cancel() {
+            closed = true;
+            reader.cancel().catch(() => {});
+        }
+    });
 }
 
 function videoSizeLabel(bytes) {
@@ -6805,9 +7013,9 @@ async function saveVideoComments(env, id, list) {
     await env.ACCOUNTS_KV.put(videoCommentKey(id), JSON.stringify(list.slice(-VIDEO_COMMENT_KEEP)));
 }
 
-/* 1.7.1：删视频时把 R2 与 KV 里的文件都清掉 */
+/* 1.7.1：删视频时把 R2 与 KV 里的文件都清掉；1.7.2 起还要删 GitHub 存储 release */
 
-async function removeVideoFile(env, id) {
+async function removeVideoFile(env, id, chunkCount) {
     const bucket = videoBucket(env);
     if (bucket) {
         try {
@@ -6817,6 +7025,36 @@ async function removeVideoFile(env, id) {
         }
     }
     await env.ACCOUNTS_KV.delete(videoFileKey(id));
+
+    const meta = await readVideoMeta(env, id);
+
+    // GitHub 存储：一个视频一个草稿 release，删 release 连资源一起删
+    const github = videoGithub(env);
+    const releaseId = Number((meta && meta.gh && meta.gh.releaseId) || (meta && meta.upload && meta.upload.releaseId) || 0);
+    if (github && releaseId) {
+        await ghDeleteRelease(github, releaseId);
+    }
+
+    // KV 分块：已知块数就按块数删，不知道就一路删到第一块缺失为止
+    // GitHub 存储下没有 KV 分块，别白跑一遍（KV 删除也计入每日写入量）
+    if (meta && meta.storage === "gh") {
+        return;
+    }
+    const known = Number(chunkCount) || Number(meta && meta.chunkCount) || 0;
+    if (known > 0) {
+        for (let index = 1; index <= known; index += 1) {
+            await env.ACCOUNTS_KV.delete(videoChunkKey(id, index));
+        }
+        return;
+    }
+    for (let index = 1; index <= VIDEO_MAX_PARTS; index += 1) {
+        const key = videoChunkKey(id, index);
+        const existing = await env.ACCOUNTS_KV.get(key);
+        if (!existing) {
+            break;
+        }
+        await env.ACCOUNTS_KV.delete(key);
+    }
 }
 
 /* 1.7.0：老的示例视频（v_demo*）一律当作不存在，清理没跑到也不会露出来 */
@@ -6977,14 +7215,16 @@ async function handleVideoList(request, env, cors) {
     }
 
     videos.sort((left, right) => (right.at || 0) - (left.at || 0));
+    const limits = videoLimits(env);
     return jsonResponse({
         ok: true,
         version: VIDEO_VERSION,
-        maxBytes: VIDEO_MAX_BYTES,
+        maxBytes: limits.maxBytes,
         maxDurationSeconds: VIDEO_MAX_DURATION_SECONDS,
-        chunkBytes: VIDEO_CHUNK_BYTES,
+        chunkBytes: limits.chunkBytes,
         coinCents: VIDEO_COIN_CENTS,
-        r2: Boolean(videoBucket(env)),
+        r2: limits.kind === "r2",
+        storage: limits.kind,
         login,
         isAdmin,
         count: videos.length,
@@ -7040,10 +7280,11 @@ async function handleVideoCreate(request, env, cors) {
     if (!fileName) {
         return jsonResponse({ error: "bad_request", message: "缺少文件名" }, 400, cors);
     }
-    if (fileSize <= 0 || fileSize > VIDEO_MAX_BYTES) {
+    const limits = videoLimits(env);
+    if (fileSize <= 0 || fileSize > limits.maxBytes) {
         return jsonResponse({
             error: "payload_too_large",
-            message: `视频文件不能超过 ${videoSizeLabel(VIDEO_MAX_BYTES)}`
+            message: `视频文件不能超过 ${videoSizeLabel(limits.maxBytes)}`
         }, 413, cors);
     }
     if (durSeconds > VIDEO_MAX_DURATION_SECONDS) {
@@ -7086,9 +7327,10 @@ async function handleVideoCreate(request, env, cors) {
 
     return jsonResponse({
         ok: true,
-        r2: Boolean(videoBucket(env)),
-        chunkBytes: VIDEO_CHUNK_BYTES,
-        maxBytes: VIDEO_MAX_BYTES,
+        r2: limits.kind === "r2",
+        storage: limits.kind,
+        chunkBytes: limits.chunkBytes,
+        maxBytes: limits.maxBytes,
         maxDurationSeconds: VIDEO_MAX_DURATION_SECONDS,
         video: videoView(meta, login, isPlatformAdmin(env, login))
     }, 201, cors);
@@ -7117,11 +7359,14 @@ async function handleVideoFileUpload(request, env, cors, id) {
         return jsonResponse({ error: "conflict", message: "这个视频已经上传过文件了" }, 409, cors);
     }
 
+    const limits = videoLimits(env);
+    const github = videoGithub(env);
+
     const declared = Number(request.headers.get("content-length") || 0);
-    if (declared > VIDEO_MAX_BYTES) {
+    if (declared > limits.maxBytes) {
         return jsonResponse({
             error: "payload_too_large",
-            message: `视频不能超过 ${videoSizeLabel(VIDEO_MAX_BYTES)}`
+            message: `视频不能超过 ${videoSizeLabel(limits.maxBytes)}`
         }, 413, cors);
     }
 
@@ -7134,10 +7379,10 @@ async function handleVideoFileUpload(request, env, cors, id) {
     if (!buffer || buffer.byteLength === 0) {
         return jsonResponse({ error: "bad_request", message: "视频内容为空" }, 400, cors);
     }
-    if (buffer.byteLength > VIDEO_MAX_BYTES) {
+    if (buffer.byteLength > limits.maxBytes) {
         return jsonResponse({
             error: "payload_too_large",
-            message: `视频不能超过 ${videoSizeLabel(VIDEO_MAX_BYTES)}`
+            message: `视频不能超过 ${videoSizeLabel(limits.maxBytes)}`
         }, 413, cors);
     }
 
@@ -7145,13 +7390,23 @@ async function handleVideoFileUpload(request, env, cors, id) {
         .split(";")[0].trim().slice(0, 80) || "application/octet-stream";
 
     const bucket = videoBucket(env);
+    let ghReleaseId = 0;
     try {
         if (bucket) {
             await bucket.put(videoFileKey(id), buffer, { httpMetadata: { contentType: fileType } });
+        } else if (github) {
+            ghReleaseId = await ghCreateRelease(github, id);
+            const part = await ghUploadPart(github, ghReleaseId, 1, buffer);
+            meta.gh = { releaseId: ghReleaseId, parts: [{ n: 1, id: part.assetId, size: part.size }] };
+            meta.chunkCount = 1;
+            meta.chunkBytes = part.size || buffer.byteLength;
         } else {
             await env.ACCOUNTS_KV.put(videoFileKey(id), buffer);
         }
     } catch (error) {
+        if (github && ghReleaseId) {
+            await ghDeleteRelease(github, ghReleaseId);
+        }
         await env.ACCOUNTS_KV.delete(videoMetaKey(id));
         const index = await readVideoIndex(env);
         await writeVideoIndex(env, index.filter((item) => item !== id));
@@ -7159,13 +7414,14 @@ async function handleVideoFileUpload(request, env, cors, id) {
             error: "storage_failed",
             message: bucket
                 ? "文件没有保存成功，请重试或改用分片上传"
-                : "服务端没有绑定 R2 存储，单次上传只能存约 25 MB，请让站主绑定 R2 存储桶"
+                : `文件没有保存成功（${error && error.message ? error.message : "存储不可用"}），请重试或改用分片上传`
         }, 507, cors);
     }
 
     meta.fileType = fileType;
     meta.fileSize = buffer.byteLength;
     meta.status = "pending";
+    meta.storage = bucket ? "r2" : (github ? "gh" : "kv");
     await saveVideoMeta(env, meta);
 
     return jsonResponse({
@@ -7187,12 +7443,7 @@ async function handleVideoUploadStart(request, env, cors, id) {
         return session.error;
     }
     const bucket = videoBucket(env);
-    if (!bucket) {
-        return jsonResponse({
-            error: "no_r2",
-            message: "服务端没有绑定 R2 存储桶，暂时不能分片上传，请让站主配置 VIDEO_BUCKET"
-        }, 503, cors);
-    }
+    const github = bucket ? null : videoGithub(env);
 
     const meta = await readVideoMeta(env, id);
     if (!meta || !meta.id) {
@@ -7206,32 +7457,61 @@ async function handleVideoUploadStart(request, env, cors, id) {
         return jsonResponse({ error: "conflict", message: "这个视频已经上传过文件了" }, 409, cors);
     }
 
+    // 上一次没传完的分片先清掉（R2 multipart / GitHub 草稿 release / KV 分块）
     const existing = videoUploadState(meta);
     if (existing) {
-        try {
-            await bucket.resumeMultipartUpload(videoFileKey(id), existing.id).abort();
-        } catch (error) {
-            /* 旧的分片上传可能已经失效 */
+        if (bucket && existing.id !== "kv" && existing.id !== "gh") {
+            try {
+                await bucket.resumeMultipartUpload(videoFileKey(id), existing.id).abort();
+            } catch (error) {
+                /* 旧的分片上传可能已经失效 */
+            }
+        }
+        if (github && existing.id === "gh" && Number(existing.releaseId)) {
+            await ghDeleteRelease(github, Number(existing.releaseId));
+        }
+        if (existing.id === "kv") {
+            for (const part of Array.isArray(existing.parts) ? existing.parts : []) {
+                await env.ACCOUNTS_KV.delete(videoChunkKey(id, Number(part.n)));
+            }
         }
     }
 
-    let upload;
-    try {
-        upload = await bucket.createMultipartUpload(videoFileKey(id), {
-            httpMetadata: { contentType: meta.fileType || "application/octet-stream" }
-        });
-    } catch (error) {
-        return jsonResponse({ error: "storage_failed", message: "无法开始分片上传，请稍后重试" }, 507, cors);
+    let uploadId = "";
+    let releaseId = 0;
+    if (bucket) {
+        try {
+            const upload = await bucket.createMultipartUpload(videoFileKey(id), {
+                httpMetadata: { contentType: meta.fileType || "application/octet-stream" }
+            });
+            uploadId = upload.uploadId;
+        } catch (error) {
+            uploadId = "";
+        }
+    }
+    if (!uploadId && github) {
+        try {
+            releaseId = await ghCreateRelease(github, id);
+            uploadId = "gh";
+        } catch (error) {
+            uploadId = "";
+        }
+    }
+    if (!uploadId) {
+        uploadId = "kv";
     }
 
-    meta.upload = { id: upload.uploadId, parts: [], received: 0, at: Date.now() };
+    meta.upload = { id: uploadId, releaseId, parts: [], received: 0, at: Date.now() };
     await saveVideoMeta(env, meta);
 
+    // 真回落到 KV 时不能用 GitHub 的 32 MB 分片（KV 单值上限约 25 MB）
+    const chunked = uploadId === "gh";
     return jsonResponse({
         ok: true,
-        uploadId: upload.uploadId,
-        chunkBytes: VIDEO_CHUNK_BYTES,
-        maxBytes: VIDEO_MAX_BYTES,
+        uploadId,
+        storage: chunked ? "gh" : (uploadId === "kv" ? "kv" : "r2"),
+        chunkBytes: chunked ? VIDEO_GH_CHUNK_BYTES : VIDEO_CHUNK_BYTES,
+        maxBytes: chunked ? VIDEO_GH_MAX_BYTES : VIDEO_MAX_BYTES,
         maxParts: VIDEO_MAX_PARTS
     }, 200, cors);
 }
@@ -7241,11 +7521,6 @@ async function handleVideoUploadPart(request, env, cors, id, partNumber) {
     if (session.error) {
         return session.error;
     }
-    const bucket = videoBucket(env);
-    if (!bucket) {
-        return jsonResponse({ error: "no_r2", message: "服务端没有绑定 R2 存储桶，暂时不能分片上传" }, 503, cors);
-    }
-
     const meta = await readVideoMeta(env, id);
     if (!meta || !meta.id) {
         return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
@@ -7273,10 +7548,14 @@ async function handleVideoUploadPart(request, env, cors, id, partNumber) {
     if (!buffer || buffer.byteLength === 0) {
         return jsonResponse({ error: "bad_request", message: "分片内容为空" }, 400, cors);
     }
-    if (buffer.byteLength > VIDEO_CHUNK_BYTES) {
+    const viaGithub = upload.id === "gh";
+    const chunkBytes = viaGithub ? VIDEO_GH_CHUNK_BYTES : VIDEO_CHUNK_BYTES;
+    const maxBytes = viaGithub ? VIDEO_GH_MAX_BYTES : VIDEO_MAX_BYTES;
+
+    if (buffer.byteLength > chunkBytes) {
         return jsonResponse({
             error: "payload_too_large",
-            message: `单个分片不能超过 ${videoSizeLabel(VIDEO_CHUNK_BYTES)}`
+            message: `单个分片不能超过 ${videoSizeLabel(chunkBytes)}`
         }, 413, cors);
     }
 
@@ -7285,22 +7564,51 @@ async function handleVideoUploadPart(request, env, cors, id, partNumber) {
     const received = parts.reduce((sum, item) => sum + (Number(item.size) || 0), 0)
         - (previous ? Number(previous.size) || 0 : 0)
         + buffer.byteLength;
-    if (received > VIDEO_MAX_BYTES) {
+    if (received > maxBytes) {
         return jsonResponse({
             error: "payload_too_large",
-            message: `视频不能超过 ${videoSizeLabel(VIDEO_MAX_BYTES)}`
+            message: `视频不能超过 ${videoSizeLabel(maxBytes)}`
         }, 413, cors);
     }
 
-    let part;
+    const bucket = videoBucket(env);
+    const github = viaGithub ? videoGithub(env) : null;
+    let etag = "";
+    let assetId = 0;
     try {
-        part = await bucket.resumeMultipartUpload(videoFileKey(id), upload.id).uploadPart(number, buffer);
+        if (bucket && upload.id !== "kv" && upload.id !== "gh") {
+            const part = await bucket
+                .resumeMultipartUpload(videoFileKey(id), upload.id)
+                .uploadPart(number, buffer);
+            etag = part.etag;
+        } else if (viaGithub) {
+            const releaseId = Number(upload.releaseId) || 0;
+            if (!github || !releaseId) {
+                return jsonResponse({
+                    error: "conflict",
+                    message: "GitHub 存储的这次分片上传已经失效，请重新开始上传"
+                }, 409, cors);
+            }
+            // 同一个分片重传：先删掉旧的资源，GitHub 里资源名不能重复
+            if (previous && Number(previous.assetId)) {
+                await ghDeleteAsset(github, Number(previous.assetId));
+            }
+            const part = await ghUploadPart(github, releaseId, number, buffer);
+            assetId = part.assetId;
+            etag = `gh-${assetId}`;
+        } else {
+            await env.ACCOUNTS_KV.put(videoChunkKey(id, number), buffer);
+            etag = `kv-${buffer.byteLength}`;
+        }
     } catch (error) {
-        return jsonResponse({ error: "storage_failed", message: "分片上传失败，请重试" }, 507, cors);
+        return jsonResponse({
+            error: "storage_failed",
+            message: `分片上传失败，请重试（${error && error.message ? error.message : "存储不可用"}）`
+        }, 507, cors);
     }
 
     const next = parts.filter((item) => Number(item.n) !== number);
-    next.push({ n: part.partNumber, etag: part.etag, size: buffer.byteLength });
+    next.push({ n: number, etag, size: buffer.byteLength, assetId });
     next.sort((left, right) => Number(left.n) - Number(right.n));
 
     upload.parts = next;
@@ -7311,10 +7619,10 @@ async function handleVideoUploadPart(request, env, cors, id, partNumber) {
 
     return jsonResponse({
         ok: true,
-        partNumber: part.partNumber,
-        etag: part.etag,
+        partNumber: number,
+        etag,
         received: upload.received,
-        maxBytes: VIDEO_MAX_BYTES
+        maxBytes
     }, 200, cors);
 }
 
@@ -7323,11 +7631,6 @@ async function handleVideoUploadComplete(request, env, cors, id) {
     if (session.error) {
         return session.error;
     }
-    const bucket = videoBucket(env);
-    if (!bucket) {
-        return jsonResponse({ error: "no_r2", message: "服务端没有绑定 R2 存储桶，暂时不能分片上传" }, 503, cors);
-    }
-
     const meta = await readVideoMeta(env, id);
     if (!meta || !meta.id) {
         return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
@@ -7341,22 +7644,64 @@ async function handleVideoUploadComplete(request, env, cors, id) {
         return jsonResponse({ error: "conflict", message: "还没有开始分片上传" }, 409, cors);
     }
 
-    const parts = (Array.isArray(upload.parts) ? upload.parts : [])
+    const rawParts = (Array.isArray(upload.parts) ? upload.parts : [])
+        .filter((item) => Number(item.n) > 0)
+        .sort((left, right) => Number(left.n) - Number(right.n));
+    const parts = rawParts
         .map((item) => ({ partNumber: Number(item.n), etag: String(item.etag || "") }))
         .filter((item) => item.partNumber > 0 && item.etag);
     if (!parts.length) {
         return jsonResponse({ error: "bad_request", message: "还没有上传任何分片" }, 400, cors);
     }
 
-    try {
-        await bucket
-            .resumeMultipartUpload(videoFileKey(id), upload.id)
-            .complete(parts);
-    } catch (error) {
-        return jsonResponse({ error: "storage_failed", message: "合并分片失败，请重新上传" }, 507, cors);
+    const kind = upload.id === "gh" ? "gh" : (upload.id === "kv" ? "kv" : "r2");
+    if (kind === "kv") {
+        // KV 分块：确认 1..N 连续
+        for (let index = 1; index <= parts.length; index += 1) {
+            const exists = await env.ACCOUNTS_KV.get(videoChunkKey(id, index));
+            if (!exists) {
+                return jsonResponse({
+                    error: "bad_request",
+                    message: `缺少第 ${index} 个分片，请重新上传`
+                }, 400, cors);
+            }
+        }
+    } else if (kind === "gh") {
+        // GitHub 分片在各自上传时就已经落盘，这里只确认片号连续
+        for (let index = 1; index <= rawParts.length; index += 1) {
+            if (Number(rawParts[index - 1].n) !== index) {
+                return jsonResponse({
+                    error: "bad_request",
+                    message: `缺少第 ${index} 个分片，请重新上传`
+                }, 400, cors);
+            }
+        }
+        meta.gh = {
+            releaseId: Number(upload.releaseId) || 0,
+            parts: rawParts.map((item) => ({
+                n: Number(item.n),
+                id: Number(item.assetId) || 0,
+                size: Number(item.size) || 0
+            }))
+        };
+    } else {
+        const bucket = videoBucket(env);
+        if (!bucket) {
+            return jsonResponse({ error: "storage_failed", message: "R2 存储没有配置，请重新开始上传" }, 507, cors);
+        }
+        try {
+            await bucket
+                .resumeMultipartUpload(videoFileKey(id), upload.id)
+                .complete(parts);
+        } catch (error) {
+            return jsonResponse({ error: "storage_failed", message: "合并分片失败，请重新上传" }, 507, cors);
+        }
     }
 
     meta.fileSize = Number(upload.received) || meta.fileSize;
+    meta.chunkCount = kind === "r2" ? 0 : parts.length;
+    meta.chunkBytes = kind === "gh" ? VIDEO_GH_CHUNK_BYTES : VIDEO_CHUNK_BYTES;
+    meta.storage = kind;
     meta.status = "pending";
     delete meta.upload;
     await saveVideoMeta(env, meta);
@@ -7383,14 +7728,23 @@ async function handleVideoUploadAbort(request, env, cors, id) {
 
     const upload = videoUploadState(meta);
     const bucket = videoBucket(env);
-    if (upload && bucket) {
-        try {
-            await bucket.resumeMultipartUpload(videoFileKey(id), upload.id).abort();
-        } catch (error) {
-            /* 可能已经失效 */
-        }
-    }
+    const github = videoGithub(env);
     if (upload) {
+        if (bucket && upload.id !== "kv" && upload.id !== "gh") {
+            try {
+                await bucket.resumeMultipartUpload(videoFileKey(id), upload.id).abort();
+            } catch (error) {
+                /* 可能已经失效 */
+            }
+        }
+        if (github && upload.id === "gh" && Number(upload.releaseId)) {
+            await ghDeleteRelease(github, Number(upload.releaseId));
+        }
+        if (upload.id === "kv") {
+            for (const part of Array.isArray(upload.parts) ? upload.parts : []) {
+                await env.ACCOUNTS_KV.delete(videoChunkKey(id, Number(part.n)));
+            }
+        }
         delete meta.upload;
         meta.fileSize = 0;
         await saveVideoMeta(env, meta);
@@ -7435,10 +7789,12 @@ async function handleVideoFile(request, env, cors, id) {
     }
 
     const bucket = videoBucket(env);
+    // 之前存在 GitHub 上的视频，即使后来绑了 R2 也还是从 GitHub 读
+    const bucketFile = bucket && meta.storage !== "gh" ? bucket : null;
     let total = Number(meta.fileSize) || 0;
-    if (bucket && !total) {
+    if (bucketFile && !total) {
         try {
-            const head = await bucket.head(videoFileKey(id));
+            const head = await bucketFile.head(videoFileKey(id));
             total = head ? Number(head.size) || 0 : 0;
         } catch (error) {
             total = 0;
@@ -7453,10 +7809,10 @@ async function handleVideoFile(request, env, cors, id) {
 
     const range = videoByteRange(request.headers.get("range"), total);
 
-    if (bucket) {
+    if (bucketFile) {
         let object;
         try {
-            object = await bucket.get(
+            object = await bucketFile.get(
                 videoFileKey(id),
                 range ? { range: { offset: range.start, length: range.end - range.start + 1 } } : undefined
             );
@@ -7473,6 +7829,103 @@ async function handleVideoFile(request, env, cors, id) {
         }
         headers["content-length"] = String(total || (Number(object.size) || 0));
         return new Response(object.body, { status: 200, headers });
+    }
+
+    // 1.7.2：GitHub Release 存储。每次只回一片，播放器会接着发下一个 Range
+    const ghParts = meta.storage === "gh" && meta.gh && Array.isArray(meta.gh.parts)
+        ? meta.gh.parts
+            .filter((item) => Number(item.id) > 0 && Number(item.size) > 0)
+            .sort((left, right) => Number(left.n) - Number(right.n))
+        : [];
+    if (ghParts.length) {
+        const github = videoGithub(env);
+        if (!github) {
+            return jsonResponse({
+                error: "storage_unavailable",
+                message: "服务端没有配置 GitHub 存储，暂时不能播放"
+            }, 503, cors);
+        }
+        const totalBytes = total || ghParts.reduce((sum, item) => sum + Number(item.size), 0);
+        const start = range ? range.start : 0;
+        let offset = 0;
+        let index = 0;
+        for (; index < ghParts.length; index += 1) {
+            const length = Number(ghParts[index].size);
+            if (start < offset + length) {
+                break;
+            }
+            offset += length;
+        }
+        if (index >= ghParts.length || !totalBytes) {
+            return jsonResponse({ error: "no_file", message: "这个视频的分片缺失，请重新上传" }, 404, cors);
+        }
+
+        const part = ghParts[index];
+        const partEnd = offset + Number(part.size) - 1;
+        const from = Math.max(0, start - offset);
+        const to = (range ? Math.min(range.end, partEnd) : partEnd) - offset;
+        const absoluteStart = offset + from;
+        const absoluteEnd = offset + to;
+
+        let upstream;
+        try {
+            upstream = await ghOpenAsset(github, Number(part.id), { start: from, end: to });
+        } catch (error) {
+            return jsonResponse({ error: "storage_failed", message: "读取视频失败，请稍后重试" }, 502, cors);
+        }
+        if (!upstream.ok || !upstream.body) {
+            return jsonResponse({ error: "no_file", message: "这个视频的文件读取失败，请稍后重试" }, 404, cors);
+        }
+
+        headers["content-range"] = `bytes ${absoluteStart}-${absoluteEnd}/${totalBytes}`;
+        headers["content-length"] = String(absoluteEnd - absoluteStart + 1);
+        if (upstream.status === 206) {
+            return new Response(upstream.body, { status: 206, headers });
+        }
+        return new Response(videoStreamSlice(upstream.body, from, to), { status: 206, headers });
+    }
+
+    // 没有 R2：优先读 KV 分块（video:chunk:<id>:<n>），老数据回落到单值 video:file:<id>
+    const chunkCount = Number(meta.chunkCount) || 0;
+    const chunkBytes = Number(meta.chunkBytes) || VIDEO_CHUNK_BYTES;
+
+    if (chunkCount > 0 && total) {
+        // 单次响应最多拼 3 块，避免把整部 5 GB 视频读进内存（Workers 128 MB 上限）
+        const maxBytes = chunkBytes * 3;
+        const start = range ? range.start : 0;
+        let end = range ? range.end : Math.min(total - 1, chunkBytes - 1);
+        if (end - start + 1 > maxBytes) {
+            end = start + maxBytes - 1;
+        }
+        end = Math.min(end, total - 1);
+
+        const firstChunk = Math.floor(start / chunkBytes);
+        const lastChunk = Math.floor(end / chunkBytes);
+        const pieces = [];
+        let size = 0;
+        for (let index = firstChunk; index <= lastChunk; index += 1) {
+            const piece = await env.ACCOUNTS_KV.get(videoChunkKey(id, index + 1), "arrayBuffer");
+            if (!piece) {
+                return jsonResponse({ error: "no_file", message: "这个视频的分片缺失，请重新上传" }, 404, cors);
+            }
+            const base = index * chunkBytes;
+            const from = Math.max(0, start - base);
+            const to = Math.min(piece.byteLength, end - base + 1);
+            const slice = piece.slice(from, to);
+            pieces.push(slice);
+            size += slice.byteLength;
+        }
+
+        const merged = new Uint8Array(size);
+        let offset = 0;
+        for (const slice of pieces) {
+            merged.set(new Uint8Array(slice), offset);
+            offset += slice.byteLength;
+        }
+
+        headers["content-range"] = `bytes ${start}-${start + size - 1}/${total}`;
+        headers["content-length"] = String(size);
+        return new Response(merged.buffer, { status: 206, headers });
     }
 
     const buffer = await env.ACCOUNTS_KV.get(videoFileKey(id), "arrayBuffer");
@@ -7803,14 +8256,17 @@ async function routeVideos(request, env, cors) {
     }
 
     if (path === "/api/videos/status" && method === "GET") {
+        const limits = videoLimits(env);
         return jsonResponse({
             ok: true,
             version: VIDEO_VERSION,
             enabled: hasKv(env),
-            r2: Boolean(videoBucket(env)),
-            maxBytes: VIDEO_MAX_BYTES,
+            r2: limits.kind === "r2",
+            storage: limits.kind === "kv" ? "kv-chunks" : limits.kind,
+            chunked: true,
+            maxBytes: limits.maxBytes,
             maxDurationSeconds: VIDEO_MAX_DURATION_SECONDS,
-            chunkBytes: VIDEO_CHUNK_BYTES,
+            chunkBytes: limits.chunkBytes,
             coinCents: VIDEO_COIN_CENTS,
             categories: Array.from(VIDEO_CATEGORIES),
             declarations: Array.from(VIDEO_DECLARATIONS)
