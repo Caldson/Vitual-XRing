@@ -63,6 +63,14 @@ CHAT_ENABLED = "true"
 # 不填时用请求的 Origin（workers.dev 部署会自动回落到下面这个默认值）
 PUBLIC_BASE = "https://xsmmc.caldson.us.ci"
 
+# 1.7.1：视频存储。不绑定也能用（文件退回 ACCOUNTS_KV，单值约 25 MB）；
+# 想支持 5 GB 的大文件就必须绑定 R2，否则投稿页只能传小文件：
+#   npx wrangler r2 bucket create vtx-video
+# 然后把下面两行取消注释（bucket_name 换成你创建的桶名）。
+# [[r2_buckets]]
+# binding = "VIDEO_BUCKET"
+# bucket_name = "vtx-video"
+
 # 需要提前设置的机密（不要写进这个文件）：
 #   wrangler secret put GITHUB_TOKEN      （迁移旧 account.json / 镜像时需要 Contents 读写权限）
 #   wrangler secret put SIGNING_SECRET

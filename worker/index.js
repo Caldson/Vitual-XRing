@@ -55,7 +55,7 @@
  *   PASSWORD_VIEW_KEY           （可选，1.4.0）给管理员看的密码副本加密密钥；不配就不存副本
  */
 
-const VERSION = "1.7.0";
+const VERSION = "1.7.1";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -68,7 +68,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.7.0";
+const CHAT_VERSION = "1.7.1";
 const CHAT_MESSAGE_LIMIT = 300;
 const MAX_CHAT_TEXT_LENGTH = 500;
 /* 1.4.0：聊天室全部去掉按 IP 限流（发言 / 正在输入 / 上传媒体），删除了 CHAT_*_WINDOW_MS / CHAT_*_MAX_ATTEMPTS */
@@ -6660,16 +6660,20 @@ async function handleChatSocket(request, env, cors) {
     return await stub.fetch("https://chat-hub/ws", { headers });
 }
 
-/* ───────── 1.7.0：Vitx® 视频（站点级存储，KV） ─────────
-   投稿的视频、元信息与评论都存在 ACCOUNTS_KV 里，任何设备打开站点都能看到：
+/* ───────── 1.7.1：Vitx® 视频（站点级存储） ─────────
+   视频文件优先放 R2（env.VIDEO_BUCKET，支持 5 GB 分片上传）；
+   没有绑定 R2 时退回 KV 单次写入（受 KV 单值约 25 MB 限制）。
      video:index            → [视频 id, ...]（新的在前）
-     video:meta:<id>        → 元信息（JSON）
-     video:file:<id>        → 视频文件（ArrayBuffer，KV 单值上限 25 MB，这里限制 20 MB）
+     video:meta:<id>        → 元信息（JSON，含分片上传进度）
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
-   状态：draft（刚建、还没传文件）→ pending（等审核）→ published / rejected。 */
+   状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "1.7.0";
-const VIDEO_MAX_BYTES = 20 * 1024 * 1024;
+const VIDEO_VERSION = "1.7.1";
+const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
+const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
+const VIDEO_CHUNK_BYTES = 8 * 1024 * 1024;
+const VIDEO_MAX_PARTS = 10000;
+const VIDEO_COIN_CENTS = 500;
 const VIDEO_TITLE_MAX = 60;
 const VIDEO_DESC_MAX = 300;
 const VIDEO_TAG_MAX = 5;
@@ -6697,6 +6701,74 @@ function videoFileKey(id) {
 
 function videoCommentKey(id) {
     return `${VIDEO_COMMENT_PREFIX}${id}`;
+}
+
+/* 1.7.1：大文件走 R2；没绑定就返回 null，相关接口改用 KV */
+
+function videoBucket(env) {
+    const bucket = env && env.VIDEO_BUCKET;
+    return bucket && typeof bucket.get === "function" ? bucket : null;
+}
+
+function videoSizeLabel(bytes) {
+    const value = Number(bytes) || 0;
+    if (value >= 1024 * 1024 * 1024) {
+        return `${Math.round(value / 1024 / 1024 / 1024)} GB`;
+    }
+    return `${Math.round(value / 1024 / 1024)} MB`;
+}
+
+function parseVideoDuration(input) {
+    if (typeof input === "number" && Number.isFinite(input)) {
+        return Math.max(0, Math.round(input));
+    }
+    const text = String(input == null ? "" : input).trim();
+    if (!text) {
+        return 0;
+    }
+    if (/^\d+(\.\d+)?$/.test(text)) {
+        return Math.max(0, Math.round(Number(text)));
+    }
+    const parts = text.split(":").map((item) => Number(item) || 0);
+    if (parts.length === 2) {
+        return parts[0] * 60 + parts[1];
+    }
+    if (parts.length === 3) {
+        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    return 0;
+}
+
+function formatVideoDuration(seconds) {
+    const total = Math.max(0, Math.round(Number(seconds) || 0));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const rest = total % 60;
+    if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+    }
+    return `${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+}
+
+/* 解析 Range 头，返回闭区间 [start, end] 或 null */
+
+function videoByteRange(header, total) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(String(header || "").trim());
+    if (!match || !total) {
+        return null;
+    }
+    let start = match[1] === "" ? NaN : Number(match[1]);
+    let end = match[2] === "" ? NaN : Number(match[2]);
+    if (!Number.isFinite(start)) {
+        start = Math.max(0, total - (Number.isFinite(end) ? end : 0));
+        end = total - 1;
+    }
+    if (!Number.isFinite(end)) {
+        end = total - 1;
+    }
+    start = Math.max(0, Math.min(start, total - 1));
+    end = Math.max(start, Math.min(end, total - 1));
+    return { start, end };
 }
 
 async function readVideoIndex(env) {
@@ -6733,6 +6805,20 @@ async function saveVideoComments(env, id, list) {
     await env.ACCOUNTS_KV.put(videoCommentKey(id), JSON.stringify(list.slice(-VIDEO_COMMENT_KEEP)));
 }
 
+/* 1.7.1：删视频时把 R2 与 KV 里的文件都清掉 */
+
+async function removeVideoFile(env, id) {
+    const bucket = videoBucket(env);
+    if (bucket) {
+        try {
+            await bucket.delete(videoFileKey(id));
+        } catch (error) {
+            /* 文件可能本来就不存在 */
+        }
+    }
+    await env.ACCOUNTS_KV.delete(videoFileKey(id));
+}
+
 /* 1.7.0：老的示例视频（v_demo*）一律当作不存在，清理没跑到也不会露出来 */
 function isLegacySeedVideo(meta) {
     return Boolean(meta) && (String(meta.id || "").startsWith(VIDEO_LEGACY_ID_PREFIX) || meta.seed === true);
@@ -6750,6 +6836,7 @@ function videoVisibleTo(meta, login, isAdmin) {
 
 function videoView(meta, login, isAdmin) {
     const likes = Array.isArray(meta.likes) ? meta.likes : [];
+    const coins = Array.isArray(meta.coins) ? meta.coins : [];
     return {
         id: meta.id,
         title: meta.title || "",
@@ -6762,6 +6849,7 @@ function videoView(meta, login, isAdmin) {
         fileType: meta.fileType || "",
         fileSize: Number(meta.fileSize) || 0,
         dur: meta.dur || "00:00",
+        durSeconds: Number(meta.durSeconds) || 0,
         owner: meta.owner || "",
         ownerName: meta.ownerName || meta.owner || "",
         status: meta.status || "pending",
@@ -6770,6 +6858,9 @@ function videoView(meta, login, isAdmin) {
         views: Number(meta.views) || 0,
         likes: (Number(meta.baseLikes) || 0) + likes.length,
         liked: Boolean(login && likes.includes(login)),
+        coins: coins.length,
+        coined: Boolean(login && coins.includes(login)),
+        coinCents: Number(meta.coinCents) || 0,
         comments: Number(meta.commentCount) || 0,
         seed: Boolean(meta.seed),
         mine: Boolean(login && meta.owner === login),
@@ -6811,8 +6902,8 @@ async function purgeLegacySeedVideos(env) {
         const meta = await readVideoMeta(env, id);
         const legacy = String(id).startsWith(VIDEO_LEGACY_ID_PREFIX) || Boolean(meta && meta.seed === true);
         if (legacy) {
+            await removeVideoFile(env, id);
             await env.ACCOUNTS_KV.delete(videoMetaKey(id));
-            await env.ACCOUNTS_KV.delete(videoFileKey(id));
             await env.ACCOUNTS_KV.delete(videoCommentKey(id));
             continue;
         }
@@ -6834,8 +6925,8 @@ async function purgeLegacySeedVideos(env) {
             if (!id.startsWith(VIDEO_LEGACY_ID_PREFIX)) {
                 continue;
             }
+            await removeVideoFile(env, id);
             await env.ACCOUNTS_KV.delete(videoMetaKey(id));
-            await env.ACCOUNTS_KV.delete(videoFileKey(id));
             await env.ACCOUNTS_KV.delete(videoCommentKey(id));
         }
     } catch (error) {
@@ -6845,7 +6936,6 @@ async function purgeLegacySeedVideos(env) {
     await env.ACCOUNTS_KV.delete(VIDEO_SEEDED_KEY);
     await env.ACCOUNTS_KV.put(VIDEO_PURGED_KEY, String(Date.now()));
 }
-
 
 async function handleVideoList(request, env, cors) {
     if (!hasKv(env)) {
@@ -6891,6 +6981,10 @@ async function handleVideoList(request, env, cors) {
         ok: true,
         version: VIDEO_VERSION,
         maxBytes: VIDEO_MAX_BYTES,
+        maxDurationSeconds: VIDEO_MAX_DURATION_SECONDS,
+        chunkBytes: VIDEO_CHUNK_BYTES,
+        coinCents: VIDEO_COIN_CENTS,
+        r2: Boolean(videoBucket(env)),
         login,
         isAdmin,
         count: videos.length,
@@ -6922,7 +7016,7 @@ async function handleVideoCreate(request, env, cors) {
     const fileName = String(body.fileName || "").trim().slice(0, 120);
     const fileType = String(body.fileType || "").trim().slice(0, 80);
     const fileSize = Math.round(Number(body.fileSize) || 0);
-    const dur = /^\d{1,3}:\d{2}$/.test(String(body.dur || "")) ? String(body.dur) : "00:00";
+    const durSeconds = parseVideoDuration(body.durSeconds !== undefined ? body.durSeconds : body.dur);
     const tags = Array.isArray(body.tags)
         ? Array.from(new Set(body.tags.map((item) => String(item || "").trim()).filter(Boolean))).slice(0, VIDEO_TAG_MAX)
         : [];
@@ -6949,8 +7043,14 @@ async function handleVideoCreate(request, env, cors) {
     if (fileSize <= 0 || fileSize > VIDEO_MAX_BYTES) {
         return jsonResponse({
             error: "payload_too_large",
-            message: `视频文件需要在 0 B ~ ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)} MB 之间`
+            message: `视频文件不能超过 ${videoSizeLabel(VIDEO_MAX_BYTES)}`
         }, 413, cors);
+    }
+    if (durSeconds > VIDEO_MAX_DURATION_SECONDS) {
+        return jsonResponse({
+            error: "bad_request",
+            message: `视频时长不能超过 ${Math.round(VIDEO_MAX_DURATION_SECONDS / 3600)} 小时`
+        }, 400, cors);
     }
 
     const now = Date.now();
@@ -6965,13 +7065,16 @@ async function handleVideoCreate(request, env, cors) {
         fileName,
         fileType,
         fileSize,
-        dur,
+        dur: formatVideoDuration(durSeconds),
+        durSeconds,
         owner: login,
         ownerName: chatDisplayName(accounts, login),
         status: "draft",
         views: 0,
         baseLikes: 0,
         likes: [],
+        coins: [],
+        coinCents: 0,
         commentCount: 0,
         at: now,
         time: shanghaiTimestamp(now)
@@ -6981,8 +7084,17 @@ async function handleVideoCreate(request, env, cors) {
     const index = await readVideoIndex(env);
     await writeVideoIndex(env, [meta.id, ...index.filter((item) => item !== meta.id)]);
 
-    return jsonResponse({ ok: true, video: videoView(meta, login, isPlatformAdmin(env, login)) }, 201, cors);
+    return jsonResponse({
+        ok: true,
+        r2: Boolean(videoBucket(env)),
+        chunkBytes: VIDEO_CHUNK_BYTES,
+        maxBytes: VIDEO_MAX_BYTES,
+        maxDurationSeconds: VIDEO_MAX_DURATION_SECONDS,
+        video: videoView(meta, login, isPlatformAdmin(env, login))
+    }, 201, cors);
 }
+
+/* 一次请求传完整个文件：R2 绑定后走 R2.put，没绑定就退回 KV */
 
 async function handleVideoFileUpload(request, env, cors, id) {
     const session = await requireSession(request, env, cors);
@@ -7009,7 +7121,7 @@ async function handleVideoFileUpload(request, env, cors, id) {
     if (declared > VIDEO_MAX_BYTES) {
         return jsonResponse({
             error: "payload_too_large",
-            message: `视频不能超过 ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)} MB`
+            message: `视频不能超过 ${videoSizeLabel(VIDEO_MAX_BYTES)}`
         }, 413, cors);
     }
 
@@ -7025,22 +7137,29 @@ async function handleVideoFileUpload(request, env, cors, id) {
     if (buffer.byteLength > VIDEO_MAX_BYTES) {
         return jsonResponse({
             error: "payload_too_large",
-            message: `视频不能超过 ${Math.round(VIDEO_MAX_BYTES / 1024 / 1024)} MB`
+            message: `视频不能超过 ${videoSizeLabel(VIDEO_MAX_BYTES)}`
         }, 413, cors);
     }
 
     const fileType = String(request.headers.get("content-type") || meta.fileType || "application/octet-stream")
         .split(";")[0].trim().slice(0, 80) || "application/octet-stream";
 
+    const bucket = videoBucket(env);
     try {
-        await env.ACCOUNTS_KV.put(videoFileKey(id), buffer);
+        if (bucket) {
+            await bucket.put(videoFileKey(id), buffer, { httpMetadata: { contentType: fileType } });
+        } else {
+            await env.ACCOUNTS_KV.put(videoFileKey(id), buffer);
+        }
     } catch (error) {
         await env.ACCOUNTS_KV.delete(videoMetaKey(id));
         const index = await readVideoIndex(env);
         await writeVideoIndex(env, index.filter((item) => item !== id));
         return jsonResponse({
             error: "storage_failed",
-            message: "文件太大或存储空间不足，视频没有保存成功"
+            message: bucket
+                ? "文件没有保存成功，请重试或改用分片上传"
+                : "服务端没有绑定 R2 存储，单次上传只能存约 25 MB，请让站主绑定 R2 存储桶"
         }, 507, cors);
     }
 
@@ -7053,6 +7172,231 @@ async function handleVideoFileUpload(request, env, cors, id) {
         ok: true,
         video: videoView(meta, login, isPlatformAdmin(env, login))
     }, 200, cors);
+}
+
+/* 1.7.1：分片上传（R2 multipart），支持 5 GB */
+
+function videoUploadState(meta) {
+    const state = meta && meta.upload && typeof meta.upload === "object" ? meta.upload : null;
+    return state && state.id ? state : null;
+}
+
+async function handleVideoUploadStart(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const bucket = videoBucket(env);
+    if (!bucket) {
+        return jsonResponse({
+            error: "no_r2",
+            message: "服务端没有绑定 R2 存储桶，暂时不能分片上传，请让站主配置 VIDEO_BUCKET"
+        }, 503, cors);
+    }
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "不能给别人上传视频文件" }, 403, cors);
+    }
+    if (meta.status !== "draft") {
+        return jsonResponse({ error: "conflict", message: "这个视频已经上传过文件了" }, 409, cors);
+    }
+
+    const existing = videoUploadState(meta);
+    if (existing) {
+        try {
+            await bucket.resumeMultipartUpload(videoFileKey(id), existing.id).abort();
+        } catch (error) {
+            /* 旧的分片上传可能已经失效 */
+        }
+    }
+
+    let upload;
+    try {
+        upload = await bucket.createMultipartUpload(videoFileKey(id), {
+            httpMetadata: { contentType: meta.fileType || "application/octet-stream" }
+        });
+    } catch (error) {
+        return jsonResponse({ error: "storage_failed", message: "无法开始分片上传，请稍后重试" }, 507, cors);
+    }
+
+    meta.upload = { id: upload.uploadId, parts: [], received: 0, at: Date.now() };
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        uploadId: upload.uploadId,
+        chunkBytes: VIDEO_CHUNK_BYTES,
+        maxBytes: VIDEO_MAX_BYTES,
+        maxParts: VIDEO_MAX_PARTS
+    }, 200, cors);
+}
+
+async function handleVideoUploadPart(request, env, cors, id, partNumber) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const bucket = videoBucket(env);
+    if (!bucket) {
+        return jsonResponse({ error: "no_r2", message: "服务端没有绑定 R2 存储桶，暂时不能分片上传" }, 503, cors);
+    }
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "不能给别人上传视频文件" }, 403, cors);
+    }
+    const upload = videoUploadState(meta);
+    if (!upload) {
+        return jsonResponse({ error: "conflict", message: "请先调用 /upload/start 开始分片上传" }, 409, cors);
+    }
+
+    const number = Math.round(Number(partNumber) || 0);
+    if (number < 1 || number > VIDEO_MAX_PARTS) {
+        return jsonResponse({ error: "bad_request", message: `分片序号需要在 1-${VIDEO_MAX_PARTS} 之间` }, 400, cors);
+    }
+
+    let buffer;
+    try {
+        buffer = await request.arrayBuffer();
+    } catch (error) {
+        return jsonResponse({ error: "bad_request", message: "读取分片内容失败" }, 400, cors);
+    }
+    if (!buffer || buffer.byteLength === 0) {
+        return jsonResponse({ error: "bad_request", message: "分片内容为空" }, 400, cors);
+    }
+    if (buffer.byteLength > VIDEO_CHUNK_BYTES) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: `单个分片不能超过 ${videoSizeLabel(VIDEO_CHUNK_BYTES)}`
+        }, 413, cors);
+    }
+
+    const parts = Array.isArray(upload.parts) ? upload.parts : [];
+    const previous = parts.find((item) => Number(item.n) === number);
+    const received = parts.reduce((sum, item) => sum + (Number(item.size) || 0), 0)
+        - (previous ? Number(previous.size) || 0 : 0)
+        + buffer.byteLength;
+    if (received > VIDEO_MAX_BYTES) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: `视频不能超过 ${videoSizeLabel(VIDEO_MAX_BYTES)}`
+        }, 413, cors);
+    }
+
+    let part;
+    try {
+        part = await bucket.resumeMultipartUpload(videoFileKey(id), upload.id).uploadPart(number, buffer);
+    } catch (error) {
+        return jsonResponse({ error: "storage_failed", message: "分片上传失败，请重试" }, 507, cors);
+    }
+
+    const next = parts.filter((item) => Number(item.n) !== number);
+    next.push({ n: part.partNumber, etag: part.etag, size: buffer.byteLength });
+    next.sort((left, right) => Number(left.n) - Number(right.n));
+
+    upload.parts = next;
+    upload.received = next.reduce((sum, item) => sum + (Number(item.size) || 0), 0);
+    meta.upload = upload;
+    meta.fileSize = upload.received;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        partNumber: part.partNumber,
+        etag: part.etag,
+        received: upload.received,
+        maxBytes: VIDEO_MAX_BYTES
+    }, 200, cors);
+}
+
+async function handleVideoUploadComplete(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const bucket = videoBucket(env);
+    if (!bucket) {
+        return jsonResponse({ error: "no_r2", message: "服务端没有绑定 R2 存储桶，暂时不能分片上传" }, 503, cors);
+    }
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "不能给别人上传视频文件" }, 403, cors);
+    }
+    const upload = videoUploadState(meta);
+    if (!upload) {
+        return jsonResponse({ error: "conflict", message: "还没有开始分片上传" }, 409, cors);
+    }
+
+    const parts = (Array.isArray(upload.parts) ? upload.parts : [])
+        .map((item) => ({ partNumber: Number(item.n), etag: String(item.etag || "") }))
+        .filter((item) => item.partNumber > 0 && item.etag);
+    if (!parts.length) {
+        return jsonResponse({ error: "bad_request", message: "还没有上传任何分片" }, 400, cors);
+    }
+
+    try {
+        await bucket
+            .resumeMultipartUpload(videoFileKey(id), upload.id)
+            .complete(parts);
+    } catch (error) {
+        return jsonResponse({ error: "storage_failed", message: "合并分片失败，请重新上传" }, 507, cors);
+    }
+
+    meta.fileSize = Number(upload.received) || meta.fileSize;
+    meta.status = "pending";
+    delete meta.upload;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        video: videoView(meta, login, isPlatformAdmin(env, login))
+    }, 200, cors);
+}
+
+async function handleVideoUploadAbort(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "不能操作别人的视频" }, 403, cors);
+    }
+
+    const upload = videoUploadState(meta);
+    const bucket = videoBucket(env);
+    if (upload && bucket) {
+        try {
+            await bucket.resumeMultipartUpload(videoFileKey(id), upload.id).abort();
+        } catch (error) {
+            /* 可能已经失效 */
+        }
+    }
+    if (upload) {
+        delete meta.upload;
+        meta.fileSize = 0;
+        await saveVideoMeta(env, meta);
+    }
+
+    return jsonResponse({ ok: true, aborted: Boolean(upload) }, 200, cors);
 }
 
 async function handleVideoDetail(request, env, cors, id) {
@@ -7090,39 +7434,61 @@ async function handleVideoFile(request, env, cors, id) {
         return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
     }
 
-    const buffer = await env.ACCOUNTS_KV.get(videoFileKey(id), "arrayBuffer");
-    if (!buffer || !buffer.byteLength) {
-        return jsonResponse({ error: "no_file", message: "这个视频没有可播放的文件" }, 404, cors);
+    const bucket = videoBucket(env);
+    let total = Number(meta.fileSize) || 0;
+    if (bucket && !total) {
+        try {
+            const head = await bucket.head(videoFileKey(id));
+            total = head ? Number(head.size) || 0 : 0;
+        } catch (error) {
+            total = 0;
+        }
     }
 
-    const total = buffer.byteLength;
     const headers = { ...cors };
     headers["content-type"] = meta.fileType || "application/octet-stream";
     headers["accept-ranges"] = "bytes";
     headers["cache-control"] = "public, max-age=604800";
     headers["content-disposition"] = `inline; filename*=UTF-8''${encodeURIComponent(meta.fileName || `${id}.mp4`)}`;
 
-    const range = request.headers.get("range") || "";
-    const match = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
-    if (match) {
-        let start = match[1] === "" ? NaN : Number(match[1]);
-        let end = match[2] === "" ? NaN : Number(match[2]);
-        if (!Number.isFinite(start)) {
-            start = Math.max(0, total - (Number.isFinite(end) ? end : 0));
-            end = total - 1;
+    const range = videoByteRange(request.headers.get("range"), total);
+
+    if (bucket) {
+        let object;
+        try {
+            object = await bucket.get(
+                videoFileKey(id),
+                range ? { range: { offset: range.start, length: range.end - range.start + 1 } } : undefined
+            );
+        } catch (error) {
+            object = null;
         }
-        if (!Number.isFinite(end)) {
-            end = total - 1;
+        if (!object || !object.body) {
+            return jsonResponse({ error: "no_file", message: "这个视频没有可播放的文件" }, 404, cors);
         }
-        start = Math.max(0, Math.min(start, total - 1));
-        end = Math.max(start, Math.min(end, total - 1));
-        const slice = buffer.slice(start, end + 1);
-        headers["content-range"] = `bytes ${start}-${end}/${total}`;
+        if (range) {
+            headers["content-range"] = `bytes ${range.start}-${range.end}/${total}`;
+            headers["content-length"] = String(range.end - range.start + 1);
+            return new Response(object.body, { status: 206, headers });
+        }
+        headers["content-length"] = String(total || (Number(object.size) || 0));
+        return new Response(object.body, { status: 200, headers });
+    }
+
+    const buffer = await env.ACCOUNTS_KV.get(videoFileKey(id), "arrayBuffer");
+    if (!buffer || !buffer.byteLength) {
+        return jsonResponse({ error: "no_file", message: "这个视频没有可播放的文件" }, 404, cors);
+    }
+
+    const size = buffer.byteLength;
+    if (range) {
+        const slice = buffer.slice(range.start, range.end + 1);
+        headers["content-range"] = `bytes ${range.start}-${range.end}/${size}`;
         headers["content-length"] = String(slice.byteLength);
         return new Response(slice, { status: 206, headers });
     }
 
-    headers["content-length"] = String(total);
+    headers["content-length"] = String(size);
     return new Response(buffer, { status: 200, headers });
 }
 
@@ -7140,7 +7506,17 @@ async function handleVideoDelete(request, env, cors, id) {
         return jsonResponse({ error: "forbidden", message: "只能删除自己投稿的视频" }, 403, cors);
     }
 
-    await env.ACCOUNTS_KV.delete(videoFileKey(id));
+    const upload = videoUploadState(meta);
+    const bucket = videoBucket(env);
+    if (upload && bucket) {
+        try {
+            await bucket.resumeMultipartUpload(videoFileKey(id), upload.id).abort();
+        } catch (error) {
+            /* 可能已经失效 */
+        }
+    }
+
+    await removeVideoFile(env, id);
     await env.ACCOUNTS_KV.delete(videoMetaKey(id));
     await env.ACCOUNTS_KV.delete(videoCommentKey(id));
     const index = await readVideoIndex(env);
@@ -7199,6 +7575,108 @@ async function handleVideoLike(request, env, cors, id) {
         likes: (Number(meta.baseLikes) || 0) + likes.length
     }, 200, cors);
 }
+
+/* 1.7.1：投币。一个币 5.00 VTX，投给投稿人；取消投币不退钱、也不从投稿人账上扣回 */
+async function handleVideoCoin(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const login = session.payload.sub;
+    const isAdmin = isPlatformAdmin(env, login);
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id || !videoVisibleTo(meta, login, isAdmin)) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+    if (meta.status !== "published") {
+        return jsonResponse({ error: "conflict", message: "视频还没通过审核，暂时不能投币" }, 409, cors);
+    }
+
+    const coins = Array.isArray(meta.coins) ? meta.coins : [];
+    const owner = meta.owner || "";
+    const cost = fromCents(VIDEO_COIN_CENTS);
+
+    if (coins.includes(login)) {
+        meta.coins = coins.filter((item) => item !== login);
+        await saveVideoMeta(env, meta);
+        return jsonResponse({
+            ok: true,
+            coined: false,
+            coins: meta.coins.length,
+            coinCents: Number(meta.coinCents) || 0,
+            cost,
+            refunded: false,
+            message: `已取消投币（已经投出的 ${cost} VTX 不会退回，也不会从投稿人账上扣回）`
+        }, 200, cors);
+    }
+
+    let accounts = null;
+    try {
+        accounts = await commitAccounts(env, (data) => {
+            const payer = data[login];
+            if (!payer) {
+                throw new HttpError(404, "not_found", "账户不存在");
+            }
+            const payerBalance = toCents(payer.money) ?? 0;
+            if (payerBalance < VIDEO_COIN_CENTS) {
+                throw new HttpError(400, "insufficient_funds", `余额不足，投一个币需要 ${cost} VTX`);
+            }
+            const time = shanghaiTimestamp();
+            const payerName = String(payer.username || login);
+
+            payer.trades = Array.isArray(payer.trades) ? payer.trades : [];
+            payer.trades.push({
+                name: "投币",
+                description: `《${meta.title}》投币`,
+                time,
+                from: payerName,
+                to: meta.ownerName || owner,
+                price: `-${cost}`
+            });
+            payer.money = fromCents(payerBalance - VIDEO_COIN_CENTS);
+
+            const payee = owner && owner !== login ? data[owner] : null;
+            if (payee) {
+                payee.trades = Array.isArray(payee.trades) ? payee.trades : [];
+                payee.trades.push({
+                    name: "收到投币",
+                    description: `《${meta.title}》收到 ${payerName} 的投币`,
+                    time,
+                    from: payerName,
+                    to: String(payee.username || owner),
+                    price: `+${cost}`
+                });
+                payee.money = fromCents((toCents(payee.money) ?? 0) + VIDEO_COIN_CENTS);
+            }
+
+            return `投币：${payerName} → 《${meta.title}》${cost} VTX`;
+        });
+    } catch (error) {
+        if (error instanceof HttpError) {
+            return jsonResponse({ error: error.code, message: error.message }, error.status, cors);
+        }
+        return jsonResponse({
+            error: "storage_failed",
+            message: error && error.message ? error.message : "投币失败，请稍后重试"
+        }, 503, cors);
+    }
+
+    meta.coins = [...coins, login];
+    meta.coinCents = (Number(meta.coinCents) || 0) + VIDEO_COIN_CENTS;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        coined: true,
+        coins: meta.coins.length,
+        coinCents: meta.coinCents,
+        cost,
+        account: accounts && accounts[login] ? publicAccount(accounts[login]) : null,
+        ownerMoney: owner && accounts && accounts[owner] ? publicAccount(accounts[owner]).money : ""
+    }, 200, cors);
+}
+
 async function handleVideoView(request, env, cors, id) {
     const meta = await readVideoMeta(env, id);
     if (!meta || !meta.id) {
@@ -7329,13 +7807,45 @@ async function routeVideos(request, env, cors) {
             ok: true,
             version: VIDEO_VERSION,
             enabled: hasKv(env),
+            r2: Boolean(videoBucket(env)),
             maxBytes: VIDEO_MAX_BYTES,
+            maxDurationSeconds: VIDEO_MAX_DURATION_SECONDS,
+            chunkBytes: VIDEO_CHUNK_BYTES,
+            coinCents: VIDEO_COIN_CENTS,
             categories: Array.from(VIDEO_CATEGORIES),
             declarations: Array.from(VIDEO_DECLARATIONS)
         }, 200, cors);
     }
 
-    let match = path.match(/^\/api\/videos\/([^/]+)\/(file|view|comments)$/);
+    let match = path.match(/^\/api\/videos\/([^/]+)\/upload\/(start|complete|abort)$/);
+    if (match && method === "POST") {
+        const id = decodeURIComponent(match[1]);
+        if (match[2] === "start") {
+            return await handleVideoUploadStart(request, env, cors, id);
+        }
+        if (match[2] === "complete") {
+            return await handleVideoUploadComplete(request, env, cors, id);
+        }
+        return await handleVideoUploadAbort(request, env, cors, id);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/upload\/(\d+)$/);
+    if (match) {
+        if (method === "PUT" || method === "POST") {
+            return await handleVideoUploadPart(request, env, cors, decodeURIComponent(match[1]), match[2]);
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/coin$/);
+    if (match) {
+        if (method === "POST") {
+            return await handleVideoCoin(request, env, cors, decodeURIComponent(match[1]));
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/(file|view|comments)$/);
     if (match) {
         const id = decodeURIComponent(match[1]);
         const action = match[2];
@@ -7400,6 +7910,7 @@ async function routeVideos(request, env, cors) {
 
     return jsonResponse({ error: "not_found", message: "接口不存在" }, 404, cors);
 }
+
 async function routeChat(request, env, cors) {
     const url = new URL(request.url);
     const path = url.pathname;

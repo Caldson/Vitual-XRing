@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f4f7fb">
     <title>Vitx® 视频 | Vitual XRing</title>
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
-    <script src="vtx-api.js?v=1.7.0"></script>
+    <script src="vtx-api.js?v=1.7.1"></script>
     <style>
         :root {
             color-scheme: light;
@@ -1136,7 +1136,7 @@
                 🔔<span class="dot" id="notify-dot" hidden></span>
             </button>
             <a class="primary-btn" href="vitxvideopublish.html" style="text-decoration: none;">投稿</a>
-            <span class="version">v1.7.0</span>
+            <span class="version">v1.7.1</span>
             <a class="back" href="manager.html">← 返回账户</a>
         </div>
     </header>
@@ -1148,11 +1148,11 @@
                 <div>
                     <p class="eyebrow">Vitual XRing 新功能预告</p>
                     <h1>你想要的一切，影视和视频，都在这里</h1>
-                    <p class="hero-sub">Vitx® 视频上线：多栏查找、按分区浏览、个性化推荐、一键投稿。1.7.0 起投稿的视频会上传到网站服务器，审核通过后所有人都能播放、点赞和评论。</p>
+                    <p class="hero-sub">Vitx® 视频 1.7.1：投稿上限提到 <b>5 GB / 100 小时</b>（大文件自动分片上传），审核通过后全站可看。投 1 个币 = <b>5.00 VTX</b>，直接打进投稿人账户。</p>
                     <div class="versions">
-                        <span class="chip">1.6.0</span>
+                        <span class="chip">1.7.0</span>
                         <span class="arrow">→</span>
-                        <span class="chip hot">1.7.0</span>
+                        <span class="chip hot">1.7.1</span>
                         <button class="hero-dismiss" type="button" id="hero-dismiss">知道了</button>
                     </div>
                 </div>
@@ -1185,7 +1185,7 @@
 
                 <section class="row" id="row-review" hidden>
                     <div class="row-head">
-                        <h3>待审核<span class="tag big">1.7.0</span></h3>
+                        <h3>待审核<span class="tag big">1.7.1</span></h3>
                         <span class="row-count" id="review-count"></span>
                     </div>
                     <div class="cards" id="cards-review"></div>
@@ -1423,7 +1423,6 @@
                 login: "",
                 isAdmin: false,
                 maxBytes: 0,
-                coins: readStore("coins", []),
                 favs: readStore("favs", []),
                 history: readStore("history", []),
                 notifyFollow: readStore("notifyFollow", true),
@@ -1449,6 +1448,9 @@
                     views: Number(data.views) || 0,
                     likes: Number(data.likes) || 0,
                     liked: Boolean(data.liked),
+                    coins: Number(data.coins) || 0,
+                    coined: Boolean(data.coined),
+                    coinCents: Number(data.coinCents) || 0,
                     comments: Number(data.comments) || 0,
                     dur: data.dur || "00:00",
                     fileName: data.fileName || "",
@@ -1474,6 +1476,10 @@
 
             function likedVideos() {
                 return state.videos.filter((item) => item.liked);
+            }
+
+            function coinedVideos() {
+                return state.videos.filter((item) => item.coined);
             }
 
             function byCategory(list) {
@@ -1663,7 +1669,7 @@
             /* ───────── 工具栏 / 列表 ───────── */
 
             function renderQuickState() {
-                const map = { like: likedVideos(), coin: state.coins, fav: state.favs, history: state.history };
+                const map = { like: likedVideos(), coin: coinedVideos(), fav: state.favs, history: state.history };
                 document.querySelectorAll("[data-quick]").forEach((button) => {
                     const list = map[button.dataset.quick];
                     button.classList.toggle("on", Array.isArray(list) && list.length > 0);
@@ -1682,7 +1688,7 @@
 
             function openList(kind) {
                 const list = kind === "like" ? likedVideos()
-                    : kind === "coin" ? state.coins.map(findVideo).filter(Boolean)
+                    : kind === "coin" ? coinedVideos()
                     : kind === "fav" ? state.favs.map(findVideo).filter(Boolean)
                     : state.history.map(findVideo).filter(Boolean);
                 state.listKind = kind;
@@ -1725,21 +1731,26 @@
                 return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
             }
 
-            /* 点赞在服务端，投币 / 收藏仍只记在本机 */
+            /* 1.7.1：点赞与投币都在服务端（投币会真的转 5.00 VTX 给投稿人），收藏仍只记在本机 */
             function markCount(video, kind) {
                 if (kind === "like") {
                     return Number(video.likes) || 0;
                 }
-                const list = kind === "coin" ? state.coins : state.favs;
-                const base = kind === "coin" ? (video.views || 0) / 40 : (video.views || 0) / 25;
-                return Math.round(base + (list.includes(video.id) ? 1 : 0));
+                if (kind === "coin") {
+                    return Number(video.coins) || 0;
+                }
+                const base = (video.views || 0) / 25;
+                return Math.round(base + (state.favs.includes(video.id) ? 1 : 0));
             }
 
             function markOn(video, kind) {
                 if (kind === "like") {
                     return Boolean(video.liked);
                 }
-                return (kind === "coin" ? state.coins : state.favs).includes(video.id);
+                if (kind === "coin") {
+                    return Boolean(video.coined);
+                }
+                return state.favs.includes(video.id);
             }
 
             function renderWatchMarks(video) {
@@ -1989,6 +2000,8 @@
                     cached.views = video.views;
                     cached.likes = video.likes;
                     cached.liked = video.liked;
+                    cached.coins = video.coins;
+                    cached.coined = video.coined;
                     cached.comments = video.comments;
                 }
                 document.title = `${video.title} | Vitx® 视频`;
@@ -2115,17 +2128,49 @@
                     return;
                 }
 
-                const key = kind === "coin" ? "coins" : "favs";
-                const list = state[key];
+                if (kind === "coin") {
+                    if (!apiReady || !API.hasSession()) {
+                        toast("请先登录再投币");
+                        return;
+                    }
+                    try {
+                        const result = await API.video.coin(video.id);
+                        video.coined = Boolean(result.coined);
+                        video.coins = Number(result.coins) || 0;
+                        video.coinCents = Number(result.coinCents) || 0;
+                        const cached = findVideo(video.id);
+                        if (cached) {
+                            cached.coined = video.coined;
+                            cached.coins = video.coins;
+                            cached.coinCents = video.coinCents;
+                        }
+                        renderWatchMarks(video);
+                        renderHome();
+                        renderSearch();
+                        renderQuickState();
+                        if (!el("list-panel").hidden && state.listKind) {
+                            openList(state.listKind);
+                        }
+                        const cost = result.cost || "5.00";
+                        toast(video.coined
+                            ? `投币成功（-${cost} VTX 已转给投稿人）`
+                            : (result.message || `已取消投币（${cost} VTX 不退）`));
+                    } catch (error) {
+                        toast(error && error.message ? error.message : "投币失败");
+                    }
+                    return;
+                }
+
+                const list = state.favs;
                 const index = list.indexOf(video.id);
                 if (index >= 0) {
                     list.splice(index, 1);
-                    toast(kind === "coin" ? "已收回硬币" : "已取消收藏");
+                    toast("已取消收藏");
                 } else {
                     list.unshift(video.id);
-                    toast(kind === "coin" ? "投币成功（示例不会扣 VTX）" : "已加入收藏");
+                    toast("已加入收藏");
                 }
-                writeStore(key, list);
+                writeStore("favs", list);
                 renderWatchMarks(video);
                 renderQuickState();
                 if (!el("list-panel").hidden && state.listKind) {

@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.7.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**）
+- API 版本：`1.7.1`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**）
 
 ---
 
@@ -2180,3 +2180,97 @@ npx wrangler deploy          # 上传新的 Worker 代码
 ```
 
 KV 结构是追加的，不需要迁移：老的 `accounts`、`chat:*` 键都不受影响。首次请求会顺手清理早期注入的 `v_demo*` 示例视频，站点从零开始（没有假数据）。
+
+---
+
+## 22. 1.7.1 更新：5 GB / 100 小时投稿与投币
+
+1.7.0 为了适配 KV 的单值上限，把投稿文件卡在 20 MB。1.7.1 起视频文件改存 R2，上限提到 **5 GB**，时长上限 **100 小时**，同时上线「投币」：1 个币 = **5.00 VTX**，直接打进投稿人账户。
+
+### 22.1 存储
+
+| 绑定 | 文件存放 | 单文件上限 | 上传方式 |
+|---|---|---|---|
+| `VIDEO_BUCKET`（R2） | R2 对象 `video:file:<id>` | **5 GB** | 8 MB 分片（R2 multipart） |
+| 未绑定 | `ACCOUNTS_KV` 的 `video:file:<id>` | 受 KV 单值限制（约 25 MB） | 一次 PUT 传完 |
+
+- 元信息与评论仍然在 KV：`video:index` / `video:meta:<id>` / `video:comments:<id>`；
+- 分片大小 `VIDEO_CHUNK_BYTES = 8 MB`，5 GB 大约 640 片（R2 上限 10000 片）；
+- 播放走同一个 `/file` 接口，R2 与 KV 都支持 `Range`（206 + `content-range`）。
+
+```toml
+# worker/wrangler.toml
+[[r2_buckets]]
+binding = "VIDEO_BUCKET"
+bucket_name = "vtx-video"
+```
+
+```bash
+npx wrangler r2 bucket create vtx-video
+npx wrangler deploy
+```
+
+### 22.2 限制
+
+| 项 | 值 | 校验位置 |
+|---|---|---|
+| 文件大小 | ≤ 5 GB | `POST /api/videos` 的 `fileSize`、每个分片累计、`PUT /file` 的 `content-length` |
+| 视频时长 | ≤ 100 小时（360000 秒） | `POST /api/videos` 的 `durSeconds` / `dur` |
+| 标题 / 简介 / 标签 | 2-60 字 / ≤300 字 / ≤5 个（每个 ≤16 字） | 同上 |
+
+时长用 `durSeconds`（秒）传，也接受 `"1:02:05"` 或 `"90:00:00"` 这种字符串；服务端统一存成 `durSeconds` 与 `dur` 两个字段，超过 100 小时返回 `400 bad_request`。
+
+### 22.3 分片上传（R2）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/api/videos/:id/upload/start` | 开始分片上传，返回 `{ uploadId, chunkBytes, maxBytes, maxParts }`；重复调用会作废上一次 |
+| PUT | `/api/videos/:id/upload/:part` | 上传第 `part` 片（从 1 开始，原始二进制）；返回 `{ partNumber, etag, received }` |
+| POST | `/api/videos/:id/upload/complete` | 合并所有分片，状态变 `pending` |
+| POST | `/api/videos/:id/upload/abort` | 放弃这次分片上传（回到 `draft`） |
+
+- 只有作者与站主能上传；
+- 未绑定 R2 时 `start` 直接返回 `503 no_r2`，前端会退回「一次 PUT 传完」；
+- `PUT /api/videos/:id/file` 仍然保留：R2 存在时写 R2，否则写 KV。
+
+### 22.4 投币
+
+`POST /api/videos/:id/coin`，需要登录；视频必须是 `published`。
+
+| 操作 | 效果 |
+|---|---|
+| 首次投币 | 观众扣 **5.00 VTX**，投稿人加 **5.00 VTX**，双方各记一笔流水（`投币` / `收到投币`），返回 `{ coined: true, coins, coinCents, cost, account, ownerMoney }` |
+| 再点一次（取消） | 从投币名单里移除，**不退钱、也不从投稿人账上扣回**，返回 `{ coined: false, refunded: false }` |
+| 余额不足 | `400 insufficient_funds` |
+| 投稿人 = 观众 | 只扣自己的 5.00 VTX，不做转账（不会凭空多钱） |
+| 未审核 / 未公开 | `409 conflict` |
+
+- 计数存在 `meta.coins`（登录名数组）与 `meta.coinCents`（累计收到的钱），`videoView` 输出 `coins` / `coined` / `coinCents`；
+- 因为「取消不退」，反复投币会重复扣款，这是设计如此（每次投币都是一次真实的 5.00 VTX 转账）。
+
+### 22.5 SDK
+
+```js
+const status = await VTXApi.video.status();   // { maxBytes: 5368709120, maxDurationSeconds: 360000, chunkBytes, coinCents, r2 }
+
+// 一行上传：内部按 r2 自动选择分片或整包
+const video = await VTXApi.video.upload(file, {
+    title, desc, tags, cat, original: true, declarations: ["ai"],
+    fileName: file.name, fileType: file.type, fileSize: file.size,
+    durSeconds: 3725
+}, (progress) => {
+    console.log(progress.percent, progress.part, progress.parts);
+});
+
+await VTXApi.video.coin(video.id);   // { coined, coins, coinCents, cost, account, ownerMoney }
+```
+
+分片接口也单独暴露：`uploadStart(id)` / `uploadAbort(id)`。
+
+### 22.6 页面
+
+| 页面 | 变化 |
+|---|---|
+| `vitxvideopublish.html` | 提示改为「任何格式，≤5 GB，时长 ≤100 小时」；选文件后探测真实时长，超 100 小时直接拦下；上传过程中按钮显示百分比并有进度条 |
+| `vitxvideo.html` | 投币改为服务端（按钮计数 = 真实投币数）；未登录提示先登录；余额不足、审核中都会提示；「我投过币的」列表按服务端 `coined` 生成 |
+| 版本号 | 全套同步到 `1.7.1`（`VERSION` / `CHAT_VERSION` / `VIDEO_VERSION` / `API_VERSION` / 各页 `?v=`） |

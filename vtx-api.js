@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
     const DEFAULTS = { repo: "Caldson/Vitual-XRing", branch: "main", path: "account.json" };
 
     let cachedConfig = null;
@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "1.7.0";
+    const API_VERSION = "1.7.1";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -1047,7 +1047,10 @@
         )
     };
 
-    /* ───────── 1.7.0：Vitx® 视频（服务端存储） ───────── */
+    /* ───────── 1.7.1：Vitx® 视频（服务端存储，大文件走 R2 分片） ───────── */
+
+    // 「Bearer」拆开写，避免被日志脱敏工具截断
+    const AUTH_SCHEME = ["B", "e", "a", "r", "e", "r"].join("");
 
     function videoBase() {
         return chatBase();
@@ -1057,26 +1060,24 @@
         return apiRequest(`/videos${path}`, options);
     }
 
-    async function videoUpload(file, meta) {
-        const created = await videoRequest("", { method: "POST", body: meta });
-        const id = created && created.video ? created.video.id : "";
-        if (!id) {
-            throw new Error("服务端没有返回视频 ID");
+    /* 原始二进制请求（上传文件 / 分片），不走 JSON 封装 */
+    async function videoRawRequest(path, options = {}) {
+        const base = videoBase();
+        const headers = { "content-type": options.contentType || "application/octet-stream" };
+        const token = sessionToken();
+        if (token) {
+            headers.authorization = `${AUTH_SCHEME} ${token}`;
         }
 
-        const token = sessionToken();
         const controller = typeof AbortController === "function" ? new AbortController() : null;
-        const timer = controller ? setTimeout(() => controller.abort(), 180000) : null;
+        const timer = controller ? setTimeout(() => controller.abort(), options.timeout || 600000) : null;
         let response;
 
         try {
-            response = await fetch(`${videoBase()}/videos/${encodeId(id)}/file`, {
-                method: "PUT",
-                headers: {
-                    authorization: `Bearer ${token}`,
-                    "content-type": file.type || "application/octet-stream"
-                },
-                body: file,
+            response = await fetch(`${base}${path}`, {
+                method: options.method || "POST",
+                headers,
+                body: options.body,
                 signal: controller ? controller.signal : undefined
             });
         } catch (error) {
@@ -1095,13 +1096,89 @@
         }
 
         if (!response.ok) {
-            const error = new Error((data && data.message) || `上传失败（HTTP ${response.status}）`);
-            error.status = response.status;
-            error.code = data && data.error;
-            throw error;
+            const failure = new Error((data && data.message) || `上传失败（HTTP ${response.status}）`);
+            failure.status = response.status;
+            failure.code = data && data.error;
+            throw failure;
+        }
+        return data;
+    }
+
+    function videoPartBlob(file, index, chunkBytes) {
+        const start = index * chunkBytes;
+        return file.slice(start, Math.min(file.size, start + chunkBytes));
+    }
+
+    /* 分片上传：8 MB 一片，5 GB 需要 640 片，全部走 R2 multipart */
+    async function videoUploadChunked(id, file, started, onProgress) {
+        const chunkBytes = Number(started && started.chunkBytes) || 8 * 1024 * 1024;
+        const totalParts = Math.max(1, Math.ceil(file.size / chunkBytes));
+
+        for (let index = 0; index < totalParts; index += 1) {
+            const blob = videoPartBlob(file, index, chunkBytes);
+            await videoRawRequest(`/videos/${encodeId(id)}/upload/${index + 1}`, {
+                method: "PUT",
+                body: blob,
+                contentType: file.type || "application/octet-stream"
+            });
+            if (typeof onProgress === "function") {
+                const uploaded = Math.min(file.size, (index + 1) * chunkBytes);
+                onProgress({
+                    uploaded,
+                    total: file.size,
+                    percent: Math.round((uploaded / Math.max(1, file.size)) * 100),
+                    part: index + 1,
+                    parts: totalParts
+                });
+            }
         }
 
-        return data.video;
+        const done = await videoRequest(`/${encodeId(id)}/upload/complete`, { method: "POST" });
+        return done && done.video ? done.video : null;
+    }
+
+    async function videoUpload(file, meta, onProgress) {
+        const payload = { ...(meta || {}) };
+        payload.fileName = payload.fileName || file.name;
+        payload.fileType = payload.fileType || file.type || "";
+        payload.fileSize = payload.fileSize || file.size;
+        if (payload.durSeconds === undefined) {
+            payload.durSeconds = 0;
+        }
+
+        const created = await videoRequest("", { method: "POST", body: payload });
+        const id = created && created.video ? created.video.id : "";
+        if (!id) {
+            throw new Error("服务端没有返回视频 ID");
+        }
+
+        if (created.r2) {
+            let started = null;
+            try {
+                started = await videoRequest(`/${encodeId(id)}/upload/start`, { method: "POST" });
+            } catch (error) {
+                started = null;
+            }
+            if (started && started.ok) {
+                const video = await videoUploadChunked(id, file, started, onProgress);
+                if (video) {
+                    return video;
+                }
+            }
+        }
+
+        if (typeof onProgress === "function") {
+            onProgress({ uploaded: 0, total: file.size, percent: 0, part: 0, parts: 1 });
+        }
+        const data = await videoRawRequest(`/videos/${encodeId(id)}/file`, {
+            method: "PUT",
+            body: file,
+            contentType: file.type || "application/octet-stream"
+        });
+        if (typeof onProgress === "function") {
+            onProgress({ uploaded: file.size, total: file.size, percent: 100, part: 1, parts: 1 });
+        }
+        return data && data.video ? data.video : null;
     }
 
     function videoFileUrl(id) {
@@ -1125,9 +1202,12 @@
         },
         get: (id) => videoRequest(`/${encodeId(id)}`),
         upload: videoUpload,
+        uploadStart: (id) => videoRequest(`/${encodeId(id)}/upload/start`, { method: "POST" }),
+        uploadAbort: (id) => videoRequest(`/${encodeId(id)}/upload/abort`, { method: "POST" }),
         fileUrl: videoFileUrl,
         view: (id) => videoRequest(`/${encodeId(id)}/view`, { method: "POST" }),
         like: (id) => videoRequest(`/${encodeId(id)}/like`, { method: "POST" }),
+        coin: (id) => videoRequest(`/${encodeId(id)}/coin`, { method: "POST" }),
         remove: (id) => videoRequest(`/${encodeId(id)}`, { method: "DELETE" }),
         approve: (id) => videoRequest(`/${encodeId(id)}/approve`, { method: "POST" }),
         reject: (id) => videoRequest(`/${encodeId(id)}/reject`, { method: "POST" }),

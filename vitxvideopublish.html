@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f4f7fb">
     <title>投稿 | Vitx® 视频</title>
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
-    <script src="vtx-api.js?v=1.7.0"></script>
+    <script src="vtx-api.js?v=1.7.1"></script>
     <style>
         :root {
             color-scheme: light;
@@ -346,6 +346,24 @@
 
         .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+        /* 1.7.1：上传进度条 */
+        .progress {
+            height: 6px;
+            margin: 12px 0 4px;
+            border-radius: 999px;
+            background: #eef2f8;
+            overflow: hidden;
+        }
+
+        .progress i {
+            display: block;
+            width: 0;
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #6aa8ff, #2b6cb0);
+            transition: width 0.2s ease;
+        }
+
         /* 1.7.0：未登录时提示先登录 */
         .notice {
             display: flex;
@@ -406,7 +424,7 @@
         <div class="topbar-right">
             <a class="link-btn" href="vitxvideo.html">← 返回视频</a>
             <a class="link-btn" href="manager.html">返回账户</a>
-            <span class="version">v1.7.0</span>
+            <span class="version">v1.7.1</span>
         </div>
     </header>
 
@@ -425,9 +443,10 @@
 
             <button class="upload-drop" type="button" id="pick-file">
                 上传
-                <small id="pick-hint">点击选择视频文件（任何格式都可以，≤20 MB）</small>
+                <small id="pick-hint">点击选择视频文件（任何格式，≤5 GB，时长 ≤100 小时）</small>
             </button>
             <input id="file-input" type="file" hidden>
+            <div class="progress" id="upload-progress" hidden><i></i></div>
             <div class="preview" id="preview" hidden>
                 <video id="preview-video" controls playsinline preload="metadata" hidden></video>
                 <p id="preview-note"></p>
@@ -477,10 +496,11 @@
         <aside class="panel side">
             <h2>投稿须知</h2>
             <ol>
-                <li>视频格式不限（mp4 / mov / mkv / avi / flv / ts… 都能选），文件会上传到网站服务器（每个文件最大 <b id="limit-inline">20 MB</b>）。</li>
+                <li>视频格式不限（mp4 / mov / mkv / avi / flv / ts… 都能选），文件会上传到网站服务器（<b id="limit-inline">5 GB，时长最长 100 小时</b>）；大文件自动切成 8 MB 分片上传。</li>
                 <li>投稿需要登录 Vitual XRing 账户；标题 2~60 个字，简介最多 300 字，标签最多 5 个。</li>
                 <li>勾选声明后会在视频页标注；含 AI 内容与营销内容必须如实勾选。</li>
                 <li>提交后进入审核，审核通过前视频会以「审核中」出现在待审核区，只有你自己和站主能看到。</li>
+                <li>每收到 1 个币（5.00 VTX）会打进你的账户余额；观众取消投币不会退钱，也不会从你账上扣回。</li>
                 <li>播放页地址形如 <code>vitxvideo.html?videoid=视频ID</code>，审核通过后可以分享给任何人。</li>
             </ol>
 
@@ -525,7 +545,8 @@
                 { id: "warning", label: "可能引起不适", hint: "包含强光、剧烈音效或易引起不适的画面" }
             ];
 
-            const FALLBACK_MAX = 20 * 1024 * 1024;
+            const FALLBACK_MAX = 5 * 1024 * 1024 * 1024;
+            const FALLBACK_MAX_DURATION = 100 * 3600;
             const API = window.VTXApi;
             const apiReady = Boolean(API && API.video);
 
@@ -551,6 +572,10 @@
 
             function formatSize(bytes) {
                 const value = Number(bytes) || 0;
+                if (value >= 1024 * 1024 * 1024) {
+                    const gb = value / 1024 / 1024 / 1024;
+                    return `${Number(gb.toFixed(gb >= 10 ? 0 : 1))} GB`;
+                }
                 if (value >= 1024 * 1024) {
                     return `${(value / 1024 / 1024).toFixed(1)} MB`;
                 }
@@ -563,20 +588,29 @@
             let selectedFile = null;
             let uploading = false;
             let maxBytes = FALLBACK_MAX;
+            let maxDuration = FALLBACK_MAX_DURATION;
             let mine = [];
 
             function limitLabel() {
+                const gb = maxBytes / 1024 / 1024 / 1024;
+                if (gb >= 1) {
+                    return `${Number(gb.toFixed(gb >= 10 ? 0 : 1))} GB`;
+                }
                 return `${Math.round(maxBytes / 1024 / 1024)} MB`;
+            }
+
+            function durationLabel() {
+                return `${Math.round(maxDuration / 3600)} 小时`;
             }
 
             function updatePickHint() {
                 const hint = el("pick-hint");
                 if (hint && !selectedFile) {
-                    hint.textContent = `点击选择视频文件（任何格式都可以，≤${limitLabel()}）`;
+                    hint.textContent = `点击选择视频文件（任何格式，≤${limitLabel()}，时长 ≤${durationLabel()}）`;
                 }
                 const inline = el("limit-inline");
                 if (inline) {
-                    inline.textContent = limitLabel();
+                    inline.textContent = `${limitLabel()}，时长最长 ${durationLabel()}`;
                 }
             }
 
@@ -615,6 +649,20 @@
                 el("publish-submit").disabled = show || uploading;
             }
 
+            function setProgress(percent) {
+                const bar = el("upload-progress");
+                if (!bar) {
+                    return;
+                }
+                if (percent === null) {
+                    bar.hidden = true;
+                    bar.querySelector("i").style.width = "0%";
+                    return;
+                }
+                bar.hidden = false;
+                bar.querySelector("i").style.width = `${Math.max(0, Math.min(100, percent))}%`;
+            }
+
             /* 待审核列表来自服务器（只显示自己的） */
             function renderPending() {
                 const box = el("pending-box");
@@ -645,9 +693,13 @@
                 }
                 try {
                     const data = await API.video.status();
-                    const value = Number(data && data.maxBytes);
-                    if (value > 0) {
-                        maxBytes = value;
+                    const size = Number(data && data.maxBytes);
+                    if (size > 0) {
+                        maxBytes = size;
+                    }
+                    const duration = Number(data && data.maxDurationSeconds);
+                    if (duration > 0) {
+                        maxDuration = duration;
                     }
                 } catch (error) {
                     /* 用默认值 */
@@ -660,7 +712,7 @@
                 clearPreview();
                 el("file-input").value = "";
                 el("pick-file").classList.remove("has-file");
-                el("pick-file").innerHTML = `上传<small id="pick-hint">点击选择视频文件（任何格式都可以，≤${esc(limitLabel())}）</small>`;
+                el("pick-file").innerHTML = `上传<small id="pick-hint">点击选择视频文件（任何格式，≤${esc(limitLabel())}，时长 ≤${esc(durationLabel())}）</small>`;
                 el("up-title").value = "";
                 el("up-desc").value = "";
                 el("up-tags").value = "";
@@ -697,7 +749,7 @@
                 }, { once: true });
             }
 
-            /* 取视频时长（拿不到就记 00:00，不影响上传） */
+            /* 取视频时长（秒；拿不到就返回 0，不影响上传） */
             function probeDuration(file) {
                 return new Promise((resolve) => {
                     let url = "";
@@ -713,7 +765,7 @@
                         }
                         resolve(value);
                     };
-                    const timer = setTimeout(() => finish("00:00"), 4000);
+                    const timer = setTimeout(() => finish(0), 4000);
                     try {
                         url = URL.createObjectURL(file);
                         const probe = document.createElement("video");
@@ -721,16 +773,15 @@
                         probe.addEventListener("loadedmetadata", () => {
                             const total = Number(probe.duration);
                             if (!Number.isFinite(total) || total <= 0) {
-                                finish("00:00");
+                                finish(0);
                                 return;
                             }
-                            const seconds = Math.round(total);
-                            finish(`${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`);
+                            finish(Math.round(total));
                         }, { once: true });
-                        probe.addEventListener("error", () => finish("00:00"), { once: true });
+                        probe.addEventListener("error", () => finish(0), { once: true });
                         probe.src = url;
                     } catch (error) {
-                        finish("00:00");
+                        finish(0);
                     }
                 });
             }
@@ -792,12 +843,19 @@
 
                 const file = selectedFile;
                 const button = el("publish-submit");
+
+                const durSeconds = await probeDuration(file);
+                if (durSeconds > maxDuration) {
+                    toast(`视频时长不能超过 ${durationLabel()}`);
+                    return;
+                }
+
                 uploading = true;
                 button.disabled = true;
                 button.textContent = "正在上传…";
+                setProgress(0);
 
                 try {
-                    const dur = await probeDuration(file);
                     const created = await API.video.upload(file, {
                         title,
                         desc,
@@ -808,7 +866,11 @@
                         fileName: file.name,
                         fileType: file.type || "",
                         fileSize: file.size,
-                        dur
+                        durSeconds
+                    }, (progress) => {
+                        const percent = Number(progress && progress.percent) || 0;
+                        button.textContent = `正在上传 ${percent}%`;
+                        setProgress(percent);
                     });
                     resetForm();
                     await loadMine();
@@ -818,6 +880,7 @@
                 } finally {
                     uploading = false;
                     button.textContent = "发布";
+                    setProgress(null);
                     renderGate();
                 }
             }
