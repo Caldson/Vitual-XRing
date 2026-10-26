@@ -153,10 +153,10 @@ test("聊天室状态开放，并暴露实时通道与媒体 TTL", async () => {
     const { env } = await prepare();
     const status = await api(env, "GET", "/api/chat/status");
     assert.equal(status.status, 200);
-    assert.equal(status.data.version, "1.3");
+    assert.equal(status.data.version, "1.8.0");
     assert.equal(status.data.enabled, true);
     assert.equal(status.data.realtime, "websocket");
-    assert.equal(status.data.mediaTtlSeconds, 1200);
+    assert.equal(status.data.mediaTtlSeconds, 14 * 24 * 60 * 60);
     assert.deepEqual(status.data.rooms.map((item) => item.id), ["general", "trade", "help"]);
 });
 
@@ -448,6 +448,8 @@ test("图片上传、读取，过期后不能发送但历史消息仍保留", as
     const media = upload.data.media;
     assert.equal(media.name, "测试.png");
     assert.equal(media.size, 4);
+    assert.equal(media.ttlSeconds, 14 * 24 * 60 * 60, "图片 / 文件应保留 14 天");
+    assert.ok(media.expiresAt > Date.now() + 13 * 24 * 60 * 60 * 1000, "expiresAt 应接近 14 天后");
 
     const fetched = await api(env, "GET", `/api/chat/media/${media.id}?token=${tokens.Bob}`);
     assert.equal(fetched.status, 200);
@@ -476,6 +478,57 @@ test("图片上传、读取，过期后不能发送但历史消息仍保留", as
         body: { login: "Alice" }
     });
     assert.equal(second.status, 200);
+});
+
+test("1.8.0：音乐文件保留音频类型、可直接播放，音频上限 20 MB", async () => {
+    const { env, tokens } = await prepare();
+    const direct = await befriend(env, tokens, "Alice", "Bob");
+
+    const bytes = new Uint8Array([73, 68, 51, 4]);
+    const upload = await api(env, "POST", "/api/chat/media", {
+        token: tokens.Alice,
+        raw: bytes.buffer,
+        contentType: "audio/mpeg",
+        headers: { "x-file-name": encodeURIComponent("晴天.mp3") }
+    });
+    assert.equal(upload.status, 201, JSON.stringify(upload.data));
+    const media = upload.data.media;
+    assert.equal(media.name, "晴天.mp3");
+    assert.equal(media.type, "audio/mpeg");
+    assert.equal(media.ttlSeconds, 14 * 24 * 60 * 60);
+
+    const fetched = await api(env, "GET", `/api/chat/media/${media.id}?token=${tokens.Bob}`);
+    assert.equal(fetched.status, 200);
+    assert.equal(fetched.response.headers.get("content-type"), "audio/mpeg");
+    assert.match(fetched.response.headers.get("content-disposition"), /^inline;/);
+
+    const sent = await api(env, "POST", `/api/chat/conversations/${direct.id}/messages`, {
+        token: tokens.Alice,
+        body: { type: "file", mediaId: media.id, text: "听歌" }
+    });
+    assert.equal(sent.status, 201, JSON.stringify(sent.data));
+    assert.equal(sent.data.message.media.type, "audio/mpeg");
+    assert.equal(sent.data.message.media.name, "晴天.mp3");
+
+    /* 5 MB 的音频可以上传（普通文件仍然限制 4 MB） */
+    const bigAudio = new Uint8Array(5 * 1024 * 1024);
+    const big = await api(env, "POST", "/api/chat/media", {
+        token: tokens.Alice,
+        raw: bigAudio.buffer,
+        contentType: "audio/wav",
+        headers: { "x-file-name": encodeURIComponent("长录音.wav") }
+    });
+    assert.equal(big.status, 201, JSON.stringify(big.data));
+    assert.equal(big.data.media.type, "audio/wav");
+
+    const bigImage = await api(env, "POST", "/api/chat/media", {
+        token: tokens.Alice,
+        raw: bigAudio.buffer,
+        contentType: "image/png",
+        headers: { "x-file-name": "big.png" }
+    });
+    assert.equal(bigImage.status, 413);
+    assert.equal(bigImage.data.error, "payload_too_large");
 });
 
 test("站主可以管理所有群聊和单聊", async () => {
@@ -946,3 +999,236 @@ test("拼手速红包：金额校验、抢红包、余额变动、退回", async
 function fromCentsForTest(cents) {
     return (cents / 100).toFixed(2);
 }
+
+test("1.4.0：聊天室不再按 IP 限流（发言、正在输入、上传媒体）", async () => {
+    const { env, tokens } = await prepare();
+    const direct = await befriend(env, tokens, "Alice", "Bob");
+
+    // 旧版限制是每分钟 30 条，这里连发 40 条确认不再出现 429
+    for (let index = 0; index < 40; index += 1) {
+        const sent = await api(env, "POST", `/api/chat/conversations/${direct.id}/messages`, {
+            token: tokens.Alice,
+            body: { text: `连发 ${index}` }
+        });
+        assert.equal(sent.status, 201, `第 ${index} 条：${JSON.stringify(sent.data)}`);
+    }
+
+    // 正在输入：旧版每分钟 120 次，超过了只会返回 throttled: true
+    for (let index = 0; index < 130; index += 1) {
+        const typing = await api(env, "POST", `/api/chat/conversations/${direct.id}/typing`, { token: tokens.Alice });
+        assert.equal(typing.status, 200);
+        assert.equal(typing.data.throttled, undefined);
+    }
+
+    // 上传媒体：旧版每分钟 12 次
+    for (let index = 0; index < 20; index += 1) {
+        const upload = await api(env, "POST", "/api/chat/media", {
+            token: tokens.Alice,
+            raw: new Uint8Array([137, 80, 78, 71]).buffer,
+            contentType: "image/png",
+            headers: { "x-file-name": encodeURIComponent(`限流测试-${index}.png`) }
+        });
+        assert.equal(upload.status, 201, `第 ${index} 个：${JSON.stringify(upload.data)}`);
+    }
+});
+
+test("1.5.0：@ 提及只在被 @ 的人那里计数，且过滤非群成员", async () => {
+    const { env, tokens } = await prepare();
+
+    const created = await api(env, "POST", "/api/chat/conversations/group", {
+        token: tokens.Alice,
+        body: { name: "提测群", members: ["Bob", "Carol"] }
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    const groupId = created.data.conversation.id;
+
+    const sent = await api(env, "POST", `/api/chat/conversations/${groupId}/messages`, {
+        token: tokens.Alice,
+        body: { text: "@Bob 看一下这个", mentions: ["Bob", "Kitawaga", "Bob", ""] }
+    });
+    assert.equal(sent.status, 201, JSON.stringify(sent.data));
+    assert.deepEqual(sent.data.message.mentions, ["Bob"]);
+
+    const bobList = await api(env, "GET", "/api/chat/conversations", { token: tokens.Bob });
+    const bobConv = bobList.data.conversations.find((item) => item.id === groupId);
+    assert.equal(bobConv.unread, 1);
+    assert.equal(bobConv.mentionUnread, 1);
+
+    const carolList = await api(env, "GET", "/api/chat/conversations", { token: tokens.Carol });
+    const carolConv = carolList.data.conversations.find((item) => item.id === groupId);
+    assert.equal(carolConv.unread, 1);
+    assert.equal(carolConv.mentionUnread, 0);
+
+    const aliceList = await api(env, "GET", "/api/chat/conversations", { token: tokens.Alice });
+    const aliceConv = aliceList.data.conversations.find((item) => item.id === groupId);
+    assert.equal(aliceConv.mentionUnread, 0);
+
+    // Bob 读过之后 @ 计数清零
+    await api(env, "POST", `/api/chat/conversations/${groupId}/read`, { token: tokens.Bob });
+    const bobAfter = await api(env, "GET", "/api/chat/conversations", { token: tokens.Bob });
+    assert.equal(bobAfter.data.conversations.find((item) => item.id === groupId).mentionUnread, 0);
+});
+
+test("1.7.3：聊天室解除 500 字限制，长消息完整保存与返回", async () => {
+    const { env, tokens } = await prepare();
+    const direct = await befriend(env, tokens, "Alice", "Bob");
+    const longText = `${"很长的一段话。".repeat(260)}END`;
+
+    const sent = await api(env, "POST", `/api/chat/conversations/${direct.id}/messages`, {
+        token: tokens.Alice,
+        body: { text: longText }
+    });
+    assert.equal(sent.status, 201, JSON.stringify(sent.data));
+    assert.equal(sent.data.message.text, longText);
+    assert.ok(longText.length >= 500);
+
+    const history = await api(env, "GET", `/api/chat/conversations/${direct.id}/messages`, { token: tokens.Bob });
+    const stored = history.data.messages.find((item) => item.id === sent.data.message.id);
+    assert.equal(stored.text, longText);
+
+    /* 会话列表只带 200 字预览，避免每次轮询都传整段长文 */
+    const list = await api(env, "GET", "/api/chat/conversations", { token: tokens.Bob });
+    const conversation = list.data.conversations.find((item) => item.id === direct.id);
+    assert.equal(conversation.lastMessage.text.length, 201);
+    assert.ok(conversation.lastMessage.text.endsWith("…"));
+
+    /* 256 KB 以上才拦 */
+    const tooLong = await api(env, "POST", `/api/chat/conversations/${direct.id}/messages`, {
+        token: tokens.Alice,
+        body: { text: "x".repeat(256 * 1024 + 1) }
+    });
+    assert.equal(tooLong.status, 413);
+    assert.equal(tooLong.data.error, "text_too_long");
+});
+
+test("1.7.3：聊天室转账：密码、余额、收款、退回与异常分支", async () => {
+    const { env, tokens } = await prepare();
+    const direct = await befriend(env, tokens, "Alice", "Bob");
+
+    const noPassword = await api(env, "POST", `/api/chat/conversations/${direct.id}/transfers`, {
+        token: tokens.Alice,
+        body: { amount: "1.00" }
+    });
+    assert.equal(noPassword.status, 400);
+
+    const wrongPassword = await api(env, "POST", `/api/chat/conversations/${direct.id}/transfers`, {
+        token: tokens.Alice,
+        body: { amount: "1.00", password: "wrong" }
+    });
+    assert.equal(wrongPassword.status, 400);
+    assert.equal(wrongPassword.data.error, "invalid_password");
+
+    const toSelf = await api(env, "POST", `/api/chat/conversations/${direct.id}/transfers`, {
+        token: tokens.Alice,
+        body: { to: "Alice", amount: "1.00", password: "password1" }
+    });
+    assert.equal(toSelf.status, 400);
+
+    const poor = await api(env, "POST", `/api/chat/conversations/${direct.id}/transfers`, {
+        token: tokens.Alice,
+        body: { amount: "100.00", password: "password1" }
+    });
+    assert.equal(poor.status, 400);
+    assert.equal(poor.data.error, "insufficient_balance");
+
+    const sent = await api(env, "POST", `/api/chat/conversations/${direct.id}/transfers`, {
+        token: tokens.Alice,
+        body: { amount: "1.50", password: "password1", note: "午饭" }
+    });
+    assert.equal(sent.status, 201, JSON.stringify(sent.data));
+    assert.equal(sent.data.balance, "8.50");
+    assert.equal(sent.data.message.type, "transfer");
+    assert.equal(sent.data.message.transfer.cents, 150);
+    assert.equal(sent.data.message.transfer.to, "Bob");
+    assert.equal(sent.data.message.transfer.status, "pending");
+    assert.equal(sent.data.message.transfer.note, "午饭");
+    assert.equal(sent.data.conversation.lastMessage.type, "transfer");
+
+    const messageId = sent.data.message.id;
+
+    /* 没收款的转账不能撤回/删除 */
+    const recall = await api(env, "POST", `/api/chat/messages/${messageId}/recall?conversation=${direct.id}`, {
+        token: tokens.Alice
+    });
+    assert.equal(recall.status, 400);
+    assert.equal(recall.data.error, "transfer_pending");
+
+    const outsider = await api(env, "POST", `/api/chat/messages/${messageId}/transfer/claim?conversation=${direct.id}`, {
+        token: tokens.Carol
+    });
+    assert.equal(outsider.status, 403);
+
+    const notYours = await api(env, "POST", `/api/chat/messages/${messageId}/transfer/claim?conversation=${direct.id}`, {
+        token: tokens.Kitawaga
+    });
+    assert.equal(notYours.status, 403);
+
+    const claimed = await api(env, "POST", `/api/chat/messages/${messageId}/transfer/claim?conversation=${direct.id}`, {
+        token: tokens.Bob
+    });
+    assert.equal(claimed.status, 200, JSON.stringify(claimed.data));
+    assert.equal(claimed.data.cents, 150);
+    assert.equal(claimed.data.balance, "11.50");
+    assert.equal(claimed.data.transfer.status, "claimed");
+
+    const twice = await api(env, "POST", `/api/chat/messages/${messageId}/transfer/claim?conversation=${direct.id}`, {
+        token: tokens.Bob
+    });
+    assert.equal(twice.status, 409);
+
+    const refundClaimed = await api(env, "POST", `/api/chat/messages/${messageId}/transfer/refund?conversation=${direct.id}`, {
+        token: tokens.Alice
+    });
+    assert.equal(refundClaimed.status, 410);
+
+    const history = await api(env, "GET", `/api/chat/conversations/${direct.id}/messages`, { token: tokens.Alice });
+    const stored = history.data.messages.find((item) => item.id === messageId);
+    assert.equal(stored.transfer.status, "claimed");
+
+    /* 未收款的可以退回，余额恢复 */
+    const pending = await api(env, "POST", `/api/chat/conversations/${direct.id}/transfers`, {
+        token: tokens.Alice,
+        body: { amount: "2.00", password: "password1" }
+    });
+    assert.equal(pending.status, 201, JSON.stringify(pending.data));
+    assert.equal(pending.data.balance, "6.50");
+
+    const notSender = await api(env, "POST", `/api/chat/messages/${pending.data.message.id}/transfer/refund?conversation=${direct.id}`, {
+        token: tokens.Bob
+    });
+    assert.equal(notSender.status, 403);
+
+    const refunded = await api(env, "POST", `/api/chat/messages/${pending.data.message.id}/transfer/refund?conversation=${direct.id}`, {
+        token: tokens.Alice
+    });
+    assert.equal(refunded.status, 200, JSON.stringify(refunded.data));
+    assert.equal(refunded.data.refunded, "2.00");
+    assert.equal(refunded.data.balance, "8.50");
+    assert.equal(refunded.data.transfer.status, "refunded");
+
+    /* 群聊：必须指定群成员，且可以转给任意成员 */
+    const group = await api(env, "POST", "/api/chat/conversations/group", {
+        token: tokens.Alice,
+        body: { name: "转账群", members: ["Bob"] }
+    });
+    const groupId = group.data.conversation.id;
+
+    const missingTarget = await api(env, "POST", `/api/chat/conversations/${groupId}/transfers`, {
+        token: tokens.Alice,
+        body: { amount: "0.50", password: "password1" }
+    });
+    assert.equal(missingTarget.status, 400);
+
+    const outsiderTarget = await api(env, "POST", `/api/chat/conversations/${groupId}/transfers`, {
+        token: tokens.Alice,
+        body: { to: "Carol", amount: "0.50", password: "password1" }
+    });
+    assert.equal(outsiderTarget.status, 400);
+
+    const groupSent = await api(env, "POST", `/api/chat/conversations/${groupId}/transfers`, {
+        token: tokens.Alice,
+        body: { to: "Bob", amount: "0.50", password: "password1", note: "群转账" }
+    });
+    assert.equal(groupSent.status, 201, JSON.stringify(groupSent.data));
+    assert.equal(groupSent.data.message.transfer.to, "Bob");
+});

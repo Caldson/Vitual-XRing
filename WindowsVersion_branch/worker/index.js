@@ -1,4 +1,4 @@
-﻿/**
+﻿/*
  * Vitual XRing 账户 API
  *
  * 8.0 起账户数据默认存放在 Workers KV（ACCOUNTS_KV）里，不再依赖公开的 account.json：
@@ -7,7 +7,7 @@
  *   未绑定 ACCOUNTS_KV 时退回 7.0 的行为（直接读写仓库里的 account.json）。
  *
  * 9.0 新增完整聊天室：聊天记录同样存在 KV，实时消息由 ChatHub（Durable Object）
- * 通过 WebSocket 推送；图片 / 文件在 KV 里只保留 20 分钟。
+ * 通过 WebSocket 推送；图片 / 文件在 KV 里保留 14 天。
  *
  * 9.1 把「解散群聊」做成只读保留：群主 / 站主解散后群聊标记 dissolved，
  * 历史消息仍然可以查看，但不能再发消息、改名、加人、改公告；
@@ -26,6 +26,15 @@
  *   - 前端聊天室改用 visualViewport 计算高度，修 iPad / iPhone 上消息区没有滚动条、
  *     输入框被顶到屏幕外的问题（服务端接口未变，只同步版本号便于前端校验）
  *
+ * 1.4.0：
+ *   - 面对面加群（4 / 8 位邀请码与群号）不再按 IP 限流
+ *   - 管理员接口返回账户当前密码：密码仍是 PBKDF2 哈希，另存 AES-GCM 加密副本
+ *     passwordSealed（密钥来自 secret PASSWORD_VIEW_KEY），登录 / 改密 / 建号时自动维护
+ *
+ * 1.5.0：
+ *   - 聊天室 mention（@ 提及）：消息携带 mentions（只保留本会话成员），
+ *     会话列表新增 mentionUnread（未读里 @ 我的条数）
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -35,17 +44,21 @@
  *   MIGRATE_DELETE_REPO_FILE    迁移后是否删除仓库里的 account.json，默认 true
  *   MIRROR_TO_GITHUB            是否把 KV 数据镜像回仓库 account.json，默认 false
  *   CHAT_ENABLED                是否开放聊天室接口，9.0 起默认 true
+ *   VIDEO_GH_REPO               1.7.2：视频文件存进哪个仓库的 Release，默认取 REPO；
+ *                               填 "off" 可以强制把文件留在 KV
  *
  * 绑定：
  *   ACCOUNTS_KV                 Workers KV：账户 + 聊天记录 + 聊天媒体
  *   CHAT                        Durable Object（class_name = ChatHub）：WebSocket 实时推送
+ *   VIDEO_BUCKET                （可选）R2 桶：视频文件。不绑就依次退到 GitHub Release、KV
  *
  * 机密（wrangler secret put）：
- *   GITHUB_TOKEN                迁移 / 镜像时需要仓库 Contents 读写权限
+ *   GITHUB_TOKEN                迁移 / 镜像 / 1.7.2 视频存储都需要仓库 Contents 读写权限
  *   SIGNING_SECRET              签发 token 的 HMAC 密钥（必填）
+ *   PASSWORD_VIEW_KEY           （可选，1.4.0）给管理员看的密码副本加密密钥；不配就不存副本
  */
 
-const VERSION = "1.3.0";
+const VERSION = "1.8.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -58,17 +71,15 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.3";
+const CHAT_VERSION = "1.8.0";
 const CHAT_MESSAGE_LIMIT = 300;
-const MAX_CHAT_TEXT_LENGTH = 500;
-const CHAT_WINDOW_MS = 60 * 1000;
-const CHAT_MAX_ATTEMPTS = 30;
-const CHAT_MEDIA_WINDOW_MS = 60 * 1000;
-const CHAT_MEDIA_MAX_ATTEMPTS = 12;
-const CHAT_TYPING_WINDOW_MS = 60 * 1000;
-const CHAT_TYPING_MAX_ATTEMPTS = 120;
+/* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
+const CHAT_TEXT_MAX_BYTES = 256 * 1024;
+const CHAT_MESSAGES_MAX_CHARS = 6 * 1000 * 1000;
+const CHAT_SYSTEM_TEXT_MAX = 500;
+/* 1.4.0：聊天室全部去掉按 IP 限流（发言 / 正在输入 / 上传媒体），删除了 CHAT_*_WINDOW_MS / CHAT_*_MAX_ATTEMPTS */
 const CHAT_RECALL_WINDOW_MS = 2 * 60 * 1000;
-const CHAT_MEDIA_TTL_SECONDS = 20 * 60;
+const CHAT_MEDIA_TTL_SECONDS = 14 * 24 * 60 * 60;
 const CHAT_MEDIA_MAX_BYTES = 4 * 1024 * 1024;
 const CHAT_PAGE_LIMIT = 50;
 const CHAT_SEARCH_LIMIT = 50;
@@ -100,6 +111,9 @@ const CHAT_INVITE_MAX_PARTICIPANTS = 100;
 const CHAT_REDPACKET_MAX_CENTS = 20000000;
 const CHAT_REDPACKET_ALLOW_LIMIT = 200;
 const CHAT_REDPACKET_TTL_MS = 24 * 60 * 60 * 1000;
+/* 1.7.3：聊天室转账（先扣款，收款人点「收款」后到账，24 小时未收可退回） */
+const CHAT_TRANSFER_TTL_MS = 24 * 60 * 60 * 1000;
+const CHAT_TRANSFER_NOTE_MAX = 100;
 const CHAT_INDEX_KEY = "chat:index";
 const LOGIN_WINDOW_MS = 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
@@ -127,21 +141,64 @@ const MAX_TRADE_NAME_LENGTH = 20;
 const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
 const SHOP_CACHE_TTL_MS = 30 * 1000;
 const SHOP_MAX_QUANTITY = 999;
-/* 1.2.0：邀请码查询/加入的节流（4 位邀请码只有 1 万个组合） */
-const INVITE_WINDOW_MS = 60 * 1000;
-const INVITE_MAX_ATTEMPTS = 10;
+/* 1.4.0：面对面加群（4 / 8 位邀请码与群号）不再按 IP 限流，删除了原来的 INVITE_* 节流 */
 /* 1.2.0：聊天附件只允许这些类型内联显示，其余一律按下载处理 */
 const CHAT_MEDIA_INLINE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+/* 1.8.0：音乐文件可以直接在聊天室播放。音频单文件放宽到 20 MB，其它文件仍是 4 MB。 */
+const CHAT_MEDIA_AUDIO_MAX_BYTES = 20 * 1024 * 1024;
+const CHAT_MEDIA_AUDIO_EXTENSIONS = {
+    mp3: "audio/mpeg",
+    mp2: "audio/mpeg",
+    m4a: "audio/mp4",
+    m4b: "audio/mp4",
+    aac: "audio/aac",
+    wav: "audio/wav",
+    wave: "audio/wav",
+    flac: "audio/flac",
+    ogg: "audio/ogg",
+    oga: "audio/ogg",
+    opus: "audio/ogg",
+    weba: "audio/webm",
+    mka: "audio/x-matroska",
+    wma: "audio/x-ms-wma",
+    aif: "audio/aiff",
+    aiff: "audio/aiff",
+    alac: "audio/mp4",
+    mid: "audio/midi",
+    midi: "audio/midi",
+    amr: "audio/amr",
+    ape: "audio/x-ape"
+};
+
+function chatMediaExtension(name) {
+    const match = /\.([A-Za-z0-9]{1,8})$/.exec(String(name || ""));
+    return match ? match[1].toLowerCase() : "";
+}
+
+function chatAudioMimeForName(name) {
+    return CHAT_MEDIA_AUDIO_EXTENSIONS[chatMediaExtension(name)] || "";
+}
+
+function isChatAudioType(type) {
+    return /^audio\/[a-z0-9.+-]+$/i.test(String(type || ""));
+}
+
+function storedChatMediaType(declaredType, name) {
+    const type = String(declaredType || "").toLowerCase();
+    if (CHAT_MEDIA_INLINE_TYPES.has(type)) {
+        return type;
+    }
+    if (isChatAudioType(type)) {
+        return type;
+    }
+    return chatAudioMimeForName(name) || "application/octet-stream";
+}
 
 const loginAttempts = new Map();
 const writeAttempts = new Map();
 const tradeAttempts = new Map();
 const registerAttempts = new Map();
-const chatAttempts = new Map();
-const chatMediaAttempts = new Map();
-const chatTypingAttempts = new Map();
 const adminAttempts = new Map();
-const inviteAttempts = new Map();
 
 class HttpError extends Error {
     constructor(status, code, message) {
@@ -232,6 +289,62 @@ async function pbkdf2Bits(password, salt, iterations) {
         PASSWORD_KEY_BITS
     );
     return new Uint8Array(bits);
+}
+
+/* 1.4.0：账号修改页需要显示账户当前密码。
+   密码本体仍是 PBKDF2 哈希（不可逆），另外存一份 AES-GCM 加密副本 passwordSealed：
+   密钥由 secret PASSWORD_VIEW_KEY 经 SHA-256 派生，只有管理员接口会解密返回；
+   没配置这个 secret 时不会写副本，接口返回 password: null。 */
+const PASSWORD_VIEW_PREFIX = "aes-gcm";
+const PASSWORD_VIEW_IV_BYTES = 12;
+
+async function passwordViewKey(env) {
+    const raw = String((env && env.PASSWORD_VIEW_KEY) || "");
+    if (!raw) {
+        return null;
+    }
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+    return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+async function sealPassword(env, password) {
+    const key = await passwordViewKey(env);
+    if (!key) {
+        return null;
+    }
+    const iv = crypto.getRandomValues(new Uint8Array(PASSWORD_VIEW_IV_BYTES));
+    const sealed = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        key,
+        new TextEncoder().encode(String(password ?? ""))
+    );
+    return `${PASSWORD_VIEW_PREFIX}$${encodeBase64Url(iv)}$${encodeBase64Url(new Uint8Array(sealed))}`;
+}
+
+async function openPassword(env, sealed) {
+    const value = String(sealed ?? "");
+    if (!value.startsWith(`${PASSWORD_VIEW_PREFIX}$`)) {
+        return null;
+    }
+    const parts = value.split("$");
+    if (parts.length !== 3 || !parts[1] || !parts[2]) {
+        return null;
+    }
+    const key = await passwordViewKey(env);
+    if (!key) {
+        return null;
+    }
+    try {
+        const plain = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: decodeBase64Url(parts[1]) },
+            key,
+            decodeBase64Url(parts[2])
+        );
+        return new TextDecoder().decode(plain);
+    } catch (error) {
+        /* 换过 PASSWORD_VIEW_KEY 后旧副本解不开，按「没有记录」处理 */
+        return null;
+    }
 }
 
 async function hashPassword(password) {
@@ -378,13 +491,21 @@ function selfAccount(account) {
     return { ...publicAccount(account), loginHistory: loginHistoryOf(account) };
 }
 
-// 管理员可见：带收款码（1.2.0 起不再返回密码，改用密码重置动作）
-function fullAccount(account) {
+// 管理员可见：带收款码与当前密码（1.4.0 起解密 passwordSealed 返回，未配置密钥时为 null）
+async function fullAccount(account, env) {
     return {
         ...selfAccount(account),
         hasPassword: Boolean(account && account.password),
+        password: await openPassword(env, account && account.passwordSealed),
         receipt: account && account.receipt ? account.receipt : null
     };
+}
+
+async function fullAccountMap(accounts, env) {
+    const entries = await Promise.all(
+        Object.entries(accounts || {}).map(async ([login, account]) => [login, await fullAccount(account, env)])
+    );
+    return Object.fromEntries(entries);
 }
 
 function corsHeaders(env, request) {
@@ -1333,7 +1454,9 @@ async function handleLogin(request, env, cors) {
     }
 
     // 1.2.0：旧账户的明文密码在首次登录成功后就地升级为 PBKDF2 哈希
-    if (!isPasswordHashed(account.password)) {
+    // 1.4.0：顺带给还没有可显示副本的账户补一份 passwordSealed
+    const needsSeal = Boolean(env.PASSWORD_VIEW_KEY) && !account.passwordSealed;
+    if (!isPasswordHashed(account.password) || needsSeal) {
         await upgradePasswordHash(env, login, password);
     }
 
@@ -1669,6 +1792,7 @@ async function handleRegister(request, env, cors) {
     }
 
     const hashed = await hashPassword(password);
+    const sealed = await sealPassword(env, password);
     const accounts = await commitAccounts(env, (data) => {
         if (data[login]) {
             throw new HttpError(409, "account_exists", `账户名称 ${login} 已被占用`);
@@ -1687,6 +1811,9 @@ async function handleRegister(request, env, cors) {
             money: "0.00",
             trades: []
         };
+        if (sealed) {
+            data[login].passwordSealed = sealed;
+        }
 
         return `创建账户：${login}`;
     });
@@ -1846,11 +1973,18 @@ async function upgradePasswordHash(env, login, password) {
     }
     try {
         const hashed = await hashPassword(password);
+        const sealed = await sealPassword(env, password);
         await commitAccounts(env, (data) => {
             const account = data[login];
-            if (account && !isPasswordHashed(account.password)) {
+            if (!account) {
+                return `登录：${login}`;
+            }
+            if (!isPasswordHashed(account.password)) {
                 account.password = hashed;
-                return `升级密码哈希：${login}`;
+            }
+            /* 1.4.0：登录时手里就有明文密码，顺手给老账户补一份可显示的加密副本 */
+            if (sealed && !account.passwordSealed) {
+                account.passwordSealed = sealed;
             }
             return `登录：${login}`;
         });
@@ -1920,12 +2054,18 @@ async function handleUpdatePassword(request, env, cors) {
     }
 
     const hashedPassword = await hashPassword(newPassword);
+    const sealedPassword = await sealPassword(env, newPassword);
 
     await commitAccounts(env, async (data) => {
         const account = requireOwnAccount(data, login);
 
         await checkPassword(account, currentPassword);
         account.password = hashedPassword;
+        if (sealedPassword) {
+            account.passwordSealed = sealedPassword;
+        } else {
+            delete account.passwordSealed;
+        }
 
         return `修改密码：${login}`;
     });
@@ -2387,7 +2527,7 @@ async function handleAdminList(request, env, cors) {
     const output = {};
 
     for (const [login, account] of Object.entries(accounts)) {
-        output[login] = fullAccount(account);
+        output[login] = await fullAccount(account, env);
     }
 
     return jsonResponse({
@@ -2432,6 +2572,7 @@ async function handleAdminCreate(request, env, cors) {
     }
 
     const hashedPassword = await hashPassword(password);
+    const sealedPassword = await sealPassword(env, password);
     const accounts = await commitAccounts(env, (data) => {
         if (data[login]) {
             throw new HttpError(409, "account_exists", `账户名称 ${login} 已被占用`);
@@ -2444,6 +2585,9 @@ async function handleAdminCreate(request, env, cors) {
         }
 
         data[login] = { username, password: hashedPassword, money, trades: [] };
+        if (sealedPassword) {
+            data[login].passwordSealed = sealedPassword;
+        }
         return `管理员创建账户：${login}`;
     });
 
@@ -2452,8 +2596,8 @@ async function handleAdminCreate(request, env, cors) {
     return jsonResponse({
         ok: true,
         login,
-        account: fullAccount(accounts[login]),
-        accounts: Object.fromEntries(Object.entries(accounts).map(([key, value]) => [key, fullAccount(value)]))
+        account: await fullAccount(accounts[login], env),
+        accounts: await fullAccountMap(accounts, env)
     }, 201, cors);
 }
 
@@ -2469,6 +2613,7 @@ async function handleAdminUpdate(request, env, cors, login) {
 
     const body = plainObject(await readJsonBody(request));
     const changes = [];
+    const sealedPassword = body.password !== undefined ? await sealPassword(env, String(body.password)) : null;
 
     if (body.username !== undefined) {
         const username = String(body.username).trim();
@@ -2504,6 +2649,11 @@ async function handleAdminUpdate(request, env, cors, login) {
         }
         if (body.password !== undefined) {
             account.password = await hashPassword(String(body.password));
+            if (sealedPassword) {
+                account.passwordSealed = sealedPassword;
+            } else {
+                delete account.passwordSealed;
+            }
             changes.push("password=***");
         }
         if (body.money !== undefined) {
@@ -2524,8 +2674,8 @@ async function handleAdminUpdate(request, env, cors, login) {
         ok: true,
         login,
         changes,
-        account: fullAccount(accounts[login]),
-        accounts: Object.fromEntries(Object.entries(accounts).map(([key, value]) => [key, fullAccount(value)]))
+        account: await fullAccount(accounts[login], env),
+        accounts: await fullAccountMap(accounts, env)
     }, 200, cors);
 }
 
@@ -2557,7 +2707,7 @@ async function handleAdminDelete(request, env, cors, login) {
     return jsonResponse({
         ok: true,
         removed: login,
-        accounts: Object.fromEntries(Object.entries(accounts).map(([key, value]) => [key, fullAccount(value)]))
+        accounts: await fullAccountMap(accounts, env)
     }, 200, cors);
 }
 
@@ -2787,7 +2937,20 @@ async function readChatMessages(env, id) {
 }
 
 async function saveChatMessages(env, id, messages) {
-    await env.ACCOUNTS_KV.put(chatMessagesKey(id), JSON.stringify(messages.slice(-CHAT_MESSAGE_LIMIT)));
+    /* 1.7.3：单条消息放宽后，按字节预算保留最近的消息，避免 KV 单值超过 25 MB */
+    const kept = [];
+    let total = 0;
+    for (let index = messages.length - 1; index >= 0 && kept.length < CHAT_MESSAGE_LIMIT; index -= 1) {
+        const message = messages[index];
+        const size = JSON.stringify(message).length + 1;
+        if (kept.length && total + size > CHAT_MESSAGES_MAX_CHARS) {
+            break;
+        }
+        kept.push(message);
+        total += size;
+    }
+    kept.reverse();
+    await env.ACCOUNTS_KV.put(chatMessagesKey(id), JSON.stringify(kept));
 }
 
 async function appendMessage(env, conv, message) {
@@ -2808,7 +2971,7 @@ async function appendSystemMessage(env, conv, text) {
         senderName: "系统",
         type: "system",
         system: true,
-        text: String(text).slice(0, MAX_CHAT_TEXT_LENGTH),
+        text: String(text).slice(0, CHAT_SYSTEM_TEXT_MAX),
         at,
         time: shanghaiTimestamp(at)
     };
@@ -2900,12 +3063,35 @@ function messagePreview(message) {
         return "[图片]";
     }
     if (message.type === "file") {
-        return `[文件] ${message.media && message.media.name ? message.media.name : ""}`.trim();
+        const media = message.media || {};
+        if (isChatAudioType(media.type) || chatAudioMimeForName(media.name)) {
+            return `[音乐] ${media.name || ""}`.trim();
+        }
+        return `[文件] ${media.name || ""}`.trim();
     }
     if (message.type === "redpacket" && message.packet) {
         return `[拼手速红包] ${fromCents(message.packet.totalCents)} 元 ${message.packet.note || ""}`.trim();
     }
+    if (message.type === "transfer" && message.transfer) {
+        return `[转账] ${fromCents(message.transfer.cents)} VTX ${transferStatusText(message.transfer)}`;
+    }
     return String(message.text || "");
+}
+
+function transferStatusText(transfer) {
+    if (!transfer) {
+        return "";
+    }
+    if (transfer.status === "claimed") {
+        return "已收款";
+    }
+    if (transfer.status === "refunded") {
+        return "已退回";
+    }
+    if (transfer.status === "expired" || (Number(transfer.expiresAt) && Number(transfer.expiresAt) < Date.now())) {
+        return "已过期";
+    }
+    return "待收款";
 }
 
 function messageSnippet(message, limit = 80) {
@@ -2913,17 +3099,20 @@ function messageSnippet(message, limit = 80) {
     return text.length > limit ? `${text.slice(0, limit)}…` : text;
 }
 
-function messageView(message) {
+function messageView(message, options = {}) {
     if (!message) {
         return null;
     }
+    const fullText = message.recalled ? "" : String(message.text || "");
+    /* 会话列表只需要预览：长消息不再把整段正文塞进每次轮询的响应里 */
+    const text = options.compact && fullText.length > 200 ? `${fullText.slice(0, 200)}…` : fullText;
     return {
         id: message.id,
         conversation: message.conversation || "",
         sender: message.sender,
         senderName: message.senderName || "",
         type: message.type || "text",
-        text: message.recalled ? "" : String(message.text || ""),
+        text,
         media: message.recalled ? null : (message.media || null),
         replyTo: message.replyTo || null,
         mentions: Array.isArray(message.mentions) ? message.mentions : [],
@@ -2931,6 +3120,7 @@ function messageView(message) {
         recalled: Boolean(message.recalled),
         system: Boolean(message.system),
         packet: message.recalled ? null : (message.packet || null),
+        transfer: message.recalled ? null : (message.transfer || null),
         at: Number(message.at) || 0,
         time: message.time || ""
     };
@@ -2947,6 +3137,19 @@ function chatUnreadCount(messages, entry, login) {
     }
     const since = Math.max(Number(entry.lastRead) || 0, Number(entry.clearedAt) || 0);
     return messages.filter((item) => (Number(item.at) || 0) > since && item.sender !== login && !item.system).length;
+}
+
+/* 1.5.0：未读里有几条 @ 了我 */
+function chatUnreadMentionCount(messages, entry, login) {
+    if (!entry || !login) {
+        return 0;
+    }
+    const since = Math.max(Number(entry.lastRead) || 0, Number(entry.clearedAt) || 0);
+    return messages.filter((item) => (Number(item.at) || 0) > since
+        && item.sender !== login
+        && !item.system
+        && Array.isArray(item.mentions)
+        && item.mentions.includes(login)).length;
 }
 
 function conversationView(env, conv, entry, messages, login, accounts) {
@@ -2979,8 +3182,9 @@ function conversationView(env, conv, entry, messages, login, accounts) {
         muted: Boolean(entry && entry.muted),
         hidden: Boolean(entry && entry.hidden),
         unread: chatUnreadCount(messages, entry, login),
+        mentionUnread: chatUnreadMentionCount(messages, entry, login),
         lastRead: Number(entry && entry.lastRead) || 0,
-        lastMessage: messageView(conv.lastMessage),
+        lastMessage: messageView(conv.lastMessage, { compact: true }),
         updatedAt: Number(conv.lastMessage && conv.lastMessage.at) || 0
     };
 }
@@ -3466,10 +3670,6 @@ async function handleChatSend(request, env, cors, id, compatRoom = "") {
         return guard;
     }
 
-    if (throttled(chatAttempts, clientIp(request), CHAT_WINDOW_MS, CHAT_MAX_ATTEMPTS)) {
-        return jsonResponse({ error: "too_many_requests", message: "发言过于频繁，请稍后再试" }, 429, cors);
-    }
-
     const login = session.payload.sub;
     const accounts = await loadAccounts(env);
     if (!accounts[login]) {
@@ -3486,8 +3686,9 @@ async function handleChatSend(request, env, cors, id, compatRoom = "") {
     if (type === "text" && !text) {
         return jsonResponse({ error: "bad_request", message: "消息内容不能为空" }, 400, cors);
     }
-    if (text.length > MAX_CHAT_TEXT_LENGTH) {
-        return jsonResponse({ error: "bad_request", message: `消息最长 ${MAX_CHAT_TEXT_LENGTH} 个字符` }, 400, cors);
+    /* 1.7.3：不再限制 500 字；只拦明显异常的 256 KB 以上单条消息 */
+    if (new TextEncoder().encode(text).length > CHAT_TEXT_MAX_BYTES) {
+        return jsonResponse({ error: "text_too_long", message: "单条消息最多 256 KB，请分成几条发送" }, 413, cors);
     }
 
     let media = null;
@@ -3498,13 +3699,13 @@ async function handleChatSend(request, env, cors, id, compatRoom = "") {
         }
         const meta = plainObject(await env.ACCOUNTS_KV.get(chatMediaMetaKey(mediaId), "json"));
         if (!meta.id) {
-            return jsonResponse({ error: "media_expired", message: "图片或文件已过期（上传后 20 分钟自动删除）" }, 410, cors);
+            return jsonResponse({ error: "media_expired", message: "图片或文件已过期（上传后 14 天自动删除）" }, 410, cors);
         }
         if (meta.uploader !== login && !isPlatformAdmin(env, login)) {
             return jsonResponse({ error: "forbidden", message: "不能发送别人上传的文件" }, 403, cors);
         }
         if (Number(meta.expiresAt) && Number(meta.expiresAt) < Date.now()) {
-            return jsonResponse({ error: "media_expired", message: "图片或文件已过期（上传后 20 分钟自动删除）" }, 410, cors);
+            return jsonResponse({ error: "media_expired", message: "图片或文件已过期（上传后 14 天自动删除）" }, 410, cors);
         }
         media = {
             id: meta.id,
@@ -3646,9 +3847,6 @@ async function handleChatTyping(request, env, cors, id) {
     const session = await requireSession(request, env, cors);
     if (session.error) {
         return session.error;
-    }
-    if (throttled(chatTypingAttempts, `${clientIp(request)}:${id}`, CHAT_TYPING_WINDOW_MS, CHAT_TYPING_MAX_ATTEMPTS)) {
-        return jsonResponse({ ok: true, throttled: true }, 200, cors);
     }
     const guard = chatGuard(env, cors);
     if (guard) {
@@ -4451,6 +4649,17 @@ async function handleChatRecall(request, env, cors, messageId) {
             return { error: jsonResponse({ error: "forbidden", message: "超过 2 分钟的消息不能撤回" }, 403, cors) };
         }
 
+        /* 1.7.3：还没人收款的转账不能撤回，否则钱会卡在消息里 */
+        if (message.type === "transfer" && message.transfer && message.transfer.status === "pending") {
+            return {
+                error: jsonResponse(
+                    { error: "transfer_pending", message: "未收款的转账不能撤回，请先点「退回转账」" },
+                    400,
+                    cors
+                )
+            };
+        }
+
         messages[index] = {
             ...message,
             recalled: true,
@@ -4530,14 +4739,15 @@ async function handleChatForward(request, env, cors, messageId) {
             }
             const conv = loaded.conv;
             const at = Date.now();
+            const decorative = source.type === "redpacket" || source.type === "transfer";
             const message = {
                 id: randomCode(9),
                 conversation: conv.id,
                 sender: login,
                 senderName: chatMemberAlias(conv, accounts, login),
-                type: source.type === "system" ? "text" : source.type,
-                text: source.text,
-                media: source.media || null,
+                type: source.type === "system" || decorative ? "text" : source.type,
+                text: decorative ? messagePreview(source) : source.text,
+                media: decorative ? null : (source.media || null),
                 replyTo: null,
                 mentions: [],
                 forwarded: true,
@@ -4620,6 +4830,17 @@ async function handleChatDeleteMessage(request, env, cors, messageId, adminOnly)
 
         if (!allowed) {
             return { error: jsonResponse({ error: "forbidden", message: "没有删除这条消息的权限" }, 403, cors) };
+        }
+
+        /* 1.7.3：转账消息删掉后钱就找不回来了，必须先退回 */
+        if (message.type === "transfer" && message.transfer && message.transfer.status === "pending") {
+            return {
+                error: jsonResponse(
+                    { error: "transfer_pending", message: "未收款的转账不能删除，请先点「退回转账」" },
+                    400,
+                    cors
+                )
+            };
         }
 
         const kept = messages.filter((item) => item.id !== messageId);
@@ -5096,10 +5317,6 @@ async function handleChatMediaUpload(request, env, cors) {
         return guard;
     }
 
-    if (throttled(chatMediaAttempts, clientIp(request), CHAT_MEDIA_WINDOW_MS, CHAT_MEDIA_MAX_ATTEMPTS)) {
-        return jsonResponse({ error: "too_many_requests", message: "上传过于频繁，请稍后再试" }, 429, cors);
-    }
-
     const login = session.payload.sub;
     const accounts = await loadAccounts(env);
     if (!accounts[login]) {
@@ -5107,8 +5324,8 @@ async function handleChatMediaUpload(request, env, cors) {
     }
 
     const declared = Number(request.headers.get("content-length") || 0);
-    if (declared > CHAT_MEDIA_MAX_BYTES) {
-        return jsonResponse({ error: "payload_too_large", message: "文件不能超过 4 MB" }, 413, cors);
+    if (declared > CHAT_MEDIA_AUDIO_MAX_BYTES) {
+        return jsonResponse({ error: "payload_too_large", message: "音乐不能超过 20 MB（其它文件 4 MB）" }, 413, cors);
     }
 
     let body;
@@ -5120,9 +5337,6 @@ async function handleChatMediaUpload(request, env, cors) {
 
     if (!body || !body.byteLength) {
         return jsonResponse({ error: "bad_request", message: "文件是空的" }, 400, cors);
-    }
-    if (body.byteLength > CHAT_MEDIA_MAX_BYTES) {
-        return jsonResponse({ error: "payload_too_large", message: "文件不能超过 4 MB" }, 413, cors);
     }
 
     const rawName = String(request.headers.get("x-file-name") || "file");
@@ -5136,7 +5350,17 @@ async function handleChatMediaUpload(request, env, cors) {
 
     const declaredType = String(request.headers.get("content-type") || "application/octet-stream").split(";")[0].trim().toLowerCase();
     // 1.2.0：不再原样保存客户端声明的类型，避免 text/html / image/svg+xml 变成同源 XSS
-    const type = CHAT_MEDIA_INLINE_TYPES.has(declaredType) ? declaredType : "application/octet-stream";
+    // 1.8.0：audio/* 会保留为音频类型，供 <audio> 直接播放
+    const type = storedChatMediaType(declaredType, name);
+    const isAudio = isChatAudioType(type);
+    const maxBytes = isAudio ? CHAT_MEDIA_AUDIO_MAX_BYTES : CHAT_MEDIA_MAX_BYTES;
+    if (body.byteLength > maxBytes) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: isAudio ? "音乐不能超过 20 MB" : "文件不能超过 4 MB"
+        }, 413, cors);
+    }
+
     const id = randomCode(9);
     const at = Date.now();
     const expiresAt = at + CHAT_MEDIA_TTL_SECONDS * 1000;
@@ -5189,7 +5413,7 @@ async function handleChatMediaGet(request, env, cors, id) {
     if (!meta.id) {
         return jsonResponse({
             error: "media_expired",
-            message: "图片或文件已过期（上传后 20 分钟自动删除）"
+            message: "图片或文件已过期（上传后 14 天自动删除）"
         }, 410, cors);
     }
 
@@ -5199,13 +5423,17 @@ async function handleChatMediaGet(request, env, cors, id) {
     }
 
     const storedType = String(meta.type || "").toLowerCase();
-    const inline = CHAT_MEDIA_INLINE_TYPES.has(storedType);
+    const image = CHAT_MEDIA_INLINE_TYPES.has(storedType);
+    /* 1.8.0：老文件可能被存成 octet-stream，按扩展名补出音频类型，让 <audio> 还能播 */
+    const audioType = isChatAudioType(storedType) ? storedType : chatAudioMimeForName(meta.name);
+    const inline = image || Boolean(audioType);
+    const contentType = image ? storedType : (audioType || "application/octet-stream");
 
     return new Response(body, {
         status: 200,
         headers: {
             ...cors,
-            "content-type": inline ? storedType : "application/octet-stream",
+            "content-type": contentType,
             "content-disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(meta.name || "file")}`,
             "x-content-type-options": "nosniff",
             "content-security-policy": "default-src 'none'; sandbox",
@@ -5608,10 +5836,6 @@ async function handleChatGroupJoinByNumber(request, env, cors) {
     if (guard) {
         return guard;
     }
-    // 1.2.0：群号是可枚举的 8 位数字，加入接口必须限流
-    if (throttled(inviteAttempts, clientIp(request), INVITE_WINDOW_MS, INVITE_MAX_ATTEMPTS)) {
-        return jsonResponse({ error: "too_many_requests", message: "尝试过于频繁，请稍后再试" }, 429, cors);
-    }
 
     const login = session.payload.sub;
     const body = await readOptionalBody(request);
@@ -5867,10 +6091,6 @@ async function handleChatInviteDetail(request, env, cors, code) {
     if (guard) {
         return guard;
     }
-    // 1.2.0：4 位邀请码只有 1 万个组合，必须限制枚举速度
-    if (throttled(inviteAttempts, clientIp(request), INVITE_WINDOW_MS, INVITE_MAX_ATTEMPTS)) {
-        return jsonResponse({ error: "too_many_requests", message: "尝试过于频繁，请稍后再试" }, 429, cors);
-    }
 
     const invite = await readInvite(env, code);
     if (!invite) {
@@ -5888,9 +6108,6 @@ async function handleChatInviteJoin(request, env, cors, code) {
     const guard = chatGuard(env, cors);
     if (guard) {
         return guard;
-    }
-    if (throttled(inviteAttempts, clientIp(request), INVITE_WINDOW_MS, INVITE_MAX_ATTEMPTS)) {
-        return jsonResponse({ error: "too_many_requests", message: "尝试过于频繁，请稍后再试" }, 429, cors);
     }
 
     const login = session.payload.sub;
@@ -6519,6 +6736,395 @@ async function handleChatRedPacketRefund(request, env, cors, messageId) {
     }, 200, cors);
 }
 
+/* ───────────────── 1.7.3：聊天室转账 ─────────────────
+   流程和微信一致：发起时先扣发送方余额，记一条「待收款」消息；
+   收款人点「收款」后钱才进对方账户；24 小时内没人收，发送方可以退回。
+   转账需要账户密码确认（与 /api/me/transfer 一致）。 */
+
+async function handleChatTransferCreate(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+    if (throttled(tradeAttempts, clientIp(request), TRADE_WINDOW_MS, TRADE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "转账过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const login = session.payload.sub;
+    const body = plainObject(await readJsonBody(request));
+    const amountCents = toCents(body.amount ?? body.total);
+    const password = String(body.password ?? "");
+    const note = String(body.note ?? "").replace(/\s+/g, " ").trim().slice(0, CHAT_TRANSFER_NOTE_MAX);
+    let target = String(body.to ?? body.recipient ?? "").trim();
+
+    if (amountCents === null || amountCents < 1) {
+        return jsonResponse({ error: "bad_request", message: "转账金额至少 0.01 VTX" }, 400, cors);
+    }
+    if (amountCents > MAX_TRADE_CENTS) {
+        return jsonResponse({ error: "bad_request", message: `单笔转账不能超过 ${fromCents(MAX_TRADE_CENTS)} VTX` }, 400, cors);
+    }
+    if (!password) {
+        return jsonResponse({ error: "bad_request", message: "转账需要输入账户密码" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
+
+        const store = await loadAccountsForLock(env);
+        const sender = store[login];
+        if (!sender) {
+            return { error: jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors) };
+        }
+
+        const members = conv.public ? Object.keys(store) : (conv.members || []);
+        if (conv.type === "direct") {
+            const peer = members.find((item) => item !== login) || "";
+            if (!peer) {
+                return { error: jsonResponse({ error: "bad_request", message: "单聊里没有收款人" }, 400, cors) };
+            }
+            if (target && target !== peer) {
+                return { error: jsonResponse({ error: "bad_request", message: "单聊只能转账给对方" }, 400, cors) };
+            }
+            target = peer;
+        } else if (!target) {
+            return { error: jsonResponse({ error: "bad_request", message: "请选择收款人" }, 400, cors) };
+        }
+
+        if (target === login) {
+            return { error: jsonResponse({ error: "bad_request", message: "不能给自己转账" }, 400, cors) };
+        }
+        if (!members.includes(target) || !store[target]) {
+            return { error: jsonResponse({ error: "bad_request", message: "收款人必须是这个会话里的成员" }, 400, cors) };
+        }
+
+        await checkPassword(sender, password);
+
+        const balance = balanceCents(sender);
+        if (balance < amountCents) {
+            return {
+                error: jsonResponse(
+                    { error: "insufficient_balance", message: `余额不足，当前余额 ${fromCents(balance)} VTX` },
+                    400,
+                    cors
+                )
+            };
+        }
+
+        const at = Date.now();
+        const time = shanghaiTimestamp(at);
+        const senderName = chatMemberAlias(conv, store, login);
+        const targetName = chatMemberAlias(conv, store, target);
+        const price = fromCents(amountCents);
+
+        sender.money = fromCents(balance - amountCents);
+        pushTrade(sender, {
+            name: "转账",
+            description: note || `聊天室转账给 ${targetName}`,
+            time,
+            price: `-${price}`,
+            from: senderName,
+            to: targetName
+        });
+        await saveAccountsForLock(env, store);
+
+        const messages = await readChatMessages(env, conv.id);
+        const message = {
+            id: randomCode(9),
+            conversation: conv.id,
+            sender: login,
+            senderName,
+            type: "transfer",
+            text: note,
+            media: null,
+            replyTo: null,
+            mentions: [],
+            forwarded: false,
+            at,
+            time,
+            transfer: {
+                id: `tf_${randomCode(6)}`,
+                from: login,
+                fromName: senderName,
+                to: target,
+                toName: targetName,
+                cents: amountCents,
+                note,
+                status: "pending",
+                createdAt: at,
+                claimedAt: 0,
+                expiresAt: at + CHAT_TRANSFER_TTL_MS
+            }
+        };
+
+        await appendMessage(env, conv, message);
+        await saveConversation(env, conv);
+
+        return {
+            message,
+            targets: conversationTargets(conv, store),
+            view: conversationView(
+                env,
+                conv,
+                chatEntry(await loadChatUser(env, login), conv.id),
+                [...messages, message],
+                login,
+                store
+            ),
+            balance: sender.money
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, {
+        type: "message",
+        conversation: result.view,
+        message: messageView(result.message)
+    });
+
+    return jsonResponse({
+        ok: true,
+        conversation: result.view,
+        message: messageView(result.message),
+        balance: result.balance
+    }, 201, cors);
+}
+
+async function handleChatTransferClaim(request, env, cors, messageId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+    if (throttled(tradeAttempts, clientIp(request), TRADE_WINDOW_MS, TRADE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "操作过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const login = session.payload.sub;
+    const convId = chatConversationId(new URL(request.url).searchParams.get("conversation") || "");
+    if (!convId) {
+        return jsonResponse({ error: "bad_request", message: "缺少会话 id" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const conv = await readConversation(env, convId);
+        if (!conv) {
+            return { error: jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors) };
+        }
+        if (!chatMemberOf(conv, login) && !isPlatformAdmin(env, login)) {
+            return { error: chatNotAMember(cors) };
+        }
+
+        const messages = await readChatMessages(env, convId);
+        const message = messages.find((item) => item.id === messageId);
+        if (!message || message.type !== "transfer" || !message.transfer) {
+            return { error: jsonResponse({ error: "not_found", message: "转账不存在" }, 404, cors) };
+        }
+        const transfer = message.transfer;
+
+        if (transfer.to !== login) {
+            return { error: jsonResponse({ error: "forbidden", message: "这笔转账不是给你的" }, 403, cors) };
+        }
+        if (transfer.status === "claimed") {
+            return { error: jsonResponse({ error: "already_claimed", message: "你已经收过这笔转账了" }, 409, cors) };
+        }
+        if (transfer.status === "refunded") {
+            return { error: jsonResponse({ error: "transfer_refunded", message: "这笔转账已经被退回" }, 410, cors) };
+        }
+        if (transfer.status === "expired" || (Number(transfer.expiresAt) && Number(transfer.expiresAt) < Date.now())) {
+            transfer.status = "expired";
+            message.transfer = transfer;
+            await saveChatMessages(env, convId, messages);
+            if (conv.lastMessage && conv.lastMessage.id === message.id) {
+                conv.lastMessage = message;
+                await saveConversation(env, conv);
+            }
+            const store = await loadAccountsForLock(env);
+            return {
+                notify: {
+                    targets: conversationTargets(conv, store),
+                    event: { type: "message:transfer", conversation: convId, message: messageView(message) }
+                },
+                error: jsonResponse({ error: "transfer_expired", message: "转账已超过 24 小时，请让发送方退回" }, 410, cors)
+            };
+        }
+
+        const store = await loadAccountsForLock(env);
+        const recipient = store[login];
+        if (!recipient) {
+            return { error: jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors) };
+        }
+
+        const time = shanghaiTimestamp();
+        recipient.money = fromCents(balanceCents(recipient) + transfer.cents);
+        pushTrade(recipient, {
+            name: "转账",
+            description: transfer.note || `收到 ${transfer.fromName || transfer.from} 的聊天室转账`,
+            time,
+            price: `+${fromCents(transfer.cents)}`,
+            from: transfer.fromName || transfer.from,
+            to: transfer.toName || transfer.to
+        });
+
+        transfer.status = "claimed";
+        transfer.claimedAt = Date.now();
+        transfer.claimedTime = time;
+        message.transfer = transfer;
+        await saveAccountsForLock(env, store);
+        await saveChatMessages(env, convId, messages);
+        if (conv.lastMessage && conv.lastMessage.id === message.id) {
+            conv.lastMessage = message;
+            await saveConversation(env, conv);
+        }
+
+        return {
+            transfer,
+            cents: transfer.cents,
+            balance: recipient.money,
+            targets: conversationTargets(conv, store),
+            view: messageView(message)
+        };
+    });
+
+    if (result.error) {
+        if (result.notify) {
+            await notifyChat(env, result.notify.targets, result.notify.event);
+        }
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, {
+        type: "message:transfer",
+        conversation: convId,
+        message: result.view
+    });
+
+    return jsonResponse({
+        ok: true,
+        cents: result.cents,
+        amount: fromCents(result.cents),
+        balance: result.balance,
+        transfer: result.transfer
+    }, 200, cors);
+}
+
+async function handleChatTransferRefund(request, env, cors, messageId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+    if (throttled(tradeAttempts, clientIp(request), TRADE_WINDOW_MS, TRADE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "操作过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const login = session.payload.sub;
+    const convId = chatConversationId(new URL(request.url).searchParams.get("conversation") || "");
+    if (!convId) {
+        return jsonResponse({ error: "bad_request", message: "缺少会话 id" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const conv = await readConversation(env, convId);
+        if (!conv) {
+            return { error: jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors) };
+        }
+        if (!chatMemberOf(conv, login) && !isPlatformAdmin(env, login)) {
+            return { error: chatNotAMember(cors) };
+        }
+
+        const messages = await readChatMessages(env, convId);
+        const message = messages.find((item) => item.id === messageId);
+        if (!message || message.type !== "transfer" || !message.transfer) {
+            return { error: jsonResponse({ error: "not_found", message: "转账不存在" }, 404, cors) };
+        }
+        const transfer = message.transfer;
+
+        if (transfer.from !== login) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有转账发起人可以退回" }, 403, cors) };
+        }
+        if (transfer.status === "claimed") {
+            return { error: jsonResponse({ error: "already_claimed", message: "对方已经收款，不能退回" }, 410, cors) };
+        }
+        if (transfer.status === "refunded") {
+            return { error: jsonResponse({ error: "already_refunded", message: "这笔转账已经退回过" }, 409, cors) };
+        }
+
+        const store = await loadAccountsForLock(env);
+        const sender = store[login];
+        if (!sender) {
+            return { error: jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors) };
+        }
+
+        const time = shanghaiTimestamp();
+        sender.money = fromCents(balanceCents(sender) + transfer.cents);
+        pushTrade(sender, {
+            name: "转账退回",
+            description: transfer.note || "未收款的聊天室转账退回",
+            time,
+            price: `+${fromCents(transfer.cents)}`,
+            from: transfer.toName || transfer.to,
+            to: transfer.fromName || transfer.from
+        });
+
+        transfer.status = "refunded";
+        transfer.refundedAt = Date.now();
+        transfer.refundedTime = time;
+        message.transfer = transfer;
+        await saveAccountsForLock(env, store);
+        await saveChatMessages(env, convId, messages);
+        if (conv.lastMessage && conv.lastMessage.id === message.id) {
+            conv.lastMessage = message;
+            await saveConversation(env, conv);
+        }
+
+        return {
+            transfer,
+            refunded: transfer.cents,
+            balance: sender.money,
+            targets: conversationTargets(conv, store),
+            view: messageView(message)
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, {
+        type: "message:transfer",
+        conversation: convId,
+        message: result.view
+    });
+
+    return jsonResponse({
+        ok: true,
+        refunded: fromCents(result.refunded),
+        balance: result.balance,
+        transfer: result.transfer
+    }, 200, cors);
+}
+
 async function handleChatRoomCompat(request, env, cors) {    const url = new URL(request.url);
     const room = String(url.searchParams.get("room") || "").trim();
 
@@ -6574,6 +7180,1710 @@ async function handleChatSocket(request, env, cors) {
     headers.set("x-vtx-login", payload.sub);
     const stub = env.CHAT.get(env.CHAT.idFromName("hub"));
     return await stub.fetch("https://chat-hub/ws", { headers });
+}
+
+/* ───────── 1.7.1：Vitx® 视频（站点级存储） ─────────
+   视频文件优先放 R2（env.VIDEO_BUCKET，支持 5 GB 分片上传）；
+   没有绑定 R2 时退回 KV 单次写入（受 KV 单值约 25 MB 限制）。
+     video:index            → [视频 id, ...]（新的在前）
+     video:meta:<id>        → 元信息（JSON，含分片上传进度）
+     video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
+   状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
+
+const VIDEO_VERSION = "1.8.0";
+const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
+const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
+const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
+const VIDEO_MAX_PARTS = 10000;
+
+/* 1.7.2：没开通 R2 时，文件改存 GitHub Release（每个视频一个「草稿」release，
+   资源名 p001、p002…）。草稿 release 不对外公开，播放仍然要经过 Worker 鉴权和
+   Range，可见性规则跟 R2 / KV 完全一样。分片取 32 MB：1 GB 约 32 片，每次请求
+   只传几秒的数据，断线可以只补缺的那几片；GitHub 单资源上限 2 GB。 */
+const VIDEO_GH_TAG_PREFIX = "video-store/";
+const VIDEO_GH_CHUNK_BYTES = 32 * 1024 * 1024;
+const VIDEO_GH_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+const GH_API_BASE = "https://api.github.com";
+const GH_UPLOAD_BASE = "https://uploads.github.com";
+const VIDEO_COIN_CENTS = 500;
+const VIDEO_TITLE_MAX = 60;
+const VIDEO_DESC_MAX = 300;
+const VIDEO_TAG_MAX = 5;
+const VIDEO_TAG_LEN = 16;
+const VIDEO_LIST_LIMIT = 60;
+const VIDEO_INDEX_LIMIT = 500;
+const VIDEO_COMMENT_MAX = 300;
+const VIDEO_COMMENT_KEEP = 300;
+const VIDEO_CATEGORIES = new Set(["游戏", "娱乐", "音乐", "VLOG", "生活", "饮食", "学习"]);
+const VIDEO_DECLARATIONS = new Set(["ai", "marketing", "fiction", "repost", "sponsor", "warning"]);
+const VIDEO_INDEX_KEY = "video:index";
+const VIDEO_META_PREFIX = "video:meta:";
+const VIDEO_FILE_PREFIX = "video:file:";
+const VIDEO_COMMENT_PREFIX = "video:comments:";
+const VIDEO_CHUNK_PREFIX = "video:chunk:";
+const VIDEO_SEEDED_KEY = "video:seeded";
+const VIDEO_ID_PATTERN = /^v_[A-Za-z0-9_-]{4,32}$/;
+
+function videoMetaKey(id) {
+    return `${VIDEO_META_PREFIX}${id}`;
+}
+
+function videoFileKey(id) {
+    return `${VIDEO_FILE_PREFIX}${id}`;
+}
+
+function videoCommentKey(id) {
+    return `${VIDEO_COMMENT_PREFIX}${id}`;
+}
+
+/* 没有 R2 时，文件按 20 MB 切片存进 KV：video:chunk:<id>:<n>（n 从 1 开始） */
+function videoChunkKey(id, index) {
+    return `${VIDEO_CHUNK_PREFIX}${id}:${index}`;
+}
+
+/* 1.7.1：大文件走 R2；没绑定就返回 null，相关接口改用 KV */
+
+function videoBucket(env) {
+    const bucket = env && env.VIDEO_BUCKET;
+    return bucket && typeof bucket.get === "function" ? bucket : null;
+}
+
+/* 1.7.2：GitHub 存储。要 GITHUB_TOKEN（Contents 读写）和仓库名（默认 env.REPO，
+   也可以用 VIDEO_GH_REPO 指向别的仓库）。令牌或仓库名缺一个就不启用；
+   想把文件强制留在 KV，就把 VIDEO_GH_REPO 设成 "off"。 */
+function videoGithub(env) {
+    const token = String((env && env.GITHUB_TOKEN) || "").trim();
+    const repo = String((env && (env.VIDEO_GH_REPO || env.REPO)) || "").trim();
+    if (/^(off|none|kv)$/i.test(repo)) {
+        return null;
+    }
+    if (!token || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
+        return null;
+    }
+    return { token, repo };
+}
+
+/* 文件存哪儿：R2 > GitHub Release > KV 分块（跟 1.7.1 的优先级一致，绑了 R2 就用 R2） */
+function videoStorageKind(env) {
+    if (videoBucket(env)) {
+        return "r2";
+    }
+    return videoGithub(env) ? "gh" : "kv";
+}
+
+/* 每个后端的分片大小和单文件上限都不一样，接口统一从这里取 */
+function videoLimits(env) {
+    const kind = videoStorageKind(env);
+    if (kind === "gh") {
+        return { kind, chunkBytes: VIDEO_GH_CHUNK_BYTES, maxBytes: VIDEO_GH_MAX_BYTES };
+    }
+    return { kind, chunkBytes: VIDEO_CHUNK_BYTES, maxBytes: VIDEO_MAX_BYTES };
+}
+
+function ghReleaseTag(id) {
+    return `${VIDEO_GH_TAG_PREFIX}${id}`;
+}
+
+/* 片号 → 资源名。GitHub 的 release 里资源名必须唯一，重传前要先删旧的 */
+function ghPartName(index) {
+    return `p${String(index).padStart(3, "0")}`;
+}
+
+async function ghFailure(response, action) {
+    let detail = "";
+    try {
+        const text = await response.text();
+        try {
+            const data = JSON.parse(text);
+            detail = String((data && (data.message || data.error)) || "");
+        } catch (error) {
+            detail = text;
+        }
+    } catch (error) {
+        detail = "";
+    }
+    const suffix = detail ? `：${detail.slice(0, 160)}` : "";
+    return new Error(`${action}失败（GitHub HTTP ${response.status}）${suffix}`);
+}
+
+async function ghCall(storage, url, init) {
+    const options = { ...(init || {}) };
+    const headers = new Headers(options.headers || undefined);
+    headers.set("authorization", `Bearer ${storage.token}`);
+    headers.set("x-github-api-version", "2022-11-28");
+    headers.set("user-agent", "vtx-api-video-storage");
+    if (!headers.has("accept")) {
+        headers.set("accept", "application/vnd.github+json");
+    }
+    options.headers = headers;
+    return await fetch(url, options);
+}
+
+/* 一个视频一个草稿 release：删视频只要删这个 release，附带的资源一起没 */
+async function ghCreateRelease(storage, id) {
+    const response = await ghCall(storage, `${GH_API_BASE}/repos/${storage.repo}/releases`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+            tag_name: ghReleaseTag(id),
+            name: `视频存储 ${id}`,
+            body: "Vitx® 视频文件存储（草稿，不公开）。请不要手动发布或删除这个 release。",
+            draft: true,
+            prerelease: false
+        })
+    });
+    if (!response.ok) {
+        throw await ghFailure(response, "创建 GitHub 存储 release ");
+    }
+    const data = await response.json().catch(() => null);
+    const releaseId = Number(data && data.id);
+    if (!releaseId) {
+        throw new Error("创建 GitHub 存储 release 失败：返回里没有 id");
+    }
+    return releaseId;
+}
+
+async function ghUploadPart(storage, releaseId, index, buffer) {
+    const name = ghPartName(index);
+    const url = `${GH_UPLOAD_BASE}/repos/${storage.repo}/releases/${releaseId}/assets?name=${encodeURIComponent(name)}`;
+    const response = await ghCall(storage, url, {
+        method: "POST",
+        headers: { "content-type": "application/octet-stream", accept: "application/vnd.github+json" },
+        body: buffer
+    });
+    if (!response.ok) {
+        throw await ghFailure(response, `上传第 ${index} 个分片`);
+    }
+    const data = await response.json().catch(() => null);
+    const assetId = Number(data && data.id);
+    if (!assetId) {
+        throw new Error(`上传第 ${index} 个分片失败：返回里没有 asset id`);
+    }
+    return { assetId, size: Number(data && data.size) || buffer.byteLength };
+}
+
+async function ghDeleteAsset(storage, assetId) {
+    if (!assetId) {
+        return;
+    }
+    try {
+        await ghCall(storage, `${GH_API_BASE}/repos/${storage.repo}/releases/assets/${assetId}`, { method: "DELETE" });
+    } catch (error) {
+        /* 资源本来就没了，不影响后续清理 */
+    }
+}
+
+async function ghDeleteRelease(storage, releaseId) {
+    if (!releaseId) {
+        return;
+    }
+    try {
+        await ghCall(storage, `${GH_API_BASE}/repos/${storage.repo}/releases/${releaseId}`, { method: "DELETE" });
+    } catch (error) {
+        /* 同上 */
+    }
+}
+
+/* 读一片：草稿 release 的资源要带令牌，先拿 302，再跟到签名地址取字节 */
+async function ghOpenAsset(storage, assetId, range) {
+    const headers = { accept: "application/octet-stream" };
+    if (range) {
+        headers.range = `bytes=${range.start}-${range.end}`;
+    }
+    return await ghCall(storage, `${GH_API_BASE}/repos/${storage.repo}/releases/assets/${assetId}`, { headers });
+}
+
+/* 上游不认 Range（回 200 整片）时，从这里切出真正要的字节，不整片读进内存 */
+function videoStreamSlice(body, from, to) {
+    const reader = body.getReader();
+    let seen = 0;
+    let closed = false;
+    return new ReadableStream({
+        async pull(controller) {
+            if (closed) {
+                controller.close();
+                return;
+            }
+            while (true) {
+                const step = await reader.read();
+                if (step.done) {
+                    closed = true;
+                    controller.close();
+                    return;
+                }
+                const chunk = step.value;
+                const base = seen;
+                seen += chunk.byteLength;
+                if (seen <= from) {
+                    continue;
+                }
+                const start = Math.max(0, from - base);
+                const end = Math.min(chunk.byteLength, to - base + 1);
+                if (end > start) {
+                    controller.enqueue(chunk.slice(start, end));
+                }
+                if (seen > to) {
+                    closed = true;
+                    controller.close();
+                    return;
+                }
+                return;
+            }
+        },
+        cancel() {
+            closed = true;
+            reader.cancel().catch(() => {});
+        }
+    });
+}
+
+function videoSizeLabel(bytes) {
+    const value = Number(bytes) || 0;
+    if (value >= 1024 * 1024 * 1024) {
+        return `${Math.round(value / 1024 / 1024 / 1024)} GB`;
+    }
+    return `${Math.round(value / 1024 / 1024)} MB`;
+}
+
+function parseVideoDuration(input) {
+    if (typeof input === "number" && Number.isFinite(input)) {
+        return Math.max(0, Math.round(input));
+    }
+    const text = String(input == null ? "" : input).trim();
+    if (!text) {
+        return 0;
+    }
+    if (/^\d+(\.\d+)?$/.test(text)) {
+        return Math.max(0, Math.round(Number(text)));
+    }
+    const parts = text.split(":").map((item) => Number(item) || 0);
+    if (parts.length === 2) {
+        return parts[0] * 60 + parts[1];
+    }
+    if (parts.length === 3) {
+        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    return 0;
+}
+
+function formatVideoDuration(seconds) {
+    const total = Math.max(0, Math.round(Number(seconds) || 0));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const rest = total % 60;
+    if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+    }
+    return `${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+}
+
+/* 解析 Range 头，返回闭区间 [start, end] 或 null */
+
+function videoByteRange(header, total) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(String(header || "").trim());
+    if (!match || !total) {
+        return null;
+    }
+    let start = match[1] === "" ? NaN : Number(match[1]);
+    let end = match[2] === "" ? NaN : Number(match[2]);
+    if (!Number.isFinite(start)) {
+        start = Math.max(0, total - (Number.isFinite(end) ? end : 0));
+        end = total - 1;
+    }
+    if (!Number.isFinite(end)) {
+        end = total - 1;
+    }
+    start = Math.max(0, Math.min(start, total - 1));
+    end = Math.max(start, Math.min(end, total - 1));
+    return { start, end };
+}
+
+async function readVideoIndex(env) {
+    const list = await env.ACCOUNTS_KV.get(VIDEO_INDEX_KEY, "json");
+    return Array.isArray(list) ? list.filter((item) => typeof item === "string" && item) : [];
+}
+
+async function writeVideoIndex(env, ids) {
+    await env.ACCOUNTS_KV.put(VIDEO_INDEX_KEY, JSON.stringify(ids.slice(0, VIDEO_INDEX_LIMIT)));
+}
+
+function newVideoId() {
+    return `v_${randomCode(9).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 12)}`;
+}
+
+async function readVideoMeta(env, id) {
+    if (!VIDEO_ID_PATTERN.test(String(id || ""))) {
+        return null;
+    }
+    return plainObject(await env.ACCOUNTS_KV.get(videoMetaKey(id), "json"));
+}
+
+async function saveVideoMeta(env, meta) {
+    await env.ACCOUNTS_KV.put(videoMetaKey(meta.id), JSON.stringify(meta));
+    return meta;
+}
+
+async function readVideoComments(env, id) {
+    const list = await env.ACCOUNTS_KV.get(videoCommentKey(id), "json");
+    return Array.isArray(list) ? list : [];
+}
+
+async function saveVideoComments(env, id, list) {
+    await env.ACCOUNTS_KV.put(videoCommentKey(id), JSON.stringify(list.slice(-VIDEO_COMMENT_KEEP)));
+}
+
+/* 1.7.1：删视频时把 R2 与 KV 里的文件都清掉；1.7.2 起还要删 GitHub 存储 release */
+
+async function removeVideoFile(env, id, chunkCount) {
+    const bucket = videoBucket(env);
+    if (bucket) {
+        try {
+            await bucket.delete(videoFileKey(id));
+        } catch (error) {
+            /* 文件可能本来就不存在 */
+        }
+    }
+    await env.ACCOUNTS_KV.delete(videoFileKey(id));
+
+    const meta = await readVideoMeta(env, id);
+
+    // GitHub 存储：一个视频一个草稿 release，删 release 连资源一起删
+    const github = videoGithub(env);
+    const releaseId = Number((meta && meta.gh && meta.gh.releaseId) || (meta && meta.upload && meta.upload.releaseId) || 0);
+    if (github && releaseId) {
+        await ghDeleteRelease(github, releaseId);
+    }
+
+    // KV 分块：已知块数就按块数删，不知道就一路删到第一块缺失为止
+    // GitHub 存储下没有 KV 分块，别白跑一遍（KV 删除也计入每日写入量）
+    if (meta && meta.storage === "gh") {
+        return;
+    }
+    const known = Number(chunkCount) || Number(meta && meta.chunkCount) || 0;
+    if (known > 0) {
+        for (let index = 1; index <= known; index += 1) {
+            await env.ACCOUNTS_KV.delete(videoChunkKey(id, index));
+        }
+        return;
+    }
+    for (let index = 1; index <= VIDEO_MAX_PARTS; index += 1) {
+        const key = videoChunkKey(id, index);
+        const existing = await env.ACCOUNTS_KV.get(key);
+        if (!existing) {
+            break;
+        }
+        await env.ACCOUNTS_KV.delete(key);
+    }
+}
+
+/* 1.7.0：老的示例视频（v_demo*）一律当作不存在，清理没跑到也不会露出来 */
+function isLegacySeedVideo(meta) {
+    return Boolean(meta) && (String(meta.id || "").startsWith(VIDEO_LEGACY_ID_PREFIX) || meta.seed === true);
+}
+
+function videoVisibleTo(meta, login, isAdmin) {
+    if (!meta || isLegacySeedVideo(meta)) {
+        return false;
+    }
+    if (meta.status === "published") {
+        return true;
+    }
+    return Boolean(isAdmin || (login && meta.owner === login));
+}
+
+function videoView(meta, login, isAdmin) {
+    const likes = Array.isArray(meta.likes) ? meta.likes : [];
+    const coins = Array.isArray(meta.coins) ? meta.coins : [];
+    return {
+        id: meta.id,
+        title: meta.title || "",
+        desc: meta.desc || "",
+        tags: Array.isArray(meta.tags) ? meta.tags : [],
+        cat: meta.cat || "",
+        original: Boolean(meta.original),
+        declarations: Array.isArray(meta.declarations) ? meta.declarations : [],
+        fileName: meta.fileName || "",
+        fileType: meta.fileType || "",
+        fileSize: Number(meta.fileSize) || 0,
+        dur: meta.dur || "00:00",
+        durSeconds: Number(meta.durSeconds) || 0,
+        owner: meta.owner || "",
+        ownerName: meta.ownerName || meta.owner || "",
+        status: meta.status || "pending",
+        at: Number(meta.at) || 0,
+        time: meta.time || "",
+        views: Number(meta.views) || 0,
+        likes: (Number(meta.baseLikes) || 0) + likes.length,
+        liked: Boolean(login && likes.includes(login)),
+        coins: coins.length,
+        coined: Boolean(login && coins.includes(login)),
+        coinCents: Number(meta.coinCents) || 0,
+        comments: Number(meta.commentCount) || 0,
+        seed: Boolean(meta.seed),
+        mine: Boolean(login && meta.owner === login),
+        canReview: Boolean(isAdmin),
+        playable: meta.status === "published" || meta.seed === true || (isAdmin && meta.status === "pending")
+    };
+}
+
+function videoCommentView(comment, login, isAdmin) {
+    const likes = Array.isArray(comment.likes) ? comment.likes : [];
+    return {
+        id: comment.id,
+        user: comment.user || "",
+        userName: comment.userName || comment.user || "",
+        text: comment.text || "",
+        at: Number(comment.at) || 0,
+        likes: (Number(comment.baseLikes) || 0) + likes.length,
+        liked: Boolean(login && likes.includes(login)),
+        mine: Boolean(login && comment.user === login),
+        canRemove: Boolean(isAdmin || (login && comment.user === login))
+    };
+}
+
+/* 1.7.0：不再注入示例视频；这里做一次性清理，把早期写进 KV 的 v_demo* 全部删掉 */
+const VIDEO_PURGED_KEY = "video:purged-seed";
+const VIDEO_LEGACY_ID_PREFIX = "v_demo";
+
+async function purgeLegacySeedVideos(env) {
+    if (!env.ACCOUNTS_KV) {
+        return;
+    }
+    if (await env.ACCOUNTS_KV.get(VIDEO_PURGED_KEY)) {
+        return;
+    }
+
+    const index = await readVideoIndex(env);
+    const kept = [];
+    for (const id of index) {
+        const meta = await readVideoMeta(env, id);
+        const legacy = String(id).startsWith(VIDEO_LEGACY_ID_PREFIX) || Boolean(meta && meta.seed === true);
+        if (legacy) {
+            await removeVideoFile(env, id);
+            await env.ACCOUNTS_KV.delete(videoMetaKey(id));
+            await env.ACCOUNTS_KV.delete(videoCommentKey(id));
+            continue;
+        }
+        kept.push(id);
+    }
+    if (kept.length !== index.length) {
+        await writeVideoIndex(env, kept);
+    }
+
+    try {
+        const listing = await env.ACCOUNTS_KV.list({ prefix: "video:meta:" });
+        const keys = Array.isArray(listing && listing.keys) ? listing.keys : [];
+        for (const entry of keys) {
+            const name = String(entry && entry.name ? entry.name : "");
+            if (!name.startsWith("video:meta:")) {
+                continue;
+            }
+            const id = name.slice("video:meta:".length);
+            if (!id.startsWith(VIDEO_LEGACY_ID_PREFIX)) {
+                continue;
+            }
+            await removeVideoFile(env, id);
+            await env.ACCOUNTS_KV.delete(videoMetaKey(id));
+            await env.ACCOUNTS_KV.delete(videoCommentKey(id));
+        }
+    } catch (error) {
+        /* 列不出来就算了，索引那一步已经清过 */
+    }
+
+    await env.ACCOUNTS_KV.delete(VIDEO_SEEDED_KEY);
+    await env.ACCOUNTS_KV.put(VIDEO_PURGED_KEY, String(Date.now()));
+}
+
+async function handleVideoList(request, env, cors) {
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV，暂时不能投稿" }, 503, cors);
+    }
+    await purgeLegacySeedVideos(env);
+    const session = await requireSession(request, env, cors);
+    const login = session.error ? "" : session.payload.sub;
+    const isAdmin = login ? isPlatformAdmin(env, login) : false;
+    const url = new URL(request.url);
+    const cat = String(url.searchParams.get("cat") || "").trim();
+    const keyword = String(url.searchParams.get("q") || "").trim().toLowerCase();
+
+    const ids = await readVideoIndex(env);
+    const videos = [];
+    for (const id of ids.slice(0, VIDEO_LIST_LIMIT * 2)) {
+        const meta = await readVideoMeta(env, id);
+        if (!meta || !meta.id) {
+            continue;
+        }
+        const visible = !isLegacySeedVideo(meta)
+            && (meta.status === "published" || isAdmin || (login && meta.owner === login));
+        if (!visible) {
+            continue;
+        }
+        if (cat && meta.cat !== cat) {
+            continue;
+        }
+        if (keyword) {
+            const haystack = `${meta.title || ""} ${meta.owner || ""} ${(meta.tags || []).join(" ")} ${meta.id}`.toLowerCase();
+            if (!haystack.includes(keyword)) {
+                continue;
+            }
+        }
+        videos.push(videoView(meta, login, isAdmin));
+        if (videos.length >= VIDEO_LIST_LIMIT) {
+            break;
+        }
+    }
+
+    videos.sort((left, right) => (right.at || 0) - (left.at || 0));
+    const limits = videoLimits(env);
+    return jsonResponse({
+        ok: true,
+        version: VIDEO_VERSION,
+        maxBytes: limits.maxBytes,
+        maxDurationSeconds: VIDEO_MAX_DURATION_SECONDS,
+        chunkBytes: limits.chunkBytes,
+        coinCents: VIDEO_COIN_CENTS,
+        r2: limits.kind === "r2",
+        storage: limits.kind,
+        login,
+        isAdmin,
+        count: videos.length,
+        videos
+    }, 200, cors);
+}
+
+async function handleVideoCreate(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV，暂时不能投稿" }, 503, cors);
+    }
+    await purgeLegacySeedVideos(env);
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const account = accounts[login];
+    if (!account) {
+        return jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const title = String(body.title || "").trim();
+    const desc = String(body.desc || "").trim();
+    const cat = String(body.cat || "").trim();
+    const fileName = String(body.fileName || "").trim().slice(0, 120);
+    const fileType = String(body.fileType || "").trim().slice(0, 80);
+    const fileSize = Math.round(Number(body.fileSize) || 0);
+    const durSeconds = parseVideoDuration(body.durSeconds !== undefined ? body.durSeconds : body.dur);
+    const tags = Array.isArray(body.tags)
+        ? Array.from(new Set(body.tags.map((item) => String(item || "").trim()).filter(Boolean))).slice(0, VIDEO_TAG_MAX)
+        : [];
+    const declarations = Array.isArray(body.declarations)
+        ? Array.from(new Set(body.declarations.map((item) => String(item || "").trim())))
+            .filter((item) => VIDEO_DECLARATIONS.has(item))
+        : [];
+
+    if (title.length < 2 || title.length > VIDEO_TITLE_MAX) {
+        return jsonResponse({ error: "bad_request", message: `标题需要 2-${VIDEO_TITLE_MAX} 个字` }, 400, cors);
+    }
+    if (desc.length > VIDEO_DESC_MAX) {
+        return jsonResponse({ error: "bad_request", message: `简介最长 ${VIDEO_DESC_MAX} 个字` }, 400, cors);
+    }
+    if (tags.some((tag) => tag.length > VIDEO_TAG_LEN)) {
+        return jsonResponse({ error: "bad_request", message: `每个标签最长 ${VIDEO_TAG_LEN} 个字` }, 400, cors);
+    }
+    if (!VIDEO_CATEGORIES.has(cat)) {
+        return jsonResponse({ error: "bad_request", message: "分区不存在" }, 400, cors);
+    }
+    if (!fileName) {
+        return jsonResponse({ error: "bad_request", message: "缺少文件名" }, 400, cors);
+    }
+    const limits = videoLimits(env);
+    if (fileSize <= 0 || fileSize > limits.maxBytes) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: `视频文件不能超过 ${videoSizeLabel(limits.maxBytes)}`
+        }, 413, cors);
+    }
+    if (durSeconds > VIDEO_MAX_DURATION_SECONDS) {
+        return jsonResponse({
+            error: "bad_request",
+            message: `视频时长不能超过 ${Math.round(VIDEO_MAX_DURATION_SECONDS / 3600)} 小时`
+        }, 400, cors);
+    }
+
+    const now = Date.now();
+    const meta = {
+        id: newVideoId(),
+        title,
+        desc,
+        tags,
+        cat,
+        original: body.original !== false,
+        declarations,
+        fileName,
+        fileType,
+        fileSize,
+        dur: formatVideoDuration(durSeconds),
+        durSeconds,
+        owner: login,
+        ownerName: chatDisplayName(accounts, login),
+        status: "draft",
+        views: 0,
+        baseLikes: 0,
+        likes: [],
+        coins: [],
+        coinCents: 0,
+        commentCount: 0,
+        at: now,
+        time: shanghaiTimestamp(now)
+    };
+
+    await saveVideoMeta(env, meta);
+    const index = await readVideoIndex(env);
+    await writeVideoIndex(env, [meta.id, ...index.filter((item) => item !== meta.id)]);
+
+    return jsonResponse({
+        ok: true,
+        r2: limits.kind === "r2",
+        storage: limits.kind,
+        chunkBytes: limits.chunkBytes,
+        maxBytes: limits.maxBytes,
+        maxDurationSeconds: VIDEO_MAX_DURATION_SECONDS,
+        video: videoView(meta, login, isPlatformAdmin(env, login))
+    }, 201, cors);
+}
+
+/* 一次请求传完整个文件：R2 绑定后走 R2.put，没绑定就退回 KV */
+
+async function handleVideoFileUpload(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV，暂时不能投稿" }, 503, cors);
+    }
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "不能给别人上传视频文件" }, 403, cors);
+    }
+    if (meta.status !== "draft") {
+        return jsonResponse({ error: "conflict", message: "这个视频已经上传过文件了" }, 409, cors);
+    }
+
+    const limits = videoLimits(env);
+    const github = videoGithub(env);
+
+    const declared = Number(request.headers.get("content-length") || 0);
+    if (declared > limits.maxBytes) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: `视频不能超过 ${videoSizeLabel(limits.maxBytes)}`
+        }, 413, cors);
+    }
+
+    let buffer;
+    try {
+        buffer = await request.arrayBuffer();
+    } catch (error) {
+        return jsonResponse({ error: "bad_request", message: "读取视频内容失败" }, 400, cors);
+    }
+    if (!buffer || buffer.byteLength === 0) {
+        return jsonResponse({ error: "bad_request", message: "视频内容为空" }, 400, cors);
+    }
+    if (buffer.byteLength > limits.maxBytes) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: `视频不能超过 ${videoSizeLabel(limits.maxBytes)}`
+        }, 413, cors);
+    }
+
+    const fileType = String(request.headers.get("content-type") || meta.fileType || "application/octet-stream")
+        .split(";")[0].trim().slice(0, 80) || "application/octet-stream";
+
+    const bucket = videoBucket(env);
+    let ghReleaseId = 0;
+    try {
+        if (bucket) {
+            await bucket.put(videoFileKey(id), buffer, { httpMetadata: { contentType: fileType } });
+        } else if (github) {
+            ghReleaseId = await ghCreateRelease(github, id);
+            const part = await ghUploadPart(github, ghReleaseId, 1, buffer);
+            meta.gh = { releaseId: ghReleaseId, parts: [{ n: 1, id: part.assetId, size: part.size }] };
+            meta.chunkCount = 1;
+            meta.chunkBytes = part.size || buffer.byteLength;
+        } else {
+            await env.ACCOUNTS_KV.put(videoFileKey(id), buffer);
+        }
+    } catch (error) {
+        if (github && ghReleaseId) {
+            await ghDeleteRelease(github, ghReleaseId);
+        }
+        await env.ACCOUNTS_KV.delete(videoMetaKey(id));
+        const index = await readVideoIndex(env);
+        await writeVideoIndex(env, index.filter((item) => item !== id));
+        return jsonResponse({
+            error: "storage_failed",
+            message: bucket
+                ? "文件没有保存成功，请重试或改用分片上传"
+                : `文件没有保存成功（${error && error.message ? error.message : "存储不可用"}），请重试或改用分片上传`
+        }, 507, cors);
+    }
+
+    meta.fileType = fileType;
+    meta.fileSize = buffer.byteLength;
+    meta.status = "pending";
+    meta.storage = bucket ? "r2" : (github ? "gh" : "kv");
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        video: videoView(meta, login, isPlatformAdmin(env, login))
+    }, 200, cors);
+}
+
+/* 1.7.1：分片上传（R2 multipart），支持 5 GB */
+
+function videoUploadState(meta) {
+    const state = meta && meta.upload && typeof meta.upload === "object" ? meta.upload : null;
+    return state && state.id ? state : null;
+}
+
+async function handleVideoUploadStart(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const bucket = videoBucket(env);
+    const github = bucket ? null : videoGithub(env);
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "不能给别人上传视频文件" }, 403, cors);
+    }
+    if (meta.status !== "draft") {
+        return jsonResponse({ error: "conflict", message: "这个视频已经上传过文件了" }, 409, cors);
+    }
+
+    // 上一次没传完的分片先清掉（R2 multipart / GitHub 草稿 release / KV 分块）
+    const existing = videoUploadState(meta);
+    if (existing) {
+        if (bucket && existing.id !== "kv" && existing.id !== "gh") {
+            try {
+                await bucket.resumeMultipartUpload(videoFileKey(id), existing.id).abort();
+            } catch (error) {
+                /* 旧的分片上传可能已经失效 */
+            }
+        }
+        if (github && existing.id === "gh" && Number(existing.releaseId)) {
+            await ghDeleteRelease(github, Number(existing.releaseId));
+        }
+        if (existing.id === "kv") {
+            for (const part of Array.isArray(existing.parts) ? existing.parts : []) {
+                await env.ACCOUNTS_KV.delete(videoChunkKey(id, Number(part.n)));
+            }
+        }
+    }
+
+    let uploadId = "";
+    let releaseId = 0;
+    if (bucket) {
+        try {
+            const upload = await bucket.createMultipartUpload(videoFileKey(id), {
+                httpMetadata: { contentType: meta.fileType || "application/octet-stream" }
+            });
+            uploadId = upload.uploadId;
+        } catch (error) {
+            uploadId = "";
+        }
+    }
+    if (!uploadId && github) {
+        try {
+            releaseId = await ghCreateRelease(github, id);
+            uploadId = "gh";
+        } catch (error) {
+            uploadId = "";
+        }
+    }
+    if (!uploadId) {
+        uploadId = "kv";
+    }
+
+    meta.upload = { id: uploadId, releaseId, parts: [], received: 0, at: Date.now() };
+    await saveVideoMeta(env, meta);
+
+    // 真回落到 KV 时不能用 GitHub 的 32 MB 分片（KV 单值上限约 25 MB）
+    const chunked = uploadId === "gh";
+    return jsonResponse({
+        ok: true,
+        uploadId,
+        storage: chunked ? "gh" : (uploadId === "kv" ? "kv" : "r2"),
+        chunkBytes: chunked ? VIDEO_GH_CHUNK_BYTES : VIDEO_CHUNK_BYTES,
+        maxBytes: chunked ? VIDEO_GH_MAX_BYTES : VIDEO_MAX_BYTES,
+        maxParts: VIDEO_MAX_PARTS
+    }, 200, cors);
+}
+
+async function handleVideoUploadPart(request, env, cors, id, partNumber) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "不能给别人上传视频文件" }, 403, cors);
+    }
+    const upload = videoUploadState(meta);
+    if (!upload) {
+        return jsonResponse({ error: "conflict", message: "请先调用 /upload/start 开始分片上传" }, 409, cors);
+    }
+
+    const number = Math.round(Number(partNumber) || 0);
+    if (number < 1 || number > VIDEO_MAX_PARTS) {
+        return jsonResponse({ error: "bad_request", message: `分片序号需要在 1-${VIDEO_MAX_PARTS} 之间` }, 400, cors);
+    }
+
+    let buffer;
+    try {
+        buffer = await request.arrayBuffer();
+    } catch (error) {
+        return jsonResponse({ error: "bad_request", message: "读取分片内容失败" }, 400, cors);
+    }
+    if (!buffer || buffer.byteLength === 0) {
+        return jsonResponse({ error: "bad_request", message: "分片内容为空" }, 400, cors);
+    }
+    const viaGithub = upload.id === "gh";
+    const chunkBytes = viaGithub ? VIDEO_GH_CHUNK_BYTES : VIDEO_CHUNK_BYTES;
+    const maxBytes = viaGithub ? VIDEO_GH_MAX_BYTES : VIDEO_MAX_BYTES;
+
+    if (buffer.byteLength > chunkBytes) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: `单个分片不能超过 ${videoSizeLabel(chunkBytes)}`
+        }, 413, cors);
+    }
+
+    const parts = Array.isArray(upload.parts) ? upload.parts : [];
+    const previous = parts.find((item) => Number(item.n) === number);
+    const received = parts.reduce((sum, item) => sum + (Number(item.size) || 0), 0)
+        - (previous ? Number(previous.size) || 0 : 0)
+        + buffer.byteLength;
+    if (received > maxBytes) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: `视频不能超过 ${videoSizeLabel(maxBytes)}`
+        }, 413, cors);
+    }
+
+    const bucket = videoBucket(env);
+    const github = viaGithub ? videoGithub(env) : null;
+    let etag = "";
+    let assetId = 0;
+    try {
+        if (bucket && upload.id !== "kv" && upload.id !== "gh") {
+            const part = await bucket
+                .resumeMultipartUpload(videoFileKey(id), upload.id)
+                .uploadPart(number, buffer);
+            etag = part.etag;
+        } else if (viaGithub) {
+            const releaseId = Number(upload.releaseId) || 0;
+            if (!github || !releaseId) {
+                return jsonResponse({
+                    error: "conflict",
+                    message: "GitHub 存储的这次分片上传已经失效，请重新开始上传"
+                }, 409, cors);
+            }
+            // 同一个分片重传：先删掉旧的资源，GitHub 里资源名不能重复
+            if (previous && Number(previous.assetId)) {
+                await ghDeleteAsset(github, Number(previous.assetId));
+            }
+            const part = await ghUploadPart(github, releaseId, number, buffer);
+            assetId = part.assetId;
+            etag = `gh-${assetId}`;
+        } else {
+            await env.ACCOUNTS_KV.put(videoChunkKey(id, number), buffer);
+            etag = `kv-${buffer.byteLength}`;
+        }
+    } catch (error) {
+        return jsonResponse({
+            error: "storage_failed",
+            message: `分片上传失败，请重试（${error && error.message ? error.message : "存储不可用"}）`
+        }, 507, cors);
+    }
+
+    const next = parts.filter((item) => Number(item.n) !== number);
+    next.push({ n: number, etag, size: buffer.byteLength, assetId });
+    next.sort((left, right) => Number(left.n) - Number(right.n));
+
+    upload.parts = next;
+    upload.received = next.reduce((sum, item) => sum + (Number(item.size) || 0), 0);
+    meta.upload = upload;
+    meta.fileSize = upload.received;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        partNumber: number,
+        etag,
+        received: upload.received,
+        maxBytes
+    }, 200, cors);
+}
+
+async function handleVideoUploadComplete(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "不能给别人上传视频文件" }, 403, cors);
+    }
+    const upload = videoUploadState(meta);
+    if (!upload) {
+        return jsonResponse({ error: "conflict", message: "还没有开始分片上传" }, 409, cors);
+    }
+
+    const rawParts = (Array.isArray(upload.parts) ? upload.parts : [])
+        .filter((item) => Number(item.n) > 0)
+        .sort((left, right) => Number(left.n) - Number(right.n));
+    const parts = rawParts
+        .map((item) => ({ partNumber: Number(item.n), etag: String(item.etag || "") }))
+        .filter((item) => item.partNumber > 0 && item.etag);
+    if (!parts.length) {
+        return jsonResponse({ error: "bad_request", message: "还没有上传任何分片" }, 400, cors);
+    }
+
+    const kind = upload.id === "gh" ? "gh" : (upload.id === "kv" ? "kv" : "r2");
+    if (kind === "kv") {
+        // KV 分块：确认 1..N 连续
+        for (let index = 1; index <= parts.length; index += 1) {
+            const exists = await env.ACCOUNTS_KV.get(videoChunkKey(id, index));
+            if (!exists) {
+                return jsonResponse({
+                    error: "bad_request",
+                    message: `缺少第 ${index} 个分片，请重新上传`
+                }, 400, cors);
+            }
+        }
+    } else if (kind === "gh") {
+        // GitHub 分片在各自上传时就已经落盘，这里只确认片号连续
+        for (let index = 1; index <= rawParts.length; index += 1) {
+            if (Number(rawParts[index - 1].n) !== index) {
+                return jsonResponse({
+                    error: "bad_request",
+                    message: `缺少第 ${index} 个分片，请重新上传`
+                }, 400, cors);
+            }
+        }
+        meta.gh = {
+            releaseId: Number(upload.releaseId) || 0,
+            parts: rawParts.map((item) => ({
+                n: Number(item.n),
+                id: Number(item.assetId) || 0,
+                size: Number(item.size) || 0
+            }))
+        };
+    } else {
+        const bucket = videoBucket(env);
+        if (!bucket) {
+            return jsonResponse({ error: "storage_failed", message: "R2 存储没有配置，请重新开始上传" }, 507, cors);
+        }
+        try {
+            await bucket
+                .resumeMultipartUpload(videoFileKey(id), upload.id)
+                .complete(parts);
+        } catch (error) {
+            return jsonResponse({ error: "storage_failed", message: "合并分片失败，请重新上传" }, 507, cors);
+        }
+    }
+
+    meta.fileSize = Number(upload.received) || meta.fileSize;
+    meta.chunkCount = kind === "r2" ? 0 : parts.length;
+    meta.chunkBytes = kind === "gh" ? VIDEO_GH_CHUNK_BYTES : VIDEO_CHUNK_BYTES;
+    meta.storage = kind;
+    meta.status = "pending";
+    delete meta.upload;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        video: videoView(meta, login, isPlatformAdmin(env, login))
+    }, 200, cors);
+}
+
+async function handleVideoUploadAbort(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "不能操作别人的视频" }, 403, cors);
+    }
+
+    const upload = videoUploadState(meta);
+    const bucket = videoBucket(env);
+    const github = videoGithub(env);
+    if (upload) {
+        if (bucket && upload.id !== "kv" && upload.id !== "gh") {
+            try {
+                await bucket.resumeMultipartUpload(videoFileKey(id), upload.id).abort();
+            } catch (error) {
+                /* 可能已经失效 */
+            }
+        }
+        if (github && upload.id === "gh" && Number(upload.releaseId)) {
+            await ghDeleteRelease(github, Number(upload.releaseId));
+        }
+        if (upload.id === "kv") {
+            for (const part of Array.isArray(upload.parts) ? upload.parts : []) {
+                await env.ACCOUNTS_KV.delete(videoChunkKey(id, Number(part.n)));
+            }
+        }
+        delete meta.upload;
+        meta.fileSize = 0;
+        await saveVideoMeta(env, meta);
+    }
+
+    return jsonResponse({ ok: true, aborted: Boolean(upload) }, 200, cors);
+}
+
+async function handleVideoDetail(request, env, cors, id) {
+    await purgeLegacySeedVideos(env);
+    const session = await requireSession(request, env, cors);
+    const login = session.error ? "" : session.payload.sub;
+    const isAdmin = login ? isPlatformAdmin(env, login) : false;
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+    if (!videoVisibleTo(meta, login, isAdmin)) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+
+    return jsonResponse({
+        ok: true,
+        video: videoView(meta, login, isAdmin),
+        comments: (await readVideoComments(env, id))
+            .slice(-VIDEO_COMMENT_KEEP)
+            .reverse()
+            .map((item) => videoCommentView(item, login, isAdmin))
+    }, 200, cors);
+}
+
+async function handleVideoFile(request, env, cors, id) {
+    // 允许 ?token=：<video src> 没法带 Authorization 头
+    const session = await requireSessionOrToken(request, env, cors);
+    const login = session.error ? "" : session.payload.sub;
+    const isAdmin = login ? isPlatformAdmin(env, login) : false;
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id || !videoVisibleTo(meta, login, isAdmin)) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+
+    const bucket = videoBucket(env);
+    // 之前存在 GitHub 上的视频，即使后来绑了 R2 也还是从 GitHub 读
+    const bucketFile = bucket && meta.storage !== "gh" ? bucket : null;
+    let total = Number(meta.fileSize) || 0;
+    if (bucketFile && !total) {
+        try {
+            const head = await bucketFile.head(videoFileKey(id));
+            total = head ? Number(head.size) || 0 : 0;
+        } catch (error) {
+            total = 0;
+        }
+    }
+
+    const headers = { ...cors };
+    headers["content-type"] = meta.fileType || "application/octet-stream";
+    headers["accept-ranges"] = "bytes";
+    headers["cache-control"] = "public, max-age=604800";
+    headers["content-disposition"] = `inline; filename*=UTF-8''${encodeURIComponent(meta.fileName || `${id}.mp4`)}`;
+
+    const range = videoByteRange(request.headers.get("range"), total);
+
+    if (bucketFile) {
+        let object;
+        try {
+            object = await bucketFile.get(
+                videoFileKey(id),
+                range ? { range: { offset: range.start, length: range.end - range.start + 1 } } : undefined
+            );
+        } catch (error) {
+            object = null;
+        }
+        if (!object || !object.body) {
+            return jsonResponse({ error: "no_file", message: "这个视频没有可播放的文件" }, 404, cors);
+        }
+        if (range) {
+            headers["content-range"] = `bytes ${range.start}-${range.end}/${total}`;
+            headers["content-length"] = String(range.end - range.start + 1);
+            return new Response(object.body, { status: 206, headers });
+        }
+        headers["content-length"] = String(total || (Number(object.size) || 0));
+        return new Response(object.body, { status: 200, headers });
+    }
+
+    // 1.7.2：GitHub Release 存储。每次只回一片，播放器会接着发下一个 Range
+    const ghParts = meta.storage === "gh" && meta.gh && Array.isArray(meta.gh.parts)
+        ? meta.gh.parts
+            .filter((item) => Number(item.id) > 0 && Number(item.size) > 0)
+            .sort((left, right) => Number(left.n) - Number(right.n))
+        : [];
+    if (ghParts.length) {
+        const github = videoGithub(env);
+        if (!github) {
+            return jsonResponse({
+                error: "storage_unavailable",
+                message: "服务端没有配置 GitHub 存储，暂时不能播放"
+            }, 503, cors);
+        }
+        const totalBytes = total || ghParts.reduce((sum, item) => sum + Number(item.size), 0);
+        const start = range ? range.start : 0;
+        let offset = 0;
+        let index = 0;
+        for (; index < ghParts.length; index += 1) {
+            const length = Number(ghParts[index].size);
+            if (start < offset + length) {
+                break;
+            }
+            offset += length;
+        }
+        if (index >= ghParts.length || !totalBytes) {
+            return jsonResponse({ error: "no_file", message: "这个视频的分片缺失，请重新上传" }, 404, cors);
+        }
+
+        const part = ghParts[index];
+        const partEnd = offset + Number(part.size) - 1;
+        const from = Math.max(0, start - offset);
+        const to = (range ? Math.min(range.end, partEnd) : partEnd) - offset;
+        const absoluteStart = offset + from;
+        const absoluteEnd = offset + to;
+
+        let upstream;
+        try {
+            upstream = await ghOpenAsset(github, Number(part.id), { start: from, end: to });
+        } catch (error) {
+            return jsonResponse({ error: "storage_failed", message: "读取视频失败，请稍后重试" }, 502, cors);
+        }
+        if (!upstream.ok || !upstream.body) {
+            return jsonResponse({ error: "no_file", message: "这个视频的文件读取失败，请稍后重试" }, 404, cors);
+        }
+
+        headers["content-range"] = `bytes ${absoluteStart}-${absoluteEnd}/${totalBytes}`;
+        headers["content-length"] = String(absoluteEnd - absoluteStart + 1);
+        if (upstream.status === 206) {
+            return new Response(upstream.body, { status: 206, headers });
+        }
+        return new Response(videoStreamSlice(upstream.body, from, to), { status: 206, headers });
+    }
+
+    // 没有 R2：优先读 KV 分块（video:chunk:<id>:<n>），老数据回落到单值 video:file:<id>
+    const chunkCount = Number(meta.chunkCount) || 0;
+    const chunkBytes = Number(meta.chunkBytes) || VIDEO_CHUNK_BYTES;
+
+    if (chunkCount > 0 && total) {
+        // 单次响应最多拼 3 块，避免把整部 5 GB 视频读进内存（Workers 128 MB 上限）
+        const maxBytes = chunkBytes * 3;
+        const start = range ? range.start : 0;
+        let end = range ? range.end : Math.min(total - 1, chunkBytes - 1);
+        if (end - start + 1 > maxBytes) {
+            end = start + maxBytes - 1;
+        }
+        end = Math.min(end, total - 1);
+
+        const firstChunk = Math.floor(start / chunkBytes);
+        const lastChunk = Math.floor(end / chunkBytes);
+        const pieces = [];
+        let size = 0;
+        for (let index = firstChunk; index <= lastChunk; index += 1) {
+            const piece = await env.ACCOUNTS_KV.get(videoChunkKey(id, index + 1), "arrayBuffer");
+            if (!piece) {
+                return jsonResponse({ error: "no_file", message: "这个视频的分片缺失，请重新上传" }, 404, cors);
+            }
+            const base = index * chunkBytes;
+            const from = Math.max(0, start - base);
+            const to = Math.min(piece.byteLength, end - base + 1);
+            const slice = piece.slice(from, to);
+            pieces.push(slice);
+            size += slice.byteLength;
+        }
+
+        const merged = new Uint8Array(size);
+        let offset = 0;
+        for (const slice of pieces) {
+            merged.set(new Uint8Array(slice), offset);
+            offset += slice.byteLength;
+        }
+
+        headers["content-range"] = `bytes ${start}-${start + size - 1}/${total}`;
+        headers["content-length"] = String(size);
+        return new Response(merged.buffer, { status: 206, headers });
+    }
+
+    const buffer = await env.ACCOUNTS_KV.get(videoFileKey(id), "arrayBuffer");
+    if (!buffer || !buffer.byteLength) {
+        return jsonResponse({ error: "no_file", message: "这个视频没有可播放的文件" }, 404, cors);
+    }
+
+    const size = buffer.byteLength;
+    if (range) {
+        const slice = buffer.slice(range.start, range.end + 1);
+        headers["content-range"] = `bytes ${range.start}-${range.end}/${size}`;
+        headers["content-length"] = String(slice.byteLength);
+        return new Response(slice, { status: 206, headers });
+    }
+
+    headers["content-length"] = String(size);
+    return new Response(buffer, { status: 200, headers });
+}
+
+async function handleVideoDelete(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "只能删除自己投稿的视频" }, 403, cors);
+    }
+
+    const upload = videoUploadState(meta);
+    const bucket = videoBucket(env);
+    if (upload && bucket) {
+        try {
+            await bucket.resumeMultipartUpload(videoFileKey(id), upload.id).abort();
+        } catch (error) {
+            /* 可能已经失效 */
+        }
+    }
+
+    await removeVideoFile(env, id);
+    await env.ACCOUNTS_KV.delete(videoMetaKey(id));
+    await env.ACCOUNTS_KV.delete(videoCommentKey(id));
+    const index = await readVideoIndex(env);
+    await writeVideoIndex(env, index.filter((item) => item !== id));
+
+    return jsonResponse({ ok: true, removed: id }, 200, cors);
+}
+
+async function handleVideoReview(request, env, cors, id, action) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    meta.status = action === "approve" ? "published" : "rejected";
+    meta.reviewedAt = Date.now();
+    meta.reviewedBy = session.payload.sub;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        video: videoView(meta, session.payload.sub, true)
+    }, 200, cors);
+}
+
+async function handleVideoLike(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (!videoVisibleTo(meta, login, isPlatformAdmin(env, login))) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+
+    const likes = Array.isArray(meta.likes) ? meta.likes : [];
+    const at = likes.indexOf(login);
+    if (at >= 0) {
+        likes.splice(at, 1);
+    } else {
+        likes.push(login);
+    }
+    meta.likes = likes;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        liked: at < 0,
+        likes: (Number(meta.baseLikes) || 0) + likes.length
+    }, 200, cors);
+}
+
+/* 1.7.1：投币。一个币 5.00 VTX，投给投稿人；取消投币不退钱、也不从投稿人账上扣回 */
+async function handleVideoCoin(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const login = session.payload.sub;
+    const isAdmin = isPlatformAdmin(env, login);
+
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id || !videoVisibleTo(meta, login, isAdmin)) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+    if (meta.status !== "published") {
+        return jsonResponse({ error: "conflict", message: "视频还没通过审核，暂时不能投币" }, 409, cors);
+    }
+
+    const coins = Array.isArray(meta.coins) ? meta.coins : [];
+    const owner = meta.owner || "";
+    const cost = fromCents(VIDEO_COIN_CENTS);
+
+    if (coins.includes(login)) {
+        meta.coins = coins.filter((item) => item !== login);
+        await saveVideoMeta(env, meta);
+        return jsonResponse({
+            ok: true,
+            coined: false,
+            coins: meta.coins.length,
+            coinCents: Number(meta.coinCents) || 0,
+            cost,
+            refunded: false,
+            message: `已取消投币（已经投出的 ${cost} VTX 不会退回，也不会从投稿人账上扣回）`
+        }, 200, cors);
+    }
+
+    let accounts = null;
+    try {
+        accounts = await commitAccounts(env, (data) => {
+            const payer = data[login];
+            if (!payer) {
+                throw new HttpError(404, "not_found", "账户不存在");
+            }
+            const payerBalance = toCents(payer.money) ?? 0;
+            if (payerBalance < VIDEO_COIN_CENTS) {
+                throw new HttpError(400, "insufficient_funds", `余额不足，投一个币需要 ${cost} VTX`);
+            }
+            const time = shanghaiTimestamp();
+            const payerName = String(payer.username || login);
+
+            payer.trades = Array.isArray(payer.trades) ? payer.trades : [];
+            payer.trades.push({
+                name: "投币",
+                description: `《${meta.title}》投币`,
+                time,
+                from: payerName,
+                to: meta.ownerName || owner,
+                price: `-${cost}`
+            });
+            payer.money = fromCents(payerBalance - VIDEO_COIN_CENTS);
+
+            const payee = owner && owner !== login ? data[owner] : null;
+            if (payee) {
+                payee.trades = Array.isArray(payee.trades) ? payee.trades : [];
+                payee.trades.push({
+                    name: "收到投币",
+                    description: `《${meta.title}》收到 ${payerName} 的投币`,
+                    time,
+                    from: payerName,
+                    to: String(payee.username || owner),
+                    price: `+${cost}`
+                });
+                payee.money = fromCents((toCents(payee.money) ?? 0) + VIDEO_COIN_CENTS);
+            }
+
+            return `投币：${payerName} → 《${meta.title}》${cost} VTX`;
+        });
+    } catch (error) {
+        if (error instanceof HttpError) {
+            return jsonResponse({ error: error.code, message: error.message }, error.status, cors);
+        }
+        return jsonResponse({
+            error: "storage_failed",
+            message: error && error.message ? error.message : "投币失败，请稍后重试"
+        }, 503, cors);
+    }
+
+    meta.coins = [...coins, login];
+    meta.coinCents = (Number(meta.coinCents) || 0) + VIDEO_COIN_CENTS;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        coined: true,
+        coins: meta.coins.length,
+        coinCents: meta.coinCents,
+        cost,
+        account: accounts && accounts[login] ? publicAccount(accounts[login]) : null,
+        ownerMoney: owner && accounts && accounts[owner] ? publicAccount(accounts[owner]).money : ""
+    }, 200, cors);
+}
+
+async function handleVideoView(request, env, cors, id) {
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    meta.views = (Number(meta.views) || 0) + 1;
+    await saveVideoMeta(env, meta);
+    return jsonResponse({ ok: true, views: meta.views }, 200, cors);
+}
+
+async function handleVideoComments(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    if (!videoVisibleTo(meta, session.payload.sub, isPlatformAdmin(env, session.payload.sub))) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const text = String(body.text || "").trim();
+    if (!text || text.length > VIDEO_COMMENT_MAX) {
+        return jsonResponse({ error: "bad_request", message: `评论需要 1-${VIDEO_COMMENT_MAX} 个字` }, 400, cors);
+    }
+
+    const accounts = await loadAccounts(env);
+    const login = session.payload.sub;
+    const list = await readVideoComments(env, id);
+    const comment = {
+        id: `c_${randomCode(8).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 10)}`,
+        user: login,
+        userName: chatDisplayName(accounts, login),
+        text,
+        at: Date.now(),
+        likes: [],
+        baseLikes: 0
+    };
+    list.push(comment);
+    await saveVideoComments(env, id, list);
+    meta.commentCount = list.length;
+    await saveVideoMeta(env, meta);
+
+    return jsonResponse({
+        ok: true,
+        comment: videoCommentView(comment, login, isPlatformAdmin(env, login)),
+        count: list.length
+    }, 201, cors);
+}
+
+async function handleVideoCommentLike(request, env, cors, id, commentId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const login = session.payload.sub;
+    const list = await readVideoComments(env, id);
+    const index = list.findIndex((item) => item.id === commentId);
+    if (index < 0) {
+        return jsonResponse({ error: "not_found", message: "评论不存在" }, 404, cors);
+    }
+    const comment = list[index];
+    const likes = Array.isArray(comment.likes) ? comment.likes : [];
+    const at = likes.indexOf(login);
+    if (at >= 0) {
+        likes.splice(at, 1);
+    } else {
+        likes.push(login);
+    }
+    comment.likes = likes;
+    list[index] = comment;
+    await saveVideoComments(env, id, list);
+
+    const meta = await readVideoMeta(env, id);
+    return jsonResponse({
+        ok: true,
+        comment: videoCommentView(comment, login, isPlatformAdmin(env, login)),
+        likes: (Number(comment.baseLikes) || 0) + likes.length,
+        count: Number(meta && meta.commentCount) || list.length
+    }, 200, cors);
+}
+
+async function handleVideoCommentDelete(request, env, cors, id, commentId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const login = session.payload.sub;
+    const isAdmin = isPlatformAdmin(env, login);
+    const list = await readVideoComments(env, id);
+    const target = list.find((item) => item.id === commentId);
+    if (!target) {
+        return jsonResponse({ error: "not_found", message: "评论不存在" }, 404, cors);
+    }
+    if (target.user !== login && !isAdmin) {
+        return jsonResponse({ error: "forbidden", message: "只能删除自己的评论" }, 403, cors);
+    }
+    const next = list.filter((item) => item.id !== commentId);
+    await saveVideoComments(env, id, next);
+    const meta = await readVideoMeta(env, id);
+    if (meta && meta.id) {
+        meta.commentCount = next.length;
+        await saveVideoMeta(env, meta);
+    }
+    return jsonResponse({ ok: true, removed: commentId, count: next.length }, 200, cors);
+}
+
+async function routeVideos(request, env, cors) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const method = request.method;
+
+    if (path === "/api/videos" || path === "/api/videos/") {
+        if (method === "GET") {
+            return await handleVideoList(request, env, cors);
+        }
+        if (method === "POST") {
+            return await handleVideoCreate(request, env, cors);
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    if (path === "/api/videos/status" && method === "GET") {
+        const limits = videoLimits(env);
+        return jsonResponse({
+            ok: true,
+            version: VIDEO_VERSION,
+            enabled: hasKv(env),
+            r2: limits.kind === "r2",
+            storage: limits.kind === "kv" ? "kv-chunks" : limits.kind,
+            chunked: true,
+            maxBytes: limits.maxBytes,
+            maxDurationSeconds: VIDEO_MAX_DURATION_SECONDS,
+            chunkBytes: limits.chunkBytes,
+            coinCents: VIDEO_COIN_CENTS,
+            categories: Array.from(VIDEO_CATEGORIES),
+            declarations: Array.from(VIDEO_DECLARATIONS)
+        }, 200, cors);
+    }
+
+    let match = path.match(/^\/api\/videos\/([^/]+)\/upload\/(start|complete|abort)$/);
+    if (match && method === "POST") {
+        const id = decodeURIComponent(match[1]);
+        if (match[2] === "start") {
+            return await handleVideoUploadStart(request, env, cors, id);
+        }
+        if (match[2] === "complete") {
+            return await handleVideoUploadComplete(request, env, cors, id);
+        }
+        return await handleVideoUploadAbort(request, env, cors, id);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/upload\/(\d+)$/);
+    if (match) {
+        if (method === "PUT" || method === "POST") {
+            return await handleVideoUploadPart(request, env, cors, decodeURIComponent(match[1]), match[2]);
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/coin$/);
+    if (match) {
+        if (method === "POST") {
+            return await handleVideoCoin(request, env, cors, decodeURIComponent(match[1]));
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/(file|view|comments)$/);
+    if (match) {
+        const id = decodeURIComponent(match[1]);
+        const action = match[2];
+        if (action === "file") {
+            if (method === "GET") {
+                return await handleVideoFile(request, env, cors, id);
+            }
+            if (method === "PUT" || method === "POST") {
+                return await handleVideoFileUpload(request, env, cors, id);
+            }
+        }
+        if (action === "view" && method === "POST") {
+            return await handleVideoView(request, env, cors, id);
+        }
+        if (action === "comments") {
+            if (method === "POST") {
+                return await handleVideoComments(request, env, cors, id);
+            }
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/comments\/([^/]+)$/);
+    if (match) {
+        const id = decodeURIComponent(match[1]);
+        const commentId = decodeURIComponent(match[2]);
+        if (method === "DELETE") {
+            return await handleVideoCommentDelete(request, env, cors, id, commentId);
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/comments\/([^/]+)\/like$/);
+    if (match) {
+        if (method === "POST") {
+            return await handleVideoCommentLike(request, env, cors, decodeURIComponent(match[1]), decodeURIComponent(match[2]));
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/like$/);
+    if (match && method === "POST") {
+        return await handleVideoLike(request, env, cors, decodeURIComponent(match[1]));
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/(approve|reject)$/);
+    if (match && method === "POST") {
+        return await handleVideoReview(request, env, cors, decodeURIComponent(match[1]), match[2]);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)$/);
+    if (match) {
+        const id = decodeURIComponent(match[1]);
+        if (method === "GET") {
+            return await handleVideoDetail(request, env, cors, id);
+        }
+        if (method === "DELETE") {
+            return await handleVideoDelete(request, env, cors, id);
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    return jsonResponse({ error: "not_found", message: "接口不存在" }, 404, cors);
 }
 
 async function routeChat(request, env, cors) {
@@ -6748,6 +9058,30 @@ async function routeChat(request, env, cors) {
         }
         if (action === "refund" && method === "POST") {
             return await handleChatRedPacketRefund(request, env, cors, messageId);
+        }
+    }
+
+    match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/transfers$/);
+    if (match && method === "POST") {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        return await handleChatTransferCreate(request, env, cors, id);
+    }
+
+    match = path.match(/^\/api\/chat\/messages\/([^/]+)\/transfer(?:\/(claim|refund))?$/);
+    if (match) {
+        const messageId = decodeURIComponent(match[1]);
+        if (!CHAT_MESSAGE_ID_PATTERN.test(messageId)) {
+            return jsonResponse({ error: "bad_request", message: "消息 id 不合法" }, 400, cors);
+        }
+        const action = match[2] || "";
+        if (action === "claim" && method === "POST") {
+            return await handleChatTransferClaim(request, env, cors, messageId);
+        }
+        if (action === "refund" && method === "POST") {
+            return await handleChatTransferRefund(request, env, cors, messageId);
         }
     }
 
@@ -7311,6 +9645,10 @@ export default {
                 if (request.method === "DELETE") {
                     return await handleAdminDelete(request, env, cors, login);
                 }
+            }
+
+            if (url.pathname.startsWith("/api/videos")) {
+                return await routeVideos(request, env, cors);
             }
 
             if (url.pathname.startsWith("/api/chat/")) {

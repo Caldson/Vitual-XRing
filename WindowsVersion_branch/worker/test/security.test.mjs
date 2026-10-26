@@ -192,14 +192,86 @@ test("1.2.0：不能注册/占用管理员登录名", async () => {
     assert.equal(reserved.data.error, "account_reserved");
 });
 
-test("1.2.0：管理员账户列表不再返回明文密码", async () => {
+test("1.4.0：未配置 PASSWORD_VIEW_KEY 时管理员列表不返回密码", async () => {
     const { env, tokens } = await prepare();
 
     const list = await api(env, "GET", "/api/admin/accounts", { token: tokens.Kitawaga });
     assert.equal(list.status, 200, JSON.stringify(list.data));
     const alice = list.data.accounts.Alice;
-    assert.equal(alice.password, undefined);
+    assert.equal(alice.password, null);
     assert.equal(alice.hasPassword, true);
+});
+
+test("1.4.0：配置 PASSWORD_VIEW_KEY 后只有管理员能看到当前密码", async () => {
+    const env = createEnv();
+    env.PASSWORD_VIEW_KEY = "unit-test-view-key";
+    await env.ACCOUNTS_KV.put("accounts", JSON.stringify(SEED));
+
+    const login = await api(env, "POST", "/api/login", { body: { login: "Alice", password: "password1" } });
+    assert.equal(login.status, 200, JSON.stringify(login.data));
+    const adminToken = (await api(env, "POST", "/api/login", {
+        body: { login: "Kitawaga", password: "password1" }
+    })).data.token;
+
+    const list = await api(env, "GET", "/api/admin/accounts", { token: adminToken });
+    assert.equal(list.status, 200, JSON.stringify(list.data));
+    assert.equal(list.data.accounts.Alice.password, "password1");
+
+    const stored = await env.ACCOUNTS_KV.get("accounts", "json");
+    assert.equal(stored.Alice.passwordSealed.startsWith("aes-gcm$"), true);
+    assert.ok(!JSON.stringify(stored.Alice).includes("password1"), "加密副本里不能出现明文");
+
+    const publicList = await api(env, "GET", "/api/accounts", { token: login.data.token });
+    assert.equal(publicList.status, 200, JSON.stringify(publicList.data));
+    assert.equal(JSON.stringify(publicList.data).includes("passwordSealed"), false);
+    assert.equal(JSON.stringify(publicList.data).includes("\"password\""), false);
+});
+
+test("1.4.0：老账户登录后自动补上可显示的密码副本", async () => {
+    const env = createEnv();
+    env.PASSWORD_VIEW_KEY = "unit-test-view-key";
+    await env.ACCOUNTS_KV.put("accounts", JSON.stringify(SEED));
+
+    const created = await api(env, "POST", "/api/register", {
+        body: { login: "OldUser", password: "secret123", username: "老用户" }
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+
+    // 模拟 1.4.0 之前创建的账户：只有哈希，没有密码副本
+    const stored = await env.ACCOUNTS_KV.get("accounts", "json");
+    delete stored.OldUser.passwordSealed;
+    await env.ACCOUNTS_KV.put("accounts", JSON.stringify(stored));
+
+    const adminToken = (await api(env, "POST", "/api/login", {
+        body: { login: "Kitawaga", password: "password1" }
+    })).data.token;
+    const before = await api(env, "GET", "/api/admin/accounts", { token: adminToken });
+    assert.equal(before.data.accounts.OldUser.password, null);
+
+    const relogin = await api(env, "POST", "/api/login", { body: { login: "OldUser", password: "secret123" } });
+    assert.equal(relogin.status, 200, JSON.stringify(relogin.data));
+
+    const after = await api(env, "GET", "/api/admin/accounts", { token: adminToken });
+    assert.equal(after.data.accounts.OldUser.password, "secret123");
+});
+
+test("1.4.0：管理员改密码后列表显示新密码", async () => {
+    const env = createEnv();
+    env.PASSWORD_VIEW_KEY = "unit-test-view-key";
+    await env.ACCOUNTS_KV.put("accounts", JSON.stringify(SEED));
+    const adminToken = (await api(env, "POST", "/api/login", {
+        body: { login: "Kitawaga", password: "password1" }
+    })).data.token;
+
+    const updated = await api(env, "PUT", "/api/admin/accounts/Alice", {
+        token: adminToken,
+        body: { password: "brand-new-9" }
+    });
+    assert.equal(updated.status, 200, JSON.stringify(updated.data));
+    assert.equal(updated.data.account.password, "brand-new-9");
+
+    const relogin = await api(env, "POST", "/api/login", { body: { login: "Alice", password: "brand-new-9" } });
+    assert.equal(relogin.status, 200, JSON.stringify(relogin.data));
 });
 
 test("1.2.0：新注册账户在 KV 里只存 PBKDF2 哈希", async () => {

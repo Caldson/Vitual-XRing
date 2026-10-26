@@ -7,7 +7,7 @@
  *   未绑定 ACCOUNTS_KV 时退回 7.0 的行为（直接读写仓库里的 account.json）。
  *
  * 9.0 新增完整聊天室：聊天记录同样存在 KV，实时消息由 ChatHub（Durable Object）
- * 通过 WebSocket 推送；图片 / 文件在 KV 里只保留 20 分钟。
+ * 通过 WebSocket 推送；图片 / 文件在 KV 里保留 14 天。
  *
  * 9.1 把「解散群聊」做成只读保留：群主 / 站主解散后群聊标记 dissolved，
  * 历史消息仍然可以查看，但不能再发消息、改名、加人、改公告；
@@ -58,7 +58,7 @@
  *   PASSWORD_VIEW_KEY           （可选，1.4.0）给管理员看的密码副本加密密钥；不配就不存副本
  */
 
-const VERSION = "1.7.2";
+const VERSION = "1.8.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -71,12 +71,15 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.7.2";
+const CHAT_VERSION = "1.8.0";
 const CHAT_MESSAGE_LIMIT = 300;
-const MAX_CHAT_TEXT_LENGTH = 500;
+/* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
+const CHAT_TEXT_MAX_BYTES = 256 * 1024;
+const CHAT_MESSAGES_MAX_CHARS = 6 * 1000 * 1000;
+const CHAT_SYSTEM_TEXT_MAX = 500;
 /* 1.4.0：聊天室全部去掉按 IP 限流（发言 / 正在输入 / 上传媒体），删除了 CHAT_*_WINDOW_MS / CHAT_*_MAX_ATTEMPTS */
 const CHAT_RECALL_WINDOW_MS = 2 * 60 * 1000;
-const CHAT_MEDIA_TTL_SECONDS = 20 * 60;
+const CHAT_MEDIA_TTL_SECONDS = 14 * 24 * 60 * 60;
 const CHAT_MEDIA_MAX_BYTES = 4 * 1024 * 1024;
 const CHAT_PAGE_LIMIT = 50;
 const CHAT_SEARCH_LIMIT = 50;
@@ -108,6 +111,9 @@ const CHAT_INVITE_MAX_PARTICIPANTS = 100;
 const CHAT_REDPACKET_MAX_CENTS = 20000000;
 const CHAT_REDPACKET_ALLOW_LIMIT = 200;
 const CHAT_REDPACKET_TTL_MS = 24 * 60 * 60 * 1000;
+/* 1.7.3：聊天室转账（先扣款，收款人点「收款」后到账，24 小时未收可退回） */
+const CHAT_TRANSFER_TTL_MS = 24 * 60 * 60 * 1000;
+const CHAT_TRANSFER_NOTE_MAX = 100;
 const CHAT_INDEX_KEY = "chat:index";
 const LOGIN_WINDOW_MS = 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
@@ -138,6 +144,55 @@ const SHOP_MAX_QUANTITY = 999;
 /* 1.4.0：面对面加群（4 / 8 位邀请码与群号）不再按 IP 限流，删除了原来的 INVITE_* 节流 */
 /* 1.2.0：聊天附件只允许这些类型内联显示，其余一律按下载处理 */
 const CHAT_MEDIA_INLINE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+/* 1.8.0：音乐文件可以直接在聊天室播放。音频单文件放宽到 20 MB，其它文件仍是 4 MB。 */
+const CHAT_MEDIA_AUDIO_MAX_BYTES = 20 * 1024 * 1024;
+const CHAT_MEDIA_AUDIO_EXTENSIONS = {
+    mp3: "audio/mpeg",
+    mp2: "audio/mpeg",
+    m4a: "audio/mp4",
+    m4b: "audio/mp4",
+    aac: "audio/aac",
+    wav: "audio/wav",
+    wave: "audio/wav",
+    flac: "audio/flac",
+    ogg: "audio/ogg",
+    oga: "audio/ogg",
+    opus: "audio/ogg",
+    weba: "audio/webm",
+    mka: "audio/x-matroska",
+    wma: "audio/x-ms-wma",
+    aif: "audio/aiff",
+    aiff: "audio/aiff",
+    alac: "audio/mp4",
+    mid: "audio/midi",
+    midi: "audio/midi",
+    amr: "audio/amr",
+    ape: "audio/x-ape"
+};
+
+function chatMediaExtension(name) {
+    const match = /\.([A-Za-z0-9]{1,8})$/.exec(String(name || ""));
+    return match ? match[1].toLowerCase() : "";
+}
+
+function chatAudioMimeForName(name) {
+    return CHAT_MEDIA_AUDIO_EXTENSIONS[chatMediaExtension(name)] || "";
+}
+
+function isChatAudioType(type) {
+    return /^audio\/[a-z0-9.+-]+$/i.test(String(type || ""));
+}
+
+function storedChatMediaType(declaredType, name) {
+    const type = String(declaredType || "").toLowerCase();
+    if (CHAT_MEDIA_INLINE_TYPES.has(type)) {
+        return type;
+    }
+    if (isChatAudioType(type)) {
+        return type;
+    }
+    return chatAudioMimeForName(name) || "application/octet-stream";
+}
 
 const loginAttempts = new Map();
 const writeAttempts = new Map();
@@ -2882,7 +2937,20 @@ async function readChatMessages(env, id) {
 }
 
 async function saveChatMessages(env, id, messages) {
-    await env.ACCOUNTS_KV.put(chatMessagesKey(id), JSON.stringify(messages.slice(-CHAT_MESSAGE_LIMIT)));
+    /* 1.7.3：单条消息放宽后，按字节预算保留最近的消息，避免 KV 单值超过 25 MB */
+    const kept = [];
+    let total = 0;
+    for (let index = messages.length - 1; index >= 0 && kept.length < CHAT_MESSAGE_LIMIT; index -= 1) {
+        const message = messages[index];
+        const size = JSON.stringify(message).length + 1;
+        if (kept.length && total + size > CHAT_MESSAGES_MAX_CHARS) {
+            break;
+        }
+        kept.push(message);
+        total += size;
+    }
+    kept.reverse();
+    await env.ACCOUNTS_KV.put(chatMessagesKey(id), JSON.stringify(kept));
 }
 
 async function appendMessage(env, conv, message) {
@@ -2903,7 +2971,7 @@ async function appendSystemMessage(env, conv, text) {
         senderName: "系统",
         type: "system",
         system: true,
-        text: String(text).slice(0, MAX_CHAT_TEXT_LENGTH),
+        text: String(text).slice(0, CHAT_SYSTEM_TEXT_MAX),
         at,
         time: shanghaiTimestamp(at)
     };
@@ -2995,12 +3063,35 @@ function messagePreview(message) {
         return "[图片]";
     }
     if (message.type === "file") {
-        return `[文件] ${message.media && message.media.name ? message.media.name : ""}`.trim();
+        const media = message.media || {};
+        if (isChatAudioType(media.type) || chatAudioMimeForName(media.name)) {
+            return `[音乐] ${media.name || ""}`.trim();
+        }
+        return `[文件] ${media.name || ""}`.trim();
     }
     if (message.type === "redpacket" && message.packet) {
         return `[拼手速红包] ${fromCents(message.packet.totalCents)} 元 ${message.packet.note || ""}`.trim();
     }
+    if (message.type === "transfer" && message.transfer) {
+        return `[转账] ${fromCents(message.transfer.cents)} VTX ${transferStatusText(message.transfer)}`;
+    }
     return String(message.text || "");
+}
+
+function transferStatusText(transfer) {
+    if (!transfer) {
+        return "";
+    }
+    if (transfer.status === "claimed") {
+        return "已收款";
+    }
+    if (transfer.status === "refunded") {
+        return "已退回";
+    }
+    if (transfer.status === "expired" || (Number(transfer.expiresAt) && Number(transfer.expiresAt) < Date.now())) {
+        return "已过期";
+    }
+    return "待收款";
 }
 
 function messageSnippet(message, limit = 80) {
@@ -3008,17 +3099,20 @@ function messageSnippet(message, limit = 80) {
     return text.length > limit ? `${text.slice(0, limit)}…` : text;
 }
 
-function messageView(message) {
+function messageView(message, options = {}) {
     if (!message) {
         return null;
     }
+    const fullText = message.recalled ? "" : String(message.text || "");
+    /* 会话列表只需要预览：长消息不再把整段正文塞进每次轮询的响应里 */
+    const text = options.compact && fullText.length > 200 ? `${fullText.slice(0, 200)}…` : fullText;
     return {
         id: message.id,
         conversation: message.conversation || "",
         sender: message.sender,
         senderName: message.senderName || "",
         type: message.type || "text",
-        text: message.recalled ? "" : String(message.text || ""),
+        text,
         media: message.recalled ? null : (message.media || null),
         replyTo: message.replyTo || null,
         mentions: Array.isArray(message.mentions) ? message.mentions : [],
@@ -3026,6 +3120,7 @@ function messageView(message) {
         recalled: Boolean(message.recalled),
         system: Boolean(message.system),
         packet: message.recalled ? null : (message.packet || null),
+        transfer: message.recalled ? null : (message.transfer || null),
         at: Number(message.at) || 0,
         time: message.time || ""
     };
@@ -3089,7 +3184,7 @@ function conversationView(env, conv, entry, messages, login, accounts) {
         unread: chatUnreadCount(messages, entry, login),
         mentionUnread: chatUnreadMentionCount(messages, entry, login),
         lastRead: Number(entry && entry.lastRead) || 0,
-        lastMessage: messageView(conv.lastMessage),
+        lastMessage: messageView(conv.lastMessage, { compact: true }),
         updatedAt: Number(conv.lastMessage && conv.lastMessage.at) || 0
     };
 }
@@ -3591,8 +3686,9 @@ async function handleChatSend(request, env, cors, id, compatRoom = "") {
     if (type === "text" && !text) {
         return jsonResponse({ error: "bad_request", message: "消息内容不能为空" }, 400, cors);
     }
-    if (text.length > MAX_CHAT_TEXT_LENGTH) {
-        return jsonResponse({ error: "bad_request", message: `消息最长 ${MAX_CHAT_TEXT_LENGTH} 个字符` }, 400, cors);
+    /* 1.7.3：不再限制 500 字；只拦明显异常的 256 KB 以上单条消息 */
+    if (new TextEncoder().encode(text).length > CHAT_TEXT_MAX_BYTES) {
+        return jsonResponse({ error: "text_too_long", message: "单条消息最多 256 KB，请分成几条发送" }, 413, cors);
     }
 
     let media = null;
@@ -3603,13 +3699,13 @@ async function handleChatSend(request, env, cors, id, compatRoom = "") {
         }
         const meta = plainObject(await env.ACCOUNTS_KV.get(chatMediaMetaKey(mediaId), "json"));
         if (!meta.id) {
-            return jsonResponse({ error: "media_expired", message: "图片或文件已过期（上传后 20 分钟自动删除）" }, 410, cors);
+            return jsonResponse({ error: "media_expired", message: "图片或文件已过期（上传后 14 天自动删除）" }, 410, cors);
         }
         if (meta.uploader !== login && !isPlatformAdmin(env, login)) {
             return jsonResponse({ error: "forbidden", message: "不能发送别人上传的文件" }, 403, cors);
         }
         if (Number(meta.expiresAt) && Number(meta.expiresAt) < Date.now()) {
-            return jsonResponse({ error: "media_expired", message: "图片或文件已过期（上传后 20 分钟自动删除）" }, 410, cors);
+            return jsonResponse({ error: "media_expired", message: "图片或文件已过期（上传后 14 天自动删除）" }, 410, cors);
         }
         media = {
             id: meta.id,
@@ -4553,6 +4649,17 @@ async function handleChatRecall(request, env, cors, messageId) {
             return { error: jsonResponse({ error: "forbidden", message: "超过 2 分钟的消息不能撤回" }, 403, cors) };
         }
 
+        /* 1.7.3：还没人收款的转账不能撤回，否则钱会卡在消息里 */
+        if (message.type === "transfer" && message.transfer && message.transfer.status === "pending") {
+            return {
+                error: jsonResponse(
+                    { error: "transfer_pending", message: "未收款的转账不能撤回，请先点「退回转账」" },
+                    400,
+                    cors
+                )
+            };
+        }
+
         messages[index] = {
             ...message,
             recalled: true,
@@ -4632,14 +4739,15 @@ async function handleChatForward(request, env, cors, messageId) {
             }
             const conv = loaded.conv;
             const at = Date.now();
+            const decorative = source.type === "redpacket" || source.type === "transfer";
             const message = {
                 id: randomCode(9),
                 conversation: conv.id,
                 sender: login,
                 senderName: chatMemberAlias(conv, accounts, login),
-                type: source.type === "system" ? "text" : source.type,
-                text: source.text,
-                media: source.media || null,
+                type: source.type === "system" || decorative ? "text" : source.type,
+                text: decorative ? messagePreview(source) : source.text,
+                media: decorative ? null : (source.media || null),
                 replyTo: null,
                 mentions: [],
                 forwarded: true,
@@ -4722,6 +4830,17 @@ async function handleChatDeleteMessage(request, env, cors, messageId, adminOnly)
 
         if (!allowed) {
             return { error: jsonResponse({ error: "forbidden", message: "没有删除这条消息的权限" }, 403, cors) };
+        }
+
+        /* 1.7.3：转账消息删掉后钱就找不回来了，必须先退回 */
+        if (message.type === "transfer" && message.transfer && message.transfer.status === "pending") {
+            return {
+                error: jsonResponse(
+                    { error: "transfer_pending", message: "未收款的转账不能删除，请先点「退回转账」" },
+                    400,
+                    cors
+                )
+            };
         }
 
         const kept = messages.filter((item) => item.id !== messageId);
@@ -5205,8 +5324,8 @@ async function handleChatMediaUpload(request, env, cors) {
     }
 
     const declared = Number(request.headers.get("content-length") || 0);
-    if (declared > CHAT_MEDIA_MAX_BYTES) {
-        return jsonResponse({ error: "payload_too_large", message: "文件不能超过 4 MB" }, 413, cors);
+    if (declared > CHAT_MEDIA_AUDIO_MAX_BYTES) {
+        return jsonResponse({ error: "payload_too_large", message: "音乐不能超过 20 MB（其它文件 4 MB）" }, 413, cors);
     }
 
     let body;
@@ -5218,9 +5337,6 @@ async function handleChatMediaUpload(request, env, cors) {
 
     if (!body || !body.byteLength) {
         return jsonResponse({ error: "bad_request", message: "文件是空的" }, 400, cors);
-    }
-    if (body.byteLength > CHAT_MEDIA_MAX_BYTES) {
-        return jsonResponse({ error: "payload_too_large", message: "文件不能超过 4 MB" }, 413, cors);
     }
 
     const rawName = String(request.headers.get("x-file-name") || "file");
@@ -5234,7 +5350,17 @@ async function handleChatMediaUpload(request, env, cors) {
 
     const declaredType = String(request.headers.get("content-type") || "application/octet-stream").split(";")[0].trim().toLowerCase();
     // 1.2.0：不再原样保存客户端声明的类型，避免 text/html / image/svg+xml 变成同源 XSS
-    const type = CHAT_MEDIA_INLINE_TYPES.has(declaredType) ? declaredType : "application/octet-stream";
+    // 1.8.0：audio/* 会保留为音频类型，供 <audio> 直接播放
+    const type = storedChatMediaType(declaredType, name);
+    const isAudio = isChatAudioType(type);
+    const maxBytes = isAudio ? CHAT_MEDIA_AUDIO_MAX_BYTES : CHAT_MEDIA_MAX_BYTES;
+    if (body.byteLength > maxBytes) {
+        return jsonResponse({
+            error: "payload_too_large",
+            message: isAudio ? "音乐不能超过 20 MB" : "文件不能超过 4 MB"
+        }, 413, cors);
+    }
+
     const id = randomCode(9);
     const at = Date.now();
     const expiresAt = at + CHAT_MEDIA_TTL_SECONDS * 1000;
@@ -5287,7 +5413,7 @@ async function handleChatMediaGet(request, env, cors, id) {
     if (!meta.id) {
         return jsonResponse({
             error: "media_expired",
-            message: "图片或文件已过期（上传后 20 分钟自动删除）"
+            message: "图片或文件已过期（上传后 14 天自动删除）"
         }, 410, cors);
     }
 
@@ -5297,13 +5423,17 @@ async function handleChatMediaGet(request, env, cors, id) {
     }
 
     const storedType = String(meta.type || "").toLowerCase();
-    const inline = CHAT_MEDIA_INLINE_TYPES.has(storedType);
+    const image = CHAT_MEDIA_INLINE_TYPES.has(storedType);
+    /* 1.8.0：老文件可能被存成 octet-stream，按扩展名补出音频类型，让 <audio> 还能播 */
+    const audioType = isChatAudioType(storedType) ? storedType : chatAudioMimeForName(meta.name);
+    const inline = image || Boolean(audioType);
+    const contentType = image ? storedType : (audioType || "application/octet-stream");
 
     return new Response(body, {
         status: 200,
         headers: {
             ...cors,
-            "content-type": inline ? storedType : "application/octet-stream",
+            "content-type": contentType,
             "content-disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(meta.name || "file")}`,
             "x-content-type-options": "nosniff",
             "content-security-policy": "default-src 'none'; sandbox",
@@ -6606,6 +6736,395 @@ async function handleChatRedPacketRefund(request, env, cors, messageId) {
     }, 200, cors);
 }
 
+/* ───────────────── 1.7.3：聊天室转账 ─────────────────
+   流程和微信一致：发起时先扣发送方余额，记一条「待收款」消息；
+   收款人点「收款」后钱才进对方账户；24 小时内没人收，发送方可以退回。
+   转账需要账户密码确认（与 /api/me/transfer 一致）。 */
+
+async function handleChatTransferCreate(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+    if (throttled(tradeAttempts, clientIp(request), TRADE_WINDOW_MS, TRADE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "转账过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const login = session.payload.sub;
+    const body = plainObject(await readJsonBody(request));
+    const amountCents = toCents(body.amount ?? body.total);
+    const password = String(body.password ?? "");
+    const note = String(body.note ?? "").replace(/\s+/g, " ").trim().slice(0, CHAT_TRANSFER_NOTE_MAX);
+    let target = String(body.to ?? body.recipient ?? "").trim();
+
+    if (amountCents === null || amountCents < 1) {
+        return jsonResponse({ error: "bad_request", message: "转账金额至少 0.01 VTX" }, 400, cors);
+    }
+    if (amountCents > MAX_TRADE_CENTS) {
+        return jsonResponse({ error: "bad_request", message: `单笔转账不能超过 ${fromCents(MAX_TRADE_CENTS)} VTX` }, 400, cors);
+    }
+    if (!password) {
+        return jsonResponse({ error: "bad_request", message: "转账需要输入账户密码" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
+
+        const store = await loadAccountsForLock(env);
+        const sender = store[login];
+        if (!sender) {
+            return { error: jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors) };
+        }
+
+        const members = conv.public ? Object.keys(store) : (conv.members || []);
+        if (conv.type === "direct") {
+            const peer = members.find((item) => item !== login) || "";
+            if (!peer) {
+                return { error: jsonResponse({ error: "bad_request", message: "单聊里没有收款人" }, 400, cors) };
+            }
+            if (target && target !== peer) {
+                return { error: jsonResponse({ error: "bad_request", message: "单聊只能转账给对方" }, 400, cors) };
+            }
+            target = peer;
+        } else if (!target) {
+            return { error: jsonResponse({ error: "bad_request", message: "请选择收款人" }, 400, cors) };
+        }
+
+        if (target === login) {
+            return { error: jsonResponse({ error: "bad_request", message: "不能给自己转账" }, 400, cors) };
+        }
+        if (!members.includes(target) || !store[target]) {
+            return { error: jsonResponse({ error: "bad_request", message: "收款人必须是这个会话里的成员" }, 400, cors) };
+        }
+
+        await checkPassword(sender, password);
+
+        const balance = balanceCents(sender);
+        if (balance < amountCents) {
+            return {
+                error: jsonResponse(
+                    { error: "insufficient_balance", message: `余额不足，当前余额 ${fromCents(balance)} VTX` },
+                    400,
+                    cors
+                )
+            };
+        }
+
+        const at = Date.now();
+        const time = shanghaiTimestamp(at);
+        const senderName = chatMemberAlias(conv, store, login);
+        const targetName = chatMemberAlias(conv, store, target);
+        const price = fromCents(amountCents);
+
+        sender.money = fromCents(balance - amountCents);
+        pushTrade(sender, {
+            name: "转账",
+            description: note || `聊天室转账给 ${targetName}`,
+            time,
+            price: `-${price}`,
+            from: senderName,
+            to: targetName
+        });
+        await saveAccountsForLock(env, store);
+
+        const messages = await readChatMessages(env, conv.id);
+        const message = {
+            id: randomCode(9),
+            conversation: conv.id,
+            sender: login,
+            senderName,
+            type: "transfer",
+            text: note,
+            media: null,
+            replyTo: null,
+            mentions: [],
+            forwarded: false,
+            at,
+            time,
+            transfer: {
+                id: `tf_${randomCode(6)}`,
+                from: login,
+                fromName: senderName,
+                to: target,
+                toName: targetName,
+                cents: amountCents,
+                note,
+                status: "pending",
+                createdAt: at,
+                claimedAt: 0,
+                expiresAt: at + CHAT_TRANSFER_TTL_MS
+            }
+        };
+
+        await appendMessage(env, conv, message);
+        await saveConversation(env, conv);
+
+        return {
+            message,
+            targets: conversationTargets(conv, store),
+            view: conversationView(
+                env,
+                conv,
+                chatEntry(await loadChatUser(env, login), conv.id),
+                [...messages, message],
+                login,
+                store
+            ),
+            balance: sender.money
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, {
+        type: "message",
+        conversation: result.view,
+        message: messageView(result.message)
+    });
+
+    return jsonResponse({
+        ok: true,
+        conversation: result.view,
+        message: messageView(result.message),
+        balance: result.balance
+    }, 201, cors);
+}
+
+async function handleChatTransferClaim(request, env, cors, messageId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+    if (throttled(tradeAttempts, clientIp(request), TRADE_WINDOW_MS, TRADE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "操作过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const login = session.payload.sub;
+    const convId = chatConversationId(new URL(request.url).searchParams.get("conversation") || "");
+    if (!convId) {
+        return jsonResponse({ error: "bad_request", message: "缺少会话 id" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const conv = await readConversation(env, convId);
+        if (!conv) {
+            return { error: jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors) };
+        }
+        if (!chatMemberOf(conv, login) && !isPlatformAdmin(env, login)) {
+            return { error: chatNotAMember(cors) };
+        }
+
+        const messages = await readChatMessages(env, convId);
+        const message = messages.find((item) => item.id === messageId);
+        if (!message || message.type !== "transfer" || !message.transfer) {
+            return { error: jsonResponse({ error: "not_found", message: "转账不存在" }, 404, cors) };
+        }
+        const transfer = message.transfer;
+
+        if (transfer.to !== login) {
+            return { error: jsonResponse({ error: "forbidden", message: "这笔转账不是给你的" }, 403, cors) };
+        }
+        if (transfer.status === "claimed") {
+            return { error: jsonResponse({ error: "already_claimed", message: "你已经收过这笔转账了" }, 409, cors) };
+        }
+        if (transfer.status === "refunded") {
+            return { error: jsonResponse({ error: "transfer_refunded", message: "这笔转账已经被退回" }, 410, cors) };
+        }
+        if (transfer.status === "expired" || (Number(transfer.expiresAt) && Number(transfer.expiresAt) < Date.now())) {
+            transfer.status = "expired";
+            message.transfer = transfer;
+            await saveChatMessages(env, convId, messages);
+            if (conv.lastMessage && conv.lastMessage.id === message.id) {
+                conv.lastMessage = message;
+                await saveConversation(env, conv);
+            }
+            const store = await loadAccountsForLock(env);
+            return {
+                notify: {
+                    targets: conversationTargets(conv, store),
+                    event: { type: "message:transfer", conversation: convId, message: messageView(message) }
+                },
+                error: jsonResponse({ error: "transfer_expired", message: "转账已超过 24 小时，请让发送方退回" }, 410, cors)
+            };
+        }
+
+        const store = await loadAccountsForLock(env);
+        const recipient = store[login];
+        if (!recipient) {
+            return { error: jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors) };
+        }
+
+        const time = shanghaiTimestamp();
+        recipient.money = fromCents(balanceCents(recipient) + transfer.cents);
+        pushTrade(recipient, {
+            name: "转账",
+            description: transfer.note || `收到 ${transfer.fromName || transfer.from} 的聊天室转账`,
+            time,
+            price: `+${fromCents(transfer.cents)}`,
+            from: transfer.fromName || transfer.from,
+            to: transfer.toName || transfer.to
+        });
+
+        transfer.status = "claimed";
+        transfer.claimedAt = Date.now();
+        transfer.claimedTime = time;
+        message.transfer = transfer;
+        await saveAccountsForLock(env, store);
+        await saveChatMessages(env, convId, messages);
+        if (conv.lastMessage && conv.lastMessage.id === message.id) {
+            conv.lastMessage = message;
+            await saveConversation(env, conv);
+        }
+
+        return {
+            transfer,
+            cents: transfer.cents,
+            balance: recipient.money,
+            targets: conversationTargets(conv, store),
+            view: messageView(message)
+        };
+    });
+
+    if (result.error) {
+        if (result.notify) {
+            await notifyChat(env, result.notify.targets, result.notify.event);
+        }
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, {
+        type: "message:transfer",
+        conversation: convId,
+        message: result.view
+    });
+
+    return jsonResponse({
+        ok: true,
+        cents: result.cents,
+        amount: fromCents(result.cents),
+        balance: result.balance,
+        transfer: result.transfer
+    }, 200, cors);
+}
+
+async function handleChatTransferRefund(request, env, cors, messageId) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+    if (throttled(tradeAttempts, clientIp(request), TRADE_WINDOW_MS, TRADE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "操作过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const login = session.payload.sub;
+    const convId = chatConversationId(new URL(request.url).searchParams.get("conversation") || "");
+    if (!convId) {
+        return jsonResponse({ error: "bad_request", message: "缺少会话 id" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const conv = await readConversation(env, convId);
+        if (!conv) {
+            return { error: jsonResponse({ error: "not_found", message: "会话不存在" }, 404, cors) };
+        }
+        if (!chatMemberOf(conv, login) && !isPlatformAdmin(env, login)) {
+            return { error: chatNotAMember(cors) };
+        }
+
+        const messages = await readChatMessages(env, convId);
+        const message = messages.find((item) => item.id === messageId);
+        if (!message || message.type !== "transfer" || !message.transfer) {
+            return { error: jsonResponse({ error: "not_found", message: "转账不存在" }, 404, cors) };
+        }
+        const transfer = message.transfer;
+
+        if (transfer.from !== login) {
+            return { error: jsonResponse({ error: "forbidden", message: "只有转账发起人可以退回" }, 403, cors) };
+        }
+        if (transfer.status === "claimed") {
+            return { error: jsonResponse({ error: "already_claimed", message: "对方已经收款，不能退回" }, 410, cors) };
+        }
+        if (transfer.status === "refunded") {
+            return { error: jsonResponse({ error: "already_refunded", message: "这笔转账已经退回过" }, 409, cors) };
+        }
+
+        const store = await loadAccountsForLock(env);
+        const sender = store[login];
+        if (!sender) {
+            return { error: jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors) };
+        }
+
+        const time = shanghaiTimestamp();
+        sender.money = fromCents(balanceCents(sender) + transfer.cents);
+        pushTrade(sender, {
+            name: "转账退回",
+            description: transfer.note || "未收款的聊天室转账退回",
+            time,
+            price: `+${fromCents(transfer.cents)}`,
+            from: transfer.toName || transfer.to,
+            to: transfer.fromName || transfer.from
+        });
+
+        transfer.status = "refunded";
+        transfer.refundedAt = Date.now();
+        transfer.refundedTime = time;
+        message.transfer = transfer;
+        await saveAccountsForLock(env, store);
+        await saveChatMessages(env, convId, messages);
+        if (conv.lastMessage && conv.lastMessage.id === message.id) {
+            conv.lastMessage = message;
+            await saveConversation(env, conv);
+        }
+
+        return {
+            transfer,
+            refunded: transfer.cents,
+            balance: sender.money,
+            targets: conversationTargets(conv, store),
+            view: messageView(message)
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, {
+        type: "message:transfer",
+        conversation: convId,
+        message: result.view
+    });
+
+    return jsonResponse({
+        ok: true,
+        refunded: fromCents(result.refunded),
+        balance: result.balance,
+        transfer: result.transfer
+    }, 200, cors);
+}
+
 async function handleChatRoomCompat(request, env, cors) {    const url = new URL(request.url);
     const room = String(url.searchParams.get("room") || "").trim();
 
@@ -6671,7 +7190,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "1.7.2";
+const VIDEO_VERSION = "1.8.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -8539,6 +9058,30 @@ async function routeChat(request, env, cors) {
         }
         if (action === "refund" && method === "POST") {
             return await handleChatRedPacketRefund(request, env, cors, messageId);
+        }
+    }
+
+    match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/transfers$/);
+    if (match && method === "POST") {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        return await handleChatTransferCreate(request, env, cors, id);
+    }
+
+    match = path.match(/^\/api\/chat\/messages\/([^/]+)\/transfer(?:\/(claim|refund))?$/);
+    if (match) {
+        const messageId = decodeURIComponent(match[1]);
+        if (!CHAT_MESSAGE_ID_PATTERN.test(messageId)) {
+            return jsonResponse({ error: "bad_request", message: "消息 id 不合法" }, 400, cors);
+        }
+        const action = match[2] || "";
+        if (action === "claim" && method === "POST") {
+            return await handleChatTransferClaim(request, env, cors, messageId);
+        }
+        if (action === "refund" && method === "POST") {
+            return await handleChatTransferRefund(request, env, cors, messageId);
         }
     }
 

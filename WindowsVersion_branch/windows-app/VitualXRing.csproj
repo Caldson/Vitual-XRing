@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>VitualXRing</AssemblyName>
+    <RootNamespace>VitualXRing</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Product>Vitual XRing</Product>
+    <AssemblyTitle>Vitual XRing 1.8.0</AssemblyTitle>
+    <Description>Vitual XRing Windows desktop client</Description>
+    <Version>1.8.0</Version>
+    <FileVersion>1.8.0.0</FileVersion>
+    <AssemblyVersion>1.8.0.0</AssemblyVersion>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <PublishTrimmed>false</PublishTrimmed>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="web.zip" LogicalName="VitualXRing.web.zip" Condition="Exists('web.zip')" />
+  </ItemGroup>
+
+  <Target Name="EnsureWebZip" BeforeTargets="BeforeBuild" Condition="!Exists('web.zip')">
+    <Error Text="缺少 web.zip：请先运行 build.ps1（它会先打包 WindowsVersion_branch 里的网页文件）。" />
+  </Target>
+
+</Project>

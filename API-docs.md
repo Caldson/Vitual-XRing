@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.7.1`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**）
+- API 版本：`1.8.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**；**1.7.3 解除聊天室 500 字限制（长消息折叠 + 全文弹窗）、聊天室支持 Discord 风格 Markdown（代码块 / 时间块 / 粗体 / 斜体等）与转账，见第 24 节**；**1.8.0 把聊天室图片 / 文件从 20 分钟改为保留 14 天，见第 25 节**；**1.8.0 同时支持聊天室音乐文件直接播放（音频上限 20 MB），见第 26 节**）
 
 ---
 
@@ -165,7 +165,7 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | PATCH | `/api/chat/conversations/{id}` | 是 | 修改群名（群主 / 管理员 / 站主） |
 | DELETE | `/api/chat/conversations/{id}` | 是 | 删除会话（单聊）或解散群聊（群主 / 站主） |
 | GET | `/api/chat/conversations/{id}/messages` | 是 | 读取消息（`before` 分页、每会话保留最近 300 条） |
-| POST | `/api/chat/conversations/{id}/messages` | 是 | 发送文字 / 图片 / 文件消息（支持引用回复、@成员） |
+| POST | `/api/chat/conversations/{id}/messages` | 是 | 发送文字 / 图片 / 文件 / 音乐消息（支持引用回复、@成员） |
 | POST | `/api/chat/conversations/{id}/read` | 是 | 标记已读 |
 | POST | `/api/chat/conversations/{id}/typing` | 是 | 正在输入提示 |
 | POST | `/api/chat/conversations/{id}/settings` | 是 | 会话置顶 / 免打扰 |
@@ -192,8 +192,8 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | DELETE | `/api/chat/friends/{登录名}` | 是 | 删除好友 |
 | POST | `/api/chat/blocks` | 是 | 拉黑用户（同时解除好友关系） |
 | DELETE | `/api/chat/blocks/{登录名}` | 是 | 解除拉黑 |
-| POST | `/api/chat/media` | 是 | 上传图片 / 文件（≤ 4 MB，KV 只保留 20 分钟） |
-| GET | `/api/chat/media/{id}` | 是（`?token=`） | 读取图片 / 文件；过期返回 `410 media_expired` |
+| POST | `/api/chat/media` | 是 | 上传图片 / 文件 / 音乐（普通 4 MB，音乐 20 MB，保留 14 天） |
+| GET | `/api/chat/media/{id}` | 是（`?token=`） | 读取图片 / 文件 / 音乐；过期返回 `410 media_expired` |
 | GET | `/api/chat/admin/conversations` | 是（站主） | 查看全部群聊与单聊 |
 | GET | `/api/chat/admin/conversations/{id}/messages` | 是（站主） | 查看任意会话的消息 |
 | DELETE | `/api/chat/admin/messages/{id}` | 是（站主） | 永久删除任意消息 |
@@ -216,6 +216,9 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | POST | `/api/chat/messages/{id}/redpacket/grab` | 是 | 抢红包（1.0.0） |
 | GET | `/api/chat/messages/{id}/redpacket` | 是 | 红包详情（1.0.0） |
 | POST | `/api/chat/messages/{id}/redpacket/refund` | 是（发送者） | 退回未抢完的金额（1.0.0） |
+| POST | `/api/chat/conversations/{id}/transfers` | 是 | 聊天室转账（先扣款，1.7.3） |
+| POST | `/api/chat/messages/{id}/transfer/claim` | 是（收款人） | 收取转账（1.7.3） |
+| POST | `/api/chat/messages/{id}/transfer/refund` | 是（发送者） | 退回未收款的转账（1.7.3） |
 | GET | `/api/chat/messages` | 是 | 兼容旧接口：等价于 `general` / `trade` / `help` 的消息列表 |
 | POST | `/api/chat/messages` | 是 | 兼容旧接口：向公共频道发文字消息 |
 
@@ -1059,9 +1062,9 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
   公共频道管理（9.2：站主可在「管理」页新建 / 改名 / 改简介 / 解散公共频道）、
   账号 UID 与按 UID 搜人、群号与群二维码、4 / 8 位邀请码建群、拼手速红包（1.0.0）、
   好友申请与黑名单、消息撤回、引用回复、转发、聊天记录搜索、会话置顶、消息免打扰、
-  未读数、正在输入提示、在线状态、图片 / 文件消息
+  未读数、正在输入提示、在线状态、图片 / 文件 / 音乐消息
 - 实时消息通过 Durable Object `ChatHub` 的 WebSocket 推送；连接失败时自动降级为 7 秒轮询
-- 图片 / 文件上传后只保留 20 分钟（KV `expirationTtl`），过期后聊天记录仍在，但显示「已过期」
+- 图片 / 文件 / 音乐上传后保留 14 天（KV `expirationTtl`），过期后聊天记录仍在，但显示「已过期」
 - 站主（`ADMIN_ACCOUNT`，默认 `Kitawaga`）可以在「管理」页查看、删除全部群聊与单聊的消息，
   也可以解散任意群聊（只读保留记录）
 - 详细接口见第 13 节
@@ -1316,9 +1319,9 @@ curl https://xsmmc.caldson.us.ci/api/admin/log -H "authorization: ******"
 |---|---|
 | `chat:user:{登录名}` | 会话索引（置顶 / 免打扰 / 已读位置 / 清空时间）、好友、黑名单、好友申请 |
 | `chat:conversation:{会话 id}` | 会话资料（类型、名称、成员、群主、管理员、群昵称、群公告、最后一条消息） |
-| `chat:messages:{会话 id}` | 消息数组，只保留最近 300 条 |
+| `chat:messages:{会话 id}` | 消息数组，最多保留最近 300 条（1.7.3 起另按约 6M 字符预算裁剪） |
 | `chat:direct:{A}\|{B}` | 单聊去重：两个登录名 → 会话 id |
-| `chat:media:{id}` / `chat:media-meta:{id}` | 图片 / 文件与元数据，`expirationTtl = 1200`（20 分钟） |
+| `chat:media:{id}` / `chat:media-meta:{id}` | 图片 / 文件 / 音乐与元数据，`expirationTtl = 1209600`（14 天） |
 | `chat:index` | 全部会话 id（站主管理页使用，最多 2000 个） |
 | `chat:public-groups` | 公共频道定义（9.2）：`[{ id, name, description, createdAt }]`，缺失时使用内置默认值 |
 | `chat:invite:{code}` | 建群邀请（1.0.0）：`{ code, digits, owner, name, participants[], closed, conversation }`，24 小时过期 |
@@ -1341,6 +1344,8 @@ curl https://xsmmc.caldson.us.ci/api/admin/log -H "authorization: ******"
     "forwarded": false,
     "recalled": false,
     "system": false,
+    "packet": null,
+    "transfer": null,
     "at": 1760000000000,
     "time": "2026/10/25 12:00:00"
 }
@@ -1458,7 +1463,7 @@ curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/messages
   -H "authorization: ******" -H "content-type: application/json" \
   -d '{"text":"收到","replyTo":"消息 id","mentions":["Bob"]}'
 
-# 发送图片 / 文件（先上传，见 13.5）
+# 发送图片 / 文件 / 音乐（先上传，见 13.5）
 curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/messages \
   -H "authorization: ******" -H "content-type: application/json" \
   -d '{"type":"image","mediaId":"媒体 id","text":"配文"}'
@@ -1478,14 +1483,16 @@ curl "https://xsmmc.caldson.us.ci/api/chat/search?q=开会&conversation=g_xxxx" 
 curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/typing -H "authorization: ******"
 ```
 
-- 文字最长 500 字符；每个会话保留最近 300 条
+- 1.7.3 起**不再限制 500 字**：单条消息上限 256 KB（`413 text_too_long`），每个会话最多保留最近 300 条 / 约 6M 字符
+- 超过 500 字的消息在聊天室里折叠显示，点「.........展开」弹窗查看全文（前端行为，接口返回完整正文）
+- 会话列表里的 `lastMessage.text` 最多 200 字，方便轮询时省流量
 - 引用回复会保存原消息的发送者、类型与 40 字摘要
 - 只有自己的消息能在 2 分钟内撤回；群主 / 群管理员 / 站主可以撤回或删除任意消息
 
-### 13.5 图片与文件（20 分钟过期）
+### 13.5 图片、文件与音乐（14 天过期）
 
 ```bash
-# 上传（原始二进制，最多 4 MB）
+# 上传（原始二进制；普通文件 4 MB，音乐 20 MB）
 curl -X POST https://xsmmc.caldson.us.ci/api/chat/media \
   -H "authorization: ******" -H "content-type: image/png" \
   -H "x-file-name: $(python -c "import urllib.parse;print(urllib.parse.quote('截图.png'))")" \
@@ -1495,7 +1502,7 @@ curl -X POST https://xsmmc.caldson.us.ci/api/chat/media \
 curl "https://xsmmc.caldson.us.ci/api/chat/media/媒体id?token=你的token" -o 截图.png
 ```
 
-- KV 使用 `expirationTtl = 1200`：上传 20 分钟后图片 / 文件本体自动删除
+- KV 使用 `expirationTtl = 1209600`：上传 14 天后图片 / 文件 / 音乐本体自动删除
 - 聊天记录里的消息仍然保留，`media.expiresAt` 过期后前端显示「图片/文件已过期」
 - 过期的媒体再次读取返回 `410 media_expired`
 - 只有上传者（或站主）可以把媒体作为消息发送
@@ -1563,11 +1570,11 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/conversations/dm_xxxx 
 | `401` | `unauthorized` | 缺少或过期的 token |
 | `403` | `blocked` / `not_friend` / `forbidden` | 被拉黑、不是好友、没有管理权限 |
 | `404` | `not_found` | 会话 / 消息 / 用户不存在 |
-| `410` | `media_expired` | 图片 / 文件已超过 20 分钟 |
+| `410` | `media_expired` | 图片 / 文件 / 音乐已超过 14 天 |
 | `410` | `group_dissolved` | 群聊已解散，只能查看历史消息（9.1） |
 | `410` | `packet_empty` / `packet_expired` | 红包抢完 / 已过期（1.0.0） |
 | `409` | `already_grabbed` / `invite_closed` | 已抢过 / 邀请已结束（1.0.0） |
-| `413` | `payload_too_large` | 文件超过 4 MB |
+| `413` | `payload_too_large` | 普通文件超过 4 MB，或音乐超过 20 MB |
 | `429` | `too_many_requests` | 触发限流 |
 | `503` | `chat_not_ready` | `CHAT_ENABLED=false` |
 | `503` | `chat_ws_unavailable` | 未绑定 `CHAT` Durable Object（可用轮询） |
@@ -1607,7 +1614,8 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/public-groups/event \
 
 ### 13.10 前端
 
-- `chatroom.html`：完整聊天界面（会话、通讯录、站主管理、群资料、转发、搜索、撤回、媒体上传）
+- `chatroom.html`：完整聊天界面（会话、通讯录、站主管理、群资料、转发、搜索、撤回、媒体上传、Markdown、长消息展开、红包与转账）
+- `vtx-markdown.js`：1.7.3 新增的 Discord 风格 Markdown 渲染器（纯前端、零依赖，输出经过转义与链接协议校验）
 - `vtx-api.js`：`VTXApi.chat.*` 封装全部聊天接口，另有 `chatSocketUrl()` / `chatMediaUrl()` / `chat.upload(file)`
 - 登录页支持 `login.html?next=chatroom.html`，登录后直接回到聊天室
 
@@ -1881,13 +1889,13 @@ npx wrangler deploy
 |---|---|---|
 | `POST /api/chat/conversations/{id}/messages`（发言） | 每 IP 60 秒 30 条 → `429 too_many_requests` | 不限制 |
 | `POST /api/chat/conversations/{id}/typing`（正在输入） | 每 IP + 会话 60 秒 120 次 → `{"ok":true,"throttled":true}` | 不限制 |
-| `POST /api/chat/media`（上传图片 / 文件） | 每 IP 60 秒 12 次 → `429 too_many_requests` | 不限制 |
+| `POST /api/chat/media`（上传图片 / 文件 / 音乐） | 每 IP 60 秒 12 次 → `429 too_many_requests` | 不限制 |
 
 - 删除的代码：`CHAT_WINDOW_MS` / `CHAT_MAX_ATTEMPTS` / `CHAT_MEDIA_WINDOW_MS` /
   `CHAT_MEDIA_MAX_ATTEMPTS` / `CHAT_TYPING_WINDOW_MS` / `CHAT_TYPING_MAX_ATTEMPTS`
   常量，以及 `chatAttempts` / `chatMediaAttempts` / `chatTypingAttempts` 三个计数器；
 - 仍然保留的限制与聊天室无关：登录失败、注册、写入、记账（转账 / 提款 / 记账 / 购买）、管理操作；
-- 附件仍然限制 4 MB 与 20 分钟过期，消息长度、成员上限等业务校验不变。
+- 附件仍然限制 4 MB（音乐 20 MB）；聊天室媒体的保留时间见第 25 节（1.8.0 起为 14 天）。
 
 ---
 
@@ -2332,3 +2340,214 @@ curl https://xsmmc.caldson.us.ci/api/videos/status
 - 想改回 R2：把 `[[r2_buckets]]` 放开并建桶，优先级高于 GitHub；
 - 想强制退回 KV：在 `wrangler.toml` 的 `[vars]` 里加 `VIDEO_GH_REPO = "off"`（不影响 `GITHUB_TOKEN` 的其他用途），单文件上限会掉回受 KV 限制；
 - 草稿 release 只在「开始上传后没传完、也没点放弃」时才会残留，`/upload/abort` 或删视频都会清掉。
+
+---
+
+## 24. 1.7.3 更新：聊天室长消息、Discord Markdown 与转账
+
+1.7.3 只动聊天室：解除 500 字限制、把 Markdown 升级成 Discord 风格、增加聊天室转账。视频、商店、账户接口没有变化；版本号全套同步到 `1.7.3`。
+
+### 24.1 解除 500 字限制与长消息折叠
+
+| 项 | 1.7.2 | 1.7.3 |
+|---|---|---|
+| 单条文字 | 最长 500 字符（`400 bad_request`） | 不再按字符数限制；只有 **256 KB** 的 KV 安全阈值（`413 text_too_long`） |
+| 前端输入框 | 无 `maxlength`，但服务端会拒 | 无 `maxlength`，正常输入即发送 |
+| 会话列表 `lastMessage.text` | 完整正文 | 最多 200 字 + `…`（长消息不再拖垮轮询） |
+| 消息存储 | 最近 300 条 | 最近 300 条，且按约 6M 字符预算从旧到新裁剪 |
+
+前端行为（`chatroom.html`）：
+
+- 消息正文 ≥ 500 字时，气泡只显示约 330px 高，底部渐隐，并出现 `.........展开`；
+- 点 `.........展开` 弹窗显示**完整内容**（同样是渲染后的 Markdown），底部带「复制全文」；
+- 切换会话、实时消息、轮询刷新后折叠状态保持；
+- 接口本身仍返回完整 `text`，折叠只是显示层行为。
+
+### 24.2 Discord 风格 Markdown
+
+新增 `vtx-markdown.js`（零依赖、纯前端，Node 里也能 require 做单测），聊天室所有文字消息与图片 / 文件 / 音乐配文都走它渲染。
+
+支持的语法（与 Discord 对齐）：
+
+| 语法 | 效果 |
+|---|---|
+| `**粗体**` | **粗体** |
+| `*斜体*` / `_斜体_` | 斜体（`snake_case` 不会误伤） |
+| `***粗斜体***` | 粗体 + 斜体 |
+| `__下划线__` | 下划线 |
+| `~~删除线~~` | 删除线 |
+| `\|\|剧透\|\|` | 点击才显示的剧透 |
+| `` `行内代码` `` | 行内代码，里面的 Markdown 不生效 |
+| ` ```语言 ... ``` ` | 代码块，带语言标签与「复制」按钮；未闭合也能渲染 |
+| `> 引用` / `>>> 多行引用` | 引用块 |
+| `#` / `##` / `###` 标题 | 标题 |
+| `-# 小字` | 小字 |
+| `- 项` / `1. 项` | 无序 / 有序列表 |
+| `[文字](https://…)`、裸链接 | 链接（只允许 `http` / `https` / `mailto`） |
+| `@登录名` | 高亮（只认本会话成员，代码块里的 @ 不处理） |
+| `<t:1730000000>` | 时间块，见下 |
+
+时间块支持 Discord 的 7 种样式：`<t:秒>` / `:t` / `:T` / `:d` / `:D` / `:F` / `:R`（相对时间每分钟自动刷新）。
+
+| 写法 | 显示 |
+|---|---|
+| `<t:1700000000>` 或 `:f` | `2023年11月15日 06:13`（本地时区） |
+| `:t` / `:T` | `06:13` / `06:13:20` |
+| `:d` / `:D` | `2023/11/15` / `2023年11月15日` |
+| `:F` | `2023年11月15日 星期三 06:13` |
+| `:R` | `2年前` / `3分钟前` |
+
+安全：
+
+- 所有用户文本先做 HTML 转义，不支持任何原始 HTML；
+- 链接只渲染 `http` / `https` / `mailto`，`javascript:` 等协议按普通文本显示；
+- 代码块、时间块、链接优先占位，后续强调格式不会破坏它们；
+- 相对时间用 `<time data-ts>` 保存毫秒时间戳，页面定时刷新。
+
+### 24.3 聊天室转账
+
+和微信转账一致：**发起即扣款 → 对方点「收款」才到账 → 24 小时未收可退回**。转账需要账户密码确认（和 `/api/me/transfer` 一致）。
+
+```bash
+# 发起转账（单聊可省略 to；群聊必须指定本群成员）
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/transfers \
+  -H "authorization: ******" -H "content-type: application/json" \
+  -d '{"to":"Bob","amount":"1.50","note":"午饭","password":"你的账户密码"}'
+
+# 收款（只有收款人；返回抢到的金额与最新余额）
+curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/transfer/claim?conversation=dm_xxxx" \
+  -H "authorization: ******"
+
+# 退回（只有发送者；对方还没收款时随时可以退回，过期也能退）
+curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/transfer/refund?conversation=dm_xxxx" \
+  -H "authorization: ******"
+```
+
+请求体：
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `amount` / `total` | 是 | VTX 金额，大于 0，最多两位小数，单笔上限 1,000,000.00 VTX |
+| `to` / `recipient` | 群聊必填 | 收款人登录名；必须是本会话成员，不能是自己；单聊只能转给对方 |
+| `password` | 是 | 账户密码，错误返回 `400 invalid_password` |
+| `note` | 否 | 备注，最多 100 字 |
+
+消息结构：
+
+```json
+{
+    "type": "transfer",
+    "text": "午饭",
+    "transfer": {
+        "id": "tf_xxxxxx",
+        "from": "Alice",
+        "fromName": "爱丽丝",
+        "to": "Bob",
+        "toName": "鲍勃",
+        "cents": 150,
+        "note": "午饭",
+        "status": "pending",
+        "createdAt": 1760000000000,
+        "claimedAt": 0,
+        "expiresAt": 1760086400000
+    }
+}
+```
+
+- `status`：`pending`（待收款）→ `claimed`（已收款）或 `refunded`（已退回）；超过 24 小时未收，收款接口会把它标成 `expired` 并返回 `410 transfer_expired`
+- 资金：发起时扣发送方余额并写 `trades`（`转账 -1.50`）；收款时加到收款人余额（`转账 +1.50`）；退回时写 `转账退回 +1.50`
+- 限制：未收款的转账**不能撤回 / 删除**（`400 transfer_pending`），必须先退回，避免钱卡在消息里
+- 转发转账消息时只会转发一条文字摘要（`[转账] 1.50 VTX 待收款`），不会复制资金
+- 实时事件：收款 / 退回广播 `message:transfer`，前端就地刷新卡片
+- 会话列表预览显示 `[转账] 1.50 VTX 待收款` / `已收款` / `已退回` / `已过期`
+- 错误码：
+
+| 状态码 | `error` | 场景 |
+|---|---|---|
+| `400` | `invalid_password` | 账户密码错误 |
+| `400` | `insufficient_balance` | 余额不足 |
+| `403` | `forbidden` | 收款人不是自己 / 不是发起人 / 不是会话成员 |
+| `409` | `already_claimed` / `already_refunded` | 已经收过 / 已经退过 |
+| `410` | `transfer_expired` / `transfer_refunded` | 超过 24 小时 / 已退回 |
+| `429` | `too_many_requests` | 转账太频繁 |
+
+### 24.4 版本与测试
+
+- 全套版本号同步到 `1.7.3`：`worker/index.js` 的 `VERSION` / `CHAT_VERSION` / `VIDEO_VERSION`、`vtx-api.js` 的 `API_VERSION`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页 `<script src="...?v=1.7.3">`
+- `worker/test/chat.test.mjs` 新增长消息与转账用例；`worker/test/markdown.test.mjs` 覆盖 Markdown / 时间块 / XSS / 链接协议
+- 运行：`cd worker && npm test`
+
+---
+
+## 25. 1.8.0 更新：聊天室图片 / 文件改为保留 14 天
+
+1.8.0 只调整聊天室媒体的保留时间：从 **20 分钟** 改为 **14 天**。1.7.3 的 Markdown、长消息折叠与转账功能不变。
+
+### 25.1 变化
+
+| 项 | 1.7.3 | 1.8.0 |
+|---|---|---|
+| `CHAT_MEDIA_TTL_SECONDS` | `1200`（20 分钟） | `1209600`（14 天） |
+| KV `expirationTtl`（`chat:media:{id}` 与 `chat:media-meta:{id}`） | `1200` | `1209600` |
+| 上传响应的 `media.expiresAt` | 上传后 20 分钟 | 上传后 14 天 |
+| 上传响应的 `media.ttlSeconds` | `1200` | `1209600` |
+| `GET /api/chat/status` 的 `mediaTtlSeconds` | `1200` | `1209600` |
+| 前端提示 | 「20 分钟后自动删除」 | 「保留 14 天」 |
+
+### 25.2 接口行为
+
+```bash
+# 上传（行为：普通文件 ≤ 4 MB，音乐 ≤ 20 MB）
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/media \
+  -H "authorization: ******" -H "content-type: image/png" \
+  -H "x-file-name: screenshot.png" --data-binary @screenshot.png
+
+# 返回里的保留时间
+# { "media": { "id": "…", "expiresAt": 1761300000000, "ttlSeconds": 1209600 } }
+
+# 过期后读取
+curl "https://xsmmc.caldson.us.ci/api/chat/media/媒体id?token=你的token"
+# 410 { "error": "media_expired", "message": "图片或文件已过期（上传后 14 天自动删除）" }
+```
+
+- 上传大小上限、类型白名单、`Range` / 缓存头、权限校验都不变；
+- 过期后聊天记录里的图片 / 文件 / 音乐消息仍然保留，前端显示「图片已过期（上传后 14 天自动删除）」；
+- **旧文件不会被延长**：KV 的 `expirationTtl` 在写入时固定，1.8.0 部署前上传的文件仍按原来的 20 分钟过期；需要保留更久只能重新上传；
+- `expiresAt` 是绝对毫秒时间戳，前端用它判断是否显示「已过期」，不会因为页面缓存而错乱。
+
+### 25.3 版本与测试
+
+- 版本号全套同步到 `1.8.0`：`worker/index.js` 的 `VERSION` / `CHAT_VERSION` / `VIDEO_VERSION`、`vtx-api.js` 的 `API_VERSION`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页 `<script src="...?v=1.8.0">`
+- `worker/test/chat.test.mjs` 断言 `/api/chat/status` 的 `mediaTtlSeconds` 与上传响应的 `ttlSeconds` 都是 `14 * 24 * 60 * 60`
+- 运行：`cd worker && npm test`
+
+---
+
+## 26. 1.8.0 更新：聊天室音乐文件直接播放
+
+聊天室发送的音频文件（音乐）现在会渲染成 `<audio controls>`，点播放键就能直接听，不再只是一个下载链接。
+
+### 26.1 服务端
+
+- `/api/chat/media` 会把客户端声明的 `audio/*` 保留为音频类型；过去除图片外一律存成 `application/octet-stream`。
+- 没带 MIME 时按扩展名补：`mp3` / `mp2` / `m4a` / `m4b` / `aac` / `wav` / `wave` / `flac` / `ogg` / `oga` / `opus` / `weba` / `mka` / `wma` / `aif` / `aiff` / `alac` / `mid` / `midi` / `amr` / `ape`。
+- `GET /api/chat/media/{id}` 对音频返回 `content-type: audio/*` 与 `content-disposition: inline`；老文件即使元数据是 `octet-stream`，也会按文件名扩展名补出音频类型，保证还能播放。
+- 上传上限：**音乐 20 MB**，其它文件仍是 **4 MB**；音乐同样保留 **14 天**（见第 25 节）。
+
+### 26.2 前端
+
+- 聊天室按 `media.type` 或扩展名识别音乐，气泡里显示 🎵 文件名 + 大小 + 原生音频播放器。
+- 会话列表 / 引用 / 搜索预览显示 `[音乐] 歌名.mp3`；普通文件仍是 `[文件] …`。
+- 还是用同一个「图片/文件」按钮上传，不需要额外入口。
+
+### 26.3 格式与兼容性
+
+- 现代浏览器一般能直接解码 MP3 / M4A / AAC / WAV / FLAC / OGG / OPUS；
+- WMA、APE、AMR 等格式会显示播放器，但能否解码取决于浏览器和系统编解码器；
+- 音频也受 14 天 TTL 限制，过期后消息保留并显示「音乐已过期（上传后 14 天自动删除）」；
+- 旧的 20 分钟 TTL 文件不会被延长（见 25.2）。
+
+### 26.4 测试
+
+- `worker/test/chat.test.mjs`：验证 `audio/mpeg` 类型保留、`GET` 返回 `audio/mpeg` 与 `inline`、5 MB 音频可上传、5 MB 图片仍被 4 MB 限制拦截；
+- `worker/test/chatroom.test.mjs`：验证 `.mp3` / `.m4a` / `.flac` 识别为音乐、`.png` 不识别、`[音乐]` 预览文本。

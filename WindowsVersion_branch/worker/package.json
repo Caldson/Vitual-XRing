@@ -1,10 +1,13 @@
 {
     "name": "vtx-api",
-    "version": "1.3.0",
+    "version": "1.8.0",
     "private": true,
     "type": "module",
     "description": "Vitual XRing account API (Cloudflare Worker)",
     "scripts": {
-      "test": "node --test test/*.test.mjs"
+        "test": "node --test test/*.test.mjs"
+    },
+    "devDependencies": {
+        "wrangler": "^4.152.0"
     }
 }

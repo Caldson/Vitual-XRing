@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "1.7.2";
+    const API_VERSION = "1.8.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -856,7 +856,7 @@
         const token = sessionToken();
         const base = chatBase();
         const controller = typeof AbortController === "function" ? new AbortController() : null;
-        const timer = controller ? setTimeout(() => controller.abort(), 60000) : null;
+        const timer = controller ? setTimeout(() => controller.abort(), 120000) : null;
         let response;
 
         try {
@@ -871,7 +871,7 @@
                 signal: controller ? controller.signal : undefined
             });
         } catch (error) {
-            throw networkError("上传图片/文件失败", error);
+            throw networkError("上传图片/文件/音乐失败", error);
         } finally {
             if (timer) {
                 clearTimeout(timer);
@@ -1043,6 +1043,19 @@
         ),
         refundRedPacket: (id, messageId) => chatRequest(
             `/messages/${encodeId(messageId)}/redpacket/refund?conversation=${encodeId(id)}`,
+            { method: "POST" }
+        ),
+        /* 1.7.3：聊天室转账（先扣款，收款人点「收款」后到账） */
+        sendTransfer: (id, payload) => chatRequest(`/conversations/${encodeId(id)}/transfers`, {
+            method: "POST",
+            body: payload
+        }),
+        claimTransfer: (id, messageId) => chatRequest(
+            `/messages/${encodeId(messageId)}/transfer/claim?conversation=${encodeId(id)}`,
+            { method: "POST" }
+        ),
+        refundTransfer: (id, messageId) => chatRequest(
+            `/messages/${encodeId(messageId)}/transfer/refund?conversation=${encodeId(id)}`,
             { method: "POST" }
         )
     };

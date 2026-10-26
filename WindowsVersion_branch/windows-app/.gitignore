@@ -1,0 +1,9 @@
+# WindowsVersion desktop build outputs
+bin/
+obj/
+publish/
+dist/
+web-stage/
+web.zip
+*.user
+*.pdb

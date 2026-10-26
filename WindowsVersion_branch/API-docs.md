@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.3.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**）
+- API 版本：`1.8.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**；**1.7.3 解除聊天室 500 字限制（长消息折叠 + 全文弹窗）、聊天室支持 Discord 风格 Markdown（代码块 / 时间块 / 粗体 / 斜体等）与转账，见第 24 节**；**1.8.0 把聊天室图片 / 文件从 20 分钟改为保留 14 天，见第 25 节**；**1.8.0 同时支持聊天室音乐文件直接播放（音频上限 20 MB），见第 26 节**）
 
 ---
 
@@ -151,7 +151,7 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | POST | `/api/me/purchase` | 是 | 商店购买扣款（需密码），价格与库存由服务端决定，返回购买凭证 |
 | GET | `/api/shop` | 否 | 商品库存（1.2.0 新增，KV 里没有记录时回落到 `shop.json` 的 `stock`） |
 | POST | `/api/me/login-location` | 是 | 记录一次登录位置（IP 由服务端取 `cf-connecting-ip`） |
-| GET | `/api/admin/accounts` | 是（站主） | 读取全部账户（含登录记录；1.2.0 起不含明文密码） |
+| GET | `/api/admin/accounts` | 是（站主） | 读取全部账户（含登录记录与可显示的 `password`，后者 1.4.0 起恢复；未配置 `PASSWORD_VIEW_KEY` 时为 `null`） |
 | POST | `/api/admin/accounts` | 是（站主） | 直接创建账户 |
 | PUT | `/api/admin/accounts/{登录名}` | 是（站主） | 修改用户名 / 密码 / 余额 |
 | DELETE | `/api/admin/accounts/{登录名}` | 是（站主） | 删除账户（不能删站主自己） |
@@ -165,7 +165,7 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | PATCH | `/api/chat/conversations/{id}` | 是 | 修改群名（群主 / 管理员 / 站主） |
 | DELETE | `/api/chat/conversations/{id}` | 是 | 删除会话（单聊）或解散群聊（群主 / 站主） |
 | GET | `/api/chat/conversations/{id}/messages` | 是 | 读取消息（`before` 分页、每会话保留最近 300 条） |
-| POST | `/api/chat/conversations/{id}/messages` | 是 | 发送文字 / 图片 / 文件消息（支持引用回复、@成员） |
+| POST | `/api/chat/conversations/{id}/messages` | 是 | 发送文字 / 图片 / 文件 / 音乐消息（支持引用回复、@成员） |
 | POST | `/api/chat/conversations/{id}/read` | 是 | 标记已读 |
 | POST | `/api/chat/conversations/{id}/typing` | 是 | 正在输入提示 |
 | POST | `/api/chat/conversations/{id}/settings` | 是 | 会话置顶 / 免打扰 |
@@ -192,8 +192,8 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | DELETE | `/api/chat/friends/{登录名}` | 是 | 删除好友 |
 | POST | `/api/chat/blocks` | 是 | 拉黑用户（同时解除好友关系） |
 | DELETE | `/api/chat/blocks/{登录名}` | 是 | 解除拉黑 |
-| POST | `/api/chat/media` | 是 | 上传图片 / 文件（≤ 4 MB，KV 只保留 20 分钟） |
-| GET | `/api/chat/media/{id}` | 是（`?token=`） | 读取图片 / 文件；过期返回 `410 media_expired` |
+| POST | `/api/chat/media` | 是 | 上传图片 / 文件 / 音乐（普通 4 MB，音乐 20 MB，保留 14 天） |
+| GET | `/api/chat/media/{id}` | 是（`?token=`） | 读取图片 / 文件 / 音乐；过期返回 `410 media_expired` |
 | GET | `/api/chat/admin/conversations` | 是（站主） | 查看全部群聊与单聊 |
 | GET | `/api/chat/admin/conversations/{id}/messages` | 是（站主） | 查看任意会话的消息 |
 | DELETE | `/api/chat/admin/messages/{id}` | 是（站主） | 永久删除任意消息 |
@@ -216,6 +216,9 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | POST | `/api/chat/messages/{id}/redpacket/grab` | 是 | 抢红包（1.0.0） |
 | GET | `/api/chat/messages/{id}/redpacket` | 是 | 红包详情（1.0.0） |
 | POST | `/api/chat/messages/{id}/redpacket/refund` | 是（发送者） | 退回未抢完的金额（1.0.0） |
+| POST | `/api/chat/conversations/{id}/transfers` | 是 | 聊天室转账（先扣款，1.7.3） |
+| POST | `/api/chat/messages/{id}/transfer/claim` | 是（收款人） | 收取转账（1.7.3） |
+| POST | `/api/chat/messages/{id}/transfer/refund` | 是（发送者） | 退回未收款的转账（1.7.3） |
 | GET | `/api/chat/messages` | 是 | 兼容旧接口：等价于 `general` / `trade` / `help` 的消息列表 |
 | POST | `/api/chat/messages` | 是 | 兼容旧接口：向公共频道发文字消息 |
 
@@ -1059,9 +1062,9 @@ https://xsmmc.caldson.us.ci/API_VTXPAY.html?rc=Kq3fGb2xLmN0pQrStUvWxY
   公共频道管理（9.2：站主可在「管理」页新建 / 改名 / 改简介 / 解散公共频道）、
   账号 UID 与按 UID 搜人、群号与群二维码、4 / 8 位邀请码建群、拼手速红包（1.0.0）、
   好友申请与黑名单、消息撤回、引用回复、转发、聊天记录搜索、会话置顶、消息免打扰、
-  未读数、正在输入提示、在线状态、图片 / 文件消息
+  未读数、正在输入提示、在线状态、图片 / 文件 / 音乐消息
 - 实时消息通过 Durable Object `ChatHub` 的 WebSocket 推送；连接失败时自动降级为 7 秒轮询
-- 图片 / 文件上传后只保留 20 分钟（KV `expirationTtl`），过期后聊天记录仍在，但显示「已过期」
+- 图片 / 文件 / 音乐上传后保留 14 天（KV `expirationTtl`），过期后聊天记录仍在，但显示「已过期」
 - 站主（`ADMIN_ACCOUNT`，默认 `Kitawaga`）可以在「管理」页查看、删除全部群聊与单聊的消息，
   也可以解散任意群聊（只读保留记录）
 - 详细接口见第 13 节
@@ -1222,8 +1225,10 @@ http://127.0.0.1:3000/API_LOGIN.html?api=http://127.0.0.1:8787
 
 ## 11. 安全说明
 
-- 所有接口都不会返回密码字段（`/api/admin/*` 从 1.2.0 起也只返回 `hasPassword`，不再回明文密码）
-- 登录失败按 IP 限流：60 秒内最多 10 次；写入、记账、提款、转账、购买、聊天各有独立限流
+- 所有接口都不会返回密码字段；**1.4.0 起 `/api/admin/accounts*` 例外**：站主会拿到解密后的 `password`
+  （来自 AES-GCM 加密副本 `passwordSealed`，密钥是 secret `PASSWORD_VIEW_KEY`），其余接口仍只给 `hasPassword`
+- 登录失败按 IP 限流：60 秒内最多 10 次；写入、记账、提款、转账、购买各有独立限流
+  （**1.4.0 起聊天室与面对面加群都不再单独限流**：邀请码查询 / 加入、群号加入、发言、正在输入、上传媒体全部取消）
 - token 由 HMAC-SHA256 签名，篡改或过期即失效
 - **8.0 起账户数据不再公开**：账户、密码、余额、交易、游戏数据、登录 IP 记录全部存进 Workers KV，
   仓库里的 `account.json` 在首次迁移后会被自动删除，`/api/accounts` 之类的接口必须携带有效 token 才能读取
@@ -1314,9 +1319,9 @@ curl https://xsmmc.caldson.us.ci/api/admin/log -H "authorization: ******"
 |---|---|
 | `chat:user:{登录名}` | 会话索引（置顶 / 免打扰 / 已读位置 / 清空时间）、好友、黑名单、好友申请 |
 | `chat:conversation:{会话 id}` | 会话资料（类型、名称、成员、群主、管理员、群昵称、群公告、最后一条消息） |
-| `chat:messages:{会话 id}` | 消息数组，只保留最近 300 条 |
+| `chat:messages:{会话 id}` | 消息数组，最多保留最近 300 条（1.7.3 起另按约 6M 字符预算裁剪） |
 | `chat:direct:{A}\|{B}` | 单聊去重：两个登录名 → 会话 id |
-| `chat:media:{id}` / `chat:media-meta:{id}` | 图片 / 文件与元数据，`expirationTtl = 1200`（20 分钟） |
+| `chat:media:{id}` / `chat:media-meta:{id}` | 图片 / 文件 / 音乐与元数据，`expirationTtl = 1209600`（14 天） |
 | `chat:index` | 全部会话 id（站主管理页使用，最多 2000 个） |
 | `chat:public-groups` | 公共频道定义（9.2）：`[{ id, name, description, createdAt }]`，缺失时使用内置默认值 |
 | `chat:invite:{code}` | 建群邀请（1.0.0）：`{ code, digits, owner, name, participants[], closed, conversation }`，24 小时过期 |
@@ -1335,14 +1340,19 @@ curl https://xsmmc.caldson.us.ci/api/admin/log -H "authorization: ******"
     "text": "你好",
     "media": null,
     "replyTo": { "id": "…", "sender": "Bob", "senderName": "鲍勃", "type": "text", "preview": "…" },
-    "mentions": [],
+    "mentions": ["Bob"],
     "forwarded": false,
     "recalled": false,
     "system": false,
+    "packet": null,
+    "transfer": null,
     "at": 1760000000000,
     "time": "2026/10/25 12:00:00"
 }
 ```
+
+> `mentions`（1.5.0 起前端可用）：发送时在请求体里传成员登录名数组，服务端只保留**本会话成员**（最多 20 个，自动去重），
+> 会话列表里额外返回 `mentionUnread`（未读的 @ 条数）。详见 [18. 1.5.0 更新](#18-150-更新mention)。
 
 ### 13.2 好友与联系人
 
@@ -1453,7 +1463,7 @@ curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/messages
   -H "authorization: ******" -H "content-type: application/json" \
   -d '{"text":"收到","replyTo":"消息 id","mentions":["Bob"]}'
 
-# 发送图片 / 文件（先上传，见 13.5）
+# 发送图片 / 文件 / 音乐（先上传，见 13.5）
 curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/messages \
   -H "authorization: ******" -H "content-type: application/json" \
   -d '{"type":"image","mediaId":"媒体 id","text":"配文"}'
@@ -1473,14 +1483,16 @@ curl "https://xsmmc.caldson.us.ci/api/chat/search?q=开会&conversation=g_xxxx" 
 curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/typing -H "authorization: ******"
 ```
 
-- 文字最长 500 字符；每个会话保留最近 300 条
+- 1.7.3 起**不再限制 500 字**：单条消息上限 256 KB（`413 text_too_long`），每个会话最多保留最近 300 条 / 约 6M 字符
+- 超过 500 字的消息在聊天室里折叠显示，点「.........展开」弹窗查看全文（前端行为，接口返回完整正文）
+- 会话列表里的 `lastMessage.text` 最多 200 字，方便轮询时省流量
 - 引用回复会保存原消息的发送者、类型与 40 字摘要
 - 只有自己的消息能在 2 分钟内撤回；群主 / 群管理员 / 站主可以撤回或删除任意消息
 
-### 13.5 图片与文件（20 分钟过期）
+### 13.5 图片、文件与音乐（14 天过期）
 
 ```bash
-# 上传（原始二进制，最多 4 MB）
+# 上传（原始二进制；普通文件 4 MB，音乐 20 MB）
 curl -X POST https://xsmmc.caldson.us.ci/api/chat/media \
   -H "authorization: ******" -H "content-type: image/png" \
   -H "x-file-name: $(python -c "import urllib.parse;print(urllib.parse.quote('截图.png'))")" \
@@ -1490,7 +1502,7 @@ curl -X POST https://xsmmc.caldson.us.ci/api/chat/media \
 curl "https://xsmmc.caldson.us.ci/api/chat/media/媒体id?token=你的token" -o 截图.png
 ```
 
-- KV 使用 `expirationTtl = 1200`：上传 20 分钟后图片 / 文件本体自动删除
+- KV 使用 `expirationTtl = 1209600`：上传 14 天后图片 / 文件 / 音乐本体自动删除
 - 聊天记录里的消息仍然保留，`media.expiresAt` 过期后前端显示「图片/文件已过期」
 - 过期的媒体再次读取返回 `410 media_expired`
 - 只有上传者（或站主）可以把媒体作为消息发送
@@ -1546,10 +1558,11 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/conversations/dm_xxxx 
 
 | 操作 | 限制 |
 |---|---|
-| 发送消息 | 每个 IP 60 秒 30 条 |
-| 上传媒体 | 每个 IP 60 秒 12 次 |
-| 正在输入 | 每个 IP + 会话 60 秒 120 次 |
+| 发送消息 | **1.4.0 起不再限流**（1.0.0 ~ 1.3.0 为每 IP 60 秒 30 条） |
+| 上传媒体 | **1.4.0 起不再限流**（原每 IP 60 秒 12 次） |
+| 正在输入 | **1.4.0 起不再限流**（原每 IP + 会话 60 秒 120 次） |
 | 好友申请 / 会话操作 | 受全局写入限流保护 |
+| 面对面加群（邀请码 / 群号） | **1.4.0 起不再限流**（1.2.0 曾是每 IP 60 秒 10 次） |
 
 | 状态码 | `error` | 说明 |
 |---|---|---|
@@ -1557,11 +1570,11 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/conversations/dm_xxxx 
 | `401` | `unauthorized` | 缺少或过期的 token |
 | `403` | `blocked` / `not_friend` / `forbidden` | 被拉黑、不是好友、没有管理权限 |
 | `404` | `not_found` | 会话 / 消息 / 用户不存在 |
-| `410` | `media_expired` | 图片 / 文件已超过 20 分钟 |
+| `410` | `media_expired` | 图片 / 文件 / 音乐已超过 14 天 |
 | `410` | `group_dissolved` | 群聊已解散，只能查看历史消息（9.1） |
 | `410` | `packet_empty` / `packet_expired` | 红包抢完 / 已过期（1.0.0） |
 | `409` | `already_grabbed` / `invite_closed` | 已抢过 / 邀请已结束（1.0.0） |
-| `413` | `payload_too_large` | 文件超过 4 MB |
+| `413` | `payload_too_large` | 普通文件超过 4 MB，或音乐超过 20 MB |
 | `429` | `too_many_requests` | 触发限流 |
 | `503` | `chat_not_ready` | `CHAT_ENABLED=false` |
 | `503` | `chat_ws_unavailable` | 未绑定 `CHAT` Durable Object（可用轮询） |
@@ -1601,7 +1614,8 @@ curl -X DELETE https://xsmmc.caldson.us.ci/api/chat/admin/public-groups/event \
 
 ### 13.10 前端
 
-- `chatroom.html`：完整聊天界面（会话、通讯录、站主管理、群资料、转发、搜索、撤回、媒体上传）
+- `chatroom.html`：完整聊天界面（会话、通讯录、站主管理、群资料、转发、搜索、撤回、媒体上传、Markdown、长消息展开、红包与转账）
+- `vtx-markdown.js`：1.7.3 新增的 Discord 风格 Markdown 渲染器（纯前端、零依赖，输出经过转义与链接协议校验）
 - `vtx-api.js`：`VTXApi.chat.*` 封装全部聊天接口，另有 `chatSocketUrl()` / `chatMediaUrl()` / `chat.upload(file)`
 - 登录页支持 `login.html?next=chatroom.html`，登录后直接回到聊天室
 
@@ -1613,10 +1627,10 @@ GitHub Pages 与浏览器会长期缓存这个 URL，于是页面在 9.2 上线�
 
 **修复**：
 
-1. 全站脚本引用统一带上版本参数，例如 `<script src="vtx-api.js?v=1.3.0"></script>`，
+1. 全站脚本引用统一带上版本参数，例如 `<script src="vtx-api.js?v=1.6.0"></script>`，
    `?v=` 变化会让浏览器与 CDN 必须重新取文件。发布新版本时**必须一起改这个参数**。
 2. `chatroom.html` 启动时校验 `VTXApi.version`：
-   - 低于页面要求的版本（当前 `REQUIRED_API_VERSION = "1.3.0"`）就自动按
+   - 低于页面要求的版本（当前 `REQUIRED_API_VERSION = "1.6.0"`）就自动按
      `vtx-api.js?v=<版本>&t=<时间戳>` 重新加载一次；
    - 仍然不达标时显示「页面资源需要更新」提示页，给一个「重新加载」按钮，
      而不是让用户对着 `xxx is not a function` 发愣。
@@ -1818,4 +1832,722 @@ curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/redpacket/r
 `vtx-api.js` 的 `API_VERSION`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页面 `<script>` 的 `?v=`、
 Worker 的 `VERSION` / `CHAT_VERSION`、`worker/package.json` 全部升到 `1.3.0`（`CHAT_VERSION` 为 `1.3`）。
 
+---
 
+## 17. 1.4.0 更新：自动登录、可查看的账户密码、聊天室去限流
+
+### 17.1 恢复「记住上次登录的账户并自动登录」（`login.html`）
+
+1.2.0 出于安全考虑把登录页改成了「只记登录名、必须重新输密码」。1.4.0 按需求恢复：
+
+- 登录 / 注册成功后，`localStorage.vtxRemembered` 存 `{ "login": "...", "password": "..." }`；
+- 打开 `login.html` 时 `tryAutoLogin()` 直接拿这对凭据调一次 `/api/login`，
+  成功后立刻跳到 `?next=` 指定的页面（默认 `manager.html`）；
+- 自动登录失败（密码被改、账户被删、网络异常）时不再死循环，只在提示条上写
+  「上次登录：xxx（自动登录失败，请输入密码）」并回填登录名；
+- 只有登录名、没有密码的旧版记录仍然兼容：回填登录名并提示输入密码；
+- 点「切换账户」会清掉这条记录并清空表单。
+
+> 这意味着密码以明文保存在该浏览器的 localStorage 里，只在用户自己的设备上有效；
+> 共用设备请用「切换账户」清掉记录。
+
+### 17.2 管理员可以查看账户当前密码
+
+密码本体仍是 PBKDF2-SHA256 哈希（不可逆），另外保存一份 **AES-GCM 加密副本** `passwordSealed`：
+
+| 项 | 说明 |
+|---|---|
+| 密钥 | secret `PASSWORD_VIEW_KEY`（任意字符串，经 SHA-256 派生 AES-GCM 密钥）；未配置时不写副本 |
+| 写入时机 | 注册、登录成功（顺带给老账户补副本）、本人改密码、站主建号 / 改密码 |
+| 存储格式 | `aes-gcm$<base64url(iv)>$<base64url(密文)>`，与 `password` 并列存在账户记录里 |
+| 读取 | 只有 `GET /api/admin/accounts`、`POST /api/admin/accounts`、`PUT /api/admin/accounts/{login}`、`DELETE /api/admin/accounts/{login}` 的响应里带解密后的 `password`；其它接口（含 `GET /api/accounts`）都不返回 |
+| 解不开时 | 换过 `PASSWORD_VIEW_KEY` 或记录缺失 → 返回 `password: null`，前端提示「服务端没有保存可显示的密码」 |
+
+`accounts-admin.html` 的编辑面板新增「当前密码」一行：默认打码，点「显示 / 隐藏」切换；
+保存新密码后自动刷新为新的密码。
+
+部署前需要执行一次：
+
+```bash
+cd worker
+npx wrangler secret put PASSWORD_VIEW_KEY    # 随便给一段足够长的随机字符串
+npx wrangler deploy
+```
+
+### 17.3 聊天室与面对面加群不再限流
+
+1.2.0 给 4 / 8 位邀请码查询、加入与 8 位群号加入加了「每 IP 60 秒 10 次」的限制，
+现场面对面加群时很容易被 429 挡住。1.4.0 删除该限制：
+
+- `GET /api/chat/invites/{code}`、`POST /api/chat/invites/{code}/join`、
+  `POST /api/chat/groups/join`（群号加入）都不再检查 `inviteAttempts`；
+- 相关的 `INVITE_WINDOW_MS` / `INVITE_MAX_ATTEMPTS` 常量与计数器一并删除。
+
+同版本把聊天室剩下的三处限流也全部删除：
+
+| 接口 | 原限制 | 现在 |
+|---|---|---|
+| `POST /api/chat/conversations/{id}/messages`（发言） | 每 IP 60 秒 30 条 → `429 too_many_requests` | 不限制 |
+| `POST /api/chat/conversations/{id}/typing`（正在输入） | 每 IP + 会话 60 秒 120 次 → `{"ok":true,"throttled":true}` | 不限制 |
+| `POST /api/chat/media`（上传图片 / 文件 / 音乐） | 每 IP 60 秒 12 次 → `429 too_many_requests` | 不限制 |
+
+- 删除的代码：`CHAT_WINDOW_MS` / `CHAT_MAX_ATTEMPTS` / `CHAT_MEDIA_WINDOW_MS` /
+  `CHAT_MEDIA_MAX_ATTEMPTS` / `CHAT_TYPING_WINDOW_MS` / `CHAT_TYPING_MAX_ATTEMPTS`
+  常量，以及 `chatAttempts` / `chatMediaAttempts` / `chatTypingAttempts` 三个计数器；
+- 仍然保留的限制与聊天室无关：登录失败、注册、写入、记账（转账 / 提款 / 记账 / 购买）、管理操作；
+- 附件仍然限制 4 MB（音乐 20 MB）；聊天室媒体的保留时间见第 25 节（1.8.0 起为 14 天）。
+
+---
+
+## 18. 1.5.0 更新：mention（@ 提及）
+
+### 18.1 服务端
+
+| 项 | 说明 |
+|---|---|
+| 发送 | `POST /api/chat/conversations/{id}/messages` 的请求体新增 `mentions: ["Bob", "Carol"]`（也可以放在图片 / 文件的 caption 一起发） |
+| 校验 | 服务端只保留**本会话成员**的登录名，去重后最多 20 个；`Kitawaga` 这类非成员会被静默丢弃 |
+| 存储 | 消息记录里多一个 `mentions` 字段，`messageView` 原样返回 |
+| 会话列表 | `GET /api/chat/conversations` 的每一项新增 `mentionUnread`：当前未读里 @ 我的条数（读过即清零） |
+
+`mentionUnread` 与 `unread` 的关系：被 @ 的消息同时计入 `unread`，
+但 `mentionUnread` 只统计 `mentions` 里包含自己的那几条。
+
+### 18.2 前端（`chatroom.html`）
+
+1. **选人**：在输入框里打 `@`（或 `@关` / `@bo`）会弹出成员选择器，显示用户名（群昵称 / 显示名）与 `@登录名`；
+   - `↑` / `↓` 移动，`Enter` / `Tab` 选中，`Esc` 关闭；
+   - 选中后插入 `@登录名 `，光标留在后面；
+   - 只列当前会话成员（不含自己），最多 8 条，群聊与单聊都可用，已解散的群聊禁用。
+2. **发送**：从输入框文本里按成员登录名反查真正被 @ 的人（要求 `@` 前是行首或空白，`@bob` 不会误伤 `@bobby`），
+   随消息一起发出 `mentions`；图片 / 文件消息的说明文字同样支持。
+3. **渲染**：消息里的 `@登录名` 显示成蓝色小标签；被 @ 的消息整条气泡变成暖色并标注「@ 你」。
+   文本先 `escapeHtml` 再替换，`<b>` 之类的输入照旧按纯文本显示，不会变成 XSS。
+4. **提醒**：
+   - 会话列表：未读 @ 时显示「有人@你」标签与橙色 `@N` 徽标（优先于普通未读数）；
+   - 左侧「聊天」入口：有未读 @ 时徽标变成橙色的 `@N`；
+   - 标签页标题变成 `(N 条@你) 聊天室 | Vitual XRing`；
+   - 收到别人 @ 我、且当前没打开那个会话时，右下角弹一条提示。
+
+### 18.3 停服守卫（`vtx-closed.js` + `WebsiteClose.html`）
+
+停服期间打开站内任何页面都会在渲染前跳到 `WebsiteClose.html`。2026-10-26 那次窗口用的版本号是 `1.5.0`，
+守卫脚本用时间戳加载，改完时间表立刻生效，不需要改版本参数。
+
+| 文件 | 作用 |
+|---|---|
+| `vtx-closed.js` | 时间表 `WINDOWS`（北京时间，`YYYY-MM-DD HH:mm` 的 `[开始, 结束]`）与守卫逻辑；命中窗口且当前不在停服页时 `location.replace("WebsiteClose.html?from=<相对路径>")` |
+| `WebsiteClose.html` | 停服公告页：大标题、状态、倒计时（到 `end` 归零）、维护窗口、恢复后「回到刚才的页面」按钮；`?from=` 只接受站内相对路径（`//`、`scheme:`、`\` 一律丢弃，回落 `index.html`） |
+| `websiteclose.txt` | 同一份时间的人工填写模板，共 6 行：开始 `YYYYMMDD`、开始时、开始分、结束 `YYYYMMDD`、结束时、结束分 |
+
+引入方式（已加在每个页面 `<head>` 的 charset 之后，纯静态站点没有服务端可以做跳转）：
+
+```html
+<script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+```
+
+- 用 `document.write` 而不是普通 `<script src>`：带上 `Date.now()` 可以绕开浏览器 / GitHub Pages 的 10 分钟缓存，
+  停服前几分钟改时间表也能立刻生效；
+- `WebsiteClose.html` 自身也会加载该脚本，但会在「已经在停服页」时直接返回，不会死循环；
+- 停服结束后，公告页会自动变成「已恢复」状态，并显示「回到刚才的页面」；直接打开站点则恢复正常；
+- `WindowsVersion_branch/` 里的旧版快照页也加了同一段守卫与同样的 `vtx-closed.js` / `WebsiteClose.html`，
+  所以 `/WindowsVersion_branch/xxx.html` 在停服期间同样会被拦下（`?from=` 按站点根目录解析，不会拼错路径）；
+- 脚本加载失败（例如文件没部署）时页面照常可用，不会把全站锁死；
+- 浏览器禁用 JS 时守卫失效——纯静态站点无法在服务端拦截，这是已知限制。
+
+---
+
+## 19. 1.6.0 更新：Vitx® 视频（`vitxvideo.html` + `vitxvideopublish.html`）
+
+1.6.0 新增两个页面，浏览与投稿分开：
+
+| 页面 | 地址 | 作用 |
+|---|---|---|
+| `vitxvideo.html` | `https://xsmmc.caldson.us.ci/vitxvideo.html` | 视频站首页：分区浏览、搜索、播放 |
+| `vitxvideopublish.html` | `https://xsmmc.caldson.us.ci/vitxvideopublish.html` | 投稿页：上传、填表、勾选创作声明 |
+
+两个页面都是纯前端：不新增任何 Worker 接口，数据是页面内置的示例集，点赞 / 投币 / 收藏 / 历史 / 待审核投稿
+与通知开关都只存在浏览器 `localStorage`（键名前缀 `vitx:`，两个页面共用）。
+
+### 19.1 页面结构（对应手绘稿）
+
+| 区域 | 内容 |
+|---|---|
+| 顶栏 | V 标 + `Vitx®` + `Vitx Video`；分区导航 首页 / 游戏 / 娱乐 / 音乐 / VLOG / 生活 / 饮食 / 学习；搜索框（标题、UP 主、视频 ID、标签）；右侧 点赞 / 收藏 / 历史 / 通知 四个图标、投稿按钮、`v1.6.0` 徽标、返回账户 |
+| 新功能预告 | V 标 + 「Vitual XRing 新功能预告」+ `1.5.0 → 1.6.0` 版本胶囊 + 「知道了」；竖排口号「你的一切都在这里」 |
+| 多栏查找 | 标题 + 分区提示 + 快捷按钮（点赞 / 投币 / 收藏 / 历史 / 投稿） |
+| 搜索结果 | 输入即筛，标题显示关键词与命中数，可一键清除 |
+| 今日最热 | 按播放量排序、可「换一批」；自己投稿的视频以「审核中」徽标置顶 |
+| 猜你想看 | 固定步长打散的推荐列表 |
+| 投稿入口 | 顶栏「投稿」按钮、快捷栏「⬆ 投稿」、面板页脚「想投稿？打开投稿页 →」都跳到 `vitxvideopublish.html` |
+| 页脚 | Contributors：Caldson；Copyright © 2026 Vitual XRing |
+
+### 19.2 交互
+
+- **播放器**：点卡片打开模态播放器，显示视频 ID / 分区 / 标签、UP 主与播放量；进度按视频时长推进，
+  支持播放 / 暂停（`空格`）、拖动进度条、`Esc` 关闭；点赞 / 投币 / 收藏在这里切换，并同步卡片上的「已点赞」标记。
+- **列表**：点赞、收藏、历史（最近 30 条）都能在「多栏查找」快捷按钮或顶栏图标里查看。
+- **投稿**：在独立页面 `vitxvideopublish.html` 完成（见 19.4）；提交后新视频以「审核中」进入今日最热，
+  未通过审核前点击会提示不能播放。
+- **通知**：铃铛面板里两条规则与手绘稿一致 ——「追的视频 / 合集更新」「点赞、评论 / 你的视频 / 合集」，
+  勾选状态保存在本机，顶部铃铛用红点提示。
+
+### 19.3 说明与限制
+
+- 页面没有任何真实视频源，播放器是「按时间推进的示例播放器」，页内已明确标注；
+- 投稿只把信息写进 `localStorage`，不会上传文件，也不会出现在其它设备上；
+- 投币是纯前端计数，**不会**扣 VTX 余额；
+- 停服守卫同样生效（`vtx-closed.js` 已引入），停服期间打开本页会跳到 `WebsiteClose.html`；
+- 版本号统一升到 `1.6.0`（Worker `VERSION` / `CHAT_VERSION`=`1.6`、SDK `API_VERSION`、各页面 `?v=`），
+  `manager.html` 顶栏新增「视频」入口。
+
+### 19.4 投稿页（`vitxvideopublish.html`）
+
+结构与视频页一致（V 标 + Vitx®、返回视频 / 返回账户、`v1.6.0`），主体是表单 + 右侧「投稿须知」：
+
+| 字段 | 说明 |
+|---|---|
+| 上传 | 选择本地视频文件，**格式不限**（mp4 / mov / mkv / avi / flv / ts… 都行，≤2 GB）；能解码的直接在页面里预览，文件存进浏览器 IndexedDB（`vtx-video-store.js`），仍**不会上传服务器** |
+| 标题 | 2~60 字 |
+| 简介 | ≤300 字 |
+| 标签 | 逗号分隔，最多 5 个 |
+| 原创 | 是，本人原创 / 否，转载或二创 |
+| 分区 | 游戏 / 娱乐 / 音乐 / VLOG / 生活 / 饮食 / 学习 |
+| **创作声明** | 多选，未勾选表示「以上都不是」 |
+
+创作声明（勾选后会写进视频记录，并在视频页的卡片与播放页显示）：
+
+| id | 声明 | 含义 |
+|---|---|---|
+| `ai` | 含AI内容 | 画面、配音或文案由 AI 生成或参与创作 |
+| `marketing` | 包含营销内容 | 含带货、推广、引流或商业合作 |
+| `fiction` | 含虚构演绎 | 剧情、台词或设定为虚构创作 |
+| `repost` | 转载 / 二创 | 非本人原创素材，已获得授权或注明来源 |
+| `sponsor` | 含赞助 / 广告 | 由品牌赞助或含贴片广告 |
+| `warning` | 可能引起不适 | 包含强光、剧烈音效或易引起不适的画面 |
+
+提交后：写入 `localStorage` 的 `vitx:pending`（视频文件另存 IndexedDB），表单换成成功页「发布成功，请等待审核通过」并列出已勾选的声明，
+提供「去视频页看看」「再投一个」；右侧「本机已提交」列出待审核条目。
+
+视频页读取同一份 `vitx:pending`：待审核视频以「审核中」徽标置顶在今日最热，声明以橙色小标签显示在卡片下方，
+播放页的信息行会追加「声明：…」；审核中点击会提示不能播放。
+
+---
+
+## 20. 1.6.1 更新：观看页 `vitxvideo.html?videoid=xxx` 与评论区
+
+1.6.1 把「弹窗播放」改成**独立观看页**：每个视频都有自己的地址，可以刷新、可以分享、可以前进后退。
+
+### 20.1 地址与路由
+
+| 地址 | 页面 |
+|---|---|
+| `vitxvideo.html` | 首页：分区、搜索、今日最热、猜你想看 |
+| `vitxvideo.html?videoid=vt-0003` | 观看页：播放器 + 视频信息 + 评论区 + 相关推荐 |
+
+- 首页点卡片：`history.pushState` 换地址并就地渲染观看页（不整页刷新）；
+- 浏览器后退 / 前进：监听 `popstate`，按地址里的 `videoid` 决定显示首页还是观看页；
+- 直接打开带 `videoid` 的链接（刷新、分享）也能正常渲染；`videoid` 不存在时回到首页并提示；
+- 「← 回首页」与「🔗 复制链接」都基于这个地址。
+
+### 20.2 播放器
+
+| 情况 | 表现 |
+|---|---|
+| 本机有该视频的文件（IndexedDB 里有记录） | 用 `<video controls>` 真播放，支持全屏 / 音量 / 倍速等浏览器原生控件 |
+| 演示条目（内置示例，没有文件） | 显示标题与说明「这是示例视频，没有真实文件」 |
+| 文件存在但浏览器解不了码（如 mkv / avi / flv） | 显示「浏览器无法解码这个文件（xxx.mkv），换一个播放器或转码后再试」 |
+| 换了浏览器 / 清过站点数据 | 显示「本机找不到这个视频的文件」 |
+
+播放器下方一排：点赞 / 投币 / 收藏（计数与首页卡片同步）、复制链接、回首页。
+审核中的视频会在信息区标「审核中」，首页列表里点它会提示等审核通过。
+
+### 20.3 评论区
+
+| 能力 | 说明 |
+|---|---|
+| 发表 | 上限 300 字（带计数），按钮发送；`Ctrl / Cmd + Enter` 也可发送 |
+| 排序 | 「最新」（按时间倒序，默认）/「最热」（按点赞数） |
+| 点赞 | 每条评论可点赞 / 取消，计数同步 |
+| 回复 | 点「回复」把 `回复 @某人：` 填进输入框并聚焦 |
+| 删除 | 只对自己的评论显示 |
+| 身份 | 用 `sessionStorage.vtxAccount`（登录名），没有就记作「我」 |
+| 存储 | `localStorage` 的 `vitx:comments`：`{ 视频ID: [{ id, user, text, at, likes, liked }] }` |
+| 初始数据 | 首次打开时给几个示例视频灌入演示评论（只灌一次，标记在 `vitx:commentsSeeded`） |
+
+### 20.4 上传任何格式（1.7.0 起改为服务端存储，见第 21 节）
+
+投稿页不再限制 `accept`，任何文件都能选（≤2 GB）：
+
+- 选完立刻本机预览：浏览器能解码的直接显示画面；解不了码的提示「这个格式浏览器没法解码，预览不可用」，但**仍可提交**；
+- 提交时把文件写进 IndexedDB（库名 `vitx-video`，store `files`，键是视频 ID），元信息写进 `localStorage.vitx:pending`；
+- 观看页用 `vtx-video-store.js` 取回文件、`URL.createObjectURL` 播放；取不到或解不了码时按 20.2 的兜底文案提示；
+- 存储失败（配额不足 / 隐私模式）时提示「视频已提交，但文件没能存到本机（可能空间不足）」，记录本身仍然保留。
+
+> 提醒：视频文件只在这台浏览器里，换设备、换浏览器或清站点数据后就没了——页面上的文案也如实写了这一点。
+---
+
+## 21. 1.7.0 更新：投稿视频改成服务端存储
+
+1.6.1 的视频文件只存在浏览器 IndexedDB 里，换设备 / 换浏览器 / 清站点数据就没了，别人也看不到。1.7.0 把这些数据搬到 Cloudflare Worker 的 KV：**投稿的视频、点赞、评论都存服务端，审核通过后任何人打开链接都能播放**。
+
+### 21.1 存储键
+
+| 键 | 内容 |
+|---|---|
+| `video:index` | 视频 ID 数组（按投稿时间倒序，最多 400 条） |
+| `video:meta:<id>` | 视频元信息 JSON：标题、简介、标签、分区、创作声明、文件名 / 类型 / 大小 / 时长、作者、状态、播放量、点赞数组、评论数 |
+| `video:file:<id>` | 视频二进制（`ArrayBuffer`），直接用 KV 值存 |
+| `video:comments:<id>` | 该视频的评论数组（按时间正序，保留最近 300 条） |
+| `video:purged-seed` | 老的示例视频（`v_demo*`）是否已经清理过的标记 |
+
+- `VIDEO_MAX_BYTES = 20 MB`：KV 单个值上限约 25 MB，留出余量；
+- 视频 ID 形如 `v_xxxxxxxxxxxx`，服务端生成，不猜不改；
+- **不再内置任何示例视频**：新部署后列表一开始就是空的；早期版本若往 KV 写过 `v_demo*`，第一次请求会连同文件与评论一起删掉，并且 `v_demo*` / `seed` 记录永远不会出现在列表与详情里。
+
+### 21.2 状态流转
+
+```
+draft  ── 上传文件成功 ──▶ pending ── 站主通过 ──▶ published
+   │                          │
+   │                          └── 站主删除 ──▶ 记录与文件一起删除
+   └── 上传失败（文件过大 / 存储写入失败）会回滚 meta 与索引
+```
+
+| 状态 | 谁能看到 | 能播放 |
+|---|---|---|
+| `draft` | 只有作者与站主 | 不能（还没文件） |
+| `pending` | 作者与站主 | 站主可以预览，其他人不能 |
+| `published` | 所有人（含未登录） | 可以 |
+
+### 21.3 接口
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/videos` | 视频列表。可选 `?cat=生活`、`?q=关键词`（匹配标题 / 作者 / 标签 / ID）；返回 `{ videos, login, isAdmin, maxBytes, count }`，每条带 `status / playable / liked / mine / canReview` |
+| GET | `/api/videos/status` | 服务可用性、`maxBytes`、分区与声明枚举 |
+| POST | `/api/videos` | 建投稿（需要登录）：`{ title, desc, tags, cat, original, declarations, fileName, fileType, fileSize, dur }` → 返回 `draft` 状态的视频 |
+| PUT | `/api/videos/:id/file` | 上传文件本体（原始二进制 + `content-type`）；只能传自己的、只能传一次；成功后状态变 `pending` |
+| GET | `/api/videos/:id` | 视频详情 + 评论列表：`{ video, comments }` |
+| GET | `/api/videos/:id/file` | 播放文件。支持 `Range`（返回 `206` + `content-range`），支持 `?token=xxx`（`<video src>` 带不了 Authorization 头） |
+| POST | `/api/videos/:id/view` | 播放量 +1，返回最新 `views` |
+| POST | `/api/videos/:id/like` | 点赞 / 取消点赞（同一账号幂等切换），返回 `{ liked, likes }` |
+| POST | `/api/videos/:id/approve` | 站主通过审核：`pending → published` |
+| POST | `/api/videos/:id/reject` | 站主驳回：删除记录与文件 |
+| DELETE | `/api/videos/:id` | 作者或站主删除视频 |
+| POST | `/api/videos/:id/comments` | 发评论（需要登录，1~300 字），返回 `{ comment, count }` |
+| POST | `/api/videos/:id/comments/:commentId/like` | 点赞 / 取消评论点赞 |
+| DELETE | `/api/videos/:id/comments/:commentId` | 删评论（只能删自己的，站主可以删任何人的） |
+
+错误码与其它接口一致：`400 bad_request`、`401 unauthorized`、`403 forbidden`、`404 not_found`、`409 conflict`（重复上传文件）、`413 payload_too_large`（超过 20 MB）、`503 not_ready`（没绑定 KV）、`507 storage_failed`（KV 写入失败）。
+
+### 21.4 SDK
+
+```js
+const list = await VTXApi.video.list({ cat: "生活" });   // 可选 { cat, q }
+const one = await VTXApi.video.get(videoId);             // { video, comments }
+
+// 投稿：先建记录再传文件（两段式，便于上报进度 / 大小校验）
+const video = await VTXApi.video.upload(file, {
+    title: "标题", desc: "简介", tags: ["标签"], cat: "生活",
+    original: true, declarations: ["ai"], fileName: file.name,
+    fileType: file.type, fileSize: file.size, dur: "00:12"
+});
+
+await VTXApi.video.like(video.id);          // { liked, likes }
+await VTXApi.video.comment(video.id, "好耶"); // { comment, count }
+await VTXApi.video.likeComment(video.id, commentId);
+await VTXApi.video.removeComment(video.id, commentId);
+
+videoElement.src = VTXApi.video.fileUrl(video.id); // 自动带上 ?token=
+await VTXApi.video.approve(video.id);       // 站主：通过审核
+await VTXApi.video.reject(video.id);        // 站主：驳回并删除
+```
+
+### 21.5 前端变化
+
+| 页面 | 1.6.1 | 1.7.0 |
+|---|---|---|
+| `vitxvideo.html` 首页 | 内置 12 条示例数组 + 本机 `vitx:pending` | `VTXApi.video.list()`，分区 / 搜索都是服务端数据；没有视频时显示「还没有任何视频，去投稿」 |
+| 观看页 | IndexedDB 取文件 + `blob:` 播放 | `<video src="VTXApi.video.fileUrl(id)">`，服务端支持 Range 断点续播 |
+| 点赞 | `localStorage.vitx:likes` | 服务端 `POST /like`（投币、收藏、历史仍只记本机） |
+| 评论 | `localStorage.vitx:comments` | 服务端接口，支持删除权限与点赞 |
+| 待审核 | 无 | 站主 / 作者可见「待审核」区，卡片上直接「通过 / 删除」 |
+| 投稿页 | 写 IndexedDB + `localStorage.vitx:pending` | 先校验登录，再 `VTXApi.video.upload()` 传到服务器；未登录时顶部提示去登录 |
+| 播放量 | 示例数据写死 | `POST /view` 真实累加 |
+
+- 投稿页不再需要 `vtx-video-store.js`（IndexedDB 帮助脚本已删除）；
+- 本机只保留投币 / 收藏 / 历史 / 通知开关这些偏好；
+- 文件上限从文案里的「2 GB」改为服务端真实的 **20 MB**，超限时前端直接提示，服务端也会返回 413。
+
+### 21.6 部署
+
+```bash
+cd worker
+npx wrangler deploy          # 上传新的 Worker 代码
+```
+
+KV 结构是追加的，不需要迁移：老的 `accounts`、`chat:*` 键都不受影响。首次请求会顺手清理早期注入的 `v_demo*` 示例视频，站点从零开始（没有假数据）。
+
+---
+
+## 22. 1.7.1 更新：5 GB / 100 小时投稿与投币
+
+1.7.0 为了适配 KV 的单值上限，把投稿文件卡在 20 MB。1.7.1 起视频文件改存 R2，上限提到 **5 GB**，时长上限 **100 小时**，同时上线「投币」：1 个币 = **5.00 VTX**，直接打进投稿人账户。
+
+### 22.1 存储
+
+| 绑定 | 文件存放 | 单文件上限 | 上传方式 |
+|---|---|---|---|
+| `VIDEO_BUCKET`（R2） | R2 对象 `video:file:<id>` | **5 GB** | 20 MB 分片（R2 multipart） |
+| 未绑定 | `ACCOUNTS_KV` 的 `video:chunk:<id>:<n>` / `video:file:<id>` | 分片上传可到 5 GB（受 KV 免费额度 1 GB 限制），整包约 25 MB | 分片或一次 PUT |
+
+> 1.7.2 起，没绑 R2 但配置了 `GITHUB_TOKEN` 时会走 GitHub Release 存储，见第 23 节；上表「未绑定」一行只在两者都没有时生效。
+
+- 元信息与评论仍然在 KV：`video:index` / `video:meta:<id>` / `video:comments:<id>`；
+- 分片大小 `VIDEO_CHUNK_BYTES = 20 MB`，5 GB 大约 256 片（R2 上限 10000 片）；
+- 播放走同一个 `/file` 接口，R2 与 KV 都支持 `Range`（206 + `content-range`）。
+
+```toml
+# worker/wrangler.toml
+[[r2_buckets]]
+binding = "VIDEO_BUCKET"
+bucket_name = "vtx-video"
+```
+
+```bash
+npx wrangler r2 bucket create vtx-video
+npx wrangler deploy
+```
+
+### 22.2 限制
+
+| 项 | 值 | 校验位置 |
+|---|---|---|
+| 文件大小 | ≤ 5 GB | `POST /api/videos` 的 `fileSize`、每个分片累计、`PUT /file` 的 `content-length` |
+| 视频时长 | ≤ 100 小时（360000 秒） | `POST /api/videos` 的 `durSeconds` / `dur` |
+| 标题 / 简介 / 标签 | 2-60 字 / ≤300 字 / ≤5 个（每个 ≤16 字） | 同上 |
+
+时长用 `durSeconds`（秒）传，也接受 `"1:02:05"` 或 `"90:00:00"` 这种字符串；服务端统一存成 `durSeconds` 与 `dur` 两个字段，超过 100 小时返回 `400 bad_request`。
+
+### 22.3 分片上传（R2）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/api/videos/:id/upload/start` | 开始分片上传，返回 `{ uploadId, chunkBytes, maxBytes, maxParts }`；重复调用会作废上一次 |
+| PUT | `/api/videos/:id/upload/:part` | 上传第 `part` 片（从 1 开始，原始二进制）；返回 `{ partNumber, etag, received }` |
+| POST | `/api/videos/:id/upload/complete` | 合并所有分片，状态变 `pending` |
+| POST | `/api/videos/:id/upload/abort` | 放弃这次分片上传（回到 `draft`） |
+
+- 只有作者与站主能上传；
+- 1.7.2 起 `start` 不再因为「没绑 R2」而失败：按 R2 → GitHub Release → KV 分块 的顺序挑一个可用存储，返回里带 `storage` 与对应的 `chunkBytes`；
+- `PUT /api/videos/:id/file` 仍然保留：整包上传会写到当前存储（R2 / GitHub 单资源 / KV 单值）。
+
+### 22.4 投币
+
+`POST /api/videos/:id/coin`，需要登录；视频必须是 `published`。
+
+| 操作 | 效果 |
+|---|---|
+| 首次投币 | 观众扣 **5.00 VTX**，投稿人加 **5.00 VTX**，双方各记一笔流水（`投币` / `收到投币`），返回 `{ coined: true, coins, coinCents, cost, account, ownerMoney }` |
+| 再点一次（取消） | 从投币名单里移除，**不退钱、也不从投稿人账上扣回**，返回 `{ coined: false, refunded: false }` |
+| 余额不足 | `400 insufficient_funds` |
+| 投稿人 = 观众 | 只扣自己的 5.00 VTX，不做转账（不会凭空多钱） |
+| 未审核 / 未公开 | `409 conflict` |
+
+- 计数存在 `meta.coins`（登录名数组）与 `meta.coinCents`（累计收到的钱），`videoView` 输出 `coins` / `coined` / `coinCents`；
+- 因为「取消不退」，反复投币会重复扣款，这是设计如此（每次投币都是一次真实的 5.00 VTX 转账）。
+
+### 22.5 SDK
+
+```js
+const status = await VTXApi.video.status();   // { maxBytes: 5368709120, maxDurationSeconds: 360000, chunkBytes, coinCents, r2 }
+
+// 一行上传：内部按 r2 自动选择分片或整包
+const video = await VTXApi.video.upload(file, {
+    title, desc, tags, cat, original: true, declarations: ["ai"],
+    fileName: file.name, fileType: file.type, fileSize: file.size,
+    durSeconds: 3725
+}, (progress) => {
+    console.log(progress.percent, progress.part, progress.parts);
+});
+
+await VTXApi.video.coin(video.id);   // { coined, coins, coinCents, cost, account, ownerMoney }
+```
+
+分片接口也单独暴露：`uploadStart(id)` / `uploadAbort(id)`。
+
+### 22.6 页面
+
+| 页面 | 变化 |
+|---|---|
+| `vitxvideopublish.html` | 提示改为「任何格式，≤5 GB，时长 ≤100 小时」；选文件后探测真实时长，超 100 小时直接拦下；上传过程中按钮显示百分比并有进度条 |
+| `vitxvideo.html` | 投币改为服务端（按钮计数 = 真实投币数）；未登录提示先登录；余额不足、审核中都会提示；「我投过币的」列表按服务端 `coined` 生成 |
+| 版本号 | 全套同步到 `1.7.1`（`VERSION` / `CHAT_VERSION` / `VIDEO_VERSION` / `API_VERSION` / 各页 `?v=`） |
+
+## 23. 1.7.2 更新：没开通 R2 时文件改存 GitHub Release
+
+Cloudflare 的 R2 必须先绑定支付方式才能开通，否则 `npx wrangler r2 bucket create` 会直接抛 `code: 10042 / Please enable R2 through the Cloudflare Dashboard`。1.7.2 起，**没绑 R2 但配置了 `GITHUB_TOKEN`** 时，投稿文件改存到仓库的 GitHub Release：单文件上限从「KV 单值约 25 MB」提到 **2 GB**，时长上限仍然是 **100 小时**，分片上传和 `Range` 播放都不受影响。
+
+### 23.1 文件存在哪
+
+每个视频一个**草稿** release，tag 为 `video-store/<视频 id>`，文件按 32 MB 切片，存成 release 资源 `p001`、`p002`…
+
+| 存储 | 触发条件 | 单文件上限 | 分片大小 | 读文件 |
+|---|---|---|---|---|
+| R2 | 绑了 `VIDEO_BUCKET` | 5 GB | 20 MB | Worker → R2 |
+| GitHub Release | 没绑 R2，且 `GITHUB_TOKEN` 可用 | 2 GB | 32 MB（一片一个资源） | Worker → GitHub（带令牌） |
+| KV 分块 | 两者都没有 | 5 GB（实际受 KV 免费额度 1 GB 限制） | 20 MB | Worker → KV |
+
+- 草稿 release 不公开：外部没有直链，`/file` 仍然只给「已通过审核」或作者 / 站主看，可见性规则和 R2 / KV 完全一致；
+- 删除视频 = 删掉那个草稿 release，文件跟着一起清掉（一次 API 调用，不用逐片删）；
+- 元信息、评论、索引还是在 `ACCOUNTS_KV`，存储位置记在 `meta.storage` 与 `meta.gh`。
+
+### 23.2 需要什么
+
+| 项 | 说明 |
+|---|---|
+| `GITHUB_TOKEN` | 现有 secret 直接能用，需要仓库 **Contents: Read and write** |
+| 仓库 | 默认取 `wrangler.toml` 里的 `REPO`，也可以用 `VIDEO_GH_REPO` 指向另一个仓库 |
+| Workers 套餐 | 免费版的 50 次子请求够用：上传一片只发 1 次请求，播放一次只读 1 片 |
+
+> 一个视频一条草稿 release，仓库的 Releases 页面里只有管理员能看到（草稿不公开），删视频时一起删掉。GitHub 单个资源上限 2 GB，我们切片只有 32 MB，不会碰到。
+
+### 23.3 与 1.7.1 的差异
+
+| 项 | 1.7.1 | 1.7.2 |
+|---|---|---|
+| 没绑 R2 时 | 只能整包传，约 25 MB | 分片上传，2 GB |
+| `chunkBytes` | 固定 20 MB | 按存储返回：R2 20 MB / GitHub 32 MB / KV 20 MB |
+| `/api/videos/status` | 只有 `r2` | 增加 `storage: "r2"｜"gh"｜"kv-chunks"` |
+| `/api/videos`（POST）与 `/upload/start` | `r2` + 固定 `chunkBytes` | 同样带 `storage` 与对应 `chunkBytes` / `maxBytes` |
+| 删除视频 | 逐片删 | GitHub 存储下删 release |
+| 版本号 | 1.7.1 | 全套同步到 `1.7.2` |
+
+SDK 不用改：`VTXApi.video.upload()` 本来就是「先 `upload/start` 拿 `chunkBytes`，按片上传，失败再退回整包」，三种存储共用这一条路。
+
+### 23.4 运维
+
+```bash
+# 仓库里的 GITHUB_TOKEN 已经是 secret，确认它有 Contents 读写权限即可
+npx wrangler secret put GITHUB_TOKEN
+
+# 部署后确认走了哪个存储
+curl https://xsmmc.caldson.us.ci/api/videos/status
+# → { "storage": "gh", "maxBytes": 2147483648, "chunkBytes": 33554432, ... }
+```
+
+- 想改回 R2：把 `[[r2_buckets]]` 放开并建桶，优先级高于 GitHub；
+- 想强制退回 KV：在 `wrangler.toml` 的 `[vars]` 里加 `VIDEO_GH_REPO = "off"`（不影响 `GITHUB_TOKEN` 的其他用途），单文件上限会掉回受 KV 限制；
+- 草稿 release 只在「开始上传后没传完、也没点放弃」时才会残留，`/upload/abort` 或删视频都会清掉。
+
+---
+
+## 24. 1.7.3 更新：聊天室长消息、Discord Markdown 与转账
+
+1.7.3 只动聊天室：解除 500 字限制、把 Markdown 升级成 Discord 风格、增加聊天室转账。视频、商店、账户接口没有变化；版本号全套同步到 `1.7.3`。
+
+### 24.1 解除 500 字限制与长消息折叠
+
+| 项 | 1.7.2 | 1.7.3 |
+|---|---|---|
+| 单条文字 | 最长 500 字符（`400 bad_request`） | 不再按字符数限制；只有 **256 KB** 的 KV 安全阈值（`413 text_too_long`） |
+| 前端输入框 | 无 `maxlength`，但服务端会拒 | 无 `maxlength`，正常输入即发送 |
+| 会话列表 `lastMessage.text` | 完整正文 | 最多 200 字 + `…`（长消息不再拖垮轮询） |
+| 消息存储 | 最近 300 条 | 最近 300 条，且按约 6M 字符预算从旧到新裁剪 |
+
+前端行为（`chatroom.html`）：
+
+- 消息正文 ≥ 500 字时，气泡只显示约 330px 高，底部渐隐，并出现 `.........展开`；
+- 点 `.........展开` 弹窗显示**完整内容**（同样是渲染后的 Markdown），底部带「复制全文」；
+- 切换会话、实时消息、轮询刷新后折叠状态保持；
+- 接口本身仍返回完整 `text`，折叠只是显示层行为。
+
+### 24.2 Discord 风格 Markdown
+
+新增 `vtx-markdown.js`（零依赖、纯前端，Node 里也能 require 做单测），聊天室所有文字消息与图片 / 文件 / 音乐配文都走它渲染。
+
+支持的语法（与 Discord 对齐）：
+
+| 语法 | 效果 |
+|---|---|
+| `**粗体**` | **粗体** |
+| `*斜体*` / `_斜体_` | 斜体（`snake_case` 不会误伤） |
+| `***粗斜体***` | 粗体 + 斜体 |
+| `__下划线__` | 下划线 |
+| `~~删除线~~` | 删除线 |
+| `\|\|剧透\|\|` | 点击才显示的剧透 |
+| `` `行内代码` `` | 行内代码，里面的 Markdown 不生效 |
+| ` ```语言 ... ``` ` | 代码块，带语言标签与「复制」按钮；未闭合也能渲染 |
+| `> 引用` / `>>> 多行引用` | 引用块 |
+| `#` / `##` / `###` 标题 | 标题 |
+| `-# 小字` | 小字 |
+| `- 项` / `1. 项` | 无序 / 有序列表 |
+| `[文字](https://…)`、裸链接 | 链接（只允许 `http` / `https` / `mailto`） |
+| `@登录名` | 高亮（只认本会话成员，代码块里的 @ 不处理） |
+| `<t:1730000000>` | 时间块，见下 |
+
+时间块支持 Discord 的 7 种样式：`<t:秒>` / `:t` / `:T` / `:d` / `:D` / `:F` / `:R`（相对时间每分钟自动刷新）。
+
+| 写法 | 显示 |
+|---|---|
+| `<t:1700000000>` 或 `:f` | `2023年11月15日 06:13`（本地时区） |
+| `:t` / `:T` | `06:13` / `06:13:20` |
+| `:d` / `:D` | `2023/11/15` / `2023年11月15日` |
+| `:F` | `2023年11月15日 星期三 06:13` |
+| `:R` | `2年前` / `3分钟前` |
+
+安全：
+
+- 所有用户文本先做 HTML 转义，不支持任何原始 HTML；
+- 链接只渲染 `http` / `https` / `mailto`，`javascript:` 等协议按普通文本显示；
+- 代码块、时间块、链接优先占位，后续强调格式不会破坏它们；
+- 相对时间用 `<time data-ts>` 保存毫秒时间戳，页面定时刷新。
+
+### 24.3 聊天室转账
+
+和微信转账一致：**发起即扣款 → 对方点「收款」才到账 → 24 小时未收可退回**。转账需要账户密码确认（和 `/api/me/transfer` 一致）。
+
+```bash
+# 发起转账（单聊可省略 to；群聊必须指定本群成员）
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/conversations/dm_xxxx/transfers \
+  -H "authorization: ******" -H "content-type: application/json" \
+  -d '{"to":"Bob","amount":"1.50","note":"午饭","password":"你的账户密码"}'
+
+# 收款（只有收款人；返回抢到的金额与最新余额）
+curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/transfer/claim?conversation=dm_xxxx" \
+  -H "authorization: ******"
+
+# 退回（只有发送者；对方还没收款时随时可以退回，过期也能退）
+curl -X POST "https://xsmmc.caldson.us.ci/api/chat/messages/消息id/transfer/refund?conversation=dm_xxxx" \
+  -H "authorization: ******"
+```
+
+请求体：
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `amount` / `total` | 是 | VTX 金额，大于 0，最多两位小数，单笔上限 1,000,000.00 VTX |
+| `to` / `recipient` | 群聊必填 | 收款人登录名；必须是本会话成员，不能是自己；单聊只能转给对方 |
+| `password` | 是 | 账户密码，错误返回 `400 invalid_password` |
+| `note` | 否 | 备注，最多 100 字 |
+
+消息结构：
+
+```json
+{
+    "type": "transfer",
+    "text": "午饭",
+    "transfer": {
+        "id": "tf_xxxxxx",
+        "from": "Alice",
+        "fromName": "爱丽丝",
+        "to": "Bob",
+        "toName": "鲍勃",
+        "cents": 150,
+        "note": "午饭",
+        "status": "pending",
+        "createdAt": 1760000000000,
+        "claimedAt": 0,
+        "expiresAt": 1760086400000
+    }
+}
+```
+
+- `status`：`pending`（待收款）→ `claimed`（已收款）或 `refunded`（已退回）；超过 24 小时未收，收款接口会把它标成 `expired` 并返回 `410 transfer_expired`
+- 资金：发起时扣发送方余额并写 `trades`（`转账 -1.50`）；收款时加到收款人余额（`转账 +1.50`）；退回时写 `转账退回 +1.50`
+- 限制：未收款的转账**不能撤回 / 删除**（`400 transfer_pending`），必须先退回，避免钱卡在消息里
+- 转发转账消息时只会转发一条文字摘要（`[转账] 1.50 VTX 待收款`），不会复制资金
+- 实时事件：收款 / 退回广播 `message:transfer`，前端就地刷新卡片
+- 会话列表预览显示 `[转账] 1.50 VTX 待收款` / `已收款` / `已退回` / `已过期`
+- 错误码：
+
+| 状态码 | `error` | 场景 |
+|---|---|---|
+| `400` | `invalid_password` | 账户密码错误 |
+| `400` | `insufficient_balance` | 余额不足 |
+| `403` | `forbidden` | 收款人不是自己 / 不是发起人 / 不是会话成员 |
+| `409` | `already_claimed` / `already_refunded` | 已经收过 / 已经退过 |
+| `410` | `transfer_expired` / `transfer_refunded` | 超过 24 小时 / 已退回 |
+| `429` | `too_many_requests` | 转账太频繁 |
+
+### 24.4 版本与测试
+
+- 全套版本号同步到 `1.7.3`：`worker/index.js` 的 `VERSION` / `CHAT_VERSION` / `VIDEO_VERSION`、`vtx-api.js` 的 `API_VERSION`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页 `<script src="...?v=1.7.3">`
+- `worker/test/chat.test.mjs` 新增长消息与转账用例；`worker/test/markdown.test.mjs` 覆盖 Markdown / 时间块 / XSS / 链接协议
+- 运行：`cd worker && npm test`
+
+---
+
+## 25. 1.8.0 更新：聊天室图片 / 文件改为保留 14 天
+
+1.8.0 只调整聊天室媒体的保留时间：从 **20 分钟** 改为 **14 天**。1.7.3 的 Markdown、长消息折叠与转账功能不变。
+
+### 25.1 变化
+
+| 项 | 1.7.3 | 1.8.0 |
+|---|---|---|
+| `CHAT_MEDIA_TTL_SECONDS` | `1200`（20 分钟） | `1209600`（14 天） |
+| KV `expirationTtl`（`chat:media:{id}` 与 `chat:media-meta:{id}`） | `1200` | `1209600` |
+| 上传响应的 `media.expiresAt` | 上传后 20 分钟 | 上传后 14 天 |
+| 上传响应的 `media.ttlSeconds` | `1200` | `1209600` |
+| `GET /api/chat/status` 的 `mediaTtlSeconds` | `1200` | `1209600` |
+| 前端提示 | 「20 分钟后自动删除」 | 「保留 14 天」 |
+
+### 25.2 接口行为
+
+```bash
+# 上传（行为：普通文件 ≤ 4 MB，音乐 ≤ 20 MB）
+curl -X POST https://xsmmc.caldson.us.ci/api/chat/media \
+  -H "authorization: ******" -H "content-type: image/png" \
+  -H "x-file-name: screenshot.png" --data-binary @screenshot.png
+
+# 返回里的保留时间
+# { "media": { "id": "…", "expiresAt": 1761300000000, "ttlSeconds": 1209600 } }
+
+# 过期后读取
+curl "https://xsmmc.caldson.us.ci/api/chat/media/媒体id?token=你的token"
+# 410 { "error": "media_expired", "message": "图片或文件已过期（上传后 14 天自动删除）" }
+```
+
+- 上传大小上限、类型白名单、`Range` / 缓存头、权限校验都不变；
+- 过期后聊天记录里的图片 / 文件 / 音乐消息仍然保留，前端显示「图片已过期（上传后 14 天自动删除）」；
+- **旧文件不会被延长**：KV 的 `expirationTtl` 在写入时固定，1.8.0 部署前上传的文件仍按原来的 20 分钟过期；需要保留更久只能重新上传；
+- `expiresAt` 是绝对毫秒时间戳，前端用它判断是否显示「已过期」，不会因为页面缓存而错乱。
+
+### 25.3 版本与测试
+
+- 版本号全套同步到 `1.8.0`：`worker/index.js` 的 `VERSION` / `CHAT_VERSION` / `VIDEO_VERSION`、`vtx-api.js` 的 `API_VERSION`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页 `<script src="...?v=1.8.0">`
+- `worker/test/chat.test.mjs` 断言 `/api/chat/status` 的 `mediaTtlSeconds` 与上传响应的 `ttlSeconds` 都是 `14 * 24 * 60 * 60`
+- 运行：`cd worker && npm test`
+
+---
+
+## 26. 1.8.0 更新：聊天室音乐文件直接播放
+
+聊天室发送的音频文件（音乐）现在会渲染成 `<audio controls>`，点播放键就能直接听，不再只是一个下载链接。
+
+### 26.1 服务端
+
+- `/api/chat/media` 会把客户端声明的 `audio/*` 保留为音频类型；过去除图片外一律存成 `application/octet-stream`。
+- 没带 MIME 时按扩展名补：`mp3` / `mp2` / `m4a` / `m4b` / `aac` / `wav` / `wave` / `flac` / `ogg` / `oga` / `opus` / `weba` / `mka` / `wma` / `aif` / `aiff` / `alac` / `mid` / `midi` / `amr` / `ape`。
+- `GET /api/chat/media/{id}` 对音频返回 `content-type: audio/*` 与 `content-disposition: inline`；老文件即使元数据是 `octet-stream`，也会按文件名扩展名补出音频类型，保证还能播放。
+- 上传上限：**音乐 20 MB**，其它文件仍是 **4 MB**；音乐同样保留 **14 天**（见第 25 节）。
+
+### 26.2 前端
+
+- 聊天室按 `media.type` 或扩展名识别音乐，气泡里显示 🎵 文件名 + 大小 + 原生音频播放器。
+- 会话列表 / 引用 / 搜索预览显示 `[音乐] 歌名.mp3`；普通文件仍是 `[文件] …`。
+- 还是用同一个「图片/文件」按钮上传，不需要额外入口。
+
+### 26.3 格式与兼容性
+
+- 现代浏览器一般能直接解码 MP3 / M4A / AAC / WAV / FLAC / OGG / OPUS；
+- WMA、APE、AMR 等格式会显示播放器，但能否解码取决于浏览器和系统编解码器；
+- 音频也受 14 天 TTL 限制，过期后消息保留并显示「音乐已过期（上传后 14 天自动删除）」；
+- 旧的 20 分钟 TTL 文件不会被延长（见 25.2）。
+
+### 26.4 测试
+
+- `worker/test/chat.test.mjs`：验证 `audio/mpeg` 类型保留、`GET` 返回 `audio/mpeg` 与 `inline`、5 MB 音频可上传、5 MB 图片仍被 4 MB 限制拦截；
+- `worker/test/chatroom.test.mjs`：验证 `.mp3` / `.m4a` / `.flac` 识别为音乐、`.png` 不识别、`[音乐]` 预览文本。

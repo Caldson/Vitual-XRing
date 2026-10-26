@@ -1,9 +1,29 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head>
+<html lang="zh-CN">
+<head>
+    <meeta charset="UTF-8">
     <!-- 停服守卫：停服期间任何页面都会跳到 WebsiteClose.html，时间表见 vtx-closed.js -->
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
-<script>
+    <meta viewport="width=device-width, initial-scale=1.0">
+    <title>XRing Studios Money Manager - XRingCR财务管理局</title>
+    <style>
+        button {
+            border-radius: 20%;
+            width: 10%;;
+            height: 10%;
+        }
+    </style>
+    <script>
         window.onload = function() {
             window.location.href = "login.html"
         }
-</script></head></html>
+    </script>
+</head>
+<body>
+    <header style="justify-content: space-between;">
+        <img src="XRingLogo.png" width="20%">
+        <h1>XRing Studios Money Manager</h1>
+    </header>
+    <button onclick="window.location.href='login.html'">登录Vitual XRing</button>
+</body>
+</html>
