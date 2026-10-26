@@ -67,9 +67,9 @@ PUBLIC_BASE = "https://xsmmc.caldson.us.ci"
 # 想支持 5 GB 的大文件就必须绑定 R2，否则投稿页只能传小文件：
 #   npx wrangler r2 bucket create vtx-video
 # 然后把下面两行取消注释（bucket_name 换成你创建的桶名）。
-# [[r2_buckets]]
-# binding = "VIDEO_BUCKET"
-# bucket_name = "vtx-video"
+[[r2_buckets]]
+binding = "VIDEO_BUCKET"
+bucket_name = "vtx-video"
 
 # 需要提前设置的机密（不要写进这个文件）：
 #   wrangler secret put GITHUB_TOKEN      （迁移旧 account.json / 镜像时需要 Contents 读写权限）
