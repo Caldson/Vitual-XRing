@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>投稿 | Vitx® 视频</title>
+    <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            --blue: #3867e8;
+            --blue-soft: #eef2ff;
+            --ink: #172033;
+            --muted: #68768d;
+            --line: #e7ebf2;
+            --bg: #f4f7fb;
+            --warn: #b7791f;
+        }
+
+        * { box-sizing: border-box; }
+
+        [hidden] { display: none !important; }
+
+        html, body { margin: 0; }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 12% 0%, #eaf0ff 0, transparent 38%),
+                radial-gradient(circle at 88% 8%, #e9f7f0 0, transparent 34%),
+                var(--bg);
+            color: var(--ink);
+            -webkit-text-size-adjust: 100%;
+        }
+
+        button, input, textarea, select { font: inherit; color: inherit; }
+
+        button { cursor: pointer; touch-action: manipulation; }
+
+        a { color: var(--blue); text-decoration: none; }
+
+        /* ───────── 顶栏 ───────── */
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 18px;
+            padding-top: calc(10px + env(safe-area-inset-top, 0px));
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand { display: flex; align-items: center; gap: 10px; color: inherit; flex: 0 0 auto; }
+
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            border-radius: 11px;
+            background: linear-gradient(135deg, #3867e8, #6c8cff);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+        .brand-text strong { font-size: 16px; }
+        .brand-text strong sup { font-size: 9px; vertical-align: super; }
+        .brand-text small { color: var(--muted); font-size: 11.5px; }
+
+        .page-title {
+            margin-left: 6px;
+            padding-left: 14px;
+            border-left: 1px solid var(--line);
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #4a5a75;
+        }
+
+        .topbar-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 0 0 auto;
+        }
+
+        .link-btn {
+            padding: 7px 13px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .link-btn:hover { color: var(--blue); border-color: #b9c8f5; }
+
+        .version {
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: var(--blue-soft);
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        /* ───────── 主体 ───────── */
+
+        .wrap {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 22px 18px 44px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 300px;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(23, 32, 51, 0.05);
+        }
+
+        .card { padding: 20px 20px 22px; }
+
+        .card h1 { margin: 0 0 6px; font-size: 19px; }
+        .card .lead { margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+        .upload-drop {
+            width: 100%;
+            padding: 26px 14px;
+            border: 1px dashed #c6d3ee;
+            border-radius: 14px;
+            background: #f8faff;
+            color: var(--blue);
+            font-size: 15px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .upload-drop:hover { border-color: var(--blue); background: var(--blue-soft); }
+        .upload-drop.has-file { color: var(--ink); border-style: solid; border-color: #cfe3d6; background: #f4fbf7; }
+        .upload-drop small { display: block; margin-top: 7px; color: var(--muted); font-size: 11.5px; font-weight: 500; }
+
+        .field { margin-top: 15px; }
+
+        .field > label {
+            display: block;
+            margin-bottom: 6px;
+            color: #4a5a75;
+            font-size: 12.5px;
+            font-weight: 600;
+        }
+
+        .field input[type="text"],
+        .field textarea,
+        .field select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fbfcfe;
+            outline: none;
+            font-size: 13.5px;
+        }
+
+        .field textarea { min-height: 96px; resize: vertical; line-height: 1.6; }
+
+        .field input:focus,
+        .field textarea:focus,
+        .field select:focus { border-color: #b9c8f5; background: #fff; }
+
+        .field .count { float: right; color: #a9b3c3; font-size: 11.5px; font-weight: 500; }
+
+        .row-inline { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+        .row-inline label { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; }
+
+        /* 声明 */
+
+        .declare-head {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .declare-head strong { font-size: 13px; color: #4a5a75; }
+        .declare-head span { color: var(--muted); font-size: 11.5px; }
+
+        .declare-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 8px;
+        }
+
+        .declare {
+            display: flex;
+            gap: 9px;
+            align-items: flex-start;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            background: #fbfcfe;
+            cursor: pointer;
+        }
+
+        .declare:hover { border-color: #b9c8f5; }
+
+        .declare input { margin-top: 2px; width: 15px; height: 15px; accent-color: var(--blue); }
+
+        .declare span { font-size: 13px; font-weight: 600; }
+        .declare small { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; font-weight: 400; line-height: 1.5; }
+
+        .declare:has(input:checked) { border-color: #b9c8f5; background: var(--blue-soft); }
+
+        .declare-note { margin: 10px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.7; }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .primary-btn {
+            padding: 11px 24px;
+            border: 0;
+            border-radius: 11px;
+            background: linear-gradient(135deg, #3867e8, #5b83ff);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .ghost-btn {
+            padding: 11px 20px;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .ghost-btn:hover { color: var(--blue); border-color: #b9c8f5; }
+
+        /* 右侧说明 */
+
+        .side { padding: 18px 18px 20px; }
+        .side h2 { margin: 0 0 10px; font-size: 15px; }
+        .side ol { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; line-height: 1.9; }
+        .side li + li { margin-top: 2px; }
+
+        .side .pending { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+        .side .pending h3 { margin: 0 0 8px; font-size: 13px; }
+        .pending-item {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            padding: 6px 0;
+            color: var(--muted);
+            font-size: 12.5px;
+            line-height: 1.5;
+        }
+        .pending-item b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 600; }
+        .pending-item i { flex: 0 0 auto; font-style: normal; color: var(--warn); font-weight: 700; }
+
+        /* 成功页 */
+
+        .done { text-align: center; padding: 34px 24px 30px; }
+        .done .tick {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 16px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: #eaf7f1;
+            color: #2f9e6f;
+            font-size: 26px;
+        }
+        .done h2 { margin: 0 0 8px; font-size: 19px; }
+        .done p { margin: 0 0 6px; color: var(--muted); font-size: 13.5px; line-height: 1.8; }
+        .done .tags { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 14px 0 20px; }
+        .done .tags span {
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: #fdf1dd;
+            color: var(--warn);
+            font-size: 11.5px;
+            font-weight: 700;
+        }
+        .done .actions { justify-content: center; }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 34px;
+            z-index: 90;
+            transform: translate(-50%, 20px);
+            max-width: min(calc(100vw - 40px), 520px);
+            padding: 11px 18px;
+            border-radius: 12px;
+            background: rgba(23, 32, 51, 0.94);
+            color: #fff;
+            font-size: 13.5px;
+            line-height: 1.5;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+        .site-foot {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 0 18px 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 18px;
+            justify-content: space-between;
+            color: #9aa5b6;
+            font-size: 12px;
+        }
+
+        .site-foot b { color: #6f7c90; }
+
+        @media (max-width: 880px) {
+            .wrap { grid-template-columns: minmax(0, 1fr); }
+            .side { order: 2; }
+            .page-title { display: none; }
+            .topbar-right .version { display: none; }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            input, textarea, select { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="vitxvideo.html" title="返回 Vitx® 视频">
+            <span class="brand-mark">V</span>
+            <span class="brand-text">
+                <strong>Vitx<sup>®</sup></strong>
+                <small>Vitx Video</small>
+            </span>
+        </a>
+        <span class="page-title">投稿</span>
+        <div class="topbar-right">
+            <a class="link-btn" href="vitxvideo.html">← 返回视频</a>
+            <a class="link-btn" href="manager.html">返回账户</a>
+            <span class="version">v1.6.0</span>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <section class="panel card" id="form-card">
+            <h1>投稿</h1>
+            <p class="lead">上传视频、填写标题与简介，选择分区并勾选创作声明。提交后进入审核，审核期间不会公开播放。</p>
+
+            <button class="upload-drop" type="button" id="pick-file">
+                上传
+                <small id="pick-hint">点击选择视频文件（mp4 / webm / mov）</small>
+            </button>
+            <input id="file-input" type="file" accept="video/*" hidden>
+
+            <form id="publish-form" novalidate>
+                <div class="field">
+                    <label for="up-title">标题<span class="count" id="title-count">0 / 60</span></label>
+                    <input id="up-title" type="text" maxlength="60" placeholder="给视频起个标题">
+                </div>
+                <div class="field">
+                    <label for="up-desc">简介<span class="count" id="desc-count">0 / 300</span></label>
+                    <textarea id="up-desc" maxlength="300" placeholder="介绍一下内容、看点或创作过程"></textarea>
+                </div>
+                <div class="field">
+                    <label for="up-tags">标签</label>
+                    <input id="up-tags" type="text" placeholder="用逗号分隔，最多 5 个">
+                </div>
+                <div class="field">
+                    <label>原创</label>
+                    <div class="row-inline">
+                        <label><input type="radio" name="original" value="yes" checked> 是，本人原创</label>
+                        <label><input type="radio" name="original" value="no"> 否，转载或二创</label>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="up-cat">分区</label>
+                    <select id="up-cat"></select>
+                </div>
+
+                <div class="field">
+                    <div class="declare-head">
+                        <strong>创作声明</strong>
+                        <span>可多选，未勾选即表示「以上都不是」</span>
+                    </div>
+                    <div class="declare-list" id="declare-list"></div>
+                    <p class="declare-note">声明会显示在视频卡片与播放页，方便观众判断内容性质；虚假声明会被审核驳回。</p>
+                </div>
+
+                <div class="actions">
+                    <button class="primary-btn" type="submit">发布</button>
+                    <button class="ghost-btn" type="button" id="reset-btn">清空</button>
+                </div>
+            </form>
+        </section>
+
+        <aside class="panel side">
+            <h2>投稿须知</h2>
+            <ol>
+                <li>视频文件仅用于本机预览与表单校验，不会真的上传到服务器。</li>
+                <li>标题 2~60 个字，简介最多 300 字，标签最多 5 个。</li>
+                <li>勾选声明后会在视频页标注；含 AI 内容与营销内容必须如实勾选。</li>
+                <li>提交后进入审核，审核通过前视频会以「审核中」出现在今日最热。</li>
+            </ol>
+
+            <div class="pending" id="pending-box" hidden>
+                <h3>本机已提交</h3>
+                <div id="pending-list"></div>
+            </div>
+        </aside>
+    </main>
+
+    <section class="panel done" id="done-card" hidden>
+        <div class="tick">✓</div>
+        <h2>发布成功，请等待审核通过</h2>
+        <p id="done-title"></p>
+        <div class="tags" id="done-tags"></div>
+        <div class="actions">
+            <a class="primary-btn" href="vitxvideo.html">去视频页看看</a>
+            <button class="ghost-btn" type="button" id="again-btn">再投一个</button>
+        </div>
+    </section>
+
+    <footer class="site-foot">
+        <span><b>Contributors</b>：Caldson</span>
+        <span>Copyright © 2026 Vitual XRing · Vitx® 视频</span>
+    </footer>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const CATS = ["游戏", "娱乐", "音乐", "VLOG", "生活", "饮食", "学习"];
+
+            /* 创作声明：勾选后会写进视频记录，并在视频页显示 */
+            const DECLARATIONS = [
+                { id: "ai", label: "含AI内容", hint: "画面、配音或文案由 AI 生成或参与创作" },
+                { id: "marketing", label: "包含营销内容", hint: "含带货、推广、引流或商业合作" },
+                { id: "fiction", label: "含虚构演绎", hint: "剧情、台词或设定为虚构创作" },
+                { id: "repost", label: "转载 / 二创", hint: "非本人原创素材，已获得授权或注明来源" },
+                { id: "sponsor", label: "含赞助 / 广告", hint: "由品牌赞助或含贴片广告" },
+                { id: "warning", label: "可能引起不适", hint: "包含强光、剧烈音效或易引起不适的画面" }
+            ];
+
+            const el = (id) => document.getElementById(id);
+
+            function esc(value) {
+                return String(value == null ? "" : value)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+            }
+
+            function readStore(key, fallback) {
+                try {
+                    const raw = localStorage.getItem(`vitx:${key}`);
+                    return raw ? JSON.parse(raw) : fallback;
+                } catch (error) {
+                    return fallback;
+                }
+            }
+
+            function writeStore(key, value) {
+                try {
+                    localStorage.setItem(`vitx:${key}`, JSON.stringify(value));
+                } catch (error) {
+                    /* 隐私模式忽略 */
+                }
+            }
+
+            let toastTimer = null;
+            function toast(message) {
+                const node = el("toast");
+                node.textContent = message;
+                node.classList.add("show");
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => node.classList.remove("show"), 2800);
+            }
+
+            let selectedFile = null;
+            let pending = readStore("pending", []);
+
+            function fillCategories() {
+                el("up-cat").innerHTML = CATS.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+            }
+
+            function fillDeclarations() {
+                el("declare-list").innerHTML = DECLARATIONS.map((item) => `
+                    <label class="declare">
+                        <input type="checkbox" value="${esc(item.id)}">
+                        <span>${esc(item.label)}<small>${esc(item.hint)}</small></span>
+                    </label>`).join("");
+            }
+
+            function selectedDeclarations() {
+                return Array.from(document.querySelectorAll("#declare-list input:checked")).map((input) => input.value);
+            }
+
+            function updateCounts() {
+                el("title-count").textContent = `${el("up-title").value.length} / 60`;
+                el("desc-count").textContent = `${el("up-desc").value.length} / 300`;
+            }
+
+            function renderPending() {
+                const box = el("pending-box");
+                box.hidden = !pending.length;
+                el("pending-list").innerHTML = pending.slice(0, 5).map((item) => `
+                    <div class="pending-item"><b>${esc(item.title)}</b><i>审核中</i></div>`).join("");
+            }
+
+            function resetForm() {
+                selectedFile = null;
+                el("file-input").value = "";
+                el("pick-file").classList.remove("has-file");
+                el("pick-file").innerHTML = `上传<small id="pick-hint">点击选择视频文件（mp4 / webm / mov）</small>`;
+                el("up-title").value = "";
+                el("up-desc").value = "";
+                el("up-tags").value = "";
+                document.querySelector('input[name="original"][value="yes"]').checked = true;
+                el("up-cat").selectedIndex = 0;
+                document.querySelectorAll("#declare-list input").forEach((input) => { input.checked = false; });
+                updateCounts();
+            }
+
+            function describe(id) {
+                const found = DECLARATIONS.find((item) => item.id === id);
+                return found ? found.label : "";
+            }
+
+            function showDone(video) {
+                el("form-card").hidden = true;
+                el("done-card").hidden = false;
+                el("done-title").textContent = `《${video.title}》已提交，分区：${video.cat}`;
+                const labels = (video.declarations || []).map(describe).filter(Boolean);
+                el("done-tags").innerHTML = labels.length
+                    ? labels.map((label) => `<span>${esc(label)}</span>`).join("")
+                    : `<span>无特殊声明</span>`;
+                el("done-card").scrollIntoView({ behavior: "smooth", block: "center" });
+                toast("发布成功，请等待审核通过");
+            }
+
+            function publish() {
+                const title = el("up-title").value.trim();
+                const desc = el("up-desc").value.trim();
+                const tags = el("up-tags").value.split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean).slice(0, 5);
+                const cat = el("up-cat").value || "生活";
+                const original = document.querySelector('input[name="original"]:checked');
+                const declarations = selectedDeclarations();
+
+                if (!selectedFile) {
+                    toast("请先点「上传」选择视频文件");
+                    return;
+                }
+                if (title.length < 2) {
+                    toast("标题至少 2 个字");
+                    el("up-title").focus();
+                    return;
+                }
+
+                const video = {
+                    id: `vt-p${String(Date.now()).slice(-6)}`,
+                    title,
+                    up: "我",
+                    cat,
+                    views: 0,
+                    dur: "00:00",
+                    h: 200 + (title.length * 17) % 120,
+                    tags,
+                    desc,
+                    original: original && original.value === "yes",
+                    declarations,
+                    review: true
+                };
+                pending = [video, ...pending].slice(0, 20);
+                writeStore("pending", pending);
+                renderPending();
+                resetForm();
+                showDone(video);
+            }
+
+            function bind() {
+                el("pick-file").addEventListener("click", () => el("file-input").click());
+                el("file-input").addEventListener("change", () => {
+                    const file = el("file-input").files && el("file-input").files[0];
+                    if (!file) {
+                        return;
+                    }
+                    if (file.size > 2 * 1024 * 1024 * 1024) {
+                        toast("文件不能超过 2 GB");
+                        el("file-input").value = "";
+                        return;
+                    }
+                    selectedFile = file;
+                    const size = file.size >= 1024 * 1024
+                        ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
+                        : `${Math.max(1, Math.round(file.size / 1024))} KB`;
+                    el("pick-file").classList.add("has-file");
+                    el("pick-file").innerHTML = `已选择：${esc(file.name)}<small>${size} · 点击可重新选择</small>`;
+                });
+
+                el("publish-form").addEventListener("submit", (event) => {
+                    event.preventDefault();
+                    publish();
+                });
+                el("reset-btn").addEventListener("click", () => {
+                    resetForm();
+                    toast("已清空表单");
+                });
+                el("again-btn").addEventListener("click", () => {
+                    el("done-card").hidden = true;
+                    el("form-card").hidden = false;
+                    el("form-card").scrollIntoView({ behavior: "smooth", block: "start" });
+                    el("up-title").focus();
+                });
+                el("up-title").addEventListener("input", updateCounts);
+                el("up-desc").addEventListener("input", updateCounts);
+            }
+
+            fillCategories();
+            fillDeclarations();
+            renderPending();
+            updateCounts();
+            bind();
+        })();
+    </script>
+</body>
+</html>

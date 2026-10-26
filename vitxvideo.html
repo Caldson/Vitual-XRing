@@ -113,10 +113,10 @@
         .cats button.active { background: var(--blue); color: #fff; }
 
         .search {
-            flex: 0 1 300px;
+            flex: 0 1 250px;
             display: flex;
             align-items: center;
-            min-width: 150px;
+            min-width: 140px;
             padding: 3px 3px 3px 12px;
             border: 1px solid var(--line);
             border-radius: 999px;
@@ -330,7 +330,7 @@
 
         .workspace {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 320px;
+            grid-template-columns: minmax(0, 1fr);
             gap: 16px;
             align-items: start;
         }
@@ -371,7 +371,8 @@
             flex-wrap: wrap;
         }
 
-        .quick button {
+        .quick button,
+        .quick a {
             display: inline-flex;
             align-items: center;
             gap: 5px;
@@ -382,9 +383,11 @@
             color: var(--muted);
             font-size: 12.5px;
             font-weight: 600;
+            text-decoration: none;
         }
 
-        .quick button:hover { border-color: #b9c8f5; color: var(--blue); background: var(--blue-soft); }
+        .quick button:hover,
+        .quick a:hover { border-color: #b9c8f5; color: var(--blue); background: var(--blue-soft); }
         .quick button.on { border-color: #b9c8f5; color: var(--blue); background: var(--blue-soft); }
 
         .row { padding: 14px 0 6px; }
@@ -534,6 +537,24 @@
             font-size: 12px;
         }
 
+        /* 1.6.0：创作声明标签 */
+        .card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 5px;
+        }
+
+        .card-tags i {
+            padding: 1px 6px;
+            border-radius: 5px;
+            background: #fdf1dd;
+            color: #b7791f;
+            font-size: 10.5px;
+            font-style: normal;
+            font-weight: 700;
+        }
+
         .empty {
             padding: 26px 10px;
             color: var(--muted);
@@ -552,81 +573,6 @@
             font-size: 11.5px;
             letter-spacing: 0.02em;
         }
-
-        /* ───────── 投稿 ───────── */
-
-        .upload { padding: 16px 16px 18px; }
-
-        .upload h2 { margin: 0 0 12px; font-size: 16px; }
-
-        .upload-drop {
-            width: 100%;
-            padding: 18px 12px;
-            border: 1px dashed #c6d3ee;
-            border-radius: 14px;
-            background: #f8faff;
-            color: var(--blue);
-            font-size: 14px;
-            font-weight: 700;
-            text-align: center;
-        }
-
-        .upload-drop:hover { border-color: var(--blue); background: var(--blue-soft); }
-        .upload-drop.has-file { color: var(--ink); border-style: solid; border-color: #cfe3d6; background: #f4fbf7; }
-        .upload-drop small { display: block; margin-top: 6px; color: var(--muted); font-size: 11.5px; font-weight: 500; }
-
-        .field { margin-top: 13px; }
-
-        .field label {
-            display: block;
-            margin-bottom: 5px;
-            color: #4a5a75;
-            font-size: 12.5px;
-            font-weight: 600;
-        }
-
-        .field input[type="text"],
-        .field textarea,
-        .field select {
-            width: 100%;
-            padding: 9px 11px;
-            border: 1px solid var(--line);
-            border-radius: 10px;
-            background: #fbfcfe;
-            outline: none;
-            font-size: 13.5px;
-        }
-
-        .field textarea { min-height: 78px; resize: vertical; line-height: 1.6; }
-
-        .field input:focus,
-        .field textarea:focus,
-        .field select:focus {
-            border-color: #b9c8f5;
-            background: #fff;
-        }
-
-        .field .row-inline { display: flex; gap: 14px; align-items: center; }
-        .field .row-inline label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 500; }
-        .field .count { float: right; color: #a9b3c3; font-size: 11.5px; font-weight: 500; }
-
-        .upload-actions {
-            display: flex;
-            gap: 9px;
-            margin-top: 16px;
-        }
-
-        .upload-actions .primary-btn { flex: 1; padding: 10px 16px; }
-        .upload-actions .ghost-btn {
-            padding: 10px 16px;
-            border: 1px solid var(--line);
-            border-radius: 10px;
-            background: #fff;
-            color: var(--muted);
-            font-size: 13.5px;
-        }
-
-        .upload-actions .ghost-btn:hover { color: var(--blue); border-color: #b9c8f5; }
 
         /* ───────── 列表 / 通知 / 播放器 ───────── */
 
@@ -858,7 +804,7 @@
             <button class="icon-btn" type="button" id="btn-notify" title="通知设置">
                 🔔<span class="dot" id="notify-dot" hidden></span>
             </button>
-            <button class="primary-btn" type="button" id="btn-upload">投稿</button>
+            <a class="primary-btn" href="vitxvideopublish.html" style="text-decoration: none;">投稿</a>
             <span class="version">v1.6.0</span>
             <a class="back" href="manager.html">← 返回账户</a>
         </div>
@@ -893,7 +839,7 @@
                         <button type="button" data-quick="coin">🪙 投币</button>
                         <button type="button" data-quick="fav">★ 收藏</button>
                         <button type="button" data-quick="history">🕘 历史</button>
-                        <button type="button" data-quick="upload">⬆ 投稿</button>
+                        <a href="vitxvideopublish.html">⬆ 投稿</a>
                     </div>
                 </div>
 
@@ -923,47 +869,11 @@
                     <div class="cards" id="cards-guess"></div>
                 </section>
 
-                <div class="panel-foot"><span>Vitx® · 内容由 Vitual XRing 账户投稿</span></div>
+                <div class="panel-foot">
+                    <a href="vitxvideopublish.html" style="margin-right: 14px; text-decoration: none; color: var(--blue); font-weight: 600;">想投稿？打开投稿页 →</a>
+                    <span>Vitx® · 内容由 Vitual XRing 账户投稿</span>
+                </div>
             </section>
-
-            <aside class="panel upload" id="upload-panel">
-                <h2>投稿</h2>
-                <button class="upload-drop" type="button" id="pick-file">
-                    上传
-                    <small id="pick-hint">点击选择视频文件（mp4 / webm / mov）</small>
-                </button>
-                <input id="file-input" type="file" accept="video/*" hidden>
-
-                <form id="upload-form" novalidate>
-                    <div class="field">
-                        <label for="up-title">标题<span class="count" id="title-count">0 / 60</span></label>
-                        <input id="up-title" type="text" maxlength="60" placeholder="给视频起个标题">
-                    </div>
-                    <div class="field">
-                        <label for="up-desc">简介<span class="count" id="desc-count">0 / 300</span></label>
-                        <textarea id="up-desc" maxlength="300" placeholder="介绍一下内容、看点或创作过程"></textarea>
-                    </div>
-                    <div class="field">
-                        <label for="up-tags">标签</label>
-                        <input id="up-tags" type="text" placeholder="用逗号分隔，最多 5 个">
-                    </div>
-                    <div class="field">
-                        <label>原创</label>
-                        <div class="row-inline">
-                            <label><input type="radio" name="original" value="yes" checked> 是</label>
-                            <label><input type="radio" name="original" value="no"> 否</label>
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label for="up-cat">分区</label>
-                        <select id="up-cat"></select>
-                    </div>
-                    <div class="upload-actions">
-                        <button class="primary-btn" type="submit">发布</button>
-                        <button class="ghost-btn" type="button" id="upload-reset">清空</button>
-                    </div>
-                </form>
-            </aside>
         </div>
 
         <section class="panel list-panel" id="list-panel" hidden>
@@ -1140,6 +1050,7 @@
 
             function cardHtml(video) {
                 const liked = state.likes.includes(video.id);
+                const declares = declarationLabels(video);
                 return `<button class="card" type="button" data-play="${esc(video.id)}" title="${esc(video.title)}">
                     <span class="cover" style="--h:${Number(video.h) || 210}">
                         ${video.review ? '<span class="badge">审核中</span>' : (liked ? '<span class="badge">已点赞</span>' : "")}
@@ -1148,6 +1059,7 @@
                     </span>
                     <span class="card-title">${esc(video.title)}</span>
                     <span class="card-meta">▶ ${formatCount(video.views)} · ${esc(video.cat)} · ${esc(video.up)}</span>
+                    ${declares.length ? `<span class="card-tags">${declares.map((label) => `<i>${esc(label)}</i>`).join("")}</span>` : ""}
                 </button>`;
             }
 
@@ -1172,13 +1084,13 @@
                     .sort((left, right) => (right.views || 0) - (left.views || 0));
                 const start = pool.length ? state.hotOffset % pool.length : 0;
                 const rotated = [...pool.slice(start), ...pool.slice(0, start)];
-                return [...pending, ...rotated].slice(0, 6);
+                return [...pending, ...rotated].slice(0, 10);
             }
 
             function guessList() {
                 const pool = byCategory(allVideos()).filter((item) => !item.review);
                 const picked = [];
-                for (let index = 0; index < pool.length && picked.length < 6; index += 1) {
+                for (let index = 0; index < pool.length && picked.length < 10; index += 1) {
                     const offset = (index * 5 + 3) % pool.length;
                     const video = pool[offset];
                     if (video && !picked.includes(video)) {
@@ -1349,7 +1261,10 @@
                 state.pos = 0;
                 state.total = toSeconds(video.dur);
                 el("stage").style.setProperty("--h", String(video.h || 210));
-                el("stage-id").textContent = `${video.id} · ${video.cat}${video.tags && video.tags.length ? ` · ${video.tags.join(" / ")}` : ""}`;
+                const declares = declarationLabels(video);
+                el("stage-id").textContent = `${video.id} · ${video.cat}`
+                    + (video.tags && video.tags.length ? ` · ${video.tags.join(" / ")}` : "")
+                    + (declares.length ? ` · 声明：${declares.join("、")}` : "");
                 el("stage-title").textContent = video.title;
                 el("stage-up").textContent = `UP 主 ${video.up} · ${formatCount(video.views)} 次播放`;
                 el("player-modal").hidden = false;
@@ -1396,71 +1311,28 @@
                 }
             }
 
-            /* ───────── 投稿 ───────── */
+            /* ───────── 投稿（独立页面 vitxvideopublish.html） ───────── */
 
-            let selectedFile = null;
+            const DECLARE_LABELS = {
+                ai: "含AI内容",
+                marketing: "包含营销内容",
+                fiction: "含虚构演绎",
+                repost: "转载 / 二创",
+                sponsor: "含赞助 / 广告",
+                warning: "可能引起不适"
+            };
 
-            function fillCategorySelect() {
-                el("up-cat").innerHTML = CATS.filter((name) => name !== "首页")
-                    .map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+            function declarationLabels(video) {
+                return (video && Array.isArray(video.declarations) ? video.declarations : [])
+                    .map((id) => DECLARE_LABELS[id])
+                    .filter(Boolean);
             }
 
-            function updateCounts() {
-                el("title-count").textContent = `${el("up-title").value.length} / 60`;
-                el("desc-count").textContent = `${el("up-desc").value.length} / 300`;
-            }
-
-            function resetUpload() {
-                selectedFile = null;
-                el("file-input").value = "";
-                el("pick-file").classList.remove("has-file");
-                el("pick-file").innerHTML = `上传<small id="pick-hint">点击选择视频文件（mp4 / webm / mov）</small>`;
-                el("up-title").value = "";
-                el("up-desc").value = "";
-                el("up-tags").value = "";
-                document.querySelector('input[name="original"][value="yes"]').checked = true;
-                updateCounts();
-            }
-
-            function submitUpload() {
-                const title = el("up-title").value.trim();
-                const desc = el("up-desc").value.trim();
-                const tags = el("up-tags").value.split(/[,，\s]+/).map((item) => item.trim()).filter(Boolean).slice(0, 5);
-                const cat = el("up-cat").value || "生活";
-                const original = document.querySelector('input[name="original"]:checked');
-
-                if (!selectedFile) {
-                    toast("请先点「上传」选择视频文件");
-                    return;
-                }
-                if (title.length < 2) {
-                    toast("标题至少 2 个字");
-                    el("up-title").focus();
-                    return;
-                }
-
-                const video = {
-                    id: `vt-p${String(Date.now()).slice(-6)}`,
-                    title,
-                    up: "我",
-                    cat,
-                    views: 0,
-                    dur: "00:00",
-                    h: 200 + (title.length * 17) % 120,
-                    tags,
-                    desc,
-                    original: original && original.value === "yes",
-                    review: true
-                };
-                state.pending = [video, ...state.pending].slice(0, 20);
-                writeStore("pending", state.pending);
-                resetUpload();
-                state.cat = "首页";
+            // 投稿页写入 localStorage 后回到本页，刷新待审核列表
+            function reloadPending() {
+                state.pending = readStore("pending", []);
                 renderAll();
-                toast("发布成功，请等待审核通过");
-                el("row-hot").scrollIntoView({ behavior: "smooth", block: "nearest" });
             }
-
             /* ───────── 通知 ───────── */
 
             function renderNotify() {
@@ -1542,15 +1414,7 @@
                 });
 
                 document.querySelectorAll("[data-quick]").forEach((button) => {
-                    button.addEventListener("click", () => {
-                        const kind = button.dataset.quick;
-                        if (kind === "upload") {
-                            el("upload-panel").scrollIntoView({ behavior: "smooth", block: "center" });
-                            el("up-title").focus();
-                            return;
-                        }
-                        openList(kind);
-                    });
+                    button.addEventListener("click", () => openList(button.dataset.quick));
                 });
 
                 el("btn-likes").addEventListener("click", () => openList("like"));
@@ -1562,38 +1426,11 @@
                 el("notify-follow").addEventListener("change", saveNotify);
                 el("notify-interact").addEventListener("change", saveNotify);
                 window.addEventListener("resize", () => { el("notify-panel").hidden = true; });
-
-                el("btn-upload").addEventListener("click", () => {
-                    el("upload-panel").scrollIntoView({ behavior: "smooth", block: "center" });
-                    el("up-title").focus();
-                });
-
-                el("pick-file").addEventListener("click", () => el("file-input").click());
-                el("file-input").addEventListener("change", () => {
-                    const file = el("file-input").files && el("file-input").files[0];
-                    if (!file) {
-                        return;
+                window.addEventListener("storage", (event) => {
+                    if (!event.key || event.key === "vitx:pending") {
+                        reloadPending();
                     }
-                    if (file.size > 2 * 1024 * 1024 * 1024) {
-                        toast("文件不能超过 2 GB");
-                        el("file-input").value = "";
-                        return;
-                    }
-                    selectedFile = file;
-                    const size = file.size >= 1024 * 1024
-                        ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
-                        : `${Math.max(1, Math.round(file.size / 1024))} KB`;
-                    el("pick-file").classList.add("has-file");
-                    el("pick-file").innerHTML = `已选择：${esc(file.name)}<small>${size} · 点击可重新选择</small>`;
                 });
-
-                el("upload-form").addEventListener("submit", (event) => {
-                    event.preventDefault();
-                    submitUpload();
-                });
-                el("upload-reset").addEventListener("click", resetUpload);
-                el("up-title").addEventListener("input", updateCounts);
-                el("up-desc").addEventListener("input", updateCounts);
 
                 el("stage-toggle").addEventListener("click", togglePlay);
                 el("bar-toggle").addEventListener("click", togglePlay);
@@ -1640,10 +1477,8 @@
 
             /* ───────── 启动 ───────── */
 
-            fillCategorySelect();
             renderNotify();
             renderAll();
-            updateCounts();
             if (readStore("heroDismissed", false)) {
                 el("hero").hidden = true;
             }
