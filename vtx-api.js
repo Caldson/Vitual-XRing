@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "1.8.1";
+    const API_VERSION = "1.8.2";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -1076,7 +1076,10 @@
     /* 原始二进制请求（上传文件 / 分片），不走 JSON 封装 */
     async function videoRawRequest(path, options = {}) {
         const base = videoBase();
-        const headers = { "content-type": options.contentType || "application/octet-stream" };
+        const headers = {
+            ...(options.headers || {}),
+            "content-type": options.contentType || "application/octet-stream"
+        };
         const token = sessionToken();
         if (token) {
             headers.authorization = `${AUTH_SCHEME} ${token}`;
@@ -1115,6 +1118,27 @@
             throw failure;
         }
         return data;
+    }
+
+    /* 举报证据照片：原始二进制上传，最多 4 MB，服务端保留 30 天 */
+    async function videoReportUpload(file) {
+        if (!file) {
+            throw new Error("没有选择照片");
+        }
+        const data = await videoRawRequest("/videos/reports/media", {
+            method: "POST",
+            body: file,
+            contentType: file.type || "application/octet-stream",
+            headers: { "x-file-name": encodeURIComponent(file.name || "evidence") },
+            timeout: 60000
+        });
+        return data && data.media ? data.media : null;
+    }
+
+    function videoReportMediaUrl(id) {
+        const token = sessionToken();
+        const query = token ? `?token=${encodeURIComponent(token)}` : "";
+        return `${videoBase()}/videos/reports/media/${encodeId(id)}${query}`;
     }
 
     function videoPartBlob(file, index, chunkBytes) {
@@ -1220,10 +1244,18 @@
         view: (id) => videoRequest(`/${encodeId(id)}/view`, { method: "POST" }),
         like: (id) => videoRequest(`/${encodeId(id)}/like`, { method: "POST" }),
         coin: (id) => videoRequest(`/${encodeId(id)}/coin`, { method: "POST" }),
-        /* 1.8.1：关注 UP 主 */
+        /* 1.8.2：关注 UP 主 */
         following: () => videoRequest("/follows"),
         follow: (owner) => videoRequest(`/follows/${encodeId(owner)}`, { method: "POST" }),
         unfollow: (owner) => videoRequest(`/follows/${encodeId(owner)}`, { method: "DELETE" }),
+        report: (id, payload) => videoRequest(`/${encodeId(id)}/report`, { method: "POST", body: payload }),
+        reportUpload: videoReportUpload,
+        reportMediaUrl: videoReportMediaUrl,
+        reports: () => videoRequest("/reports"),
+        handleReport: (reportId, action) => videoRequest(`/reports/${encodeId(reportId)}/handle`, {
+            method: "POST",
+            body: { action }
+        }),
         remove: (id) => videoRequest(`/${encodeId(id)}`, { method: "DELETE" }),
         approve: (id) => videoRequest(`/${encodeId(id)}/approve`, { method: "POST" }),
         reject: (id) => videoRequest(`/${encodeId(id)}/reject`, { method: "POST" }),

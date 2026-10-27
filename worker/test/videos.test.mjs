@@ -1047,3 +1047,108 @@ test("1.7.2：VIDEO_GH_REPO = off 时强制退回 KV 分块，不碰 GitHub", as
         hub.restore();
     }
 });
+
+test("1.8.2：举报视频支持理由 / 证据 / 补充文字，管理员可忽略或删除", async () => {
+    const { env, tokens } = await prepare();
+    const video = await upload(env, tokens.Bob, { title: "被举报的视频" });
+    const approve = await api(env, "POST", `/api/videos/${video.id}/approve`, { token: tokens.Kitawaga });
+    assert.equal(approve.status, 200, JSON.stringify(approve.data));
+
+    const anonymous = await api(env, "POST", `/api/videos/${video.id}/report`, {
+        body: { reason: "plagiarism" }
+    });
+    assert.equal(anonymous.status, 401);
+
+    const self = await api(env, "POST", `/api/videos/${video.id}/report`, {
+        token: tokens.Bob,
+        body: { reason: "plagiarism" }
+    });
+    assert.equal(self.status, 400);
+
+    const invalid = await api(env, "POST", `/api/videos/${video.id}/report`, {
+        token: tokens.Alice,
+        body: { reason: "not-a-reason" }
+    });
+    assert.equal(invalid.status, 400);
+
+    const media = await api(env, "POST", "/api/videos/reports/media", {
+        token: tokens.Alice,
+        raw: BYTES,
+        contentType: "image/png",
+        headers: { "x-file-name": "evidence.png" }
+    });
+    assert.equal(media.status, 201, JSON.stringify(media.data));
+    assert.equal(media.data.media.type, "image/png");
+    const mediaId = media.data.media.id;
+
+    const created = await api(env, "POST", `/api/videos/${video.id}/report`, {
+        token: tokens.Alice,
+        body: {
+            reason: "plagiarism",
+            detail: "第 2 分钟开始和原视频一样",
+            evidence: mediaId
+        }
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    assert.equal(created.data.report.reason, "plagiarism");
+    assert.equal(created.data.report.status, "pending");
+    assert.equal(created.data.report.evidence.id, mediaId);
+    const reportId = created.data.report.id;
+
+    const duplicate = await api(env, "POST", `/api/videos/${video.id}/report`, {
+        token: tokens.Alice,
+        body: { reason: "other", detail: "再举报一次" }
+    });
+    assert.equal(duplicate.status, 409);
+
+    const reporterList = await api(env, "GET", "/api/videos/reports", { token: tokens.Alice });
+    assert.equal(reporterList.status, 403);
+
+    const adminList = await api(env, "GET", "/api/videos/reports", { token: tokens.Kitawaga });
+    assert.equal(adminList.status, 200, JSON.stringify(adminList.data));
+    assert.equal(adminList.data.pending, 1);
+    assert.equal(adminList.data.reports[0].id, reportId);
+
+    const evidence = await api(env, "GET", `/api/videos/reports/media/${mediaId}`, {
+        token: tokens.Kitawaga
+    });
+    assert.equal(evidence.status, 200);
+    assert.equal(evidence.response.headers.get("content-type"), "image/png");
+    assert.equal(new Uint8Array(evidence.data).byteLength, BYTES.byteLength);
+
+    const noEvidenceAuth = await api(env, "GET", `/api/videos/reports/media/${mediaId}`);
+    assert.equal(noEvidenceAuth.status, 401);
+
+    const reporterHandle = await api(env, "POST", `/api/videos/reports/${reportId}/handle`, {
+        token: tokens.Alice,
+        body: { action: "dismiss" }
+    });
+    assert.equal(reporterHandle.status, 403);
+
+    const dismissed = await api(env, "POST", `/api/videos/reports/${reportId}/handle`, {
+        token: tokens.Kitawaga,
+        body: { action: "dismiss" }
+    });
+    assert.equal(dismissed.status, 200, JSON.stringify(dismissed.data));
+    assert.equal(dismissed.data.report.status, "rejected");
+    assert.equal(dismissed.data.removed, false);
+
+    const second = await api(env, "POST", `/api/videos/${video.id}/report`, {
+        token: tokens.Alice,
+        body: { reason: "copyright", detail: "换个理由再举报" }
+    });
+    assert.equal(second.status, 201, JSON.stringify(second.data));
+    const secondId = second.data.report.id;
+
+    const removed = await api(env, "POST", `/api/videos/reports/${secondId}/handle`, {
+        token: tokens.Kitawaga,
+        body: { action: "remove" }
+    });
+    assert.equal(removed.status, 200, JSON.stringify(removed.data));
+    assert.equal(removed.data.report.status, "accepted");
+    assert.equal(removed.data.removed, true);
+
+    const gone = await api(env, "GET", `/api/videos/${video.id}`, { token: tokens.Kitawaga });
+    assert.equal(gone.status, 404);
+    assert.equal(await env.ACCOUNTS_KV.get(`video:meta:${video.id}`), null);
+});

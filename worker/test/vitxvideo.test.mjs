@@ -105,6 +105,11 @@ function loadVideoPage() {
         view: async () => ({ views: 2 }),
         follow: async () => ({ following: true, followers: 4 }),
         unfollow: async () => ({ following: false, followers: 3 }),
+        report: async () => ({ ok: true, report: { id: "rp_test0001", status: "pending" } }),
+        reportUpload: async () => ({ id: "ev_test0001", name: "evidence.png", type: "image/png", size: 4 }),
+        reportMediaUrl: () => "https://example.com/evidence.png",
+        reports: async () => ({ reports: [] }),
+        handleReport: async () => ({ ok: true }),
         like: async () => ({ liked: true, likes: 1 }),
         coin: async () => ({ coined: true, coins: 1 }),
         comment: async () => ({ count: 0 }),
@@ -134,7 +139,12 @@ function loadVideoPage() {
             renderWatch,
             renderWatchFollow,
             openList,
-            toggleFollow
+            toggleFollow,
+            openReportModal,
+            closeReportModal,
+            submitReport,
+            renderReports,
+            loadReports
         };
     })();`);
     vm.runInThisContext(code, { filename: "vitxvideo-inline.js" });
@@ -190,4 +200,20 @@ test("1.8.1：点「已关注」可以取关并更新数量", async () => {
     assert.deepEqual(page.state.follows, []);
     assert.equal(globalThis.document.getElementById("watch-follow").textContent, "+ 关注");
     assert.equal(globalThis.document.getElementById("watch-followers").textContent, "3 人关注");
+});
+
+test("1.8.2：举报弹窗可以打开并提交理由 / 补充文字", async () => {
+    const page = loadVideoPage();
+    await wait();
+    await page.renderWatch("v_123");
+
+    page.openReportModal();
+    assert.equal(globalThis.document.getElementById("report-modal").hidden, false);
+    assert.match(globalThis.document.getElementById("report-video").innerHTML, /测试视频/);
+
+    globalThis.document.getElementById("report-reason").value = "plagiarism";
+    globalThis.document.getElementById("report-detail").value = "第 2 分钟开始一样";
+    await page.submitReport();
+
+    assert.equal(globalThis.document.getElementById("report-modal").hidden, true);
 });

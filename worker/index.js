@@ -58,7 +58,7 @@
  *   PASSWORD_VIEW_KEY           （可选，1.4.0）给管理员看的密码副本加密密钥；不配就不存副本
  */
 
-const VERSION = "1.8.1";
+const VERSION = "1.8.2";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -71,7 +71,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.8.1";
+const CHAT_VERSION = "1.8.2";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -7190,7 +7190,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "1.8.1";
+const VIDEO_VERSION = "1.8.2";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -7219,6 +7219,24 @@ const VIDEO_FOLLOW_LIMIT = 500;
 const VIDEO_FOLLOWER_LIMIT = 5000;
 const VIDEO_FOLLOW_PREFIX = "video:follows:";
 const VIDEO_FOLLOWER_PREFIX = "video:followers:";
+/* 1.8.2：举报视频 */
+const VIDEO_REPORT_REASONS = new Set([
+    "plagiarism",
+    "copyright",
+    "misleading",
+    "inappropriate",
+    "spam",
+    "other"
+]);
+const VIDEO_REPORT_LIMIT = 500;
+const VIDEO_REPORT_DETAIL_MAX = 500;
+const VIDEO_REPORT_MEDIA_MAX_BYTES = 4 * 1024 * 1024;
+const VIDEO_REPORT_MEDIA_TTL_SECONDS = 30 * 24 * 60 * 60;
+const VIDEO_REPORTS_KEY = "video:reports";
+const VIDEO_REPORT_MEDIA_PREFIX = "video:report-media:";
+const VIDEO_REPORT_MEDIA_META_PREFIX = "video:report-media-meta:";
+const VIDEO_REPORT_MEDIA_ID_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
+const VIDEO_REPORT_ID_PATTERN = /^rp_[A-Za-z0-9_-]{4,32}$/;
 const VIDEO_CATEGORIES = new Set(["游戏", "娱乐", "音乐", "VLOG", "生活", "饮食", "学习"]);
 const VIDEO_DECLARATIONS = new Set(["ai", "marketing", "fiction", "repost", "sponsor", "warning"]);
 const VIDEO_INDEX_KEY = "video:index";
@@ -7247,6 +7265,14 @@ function videoFollowKey(login) {
 
 function videoFollowerKey(owner) {
     return `${VIDEO_FOLLOWER_PREFIX}${owner}`;
+}
+
+function videoReportMediaKey(id) {
+    return `${VIDEO_REPORT_MEDIA_PREFIX}${id}`;
+}
+
+function videoReportMediaMetaKey(id) {
+    return `${VIDEO_REPORT_MEDIA_META_PREFIX}${id}`;
 }
 
 /* 没有 R2 时，文件按 20 MB 切片存进 KV：video:chunk:<id>:<n>（n 从 1 开始） */
@@ -7565,6 +7591,39 @@ async function readVideoFollowers(env, owner) {
 
 async function saveVideoFollowers(env, owner, list) {
     await env.ACCOUNTS_KV.put(videoFollowerKey(owner), JSON.stringify(list.slice(0, VIDEO_FOLLOWER_LIMIT)));
+}
+
+async function readVideoReports(env) {
+    const stored = await env.ACCOUNTS_KV.get(VIDEO_REPORTS_KEY, "json");
+    return Array.isArray(stored)
+        ? stored.filter((item) => item && typeof item.id === "string" && item.id)
+        : [];
+}
+
+async function saveVideoReports(env, list) {
+    await env.ACCOUNTS_KV.put(VIDEO_REPORTS_KEY, JSON.stringify(list.slice(-VIDEO_REPORT_LIMIT)));
+}
+
+function videoReportView(report) {
+    return {
+        id: report.id,
+        videoId: report.videoId || "",
+        videoTitle: report.videoTitle || "",
+        videoOwner: report.videoOwner || "",
+        videoOwnerName: report.videoOwnerName || report.videoOwner || "",
+        reporter: report.reporter || "",
+        reporterName: report.reporterName || report.reporter || "",
+        reason: report.reason || "other",
+        detail: report.detail || "",
+        evidence: report.evidence || null,
+        status: report.status || "pending",
+        at: Number(report.at) || 0,
+        time: report.time || "",
+        handledBy: report.handledBy || "",
+        handledByName: report.handledByName || report.handledBy || "",
+        handledAt: Number(report.handledAt) || 0,
+        handledTime: report.handledTime || ""
+    };
 }
 
 /* 1.7.1：删视频时把 R2 与 KV 里的文件都清掉；1.7.2 起还要删 GitHub 存储 release */
@@ -8339,6 +8398,270 @@ async function handleVideoDetail(request, env, cors, id) {
     }, 200, cors);
 }
 
+async function handleVideoReportMediaUpload(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV" }, 503, cors);
+    }
+
+    const declared = Number(request.headers.get("content-length") || 0);
+    if (declared > VIDEO_REPORT_MEDIA_MAX_BYTES) {
+        return jsonResponse({ error: "payload_too_large", message: "证据照片不能超过 4 MB" }, 413, cors);
+    }
+
+    let body;
+    try {
+        body = await request.arrayBuffer();
+    } catch (error) {
+        return jsonResponse({ error: "bad_request", message: "读取照片失败" }, 400, cors);
+    }
+    if (!body || !body.byteLength) {
+        return jsonResponse({ error: "bad_request", message: "照片是空的" }, 400, cors);
+    }
+    if (body.byteLength > VIDEO_REPORT_MEDIA_MAX_BYTES) {
+        return jsonResponse({ error: "payload_too_large", message: "证据照片不能超过 4 MB" }, 413, cors);
+    }
+
+    const rawName = String(request.headers.get("x-file-name") || "evidence");
+    let name = "evidence";
+    try {
+        name = decodeURIComponent(rawName);
+    } catch (error) {
+        name = rawName;
+    }
+    name = name.replace(/[\r\n]+/g, " ").slice(0, 100) || "evidence";
+
+    const declaredType = String(request.headers.get("content-type") || "")
+        .split(";")[0]
+        .trim()
+        .toLowerCase();
+    if (!CHAT_MEDIA_INLINE_TYPES.has(declaredType)) {
+        return jsonResponse({ error: "bad_request", message: "证据只支持 PNG / JPG / GIF / WebP 图片" }, 400, cors);
+    }
+
+    const id = randomCode(9);
+    const at = Date.now();
+    const expiresAt = at + VIDEO_REPORT_MEDIA_TTL_SECONDS * 1000;
+    const meta = {
+        id,
+        name,
+        type: declaredType,
+        size: body.byteLength,
+        uploader: session.payload.sub,
+        at,
+        expiresAt
+    };
+
+    await env.ACCOUNTS_KV.put(videoReportMediaKey(id), body, { expirationTtl: VIDEO_REPORT_MEDIA_TTL_SECONDS });
+    await env.ACCOUNTS_KV.put(videoReportMediaMetaKey(id), JSON.stringify(meta), {
+        expirationTtl: VIDEO_REPORT_MEDIA_TTL_SECONDS
+    });
+
+    return jsonResponse({
+        ok: true,
+        media: { id, name, type: declaredType, size: body.byteLength, expiresAt }
+    }, 201, cors);
+}
+
+async function handleVideoReportMediaGet(request, env, cors, id) {
+    const session = await requireSessionOrToken(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+
+    const meta = plainObject(await env.ACCOUNTS_KV.get(videoReportMediaMetaKey(id), "json"));
+    if (!meta.id) {
+        return jsonResponse({ error: "media_expired", message: "证据照片已过期（保留 30 天）" }, 410, cors);
+    }
+    const body = await env.ACCOUNTS_KV.get(videoReportMediaKey(id), "arrayBuffer");
+    if (!body) {
+        return jsonResponse({ error: "media_expired", message: "证据照片已过期（保留 30 天）" }, 410, cors);
+    }
+
+    return new Response(body, {
+        status: 200,
+        headers: {
+            ...cors,
+            "content-type": meta.type || "application/octet-stream",
+            "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(meta.name || "evidence")}`,
+            "x-content-type-options": "nosniff",
+            "content-security-policy": "default-src 'none'; sandbox",
+            "cache-control": "private, max-age=120"
+        }
+    });
+}
+
+async function handleVideoReportCreate(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV" }, 503, cors);
+    }
+
+    const login = session.payload.sub;
+    const isAdmin = isPlatformAdmin(env, login);
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id || !videoVisibleTo(meta, login, isAdmin)) {
+        return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
+    }
+    if (meta.owner === login) {
+        return jsonResponse({ error: "bad_request", message: "不能举报自己的视频" }, 400, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const reason = String(body.reason || "").trim();
+    const detail = String(body.detail || "").trim();
+    if (!VIDEO_REPORT_REASONS.has(reason)) {
+        return jsonResponse({ error: "bad_request", message: "请选择有效的举报理由" }, 400, cors);
+    }
+    if (detail.length > VIDEO_REPORT_DETAIL_MAX) {
+        return jsonResponse({
+            error: "bad_request",
+            message: `补充文字最长 ${VIDEO_REPORT_DETAIL_MAX} 个字`
+        }, 400, cors);
+    }
+
+    let evidence = null;
+    const evidenceId = String(body.evidence || "").trim();
+    if (evidenceId) {
+        if (!VIDEO_REPORT_MEDIA_ID_PATTERN.test(evidenceId)) {
+            return jsonResponse({ error: "bad_request", message: "证据照片 id 不合法" }, 400, cors);
+        }
+        const media = plainObject(await env.ACCOUNTS_KV.get(videoReportMediaMetaKey(evidenceId), "json"));
+        if (!media.id) {
+            return jsonResponse({ error: "bad_request", message: "证据照片已过期，请重新上传" }, 400, cors);
+        }
+        if (media.uploader !== login && !isAdmin) {
+            return jsonResponse({ error: "forbidden", message: "不能使用别人上传的证据照片" }, 403, cors);
+        }
+        evidence = {
+            id: media.id,
+            name: media.name || "evidence",
+            type: media.type || "application/octet-stream",
+            size: Number(media.size) || 0
+        };
+    }
+
+    const accounts = await loadAccounts(env);
+    const reporterName = chatDisplayName(accounts, login);
+    const at = Date.now();
+    const report = {
+        id: `rp_${randomCode(9)}`,
+        videoId: id,
+        videoTitle: meta.title || "",
+        videoOwner: meta.owner || "",
+        videoOwnerName: meta.ownerName || meta.owner || "",
+        reporter: login,
+        reporterName,
+        reason,
+        detail,
+        evidence,
+        status: "pending",
+        at,
+        time: shanghaiTimestamp(at)
+    };
+
+    const result = await withStoreLock(async () => {
+        const reports = await readVideoReports(env);
+        if (reports.some((item) => item.videoId === id && item.reporter === login && item.status === "pending")) {
+            return {
+                error: jsonResponse({
+                    error: "already_reported",
+                    message: "你已经举报过这个视频，管理员处理前不用重复提交"
+                }, 409, cors)
+            };
+        }
+        reports.push(report);
+        await saveVideoReports(env, reports);
+        return { report };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return jsonResponse({ ok: true, report: videoReportView(result.report) }, 201, cors);
+}
+
+async function handleVideoReportList(request, env, cors) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV" }, 503, cors);
+    }
+
+    const reports = await readVideoReports(env);
+    const sorted = reports.slice().sort((left, right) => {
+        const leftPending = left.status === "pending" ? 0 : 1;
+        const rightPending = right.status === "pending" ? 0 : 1;
+        return leftPending - rightPending || (Number(right.at) || 0) - (Number(left.at) || 0);
+    });
+
+    return jsonResponse({
+        ok: true,
+        count: sorted.length,
+        pending: sorted.filter((item) => item.status === "pending").length,
+        reports: sorted.map(videoReportView)
+    }, 200, cors);
+}
+
+async function handleVideoReportHandle(request, env, cors, reportId) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "not_ready", message: "服务端没有配置 KV" }, 503, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const action = String(body.action || "").trim();
+    if (action !== "remove" && action !== "dismiss") {
+        return jsonResponse({ error: "bad_request", message: "action 只能是 remove 或 dismiss" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const reports = await readVideoReports(env);
+        const report = reports.find((item) => item.id === reportId);
+        if (!report) {
+            return { error: jsonResponse({ error: "not_found", message: "举报记录不存在" }, 404, cors) };
+        }
+        if (report.status !== "pending") {
+            return { error: jsonResponse({ error: "already_handled", message: "这条举报已经处理过了" }, 409, cors) };
+        }
+
+        let removed = false;
+        if (action === "remove") {
+            const video = await readVideoMeta(env, report.videoId);
+            if (video && video.id) {
+                await removeVideoData(env, report.videoId, video);
+                removed = true;
+            }
+        }
+
+        report.status = action === "remove" ? "accepted" : "rejected";
+        report.handledBy = session.payload.sub;
+        report.handledByName = chatDisplayName(await loadAccounts(env), session.payload.sub);
+        report.handledAt = Date.now();
+        report.handledTime = shanghaiTimestamp(report.handledAt);
+        await saveVideoReports(env, reports);
+        return { report: videoReportView(report), removed };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return jsonResponse({ ok: true, report: result.report, removed: result.removed }, 200, cors);
+}
+
 async function handleVideoFollowList(request, env, cors) {
     const session = await requireSession(request, env, cors);
     if (session.error) {
@@ -8623,20 +8946,7 @@ async function handleVideoFile(request, env, cors, id) {
     return new Response(buffer, { status: 200, headers });
 }
 
-async function handleVideoDelete(request, env, cors, id) {
-    const session = await requireSession(request, env, cors);
-    if (session.error) {
-        return session.error;
-    }
-    const meta = await readVideoMeta(env, id);
-    if (!meta || !meta.id) {
-        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
-    }
-    const login = session.payload.sub;
-    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
-        return jsonResponse({ error: "forbidden", message: "只能删除自己投稿的视频" }, 403, cors);
-    }
-
+async function removeVideoData(env, id, meta) {
     const upload = videoUploadState(meta);
     const bucket = videoBucket(env);
     if (upload && bucket) {
@@ -8652,6 +8962,23 @@ async function handleVideoDelete(request, env, cors, id) {
     await env.ACCOUNTS_KV.delete(videoCommentKey(id));
     const index = await readVideoIndex(env);
     await writeVideoIndex(env, index.filter((item) => item !== id));
+}
+
+async function handleVideoDelete(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const meta = await readVideoMeta(env, id);
+    if (!meta || !meta.id) {
+        return jsonResponse({ error: "not_found", message: "视频不存在" }, 404, cors);
+    }
+    const login = session.payload.sub;
+    if (meta.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "只能删除自己投稿的视频" }, 403, cors);
+    }
+
+    await removeVideoData(env, id, meta);
 
     return jsonResponse({ ok: true, removed: id }, 200, cors);
 }
@@ -8951,11 +9278,57 @@ async function routeVideos(request, env, cors) {
         }, 200, cors);
     }
 
+    let match;
+
+    if (path === "/api/videos/reports" && method === "GET") {
+        return await handleVideoReportList(request, env, cors);
+    }
+
+    if (path === "/api/videos/reports/media" && method === "POST") {
+        return await handleVideoReportMediaUpload(request, env, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/reports\/media\/([^/]+)$/);
+    if (match) {
+        const mediaId = decodeURIComponent(match[1]);
+        if (method !== "GET") {
+            return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+        }
+        if (!VIDEO_REPORT_MEDIA_ID_PATTERN.test(mediaId)) {
+            return jsonResponse({ error: "bad_request", message: "证据照片 id 不合法" }, 400, cors);
+        }
+        return await handleVideoReportMediaGet(request, env, cors, mediaId);
+    }
+
+    match = path.match(/^\/api\/videos\/reports\/([^/]+)\/handle$/);
+    if (match) {
+        const reportId = decodeURIComponent(match[1]);
+        if (method !== "POST") {
+            return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+        }
+        if (!VIDEO_REPORT_ID_PATTERN.test(reportId)) {
+            return jsonResponse({ error: "bad_request", message: "举报 id 不合法" }, 400, cors);
+        }
+        return await handleVideoReportHandle(request, env, cors, reportId);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/report$/);
+    if (match) {
+        if (method !== "POST") {
+            return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+        }
+        const id = decodeURIComponent(match[1]);
+        if (!VIDEO_ID_PATTERN.test(id)) {
+            return jsonResponse({ error: "bad_request", message: "视频 id 不合法" }, 400, cors);
+        }
+        return await handleVideoReportCreate(request, env, cors, id);
+    }
+
     if (path === "/api/videos/follows" && method === "GET") {
         return await handleVideoFollowList(request, env, cors);
     }
 
-    let match = path.match(/^\/api\/videos\/follows\/([^/]+)$/);
+    match = path.match(/^\/api\/videos\/follows\/([^/]+)$/);
     if (match) {
         const owner = decodeURIComponent(match[1]);
         if (method === "POST") {

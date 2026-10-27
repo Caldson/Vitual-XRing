@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.8.1`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**；**1.7.3 解除聊天室 500 字限制（长消息折叠 + 全文弹窗）、聊天室支持 Discord 风格 Markdown（代码块 / 时间块 / 粗体 / 斜体等）与转账，见第 24 节**；**1.8.0 把聊天室图片 / 文件从 20 分钟改为保留 14 天，见第 25 节**；**1.8.0 同时支持聊天室音乐文件直接播放（音频上限 20 MB），见第 26 节**；**1.8.1 新增「关注 UP 主」，见第 27 节**）
+- API 版本：`1.8.2`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**；**1.7.3 解除聊天室 500 字限制（长消息折叠 + 全文弹窗）、聊天室支持 Discord 风格 Markdown（代码块 / 时间块 / 粗体 / 斜体等）与转账，见第 24 节**；**1.8.0 把聊天室图片 / 文件从 20 分钟改为保留 14 天，见第 25 节**；**1.8.0 同时支持聊天室音乐文件直接播放（音频上限 20 MB），见第 26 节**；**1.8.1 新增「关注 UP 主」，见第 27 节**；**1.8.2 新增「举报视频」（理由、照片证据、补充文字与管理员处理），见第 28 节**）
 
 ---
 
@@ -2617,4 +2617,98 @@ curl https://xsmmc.caldson.us.ci/api/videos/follows -H "authorization: ******"
 
 - `worker/test/videos.test.mjs` 新增关注 / 取关 / 关注列表 / 视频 `following` / `followers` / 自关注与匿名分支
 - 版本号全套同步到 `1.8.1`：`worker/index.js` 的 `VERSION` / `CHAT_VERSION` / `VIDEO_VERSION`、`vtx-api.js` 的 `API_VERSION`、`vtx-markdown.js`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页 `<script src="...?v=1.8.1">`
+- 运行：`cd worker && npm test`
+
+---
+
+## 28. 1.8.2 更新：举报视频（`vitxvideo.html`）
+
+1.8.2 在播放页新增「🚩 举报」，登录用户可以提交举报理由、照片证据（选填）和补充文字（选填）；管理员在首页「举报处理」区删除视频或忽略举报。
+
+### 28.1 举报理由
+
+| 代码 | 文案 |
+|---|---|
+| `plagiarism` | 抄袭他人作品并投稿原创 |
+| `copyright` | 侵犯版权 / 未经授权搬运 |
+| `misleading` | 虚假信息 / 标题党 |
+| `inappropriate` | 不适宜内容 |
+| `spam` | 垃圾广告 |
+| `other` | 其他 |
+
+服务端只接受上表代码，其它值返回 `400 bad_request`。
+
+### 28.2 接口
+
+| 方法 | 路径 | 权限 | 作用 |
+|---|---|---|---|
+| `POST` | `/api/videos/{videoId}/report` | 登录 | 提交举报（同一用户对同一视频只能有一条待处理举报） |
+| `POST` | `/api/videos/reports/media` | 登录 | 上传证据照片（PNG / JPG / GIF / WebP，≤ 4 MB） |
+| `GET` | `/api/videos/reports/media/{mediaId}?token=...` | 登录 | 读取证据照片（保留 30 天） |
+| `GET` | `/api/videos/reports` | 管理员 | 举报列表（待处理优先，最新优先） |
+| `POST` | `/api/videos/reports/{reportId}/handle` | 管理员 | `{ "action": "remove" }` 删除视频；`{ "action": "dismiss" }` 忽略 |
+
+提交举报：
+
+```http
+POST /api/videos/v_xxx/report
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "reason": "plagiarism",
+  "detail": "第 2 分钟开始与 av123456 完全一致",
+  "evidence": "AbCdEf123"
+}
+```
+
+`evidence` 是 `POST /api/videos/reports/media` 返回的 `media.id`，可以不传。
+
+```json
+{
+    "ok": true,
+    "report": {
+        "id": "rp_xxxxxxxxx",
+        "videoId": "v_xxx",
+        "videoTitle": "视频标题",
+        "videoOwner": "Bob",
+        "reporter": "Alice",
+        "reason": "plagiarism",
+        "detail": "第 2 分钟开始与 av123456 完全一致",
+        "evidence": {
+            "id": "AbCdEf123",
+            "name": "screenshot.png",
+            "type": "image/png",
+            "size": 48213
+        },
+        "status": "pending",
+        "time": "2026-10-27 22:00:00"
+    }
+}
+```
+
+- 不能举报自己的视频：`400 bad_request`
+- 同一用户对同一视频已有 `pending` 举报：`409 already_reported`
+- 补充文字最长 **500** 字；证据照片最多 **4 MB**，服务端保留 **30 天**
+- 管理员处理 `remove` 时会删除视频文件、元数据、评论和视频索引；`dismiss` 只把举报标记为 `rejected`
+- 已处理的举报不能重复处理：`409 already_handled`
+
+### 28.3 存储
+
+- `video:reports`：举报数组（最多保留最近 **500** 条）；每条包含视频标题 / UP 主快照、举报人、理由、补充文字、证据元数据、状态与处理人
+- `video:report-media:{mediaId}`：证据照片二进制（TTL 30 天）
+- `video:report-media-meta:{mediaId}`：证据照片元数据（TTL 30 天）
+- 举报状态：`pending` / `accepted`（已删除视频）/ `rejected`（已忽略）
+
+### 28.4 前端
+
+- 播放页操作栏新增「🚩 举报」，未登录点击提示先登录；自己的视频不显示举报按钮
+- 弹窗包含：理由下拉框、照片证据（选填，上传后显示缩略图，可移除）、补充文字（选填，500 字计数）
+- 管理员首页新增「举报处理」区：显示原因、补充文字、证据缩略图、举报人和时间；可「删除视频」或「忽略举报」
+- 删除视频后自动刷新视频列表与举报列表；如果正在观看被删除的视频，会回到首页
+
+### 28.5 测试与版本
+
+- `worker/test/videos.test.mjs` 新增举报创建、非法理由、重复举报、证据上传 / 读取、管理员列表、忽略与删除处理
+- 版本号全套同步到 `1.8.2`：`worker/index.js` 的 `VERSION` / `CHAT_VERSION` / `VIDEO_VERSION`、`vtx-api.js` 的 `API_VERSION`、`vtx-markdown.js`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页 `<script src="...?v=1.8.2">`
 - 运行：`cd worker && npm test`

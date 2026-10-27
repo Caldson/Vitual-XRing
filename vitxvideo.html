@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f4f7fb">
     <title>Vitx® 视频 | Vitual XRing</title>
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
-    <script src="vtx-api.js?v=1.8.1"></script>
+    <script src="vtx-api.js?v=1.8.2"></script>
     <style>
         :root {
             color-scheme: light;
@@ -969,6 +969,153 @@
 
         .pop .pop-note { margin: 8px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.7; }
 
+        /* ───────── 举报 ───────── */
+
+        body.report-open { overflow: hidden; }
+
+        .report-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            padding-top: calc(20px + env(safe-area-inset-top, 0px));
+            padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+            background: rgba(15, 23, 42, 0.58);
+            overflow-y: auto;
+        }
+
+        .report-modal[hidden] { display: none; }
+
+        .report-dialog {
+            width: min(100%, 520px);
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 40px 90px rgba(15, 23, 42, 0.3);
+            overflow: hidden;
+        }
+
+        .report-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 18px 12px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .report-head h3 { margin: 0; font-size: 16px; }
+        .report-head .report-close {
+            margin-left: auto;
+            width: 30px;
+            height: 30px;
+            border: 0;
+            border-radius: 8px;
+            background: #f3f5f9;
+            color: var(--muted);
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .report-body { padding: 14px 18px 18px; display: grid; gap: 10px; }
+        .report-video { margin: 0 0 2px; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+        .report-video b { color: var(--ink); font-weight: 600; }
+
+        .report-field { display: grid; gap: 6px; }
+        .report-field > span { color: var(--ink); font-size: 12.5px; font-weight: 700; }
+        .report-field > span i { color: #b7791f; font-style: normal; font-weight: 500; }
+
+        .report-field select,
+        .report-field textarea {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fbfcfe;
+            color: var(--ink);
+            font: inherit;
+            font-size: 13px;
+            padding: 9px 11px;
+            outline: none;
+        }
+
+        .report-field select:focus,
+        .report-field textarea:focus { border-color: #b9c8f5; background: #fff; }
+        .report-field textarea { min-height: 92px; resize: vertical; line-height: 1.6; }
+        .report-field input[type="file"] { font-size: 12.5px; color: var(--muted); }
+        .report-field .report-count { justify-self: end; color: #97a2b4; font-size: 11px; }
+
+        .report-evidence {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border: 1px dashed #cfd8e6;
+            border-radius: 10px;
+            background: #f8fafd;
+        }
+
+        .report-evidence[hidden] { display: none; }
+        .report-evidence img { width: 72px; height: 54px; object-fit: cover; border-radius: 7px; border: 1px solid var(--line); }
+        .report-evidence .report-evidence-name { flex: 1; min-width: 0; color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .report-evidence button { border: 0; background: transparent; color: #d9534f; font-size: 12px; cursor: pointer; }
+
+        .report-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+        .report-actions button {
+            padding: 9px 16px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .report-actions button.primary { border-color: #2f6fed; background: #2f6fed; color: #fff; }
+        .report-actions button:disabled { opacity: 0.6; cursor: default; }
+        .report-note { margin: 0; color: #97a2b4; font-size: 11px; line-height: 1.6; }
+
+        .reports { display: grid; gap: 10px; }
+
+        .report-item {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 12px 14px;
+            background: #fbfcfe;
+        }
+
+        .report-item-top { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .report-item-title { font-size: 14px; font-weight: 700; }
+        .report-status {
+            padding: 2px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            background: #fff4e0;
+            color: #b7791f;
+        }
+        .report-status.accepted { background: #e9f7ee; color: #23824a; }
+        .report-status.rejected { background: #f0f3f9; color: #7c8798; }
+        .report-item-reason { margin: 7px 0 0; color: #b7791f; font-size: 12.5px; font-weight: 600; }
+        .report-item-detail { margin: 6px 0 0; color: var(--ink); font-size: 12.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+        .report-item-meta { margin-top: 7px; color: #97a2b4; font-size: 11.5px; line-height: 1.6; }
+        .report-item-actions { display: flex; gap: 8px; margin-top: 10px; }
+        .report-item-actions button {
+            padding: 6px 12px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .report-item-actions button.danger { border-color: #f0c9c7; background: #fff6f5; color: #c0392b; }
+        .report-item-actions button:hover { border-color: #b9c8f5; color: var(--blue); }
+        .report-item-actions button.danger:hover { border-color: #e3a29d; color: #a93226; }
+        .report-evidence-thumb { display: block; margin-top: 8px; max-width: 180px; max-height: 120px; border-radius: 9px; border: 1px solid var(--line); object-fit: cover; }
+
         .modal {
             position: fixed;
             inset: 0;
@@ -1155,7 +1302,7 @@
                 🔔<span class="dot" id="notify-dot" hidden></span>
             </button>
             <a class="primary-btn" href="vitxvideopublish.html" style="text-decoration: none;">投稿</a>
-            <span class="version">v1.8.1</span>
+            <span class="version">v1.8.2</span>
             <a class="back" href="manager.html">← 返回账户</a>
         </div>
     </header>
@@ -1167,11 +1314,11 @@
                 <div>
                     <p class="eyebrow">Vitual XRing 新功能预告</p>
                     <h1>你想要的一切，影视和视频，都在这里</h1>
-                    <p class="hero-sub">Vitual XRing 1.8.1：Vitx® 视频支持<b>关注 UP 主</b>，关注后可在「关注」里集中看 TA 的视频；聊天室保留 14 天媒体、音乐直接播放与 Markdown。</p>
+                    <p class="hero-sub">Vitual XRing 1.8.2：Vitx® 视频新增<b>举报此视频</b>，可选抄袭/侵权等理由、照片证据和补充文字；管理员在「举报处理」里删除视频或忽略。1.8.1 的 UP 主关注继续保留。</p>
                     <div class="versions">
-                        <span class="chip">1.8.0</span>
+                        <span class="chip">1.8.1</span>
                         <span class="arrow">→</span>
-                        <span class="chip hot">1.8.1</span>
+                        <span class="chip hot">1.8.2</span>
                         <button class="hero-dismiss" type="button" id="hero-dismiss">知道了</button>
                     </div>
                 </div>
@@ -1205,10 +1352,18 @@
 
                 <section class="row" id="row-review" hidden>
                     <div class="row-head">
-                        <h3>待审核<span class="tag big">1.8.1</span></h3>
+                        <h3>待审核<span class="tag big">1.8.2</span></h3>
                         <span class="row-count" id="review-count"></span>
                     </div>
                     <div class="cards" id="cards-review"></div>
+                </section>
+
+                <section class="row" id="row-reports" hidden>
+                    <div class="row-head">
+                        <h3>举报处理<span class="tag big">1.8.2</span></h3>
+                        <span class="row-count" id="reports-count"></span>
+                    </div>
+                    <div class="reports" id="reports-list"></div>
                 </section>
 
                 <section class="row" id="row-hot">
@@ -1267,6 +1422,7 @@
                         <button type="button" id="watch-coin" data-act="coin">🪙 <span id="cnt-coin">0</span></button>
                         <button type="button" id="watch-fav" data-act="fav">★ <span id="cnt-fav">0</span></button>
                         <button type="button" id="watch-share">🔗 复制链接</button>
+                        <button type="button" id="watch-report">🚩 举报</button>
                         <span class="spacer"></span>
                         <a href="vitxvideo.html" id="watch-home">← 回首页</a>
                     </div>
@@ -1333,6 +1489,49 @@
         <p class="pop-note">勾选「有通知」后，对应事件会在顶部铃铛上提示；设置只保存在本机。</p>
     </div>
 
+    <div class="report-modal" id="report-modal" hidden>
+        <div class="report-dialog" role="dialog" aria-modal="true" aria-labelledby="report-heading">
+            <div class="report-head">
+                <h3 id="report-heading">举报此视频</h3>
+                <button class="report-close" type="button" id="report-close" aria-label="关闭">×</button>
+            </div>
+            <div class="report-body">
+                <p class="report-video" id="report-video"></p>
+                <label class="report-field">
+                    <span>理由 <i>*</i></span>
+                    <select id="report-reason">
+                        <option value="">请选择举报理由</option>
+                        <option value="plagiarism">抄袭他人作品并投稿原创</option>
+                        <option value="copyright">侵犯版权 / 未经授权搬运</option>
+                        <option value="misleading">虚假信息 / 标题党</option>
+                        <option value="inappropriate">不适宜内容</option>
+                        <option value="spam">垃圾广告</option>
+                        <option value="other">其他</option>
+                    </select>
+                </label>
+                <label class="report-field">
+                    <span>照片证据 <i>（选填，最多 4 MB）</i></span>
+                    <input type="file" id="report-evidence-input" accept="image/png,image/jpeg,image/gif,image/webp">
+                    <div class="report-evidence" id="report-evidence" hidden>
+                        <img id="report-evidence-img" alt="证据预览">
+                        <span class="report-evidence-name" id="report-evidence-name"></span>
+                        <button type="button" id="report-evidence-remove">移除</button>
+                    </div>
+                </label>
+                <label class="report-field">
+                    <span>补充文字 <i>（选填）</i></span>
+                    <textarea id="report-detail" maxlength="500" placeholder="可以补充时间点、原作品链接、具体说明等…"></textarea>
+                    <span class="report-count" id="report-detail-count">0 / 500</span>
+                </label>
+                <div class="report-actions">
+                    <button type="button" id="report-cancel">取消</button>
+                    <button type="button" class="primary" id="report-submit">提交举报</button>
+                </div>
+                <p class="report-note">请如实填写；恶意举报会被记录。证据照片只保留 30 天，仅管理员可查看。</p>
+            </div>
+        </div>
+    </div>
+
     <div class="toast" id="toast"></div>
 
     <script>
@@ -1350,6 +1549,21 @@
                 repost: "转载 / 二创",
                 sponsor: "含赞助 / 广告",
                 warning: "可能引起不适"
+            };
+
+            const REPORT_REASONS = {
+                plagiarism: "抄袭他人作品并投稿原创",
+                copyright: "侵犯版权 / 未经授权搬运",
+                misleading: "虚假信息 / 标题党",
+                inappropriate: "不适宜内容",
+                spam: "垃圾广告",
+                other: "其他"
+            };
+
+            const REPORT_STATUS = {
+                pending: "待处理",
+                accepted: "已删除视频",
+                rejected: "已忽略"
             };
 
             const COMMENT_MAX = 300;
@@ -1446,6 +1660,9 @@
                 favs: readStore("favs", []),
                 history: readStore("history", []),
                 follows: [],
+                reports: [],
+                reportEvidence: null,
+                reportUploading: false,
                 notifyFollow: readStore("notifyFollow", true),
                 notifyInteract: readStore("notifyInteract", true),
                 watch: null,
@@ -1663,6 +1880,68 @@
                 el("cards-review").innerHTML = pending.map(reviewCardHtml).join("");
             }
 
+            function reportItemHtml(report) {
+                const status = report.status || "pending";
+                const evidence = report.evidence && report.evidence.id
+                    ? (() => {
+                        const source = API.video.reportMediaUrl(report.evidence.id);
+                        return `<a href="${esc(source)}" target="_blank" rel="noopener"><img class="report-evidence-thumb" src="${esc(source)}" alt="证据照片" loading="lazy"></a>`;
+                    })()
+                    : "";
+                const handled = report.handledTime
+                    ? ` · 处理人 ${esc(report.handledByName || report.handledBy)} · ${esc(report.handledTime)}`
+                    : "";
+                const actions = status === "pending"
+                    ? `<div class="report-item-actions">
+                        <button type="button" class="danger" data-report-remove="${esc(report.id)}">删除视频</button>
+                        <button type="button" data-report-dismiss="${esc(report.id)}">忽略举报</button>
+                    </div>`
+                    : "";
+                return `<div class="report-item">
+                    <div class="report-item-top">
+                        <span class="report-item-title">${esc(report.videoTitle || report.videoId || "未知视频")}</span>
+                        <span class="report-status ${esc(status)}">${esc(REPORT_STATUS[status] || status)}</span>
+                    </div>
+                    <p class="report-item-reason">${esc(REPORT_REASONS[report.reason] || report.reason || "其他")}</p>
+                    ${report.detail ? `<p class="report-item-detail">${esc(report.detail)}</p>` : ""}
+                    ${evidence}
+                    <div class="report-item-meta">举报人 ${esc(report.reporterName || report.reporter || "—")} · ${esc(report.time || "—")}${handled}</div>
+                    ${actions}
+                </div>`;
+            }
+
+            function renderReports() {
+                const row = el("row-reports");
+                if (!row) {
+                    return;
+                }
+                const reports = Array.isArray(state.reports) ? state.reports : [];
+                row.hidden = !state.isAdmin || reports.length === 0;
+                if (row.hidden) {
+                    return;
+                }
+                const pending = reports.filter((item) => item.status === "pending");
+                el("reports-count").textContent = pending.length
+                    ? `${pending.length} 条待处理 / 共 ${reports.length} 条`
+                    : `共 ${reports.length} 条（已处理）`;
+                el("reports-list").innerHTML = reports.map(reportItemHtml).join("");
+            }
+
+            async function loadReports() {
+                if (!apiReady || !state.isAdmin) {
+                    state.reports = [];
+                    renderReports();
+                    return;
+                }
+                try {
+                    const data = await API.video.reports();
+                    state.reports = Array.isArray(data.reports) ? data.reports : [];
+                } catch (error) {
+                    state.reports = [];
+                }
+                renderReports();
+            }
+
             function renderSearch() {
                 const row = el("row-search");
                 const query = state.query.trim();
@@ -1688,6 +1967,7 @@
                 renderHome();
                 renderSearch();
                 renderQuickState();
+                renderReports();
             }
 
             /* ───────── 工具栏 / 列表 ───────── */
@@ -1797,7 +2077,7 @@
                 });
             }
 
-            /* 1.8.1：关注 UP 主（状态保存在服务端，换设备也还在） */
+            /* 1.8.2：关注 UP 主（状态保存在服务端，换设备也还在） */
             function renderWatchFollow(video) {
                 const button = el("watch-follow");
                 const count = el("watch-followers");
@@ -1852,6 +2132,172 @@
                     toast(error && error.message ? error.message : "关注失败，请稍后再试");
                 } finally {
                     button.disabled = false;
+                }
+            }
+
+            /* ───────── 举报 ───────── */
+
+            function reportSubmitState() {
+                const button = el("report-submit");
+                if (!button) {
+                    return;
+                }
+                button.disabled = state.reportUploading;
+                button.textContent = state.reportUploading ? "上传中…" : "提交举报";
+            }
+
+            function renderReportEvidence() {
+                const box = el("report-evidence");
+                const image = el("report-evidence-img");
+                const name = el("report-evidence-name");
+                if (!box || !image || !name) {
+                    return;
+                }
+                const media = state.reportEvidence;
+                box.hidden = !media;
+                if (!media) {
+                    image.removeAttribute("src");
+                    name.textContent = "";
+                    return;
+                }
+                image.src = API.video.reportMediaUrl(media.id);
+                name.textContent = media.name || "证据照片";
+            }
+
+            function resetReportForm() {
+                state.reportEvidence = null;
+                state.reportUploading = false;
+                if (el("report-reason")) {
+                    el("report-reason").value = "";
+                }
+                if (el("report-detail")) {
+                    el("report-detail").value = "";
+                }
+                if (el("report-detail-count")) {
+                    el("report-detail-count").textContent = "0 / 500";
+                }
+                if (el("report-evidence-input")) {
+                    el("report-evidence-input").value = "";
+                }
+                renderReportEvidence();
+                reportSubmitState();
+            }
+
+            function openReportModal() {
+                if (!state.login) {
+                    toast("请先登录 Vitual XRing 账户，再举报视频");
+                    return;
+                }
+                if (!state.watch) {
+                    return;
+                }
+                resetReportForm();
+                el("report-video").innerHTML = `正在举报：<b>${esc(state.watch.title)}</b> · ${esc(state.watch.up)}`;
+                el("report-modal").hidden = false;
+                document.body.classList.add("report-open");
+                setTimeout(() => {
+                    try {
+                        el("report-reason").focus();
+                    } catch (error) {
+                        /* 忽略 */
+                    }
+                }, 30);
+            }
+
+            function closeReportModal() {
+                el("report-modal").hidden = true;
+                document.body.classList.remove("report-open");
+            }
+
+            async function pickReportEvidence() {
+                const input = el("report-evidence-input");
+                const file = input && input.files ? input.files[0] : null;
+                if (!file) {
+                    return;
+                }
+                if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.type)) {
+                    toast("证据只支持 PNG / JPG / GIF / WebP 图片");
+                    input.value = "";
+                    return;
+                }
+                if (file.size > 4 * 1024 * 1024) {
+                    toast("证据照片不能超过 4 MB");
+                    input.value = "";
+                    return;
+                }
+                state.reportUploading = true;
+                reportSubmitState();
+                try {
+                    const media = await API.video.reportUpload(file);
+                    if (!media || !media.id) {
+                        throw new Error("服务端没有返回证据照片");
+                    }
+                    state.reportEvidence = media;
+                    renderReportEvidence();
+                    toast("证据照片已上传");
+                } catch (error) {
+                    state.reportEvidence = null;
+                    renderReportEvidence();
+                    toast(error && error.message ? error.message : "证据照片上传失败");
+                } finally {
+                    state.reportUploading = false;
+                    reportSubmitState();
+                }
+            }
+
+            async function submitReport() {
+                if (state.reportUploading || !state.watch) {
+                    return;
+                }
+                const reason = el("report-reason").value;
+                if (!reason) {
+                    toast("请选择举报理由");
+                    return;
+                }
+                const detail = el("report-detail").value.trim();
+                if (detail.length > 500) {
+                    toast("补充文字最多 500 个字");
+                    return;
+                }
+                const button = el("report-submit");
+                button.disabled = true;
+                button.textContent = "提交中…";
+                try {
+                    await API.video.report(state.watch.id, {
+                        reason,
+                        detail,
+                        evidence: state.reportEvidence ? state.reportEvidence.id : ""
+                    });
+                    closeReportModal();
+                    toast("举报已提交，管理员会尽快处理");
+                } catch (error) {
+                    toast(error && error.message ? error.message : "举报提交失败，请稍后再试");
+                } finally {
+                    button.disabled = false;
+                    button.textContent = "提交举报";
+                }
+            }
+
+            async function handleReportAction(reportId, action) {
+                const report = state.reports.find((item) => item.id === reportId);
+                const title = report ? (report.videoTitle || report.videoId) : "这个视频";
+                const prompt = action === "remove"
+                    ? `删除「${title}」并标记举报成立？`
+                    : `忽略这条举报？视频会保留。`;
+                if (!window.confirm(prompt)) {
+                    return;
+                }
+                try {
+                    await API.video.handleReport(reportId, action);
+                    toast(action === "remove" ? "已删除视频，举报处理完成" : "已忽略这条举报");
+                    await loadVideos();
+                    await loadReports();
+                    renderAll();
+                    if (action === "remove" && state.watch && report && state.watch.id === report.videoId) {
+                        goHome(true);
+                    }
+                } catch (error) {
+                    toast(error && error.message ? error.message : "处理举报失败");
                 }
             }
 
@@ -2057,6 +2503,7 @@
                 el("watch-up").textContent = "—";
                 el("watch-followers").textContent = "";
                 el("watch-follow").hidden = true;
+                el("watch-report").hidden = true;
                 el("watch-declares").innerHTML = "";
                 el("watch-desc").textContent = "";
                 el("watch-file").textContent = "";
@@ -2114,6 +2561,7 @@
                 updateCommentCounts();
                 renderWatchMarks(video);
                 renderWatchFollow(video);
+                el("watch-report").hidden = Boolean(video.owner && video.owner === state.login);
                 renderComments();
                 renderRelated(video);
                 attachMedia(video);
@@ -2283,6 +2731,7 @@
                     }
                     toast(action === "approve" ? "已通过审核，视频已发布" : "视频已删除");
                     await loadVideos();
+                    await loadReports();
                     renderAll();
                 } catch (error) {
                     toast(error && error.message ? error.message : "操作失败");
@@ -2372,6 +2821,16 @@
                         reviewVideo(reject.dataset.reject, "reject");
                         return;
                     }
+                    const reportRemove = event.target.closest("[data-report-remove]");
+                    if (reportRemove) {
+                        handleReportAction(reportRemove.dataset.reportRemove, "remove");
+                        return;
+                    }
+                    const reportDismiss = event.target.closest("[data-report-dismiss]");
+                    if (reportDismiss) {
+                        handleReportAction(reportDismiss.dataset.reportDismiss, "dismiss");
+                        return;
+                    }
                     const play = event.target.closest("[data-play]");
                     if (play) {
                         event.preventDefault();
@@ -2413,9 +2872,29 @@
                     toast(link);
                 });
                 el("watch-follow").addEventListener("click", toggleFollow);
+                el("watch-report").addEventListener("click", openReportModal);
                 el("watch-home").addEventListener("click", (event) => {
                     event.preventDefault();
                     goHome();
+                });
+
+                /* 举报弹窗 */
+                el("report-close").addEventListener("click", closeReportModal);
+                el("report-cancel").addEventListener("click", closeReportModal);
+                el("report-submit").addEventListener("click", submitReport);
+                el("report-evidence-input").addEventListener("change", pickReportEvidence);
+                el("report-evidence-remove").addEventListener("click", () => {
+                    state.reportEvidence = null;
+                    el("report-evidence-input").value = "";
+                    renderReportEvidence();
+                });
+                el("report-detail").addEventListener("input", () => {
+                    el("report-detail-count").textContent = `${el("report-detail").value.length} / 500`;
+                });
+                el("report-modal").addEventListener("click", (event) => {
+                    if (event.target === el("report-modal")) {
+                        closeReportModal();
+                    }
                 });
 
                 /* 评论区 */
@@ -2491,6 +2970,9 @@
                 document.addEventListener("keydown", (event) => {
                     if (event.key === "Escape") {
                         el("notify-panel").hidden = true;
+                        if (!el("report-modal").hidden) {
+                            closeReportModal();
+                        }
                     }
                 });
             }
@@ -2516,6 +2998,7 @@
                 bind();
                 renderAll();
                 await loadVideos();
+                await loadReports();
                 renderAll();
                 route();
             }
