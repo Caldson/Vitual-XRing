@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.8.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**；**1.7.3 解除聊天室 500 字限制（长消息折叠 + 全文弹窗）、聊天室支持 Discord 风格 Markdown（代码块 / 时间块 / 粗体 / 斜体等）与转账，见第 24 节**；**1.8.0 把聊天室图片 / 文件从 20 分钟改为保留 14 天，见第 25 节**；**1.8.0 同时支持聊天室音乐文件直接播放（音频上限 20 MB），见第 26 节**）
+- API 版本：`1.8.1`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**；**1.7.3 解除聊天室 500 字限制（长消息折叠 + 全文弹窗）、聊天室支持 Discord 风格 Markdown（代码块 / 时间块 / 粗体 / 斜体等）与转账，见第 24 节**；**1.8.0 把聊天室图片 / 文件从 20 分钟改为保留 14 天，见第 25 节**；**1.8.0 同时支持聊天室音乐文件直接播放（音频上限 20 MB），见第 26 节**；**1.8.1 新增「关注 UP 主」，见第 27 节**）
 
 ---
 
@@ -2124,11 +2124,11 @@ draft  ── 上传文件成功 ──▶ pending ── 站主通过 ──▶
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/videos` | 视频列表。可选 `?cat=生活`、`?q=关键词`（匹配标题 / 作者 / 标签 / ID）；返回 `{ videos, login, isAdmin, maxBytes, count }`，每条带 `status / playable / liked / mine / canReview` |
+| GET | `/api/videos` | 视频列表。可选 `?cat=生活`、`?q=关键词`（匹配标题 / 作者 / 标签 / ID）；返回 `{ videos, login, isAdmin, maxBytes, following, count }`，每条带 `status / playable / liked / mine / canReview / following` |
 | GET | `/api/videos/status` | 服务可用性、`maxBytes`、分区与声明枚举 |
 | POST | `/api/videos` | 建投稿（需要登录）：`{ title, desc, tags, cat, original, declarations, fileName, fileType, fileSize, dur }` → 返回 `draft` 状态的视频 |
 | PUT | `/api/videos/:id/file` | 上传文件本体（原始二进制 + `content-type`）；只能传自己的、只能传一次；成功后状态变 `pending` |
-| GET | `/api/videos/:id` | 视频详情 + 评论列表：`{ video, comments }` |
+| GET | `/api/videos/:id` | 视频详情 + 评论列表：`{ video, comments }`；`video` 带 `following` / `followers` |
 | GET | `/api/videos/:id/file` | 播放文件。支持 `Range`（返回 `206` + `content-range`），支持 `?token=xxx`（`<video src>` 带不了 Authorization 头） |
 | POST | `/api/videos/:id/view` | 播放量 +1，返回最新 `views` |
 | POST | `/api/videos/:id/like` | 点赞 / 取消点赞（同一账号幂等切换），返回 `{ liked, likes }` |
@@ -2138,6 +2138,9 @@ draft  ── 上传文件成功 ──▶ pending ── 站主通过 ──▶
 | POST | `/api/videos/:id/comments` | 发评论（需要登录，1~300 字），返回 `{ comment, count }` |
 | POST | `/api/videos/:id/comments/:commentId/like` | 点赞 / 取消评论点赞 |
 | DELETE | `/api/videos/:id/comments/:commentId` | 删评论（只能删自己的，站主可以删任何人的） |
+| GET | `/api/videos/follows` | 我关注的 UP 主列表（1.8.1） |
+| POST | `/api/videos/follows/:owner` | 关注 UP 主（1.8.1） |
+| DELETE | `/api/videos/follows/:owner` | 取消关注（1.8.1） |
 
 错误码与其它接口一致：`400 bad_request`、`401 unauthorized`、`403 forbidden`、`404 not_found`、`409 conflict`（重复上传文件）、`413 payload_too_large`（超过 20 MB）、`503 not_ready`（没绑定 KV）、`507 storage_failed`（KV 写入失败）。
 
@@ -2551,3 +2554,69 @@ curl "https://xsmmc.caldson.us.ci/api/chat/media/媒体id?token=你的token"
 
 - `worker/test/chat.test.mjs`：验证 `audio/mpeg` 类型保留、`GET` 返回 `audio/mpeg` 与 `inline`、5 MB 音频可上传、5 MB 图片仍被 4 MB 限制拦截；
 - `worker/test/chatroom.test.mjs`：验证 `.mp3` / `.m4a` / `.flac` 识别为音乐、`.png` 不识别、`[音乐]` 预览文本。
+
+---
+
+## 27. 1.8.1 更新：关注 UP 主
+
+Vitx® 视频支持关注 / 取关 UP 主。关注状态存在服务端，换设备、清缓存都还在；首页工具栏新增「👥 关注」，可以集中查看已关注 UP 主的视频。
+
+### 27.1 接口
+
+```bash
+# 关注 / 取关（需要登录，不能关注自己）
+curl -X POST   https://xsmmc.caldson.us.ci/api/videos/follows/Bob -H "authorization: ******"
+curl -X DELETE https://xsmmc.caldson.us.ci/api/videos/follows/Bob -H "authorization: ******"
+
+# 我关注的 UP 主列表
+curl https://xsmmc.caldson.us.ci/api/videos/follows -H "authorization: ******"
+```
+
+返回：
+
+```json
+{
+    "ok": true,
+    "owner": "Bob",
+    "following": true,
+    "followers": 12
+}
+```
+
+`GET /api/videos/follows`：
+
+```json
+{
+    "ok": true,
+    "login": "Alice",
+    "count": 1,
+    "following": ["Bob"],
+    "items": [{ "login": "Bob", "name": "鲍勃", "followers": 12 }]
+}
+```
+
+- 关注不存在的账户返回 `404 not_found`，关注自己返回 `400 bad_request`
+- 重复关注 / 重复取关是幂等的，不会重复计数
+- 每位账户最多关注 **500** 位 UP 主；单个 UP 主最多记录 **5000** 个关注者
+- KV 键：`video:follows:{登录名}`（我关注了谁）、`video:followers:{登录名}`（谁关注了我）
+
+### 27.2 视频字段
+
+| 字段 | 说明 |
+|---|---|
+| `video.following` | 当前登录用户是否关注了该视频的 UP 主 |
+| `video.followers` | UP 主的关注者数量（详情接口返回真实数量；列表里为 0，不额外读 KV） |
+| `GET /api/videos` 的 `following` | 当前登录用户关注的 UP 主登录名数组，前端用来做「关注」筛选 |
+
+### 27.3 前端
+
+- 播放页 UP 主名字旁边显示「+ 关注 / 已关注」和「N 人关注」，点一下即关注 / 取关
+- 自己投稿的视频显示「你自己」，不能关注自己
+- 首页工具栏新增「👥 关注」，列出已关注 UP 主的视频；列表为空时提示去首页挑视频
+- 未登录点击关注会提示先登录；关注成功后按钮、关注人数和「关注」筛选即时更新
+
+### 27.4 测试与版本
+
+- `worker/test/videos.test.mjs` 新增关注 / 取关 / 关注列表 / 视频 `following` / `followers` / 自关注与匿名分支
+- 版本号全套同步到 `1.8.1`：`worker/index.js` 的 `VERSION` / `CHAT_VERSION` / `VIDEO_VERSION`、`vtx-api.js` 的 `API_VERSION`、`vtx-markdown.js`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页 `<script src="...?v=1.8.1">`
+- 运行：`cd worker && npm test`

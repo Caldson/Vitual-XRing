@@ -3,7 +3,7 @@
 # 依赖：.NET 10 SDK（或更高）、Microsoft Edge WebView2 Runtime
 # 用法：powershell -ExecutionPolicy Bypass -File .\build.ps1
 #
-# 产物：dist\VitualXRing-1.8.0.exe
+# 产物：dist\VitualXRing-1.8.1.exe
 
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -53,7 +53,7 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish 失败（exit $LASTEXITCODE）"
 New-Item -ItemType Directory -Path $dist -Force | Out-Null
 $exe = Join-Path $publish "VitualXRing.exe"
 if (-not (Test-Path -LiteralPath $exe)) { throw "没有找到 publish\VitualXRing.exe" }
-$out = Join-Path $dist "VitualXRing-1.8.0.exe"
+$out = Join-Path $dist "VitualXRing-1.8.1.exe"
 Copy-Item -LiteralPath $exe -Destination $out -Force
 
 Write-Host ""

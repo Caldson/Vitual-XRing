@@ -10,7 +10,7 @@
 产物：
 
 ```
-WindowsVersion_branch\windows-app\dist\VitualXRing-1.8.0.exe
+WindowsVersion_branch\windows-app\dist\VitualXRing-1.8.1.exe
 ```
 
 双击即可。首次启动会创建：
@@ -40,7 +40,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 
 1. 把上一级 `WindowsVersion_branch` 的 HTML / JS / JSON / PNG / TXT / images 打成 `web.zip`；
 2. `dotnet publish` 成 `win-x64`、self-contained、single-file；
-3. 把最终 EXE 复制到 `dist\VitualXRing-1.8.0.exe`。
+3. 把最终 EXE 复制到 `dist\VitualXRing-1.8.1.exe`。
 
 构建中间文件（`bin` / `obj` / `publish` / `web-stage` / `web.zip` / `dist`）已在
 `windows-app\.gitignore` 里忽略；仓库只保留源码。
@@ -52,4 +52,4 @@ EXE 里的网页来自上一级目录（`WindowsVersion_branch`），所以更�
 1. 把根目录的 1.8.0 文件同步到 `WindowsVersion_branch`；
 2. 重新运行 `build.ps1`。
 
-当前版本：**1.8.0**（聊天室 14 天媒体、音乐直接播放、Markdown、长消息展开、转账）。
+当前版本：**1.8.1**（视频关注 UP 主、聊天室 14 天媒体、音乐直接播放、Markdown、长消息展开、转账）。

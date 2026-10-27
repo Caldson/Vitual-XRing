@@ -37,7 +37,7 @@ internal sealed class MainForm : Form
     public MainForm(string webRoot)
     {
         _webRoot = webRoot;
-        Text = "Vitual XRing 1.8.0";
+        Text = "Vitual XRing 1.8.1";
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(1280, 820);
         MinimumSize = new Size(900, 600);
@@ -114,7 +114,7 @@ internal sealed class MainForm : Form
     {
         if (!args.IsSuccess)
         {
-            Text = $"Vitual XRing 1.8.0（页面加载失败：{args.WebErrorStatus}）";
+            Text = $"Vitual XRing 1.8.1（页面加载失败：{args.WebErrorStatus}）";
         }
     }
 

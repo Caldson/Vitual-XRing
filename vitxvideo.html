@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f4f7fb">
     <title>Vitx® 视频 | Vitual XRing</title>
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
-    <script src="vtx-api.js?v=1.8.0"></script>
+    <script src="vtx-api.js?v=1.8.1"></script>
     <style>
         :root {
             color-scheme: light;
@@ -673,6 +673,25 @@
 
         .watch-sub b { color: var(--ink); font-weight: 600; }
 
+        .watch-up-row { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .watch-followers { color: #97a2b4; font-size: 11.5px; }
+
+        .follow-btn {
+            border: 1px solid #f0c36d;
+            border-radius: 999px;
+            padding: 3px 12px;
+            background: #fff8e8;
+            color: #b7791f;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.5;
+            cursor: pointer;
+        }
+
+        .follow-btn:hover { background: #fdf1dd; border-color: #e5a93c; }
+        .follow-btn.on { border-color: #d8e0ed; background: #f0f3f9; color: #7c8798; }
+        .follow-btn:disabled { opacity: 0.6; cursor: default; }
+
         .watch-declares {
             display: flex;
             flex-wrap: wrap;
@@ -1136,7 +1155,7 @@
                 🔔<span class="dot" id="notify-dot" hidden></span>
             </button>
             <a class="primary-btn" href="vitxvideopublish.html" style="text-decoration: none;">投稿</a>
-            <span class="version">v1.8.0</span>
+            <span class="version">v1.8.1</span>
             <a class="back" href="manager.html">← 返回账户</a>
         </div>
     </header>
@@ -1148,11 +1167,11 @@
                 <div>
                     <p class="eyebrow">Vitual XRing 新功能预告</p>
                     <h1>你想要的一切，影视和视频，都在这里</h1>
-                    <p class="hero-sub">Vitual XRing 1.8.0：聊天室的图片 / 文件改为保留 <b>14 天</b>；同时支持 Markdown、代码块、Discord 时间块、长消息展开与转账。视频站同步更新。</p>
+                    <p class="hero-sub">Vitual XRing 1.8.1：Vitx® 视频支持<b>关注 UP 主</b>，关注后可在「关注」里集中看 TA 的视频；聊天室保留 14 天媒体、音乐直接播放与 Markdown。</p>
                     <div class="versions">
-                        <span class="chip">1.7.3</span>
+                        <span class="chip">1.8.0</span>
                         <span class="arrow">→</span>
-                        <span class="chip hot">1.8.0</span>
+                        <span class="chip hot">1.8.1</span>
                         <button class="hero-dismiss" type="button" id="hero-dismiss">知道了</button>
                     </div>
                 </div>
@@ -1170,6 +1189,7 @@
                         <button type="button" data-quick="coin">🪙 投币</button>
                         <button type="button" data-quick="fav">★ 收藏</button>
                         <button type="button" data-quick="history">🕘 历史</button>
+                        <button type="button" data-quick="following">👥 关注</button>
                         <a href="vitxvideopublish.html">⬆ 投稿</a>
                     </div>
                 </div>
@@ -1185,7 +1205,7 @@
 
                 <section class="row" id="row-review" hidden>
                     <div class="row-head">
-                        <h3>待审核<span class="tag big">1.8.0</span></h3>
+                        <h3>待审核<span class="tag big">1.8.1</span></h3>
                         <span class="row-count" id="review-count"></span>
                     </div>
                     <div class="cards" id="cards-review"></div>
@@ -1255,7 +1275,7 @@
                 <section class="panel watch-info">
                     <h1 id="watch-title">视频标题</h1>
                     <p class="watch-sub">
-                        <span>UP 主 <b id="watch-up">—</b></span>
+                        <span class="watch-up-row">UP 主 <b id="watch-up">—</b><span class="watch-followers" id="watch-followers"></span><button type="button" class="follow-btn" id="watch-follow" hidden>+ 关注</button></span>
                         <span id="watch-meta">—</span>
                     </p>
                     <div class="watch-declares" id="watch-declares"></div>
@@ -1425,6 +1445,7 @@
                 maxBytes: 0,
                 favs: readStore("favs", []),
                 history: readStore("history", []),
+                follows: [],
                 notifyFollow: readStore("notifyFollow", true),
                 notifyInteract: readStore("notifyInteract", true),
                 watch: null,
@@ -1451,6 +1472,8 @@
                     coins: Number(data.coins) || 0,
                     coined: Boolean(data.coined),
                     coinCents: Number(data.coinCents) || 0,
+                    following: Boolean(data.following),
+                    followers: Number(data.followers) || 0,
                     comments: Number(data.comments) || 0,
                     dur: data.dur || "00:00",
                     fileName: data.fileName || "",
@@ -1502,6 +1525,7 @@
                     state.login = data.login || "";
                     state.isAdmin = Boolean(data.isAdmin);
                     state.maxBytes = Number(data.maxBytes) || 0;
+                    state.follows = Array.isArray(data.following) ? data.following.slice() : [];
                     state.error = "";
                 } catch (error) {
                     state.error = error && error.message
@@ -1669,7 +1693,8 @@
             /* ───────── 工具栏 / 列表 ───────── */
 
             function renderQuickState() {
-                const map = { like: likedVideos(), coin: coinedVideos(), fav: state.favs, history: state.history };
+                const followedVideos = state.videos.filter((item) => item.owner && state.follows.includes(item.owner));
+                const map = { like: likedVideos(), coin: coinedVideos(), fav: state.favs, history: state.history, following: followedVideos };
                 document.querySelectorAll("[data-quick]").forEach((button) => {
                     const list = map[button.dataset.quick];
                     button.classList.toggle("on", Array.isArray(list) && list.length > 0);
@@ -1683,13 +1708,15 @@
                 like: "我点赞过的",
                 coin: "我投过币的",
                 fav: "我的收藏",
-                history: "观看历史"
+                history: "观看历史",
+                following: "我关注的 UP 主"
             };
 
             function openList(kind) {
                 const list = kind === "like" ? likedVideos()
                     : kind === "coin" ? coinedVideos()
                     : kind === "fav" ? state.favs.map(findVideo).filter(Boolean)
+                    : kind === "following" ? state.videos.filter((item) => item.owner && state.follows.includes(item.owner))
                     : state.history.map(findVideo).filter(Boolean);
                 state.listKind = kind;
                 el("list-panel").hidden = false;
@@ -1768,6 +1795,64 @@
                         button.classList.toggle("on", markOn(video, kind));
                     }
                 });
+            }
+
+            /* 1.8.1：关注 UP 主（状态保存在服务端，换设备也还在） */
+            function renderWatchFollow(video) {
+                const button = el("watch-follow");
+                const count = el("watch-followers");
+                if (!button || !count) {
+                    return;
+                }
+                const owner = video && video.owner ? video.owner : "";
+                const self = Boolean(owner && owner === state.login);
+                const following = Boolean(owner && (state.follows.includes(owner) || video.following));
+                count.textContent = owner ? `${formatCount(video.followers || 0)} 人关注` : "";
+                button.hidden = !owner;
+                button.disabled = self;
+                button.dataset.owner = owner;
+                button.classList.toggle("on", following && !self);
+                button.textContent = self ? "你自己" : (following ? "已关注" : "+ 关注");
+            }
+
+            async function toggleFollow() {
+                const video = state.watch;
+                if (!video || !video.owner) {
+                    return;
+                }
+                if (!state.login) {
+                    toast("请先登录 Vitual XRing 账户，再关注 UP 主");
+                    return;
+                }
+                if (video.owner === state.login) {
+                    return;
+                }
+                const button = el("watch-follow");
+                const nowFollowing = state.follows.includes(video.owner);
+                button.disabled = true;
+                try {
+                    const result = nowFollowing
+                        ? await API.video.unfollow(video.owner)
+                        : await API.video.follow(video.owner);
+                    state.follows = result.following
+                        ? Array.from(new Set([...state.follows, video.owner]))
+                        : state.follows.filter((item) => item !== video.owner);
+                    video.following = Boolean(result.following);
+                    video.followers = Number(result.followers) || 0;
+                    state.videos.forEach((item) => {
+                        if (item.owner === video.owner) {
+                            item.following = video.following;
+                            item.followers = video.followers;
+                        }
+                    });
+                    renderWatchFollow(video);
+                    renderQuickState();
+                    toast(result.following ? `已关注 ${video.up}` : `已取消关注 ${video.up}`);
+                } catch (error) {
+                    toast(error && error.message ? error.message : "关注失败，请稍后再试");
+                } finally {
+                    button.disabled = false;
+                }
             }
 
             /* 视频文件在服务端（KV），这里直接用带 token 的地址喂给 <video> */
@@ -1970,6 +2055,8 @@
                 el("watch-video").hidden = true;
                 el("watch-meta").textContent = "—";
                 el("watch-up").textContent = "—";
+                el("watch-followers").textContent = "";
+                el("watch-follow").hidden = true;
                 el("watch-declares").innerHTML = "";
                 el("watch-desc").textContent = "";
                 el("watch-file").textContent = "";
@@ -2026,6 +2113,7 @@
                 el("comment-input").value = "";
                 updateCommentCounts();
                 renderWatchMarks(video);
+                renderWatchFollow(video);
                 renderComments();
                 renderRelated(video);
                 attachMedia(video);
@@ -2324,6 +2412,7 @@
                     }
                     toast(link);
                 });
+                el("watch-follow").addEventListener("click", toggleFollow);
                 el("watch-home").addEventListener("click", (event) => {
                     event.preventDefault();
                     goHome();

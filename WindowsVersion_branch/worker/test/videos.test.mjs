@@ -509,6 +509,64 @@ function withBucket(env) {
     return env;
 }
 
+test("1.8.1：关注 UP 主：关注、取关、列表与视频 following/followers", async () => {
+    const { env, tokens } = await prepare();
+    const video = await upload(env, tokens.Bob);
+    const approved = await api(env, "POST", `/api/videos/${video.id}/approve`, {
+        token: tokens.Kitawaga
+    });
+    assert.equal(approved.status, 200, JSON.stringify(approved.data));
+
+    const follow = await api(env, "POST", "/api/videos/follows/Bob", { token: tokens.Alice });
+    assert.equal(follow.status, 200, JSON.stringify(follow.data));
+    assert.equal(follow.data.following, true);
+    assert.equal(follow.data.followers, 1);
+
+    /* 重复关注保持幂等 */
+    const again = await api(env, "POST", "/api/videos/follows/Bob", { token: tokens.Alice });
+    assert.equal(again.status, 200, JSON.stringify(again.data));
+    assert.equal(again.data.followers, 1);
+
+    const list = await api(env, "GET", "/api/videos", { token: tokens.Alice });
+    assert.equal(list.status, 200, JSON.stringify(list.data));
+    assert.deepEqual(list.data.following, ["Bob"]);
+    const listed = list.data.videos.find((item) => item.id === video.id);
+    assert.equal(listed.following, true);
+
+    const detail = await api(env, "GET", `/api/videos/${video.id}`, { token: tokens.Alice });
+    assert.equal(detail.data.video.following, true);
+    assert.equal(detail.data.video.followers, 1);
+
+    const follows = await api(env, "GET", "/api/videos/follows", { token: tokens.Alice });
+    assert.equal(follows.status, 200, JSON.stringify(follows.data));
+    assert.deepEqual(follows.data.following, ["Bob"]);
+    assert.equal(follows.data.items[0].name, "鲍勃");
+    assert.equal(follows.data.items[0].followers, 1);
+
+    /* Bob 自己看不算关注，也没关注自己 */
+    const bobDetail = await api(env, "GET", `/api/videos/${video.id}`, { token: tokens.Bob });
+    assert.equal(bobDetail.data.video.following, false);
+    assert.equal(bobDetail.data.video.followers, 1);
+
+    const self = await api(env, "POST", "/api/videos/follows/Alice", { token: tokens.Alice });
+    assert.equal(self.status, 400);
+
+    const unknown = await api(env, "POST", "/api/videos/follows/Nobody", { token: tokens.Alice });
+    assert.equal(unknown.status, 404);
+
+    const anonymous = await api(env, "POST", "/api/videos/follows/Bob");
+    assert.equal(anonymous.status, 401);
+
+    const unfollow = await api(env, "DELETE", "/api/videos/follows/Bob", { token: tokens.Alice });
+    assert.equal(unfollow.status, 200, JSON.stringify(unfollow.data));
+    assert.equal(unfollow.data.following, false);
+    assert.equal(unfollow.data.followers, 0);
+
+    const after = await api(env, "GET", `/api/videos/${video.id}`, { token: tokens.Alice });
+    assert.equal(after.data.video.following, false);
+    assert.equal(after.data.video.followers, 0);
+});
+
 test("1.7.1：绑定 R2 后用分片上传大文件，并按 Range 播放", async () => {
     const env = withBucket(createEnv());
     await env.ACCOUNTS_KV.put("accounts", JSON.stringify(SEED));

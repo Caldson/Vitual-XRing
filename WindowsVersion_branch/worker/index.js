@@ -58,7 +58,7 @@
  *   PASSWORD_VIEW_KEY           （可选，1.4.0）给管理员看的密码副本加密密钥；不配就不存副本
  */
 
-const VERSION = "1.8.0";
+const VERSION = "1.8.1";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -71,7 +71,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.8.0";
+const CHAT_VERSION = "1.8.1";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -7190,7 +7190,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "1.8.0";
+const VIDEO_VERSION = "1.8.1";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -7214,6 +7214,11 @@ const VIDEO_LIST_LIMIT = 60;
 const VIDEO_INDEX_LIMIT = 500;
 const VIDEO_COMMENT_MAX = 300;
 const VIDEO_COMMENT_KEEP = 300;
+/* 1.8.1：关注 UP 主（每位账户最多关注 500 人；单个 UP 主最多记录 5000 个关注者） */
+const VIDEO_FOLLOW_LIMIT = 500;
+const VIDEO_FOLLOWER_LIMIT = 5000;
+const VIDEO_FOLLOW_PREFIX = "video:follows:";
+const VIDEO_FOLLOWER_PREFIX = "video:followers:";
 const VIDEO_CATEGORIES = new Set(["游戏", "娱乐", "音乐", "VLOG", "生活", "饮食", "学习"]);
 const VIDEO_DECLARATIONS = new Set(["ai", "marketing", "fiction", "repost", "sponsor", "warning"]);
 const VIDEO_INDEX_KEY = "video:index";
@@ -7234,6 +7239,14 @@ function videoFileKey(id) {
 
 function videoCommentKey(id) {
     return `${VIDEO_COMMENT_PREFIX}${id}`;
+}
+
+function videoFollowKey(login) {
+    return `${VIDEO_FOLLOW_PREFIX}${login}`;
+}
+
+function videoFollowerKey(owner) {
+    return `${VIDEO_FOLLOWER_PREFIX}${owner}`;
 }
 
 /* 没有 R2 时，文件按 20 MB 切片存进 KV：video:chunk:<id>:<n>（n 从 1 开始） */
@@ -7532,6 +7545,28 @@ async function saveVideoComments(env, id, list) {
     await env.ACCOUNTS_KV.put(videoCommentKey(id), JSON.stringify(list.slice(-VIDEO_COMMENT_KEEP)));
 }
 
+async function readVideoFollows(env, login) {
+    const stored = await env.ACCOUNTS_KV.get(videoFollowKey(login), "json");
+    return Array.isArray(stored)
+        ? Array.from(new Set(stored.filter((item) => typeof item === "string" && item))).slice(0, VIDEO_FOLLOW_LIMIT)
+        : [];
+}
+
+async function saveVideoFollows(env, login, list) {
+    await env.ACCOUNTS_KV.put(videoFollowKey(login), JSON.stringify(list.slice(0, VIDEO_FOLLOW_LIMIT)));
+}
+
+async function readVideoFollowers(env, owner) {
+    const stored = await env.ACCOUNTS_KV.get(videoFollowerKey(owner), "json");
+    return Array.isArray(stored)
+        ? Array.from(new Set(stored.filter((item) => typeof item === "string" && item))).slice(0, VIDEO_FOLLOWER_LIMIT)
+        : [];
+}
+
+async function saveVideoFollowers(env, owner, list) {
+    await env.ACCOUNTS_KV.put(videoFollowerKey(owner), JSON.stringify(list.slice(0, VIDEO_FOLLOWER_LIMIT)));
+}
+
 /* 1.7.1：删视频时把 R2 与 KV 里的文件都清掉；1.7.2 起还要删 GitHub 存储 release */
 
 async function removeVideoFile(env, id, chunkCount) {
@@ -7591,9 +7626,10 @@ function videoVisibleTo(meta, login, isAdmin) {
     return Boolean(isAdmin || (login && meta.owner === login));
 }
 
-function videoView(meta, login, isAdmin) {
+function videoView(meta, login, isAdmin, options = {}) {
     const likes = Array.isArray(meta.likes) ? meta.likes : [];
     const coins = Array.isArray(meta.coins) ? meta.coins : [];
+    const followed = options.followed instanceof Set ? options.followed : null;
     return {
         id: meta.id,
         title: meta.title || "",
@@ -7618,6 +7654,8 @@ function videoView(meta, login, isAdmin) {
         coins: coins.length,
         coined: Boolean(login && coins.includes(login)),
         coinCents: Number(meta.coinCents) || 0,
+        following: Boolean(login && followed && meta.owner && followed.has(meta.owner)),
+        followers: Number(options.followers) || 0,
         comments: Number(meta.commentCount) || 0,
         seed: Boolean(meta.seed),
         mine: Boolean(login && meta.owner === login),
@@ -7702,6 +7740,7 @@ async function handleVideoList(request, env, cors) {
     const session = await requireSession(request, env, cors);
     const login = session.error ? "" : session.payload.sub;
     const isAdmin = login ? isPlatformAdmin(env, login) : false;
+    const followed = login ? new Set(await readVideoFollows(env, login)) : new Set();
     const url = new URL(request.url);
     const cat = String(url.searchParams.get("cat") || "").trim();
     const keyword = String(url.searchParams.get("q") || "").trim().toLowerCase();
@@ -7727,7 +7766,7 @@ async function handleVideoList(request, env, cors) {
                 continue;
             }
         }
-        videos.push(videoView(meta, login, isAdmin));
+        videos.push(videoView(meta, login, isAdmin, { followed }));
         if (videos.length >= VIDEO_LIST_LIMIT) {
             break;
         }
@@ -7746,6 +7785,7 @@ async function handleVideoList(request, env, cors) {
         storage: limits.kind,
         login,
         isAdmin,
+        following: Array.from(followed),
         count: videos.length,
         videos
     }, 200, cors);
@@ -8286,13 +8326,132 @@ async function handleVideoDetail(request, env, cors, id) {
         return jsonResponse({ error: "not_found", message: "视频不存在或已下架" }, 404, cors);
     }
 
+    const followed = login ? new Set(await readVideoFollows(env, login)) : new Set();
+    const followers = meta.owner ? await readVideoFollowers(env, meta.owner) : [];
+
     return jsonResponse({
         ok: true,
-        video: videoView(meta, login, isAdmin),
+        video: videoView(meta, login, isAdmin, { followed, followers: followers.length }),
         comments: (await readVideoComments(env, id))
             .slice(-VIDEO_COMMENT_KEEP)
             .reverse()
             .map((item) => videoCommentView(item, login, isAdmin))
+    }, 200, cors);
+}
+
+async function handleVideoFollowList(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    const following = await readVideoFollows(env, login);
+    const items = [];
+    for (const owner of following) {
+        const followers = await readVideoFollowers(env, owner);
+        items.push({
+            login: owner,
+            name: chatDisplayName(accounts, owner),
+            followers: followers.length
+        });
+    }
+
+    return jsonResponse({
+        ok: true,
+        login,
+        count: following.length,
+        following,
+        items
+    }, 200, cors);
+}
+
+async function handleVideoFollowSet(request, env, cors, owner, follow) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+
+    const login = session.payload.sub;
+    const target = String(owner || "").trim();
+    if (!LOGIN_NAME_PATTERN.test(target)) {
+        return jsonResponse({ error: "bad_request", message: "UP 主登录名不合法" }, 400, cors);
+    }
+    if (target === login) {
+        return jsonResponse({ error: "bad_request", message: "不能关注自己" }, 400, cors);
+    }
+
+    const accounts = await loadAccounts(env);
+    if (!accounts[target]) {
+        return jsonResponse({ error: "not_found", message: "UP 主不存在" }, 404, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const follows = await readVideoFollows(env, login);
+        const followers = await readVideoFollowers(env, target);
+        let changed = false;
+
+        if (follow) {
+            if (!follows.includes(target)) {
+                if (follows.length >= VIDEO_FOLLOW_LIMIT) {
+                    return {
+                        error: jsonResponse(
+                            { error: "follow_limit", message: `最多关注 ${VIDEO_FOLLOW_LIMIT} 位 UP 主` },
+                            400,
+                            cors
+                        )
+                    };
+                }
+                follows.push(target);
+                changed = true;
+            }
+            if (!followers.includes(login)) {
+                if (followers.length >= VIDEO_FOLLOWER_LIMIT) {
+                    return {
+                        error: jsonResponse(
+                            { error: "follower_limit", message: "这位 UP 主的关注者已满" },
+                            400,
+                            cors
+                        )
+                    };
+                }
+                followers.push(login);
+                changed = true;
+            }
+        } else {
+            const followIndex = follows.indexOf(target);
+            if (followIndex >= 0) {
+                follows.splice(followIndex, 1);
+                changed = true;
+            }
+            const followerIndex = followers.indexOf(login);
+            if (followerIndex >= 0) {
+                followers.splice(followerIndex, 1);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            await saveVideoFollows(env, login, follows);
+            await saveVideoFollowers(env, target, followers);
+        }
+
+        return {
+            following: follows.includes(target),
+            followers: followers.length
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return jsonResponse({
+        ok: true,
+        owner: target,
+        following: result.following,
+        followers: result.followers
     }, 200, cors);
 }
 
@@ -8792,7 +8951,23 @@ async function routeVideos(request, env, cors) {
         }, 200, cors);
     }
 
-    let match = path.match(/^\/api\/videos\/([^/]+)\/upload\/(start|complete|abort)$/);
+    if (path === "/api/videos/follows" && method === "GET") {
+        return await handleVideoFollowList(request, env, cors);
+    }
+
+    let match = path.match(/^\/api\/videos\/follows\/([^/]+)$/);
+    if (match) {
+        const owner = decodeURIComponent(match[1]);
+        if (method === "POST") {
+            return await handleVideoFollowSet(request, env, cors, owner, true);
+        }
+        if (method === "DELETE") {
+            return await handleVideoFollowSet(request, env, cors, owner, false);
+        }
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    match = path.match(/^\/api\/videos\/([^/]+)\/upload\/(start|complete|abort)$/);
     if (match && method === "POST") {
         const id = decodeURIComponent(match[1]);
         if (match[2] === "start") {

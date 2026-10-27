@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "1.8.0";
+    const API_VERSION = "1.8.1";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -1220,6 +1220,10 @@
         view: (id) => videoRequest(`/${encodeId(id)}/view`, { method: "POST" }),
         like: (id) => videoRequest(`/${encodeId(id)}/like`, { method: "POST" }),
         coin: (id) => videoRequest(`/${encodeId(id)}/coin`, { method: "POST" }),
+        /* 1.8.1：关注 UP 主 */
+        following: () => videoRequest("/follows"),
+        follow: (owner) => videoRequest(`/follows/${encodeId(owner)}`, { method: "POST" }),
+        unfollow: (owner) => videoRequest(`/follows/${encodeId(owner)}`, { method: "DELETE" }),
         remove: (id) => videoRequest(`/${encodeId(id)}`, { method: "DELETE" }),
         approve: (id) => videoRequest(`/${encodeId(id)}/approve`, { method: "POST" }),
         reject: (id) => videoRequest(`/${encodeId(id)}/reject`, { method: "POST" }),
