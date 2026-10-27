@@ -1950,8 +1950,6 @@ npx wrangler deploy
   停服前几分钟改时间表也能立刻生效；
 - `WebsiteClose.html` 自身也会加载该脚本，但会在「已经在停服页」时直接返回，不会死循环；
 - 停服结束后，公告页会自动变成「已恢复」状态，并显示「回到刚才的页面」；直接打开站点则恢复正常；
-- `WindowsVersion_branch/` 里的旧版快照页也加了同一段守卫与同样的 `vtx-closed.js` / `WebsiteClose.html`，
-  所以 `/WindowsVersion_branch/xxx.html` 在停服期间同样会被拦下（`?from=` 按站点根目录解析，不会拼错路径）；
 - 脚本加载失败（例如文件没部署）时页面照常可用，不会把全站锁死；
 - 浏览器禁用 JS 时守卫失效——纯静态站点无法在服务端拦截，这是已知限制。
 

@@ -1,7 +1,0 @@
-# Python 打包产物
-build/
-dist/
-site/
-*.spec
-__pycache__/
-*.pyc

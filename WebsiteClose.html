@@ -197,7 +197,7 @@
 
             var back = safeBack(params.get("from"));
 
-            // 统一按站点根目录解析，页面放在子目录（如 WindowsVersion_branch/）时也不会拼错
+            // 统一按站点根目录解析，页面放在子目录时也不会拼错
             function backHref(value) {
                 if (!value) {
                     return "index.html";

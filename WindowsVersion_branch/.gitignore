@@ -1,9 +1,0 @@
-# Cloudflare Worker 本地开发
-worker/.dev.vars
-worker/.wrangler/
-.wrangler/
-node_modules/
-*.log
-
-# 8.0：账户数据已迁移到 Workers KV，仓库不再保存 account.json
-account.json
