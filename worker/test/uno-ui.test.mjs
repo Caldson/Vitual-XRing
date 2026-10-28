@@ -282,7 +282,7 @@ function prepare() {
     vm.runInThisContext(fs.readFileSync(new URL("../../vtx-uno.js", import.meta.url), "utf8"), {
         filename: "vtx-uno.js"
     });
-    assert.equal(window.VTXUno.version, "2.0.0");
+    assert.equal(window.VTXUno.version, "2.0.1");
     window.VTXUno.init({
         api,
         toast: () => {},
@@ -349,7 +349,7 @@ test("1.10.0：抽牌后提示与按钮状态会同步刷新，且可以继续�
     assert.doesNotMatch(body.innerHTML, /data-uno-act="draw" disabled/);
 });
 
-test("1.10.1：抽到的红 1 可以和原来的黄 1 一起出，并选择转成红色", async () => {
+test("2.0.1：红 1 + 黄 1 按点选顺序，最后红 1 转红", async () => {
     const { overlay, calls } = prepare();
     const body = overlay.querySelector("#vtx-uno-body");
 
@@ -370,19 +370,20 @@ test("1.10.1：抽到的红 1 可以和原来的黄 1 一起出，并选择转�
     click(playButton);
     await flush();
 
-    const colorButton = makeNode("button");
-    colorButton.dataset.unoAct = "pick-color";
-    colorButton.dataset.color = "red";
-    click(colorButton);
+    const dialog = overlay.querySelector("#vtx-uno-dialog");
+    assert.match(dialog.innerHTML, /最后一张是[\s\S]*红1/);
+    const confirmButton = makeNode("button");
+    confirmButton.dataset.unoAct = "confirm-last-color";
+    click(confirmButton);
     await flush();
 
     const last = calls.play[calls.play.length - 1];
     assert.ok(last, "应该发出出牌请求");
-    assert.deepEqual(last.payload.cards.slice().sort(), ["red:1:1", "yellow:1:1"]);
+    assert.deepEqual(last.payload.cards, ["yellow:1:1", "red:1:1"], "按点选顺序出牌，红 1 最后");
     assert.equal(last.payload.color, "red");
 });
 
-test("1.10.2：红 8 + 绿 8 可以先点绿 8 再点红 8，并转成绿色", async () => {
+test("2.0.1：红 8 + 绿 8 按点选顺序，最后绿 8 转绿", async () => {
     const { overlay, calls } = prepare();
     const drawButton = makeNode("button");
     drawButton.dataset.unoAct = "draw";
@@ -393,32 +394,33 @@ test("1.10.2：红 8 + 绿 8 可以先点绿 8 再点红 8，并转成绿色", a
     assert.match(body.innerHTML, /uno-card green[^"]*batchable/);
     assert.doesNotMatch(body.innerHTML, /uno-card green[^"]*unplayable/);
 
-    /* 绿 8 本身压不住红 9，但手里有同点数的红 8，允许先选绿 8 */
+    /* 先点红 8，再点绿 8：绿 8 是最后一张，最终颜色才是绿色 */
+    const redButton = makeNode("button");
+    redButton.dataset.unoCard = "red:8:1";
+    click(redButton);
+    await flush();
+
     const greenButton = makeNode("button");
     greenButton.dataset.unoCard = "green:8:1";
     click(greenButton);
     await flush();
     assert.match(body.innerHTML, /uno-card green[^"]*selected/);
 
-    const redButton = makeNode("button");
-    redButton.dataset.unoCard = "red:8:1";
-    click(redButton);
-    await flush();
-
     const playButton = makeNode("button");
     playButton.dataset.unoAct = "play";
     click(playButton);
     await flush();
 
-    const colorButton = makeNode("button");
-    colorButton.dataset.unoAct = "pick-color";
-    colorButton.dataset.color = "green";
-    click(colorButton);
+    const dialog = overlay.querySelector("#vtx-uno-dialog");
+    assert.match(dialog.innerHTML, /最后一张是[\s\S]*绿8/);
+    const confirmButton = makeNode("button");
+    confirmButton.dataset.unoAct = "confirm-last-color";
+    click(confirmButton);
     await flush();
 
     const last = calls.play[calls.play.length - 1];
     assert.ok(last, "应该发出出牌请求");
-    assert.deepEqual(last.payload.cards.slice().sort(), ["green:8:1", "red:8:1"]);
+    assert.deepEqual(last.payload.cards, ["red:8:1", "green:8:1"], "绿 8 最后");
     assert.equal(last.payload.color, "green");
 });
 

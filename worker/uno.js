@@ -1,4 +1,4 @@
-/* Vitual XRing 2.0.0 — 聊天室 UNO
+/* Vitual XRing 2.0.1 — 聊天室 UNO
  *
  * 服务端负责全部牌局状态（手牌、牌堆、回合、方向、累计效果、队内可见性），
  * 客户端只负责渲染和提交动作，所以改前端代码没法作弊。
@@ -11,7 +11,7 @@
  * 客户端收到后重新拉一次 GET /api/uno/rooms/:id。
  */
 
-export const UNO_VERSION = "2.0.0";
+export const UNO_VERSION = "2.0.1";
 
 export const UNO_MAX_PLAYERS = 10;
 export const UNO_MAX_MIXED_PLAYERS = 18;
@@ -510,12 +510,14 @@ export function playCards(room, login, cardIds, options = {}) {
             return badRequest("need_color", "万能牌需要选择一种颜色");
         }
     } else {
-        const playedColors = Array.from(new Set(cards.map((card) => card.color)));
+        /* 2.0.1：多张不同颜色的同数字牌，最终颜色必须等于最后一张牌的颜色；
+           出牌顺序由客户端按玩家点选顺序提交，服务端不再为了“选色”而重排 */
+        const lastCard = cards[cards.length - 1];
         const wanted = String(options.color || "");
-        if (wanted && !playedColors.includes(wanted)) {
-            return badRequest("bad_color", "最终颜色必须是这批牌里出现过的颜色");
+        if (wanted && wanted !== lastCard.color) {
+            return badRequest("bad_color", "最终颜色必须是最后一张牌的颜色");
         }
-        color = wanted || cards[cards.length - 1].color;
+        color = lastCard.color;
     }
 
     const effectKind = ["skip", "draw2", "wild4"].includes(value);
@@ -541,14 +543,6 @@ export function playCards(room, login, cardIds, options = {}) {
 
     const removeIds = new Set(ids);
     game.hands[login] = hand.filter((card) => !removeIds.has(card.id));
-    /* 批量出不同颜色的同数字牌时，把用户选的颜色放到牌堆顶，界面显示与实际生效颜色一致 */
-    if (!wild && new Set(cards.map((card) => card.color)).size > 1) {
-        const chosenIndex = cards.findIndex((card) => card.color === color);
-        if (chosenIndex >= 0 && chosenIndex !== cards.length - 1) {
-            const [chosenCard] = cards.splice(chosenIndex, 1);
-            cards.push(chosenCard);
-        }
-    }
     game.discard.push(...cards);
     game.color = color;
     game.turnNumber += 1;
@@ -563,8 +557,10 @@ export function playCards(room, login, cardIds, options = {}) {
 
     let text = `${player.name} 出了 ${cards.map(cardLabel).join("、")}`;
     const playedColors = new Set(cards.map((card) => card.color));
-    if (wild || playedColors.size > 1) {
+    if (wild) {
         text += `，指定${UNO_COLOR_LABELS[color] || ""}色`;
+    } else if (playedColors.size > 1) {
+        text += `，最后一张为${UNO_COLOR_LABELS[color] || ""}色`;
     }
     if (value === "wild4") {
         text += `，等待 ${targetPlayer ? targetPlayer.name : targets[0]} 选择抽 4 张或 6 张`;

@@ -220,7 +220,7 @@ test("1.9.0：标准 UNO 牌堆 108 张，数字/功能牌数量正确", () => {
     assert.equal(cardLabel(makeCard("red", "draw2")), "红+2");
 });
 
-test("1.9.0：批量出牌：同数字多颜色 + 指定最终颜色；颜色/点数不同会被拒绝", () => {
+test("1.9.0 / 2.0.1：批量出牌最终颜色由最后一张决定；颜色/点数不同会被拒绝", () => {
     const room = makeRoom();
     setTop(room, makeCard("red", "1"), "red");
     setHand(room, "Alice", [
@@ -229,7 +229,11 @@ test("1.9.0：批量出牌：同数字多颜色 + 指定最终颜色；颜色/�
         makeCard("yellow", "1", 1),
         makeCard("green", "9")
     ]);
-    const result = playCards(room, "Alice", ["red:1:1", "blue:1:1", "yellow:1:1"], { color: "blue" });
+    const wrong = playCards(room, "Alice", ["red:1:1", "blue:1:1", "yellow:1:1"], { color: "blue" });
+    assert.equal(wrong.error.code, "bad_color", "最后一张是黄 1，不能指定蓝色");
+    assert.equal(room.game.hands.Alice.length, 4);
+
+    const result = playCards(room, "Alice", ["red:1:1", "yellow:1:1", "blue:1:1"], { color: "blue" });
     assert.equal(result.error, undefined, JSON.stringify(result));
     assert.equal(room.game.color, "blue");
     assert.equal(room.game.discard[room.game.discard.length - 1].color, "blue");
@@ -526,6 +530,38 @@ test("1.10.2：+2 / +4 / 禁止的生效玩家改为单选", () => {
     assert.equal(skipOf(room, "Bob"), 0);
 });
 
+test("2.0.1：红 6 + 黄 6 最后一张是黄 6 时只能转黄；先黄后红才能转红", () => {
+    const room = makeRoom(["Alice", "Bob", "Carol"]);
+    setTop(room, makeCard("blue", "6"), "blue");
+    setHand(room, "Alice", [
+        makeCard("red", "6", 1),
+        makeCard("yellow", "6", 1),
+        makeCard("blue", "2")
+    ]);
+    const cheating = playCards(room, "Alice", ["red:6:1", "yellow:6:1"], { color: "red" });
+    assert.equal(cheating.error.code, "bad_color", "最后一张是黄 6，不能转红");
+    assert.equal(room.game.hands.Alice.length, 3);
+
+    const forcedYellow = playCards(room, "Alice", ["red:6:1", "yellow:6:1"], { color: "yellow" });
+    assert.equal(forcedYellow.error, undefined, JSON.stringify(forcedYellow));
+    assert.equal(room.game.color, "yellow");
+    assert.equal(room.game.discard[room.game.discard.length - 1].color, "yellow");
+    assert.deepEqual(room.game.hands.Alice.map((card) => card.color), ["blue"], "出完后没有黄牌");
+
+    const room2 = makeRoom(["Alice", "Bob", "Carol"]);
+    setTop(room2, makeCard("blue", "6"), "blue");
+    setHand(room2, "Alice", [
+        makeCard("red", "6", 1),
+        makeCard("yellow", "6", 1),
+        makeCard("blue", "2")
+    ]);
+    const canRed = playCards(room2, "Alice", ["yellow:6:1", "red:6:1"], { color: "red" });
+    assert.equal(canRed.error, undefined, JSON.stringify(canRed));
+    assert.equal(room2.game.color, "red");
+    assert.equal(room2.game.discard[room2.game.discard.length - 1].color, "red");
+});
+
+
 test("1.10.2：红 8 + 绿 8、黄 4 + 绿 4 都可以转成绿色", () => {
     const room = makeRoom(["Alice", "Bob", "Carol"]);
     setTop(room, makeCard("red", "9"), "red");
@@ -653,7 +689,7 @@ test("1.9.0：UNO 状态开放，暴露模式与牌局能力", async () => {
     const { env } = await prepare();
     const status = await api(env, "GET", "/api/uno/status");
     assert.equal(status.status, 200);
-    assert.equal(status.data.version, "2.0.0");
+    assert.equal(status.data.version, "2.0.1");
     assert.equal(status.data.enabled, true);
     assert.deepEqual(status.data.modes, ["ai", "normal", "mixed", "match"]);
     assert.equal(status.data.maxPlayers, 10);

@@ -1,4 +1,4 @@
-/* Vitual XRing 2.0.0 — 聊天室 UNO 前端
+/* Vitual XRing 2.0.1 — 聊天室 UNO 前端
  *
  * 只在 chatroom.html 里使用：window.VTXUno.init({ api, toast, ... }) 之后，
  * 聊天室右上角的 UNO 按钮、会话输入框旁的「UNO」按钮和聊天里的邀请卡片都会调用这里。
@@ -8,7 +8,7 @@
 (function () {
     "use strict";
 
-    const VERSION = "2.0.0";
+    const VERSION = "2.0.1";
     const COLORS = ["red", "yellow", "green", "blue"];
     const COLOR_LABELS = { red: "红", yellow: "黄", green: "绿", blue: "蓝", wild: "万能" };
     const MODE_LABELS = { ai: "人机对战", normal: "普通房间", mixed: "混合对战", match: "随机匹配" };
@@ -38,6 +38,7 @@
         chatDraft: "",
         colorPick: null,
         pendingPlay: null,
+        lastColorPlay: null,
         wild4DialogKey: null,
         wild4DialogOpen: false,
         deepLinkUsed: false
@@ -1183,9 +1184,19 @@
                 await confirmTargets();
                 return;
             }
+            if (act === "confirm-last-color") {
+                const pending = S.lastColorPlay;
+                S.lastColorPlay = null;
+                closeDialog();
+                if (pending) {
+                    await afterColor(pending.cards, pending.color);
+                }
+                return;
+            }
             if (act === "dialog-cancel") {
                 closeDialog();
                 S.pendingPlay = null;
+                S.lastColorPlay = null;
                 return;
             }
         } catch (error) {
@@ -1373,6 +1384,17 @@
         return (S.room.me.hand || []).filter((card) => S.selected.has(card.id));
     }
 
+    /* 2.0.1：按玩家点选顺序出牌，最后点的那张决定最终颜色 */
+    function selectedCardsInPlayOrder() {
+        if (!S.room || !S.room.me) {
+            return [];
+        }
+        const hand = S.room.me.hand || [];
+        return Array.from(S.selected)
+            .map((id) => hand.find((card) => card.id === id))
+            .filter(Boolean);
+    }
+
     async function playSelected() {
         if (!S.room || !myTurn(S.room)) {
             toast("还没轮到你出牌");
@@ -1382,7 +1404,7 @@
             toast("等待 +4 选择抽牌数量");
             return;
         }
-        const cards = selectedCards();
+        const cards = selectedCardsInPlayOrder();
         if (!cards.length) {
             toast("先选择要出的牌");
             return;
@@ -1396,15 +1418,18 @@
             return;
         }
         const wild = cards[0].color === "wild";
-        const colors = wild ? COLORS.slice() : Array.from(new Set(cards.map((card) => card.color)));
-        const needColor = wild || colors.length > 1;
-        if (needColor) {
-            openColorDialog(colors, async (color) => {
+        if (wild) {
+            openColorDialog(COLORS.slice(), async (color) => {
                 await afterColor(cards, color);
             });
             return;
         }
-        await afterColor(cards, colors[0]);
+        const colors = Array.from(new Set(cards.map((card) => card.color)));
+        if (colors.length > 1) {
+            openLastColorDialog(cards, cards[cards.length - 1].color);
+            return;
+        }
+        await afterColor(cards, cards[cards.length - 1].color);
     }
 
     async function afterColor(cards, color) {
@@ -1469,6 +1494,25 @@
         }
     }
 
+    /* 2.0.1：不同颜色的同数字牌，最终颜色只能是最后一张牌的颜色 */
+    function openLastColorDialog(cards, color) {
+        S.lastColorPlay = { cards, color };
+        const colorName = COLOR_LABELS[color] || color;
+        const order = cards.map((card) => cardName(card)).join(" → ");
+        const last = cards[cards.length - 1];
+        openDialog(`
+            <div class="uno-dialog-card">
+                <h3>最终颜色由最后一张决定</h3>
+                <p>出牌顺序：${esc(order)}</p>
+                <p>最后一张是 <strong>${esc(cardName(last))}</strong>，所以只能转 <strong>${esc(colorName)}</strong>。</p>
+                <p class="uno-muted">想转其他颜色？取消后按想要的顺序重新点牌：最后点的那张决定颜色。</p>
+                <div class="uno-dialog-actions">
+                    <button type="button" class="uno-btn ghost" data-uno-act="dialog-cancel">取消</button>
+                    <button type="button" class="uno-btn primary" data-uno-act="confirm-last-color">确定转${esc(colorName)}</button>
+                </div>
+            </div>`);
+    }
+
     function openColorDialog(colors, callback) {
         S.colorPick = callback;
         const buttons = [["red", "红"], ["yellow", "黄"], ["green", "绿"], ["blue", "蓝"]].map(([color, label]) =>
@@ -1477,7 +1521,7 @@
         openDialog(`
             <div class="uno-dialog-card">
                 <h3>选择最终颜色</h3>
-                <p>请选择这批牌出完后生效的颜色；下一位玩家必须跟同色牌或万能牌。批量出不同颜色的同数字牌时，也只有这里选的颜色会生效。</p>
+                <p>请选择这批万能牌出完后生效的颜色；下一位玩家必须跟同色牌或万能牌。</p>
                 <div class="uno-color-grid">${buttons}</div>
                 <div class="uno-dialog-actions">
                     <button type="button" class="uno-btn ghost" data-uno-act="dialog-cancel">取消</button>
@@ -1539,6 +1583,7 @@
 
     function closeDialog() {
         S.wild4DialogOpen = false;
+        S.lastColorPlay = null;
         if (S.dialog) {
             S.dialog.hidden = true;
             S.dialog.innerHTML = "";
