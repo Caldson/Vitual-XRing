@@ -1,4 +1,4 @@
-/* Vitual XRing 1.9.0 — 聊天室 UNO 前端
+/* Vitual XRing 1.10.0 — 聊天室 UNO 前端
  *
  * 只在 chatroom.html 里使用：window.VTXUno.init({ api, toast, ... }) 之后，
  * 聊天室右上角的 UNO 按钮、会话输入框旁的「UNO」按钮和聊天里的邀请卡片都会调用这里。
@@ -8,7 +8,7 @@
 (function () {
     "use strict";
 
-    const VERSION = "1.9.0";
+    const VERSION = "1.10.0";
     const COLORS = ["red", "yellow", "green", "blue"];
     const COLOR_LABELS = { red: "红", yellow: "黄", green: "绿", blue: "蓝", wild: "万能" };
     const MODE_LABELS = { ai: "人机对战", normal: "普通房间", mixed: "混合对战", match: "随机匹配" };
@@ -38,6 +38,7 @@
         chatDraft: "",
         colorPick: null,
         pendingPlay: null,
+        penaltyPick: null,
         deepLinkUsed: false
     };
 
@@ -559,9 +560,11 @@
                 <summary>规则与扩展功能说明</summary>
                 <ul>
                     <li>标准 108 张 UNO 牌；轮到你时可以出与牌堆顶颜色相同或数字/功能相同的牌，万能牌随时出。</li>
+                    <li>轮到你时想抽几张就抽几张（抽到牌堆空为止），抽牌不会直接结束回合；出牌或过牌才会结束本回合。</li>
                     <li>批量出牌：一次可以选择多张相同数字/功能的牌（颜色可以不同）；如果颜色不同，出牌时选择最终生效颜色。</li>
                     <li>出 +2 / +4 / 禁止后，如果房主没关闭该功能，你可以把效果指定给接下来 1~2 名玩家或自己的队友。</li>
-                    <li>一次出 N 张 +2 / +4，被指定的玩家要摸 2N / 4N 张；一次出 N 张禁止，被指定的玩家连续 N 个自己的回合都不能出牌。</li>
+                    <li>一次出 N 张 +2，被指定的玩家要摸 2N 张；一次出 N 张 +4，要摸 4N 或 6N 张；一次出 N 张禁止，被指定的玩家连续 N 个自己的回合都不能出牌。</li>
+                    <li>万能 +4 可以选择让目标抽 4 张或 6 张；如果选 +4 但你转的颜色已经不在手里，会自动升级成 +6。</li>
                     <li>一次出多张反转牌时，实际只按张数取余 2：3 张反转一次，4 张互相抵消。</li>
                     <li>组队模式：队友之间互相看得见手牌，队友出完牌整队获胜；局内聊天可切换全局 / 队内。</li>
                 </ul>
@@ -786,8 +789,13 @@
             playable: playable.has(card.id) && mine
         })).join("") || '<div class="uno-chat-empty">没有手牌</div>';
         const drew = Boolean(game.drewThisTurn);
-        const canDraw = mine && !drew;
-        const canPass = mine && drew;
+        const drawCount = Number(game.drawCount) || 0;
+        const canDrawAny = Number(game.deckCount) > 0 || Number(game.discardCount) > 1;
+        const canDraw = mine && canDrawAny;
+        const canPass = mine && (drew || !canDrawAny);
+        const drawLabel = mine
+            ? (drawCount > 0 ? `本回合已抽 ${drawCount} 张` : (canDrawAny ? "点这里抽牌（可多次）" : "没有牌可抽，可以过牌"))
+            : "等待对手";
         const selectedCards = hand.filter((card) => selected.has(card.id));
         const canPlay = mine && selectedCards.length > 0;
         const chat = chatsHtml(room);
@@ -798,7 +806,7 @@
                     <div class="uno-center">
                         <div class="uno-draw-pile">
                             <button type="button" class="uno-draw-btn" data-uno-act="draw" ${canDraw ? "" : "disabled"}>牌堆<br>${game.deckCount}</button>
-                            <span class="uno-pile-label">${drew ? "本回合已抽牌" : (mine ? "点这里抽牌" : "等待对手")}</span>
+                            <span class="uno-pile-label">${drawLabel}</span>
                         </div>
                         <div class="uno-discard-pile">${game.top ? cardMarkup(game.top, { static: true }) : ""}</div>
                         <div class="uno-table-info">
@@ -809,7 +817,7 @@
                         </div>
                     </div>
                     <div class="uno-turn-banner${mine ? " my-turn" : ""}">
-                        ${mine ? "<strong>轮到你了</strong>：选择同色或同数字的牌，可多选相同点数。" : `等待 <strong>${esc(target)}</strong> 出牌…`}
+                        ${mine ? "<strong>轮到你了</strong>：可以连续抽牌；出同色或同数字的牌，抽牌后也可以过牌。" : `等待 <strong>${esc(target)}</strong> 出牌…`}
                         ${game.lastAction ? `<span class="uno-grow"></span><span class="uno-muted">${esc(game.lastAction.text)}</span>` : ""}
                     </div>
                     <div class="uno-my-area">
@@ -1090,6 +1098,16 @@
                 }
                 return;
             }
+            if (act === "pick-penalty") {
+                const amount = Number(button.dataset.amount) === 6 ? 6 : 4;
+                const pending = S.penaltyPick;
+                S.penaltyPick = null;
+                closeDialog();
+                if (pending) {
+                    await afterPenalty(pending.cards, pending.color, amount);
+                }
+                return;
+            }
             if (act === "confirm-targets") {
                 await confirmTargets();
                 return;
@@ -1097,6 +1115,7 @@
             if (act === "dialog-cancel") {
                 closeDialog();
                 S.pendingPlay = null;
+                S.penaltyPick = null;
                 return;
             }
         } catch (error) {
@@ -1302,31 +1321,77 @@
     }
 
     async function afterColor(cards, color) {
+        if (cards[0].value === "wild4") {
+            openPenaltyDialog(cards, color);
+            return;
+        }
+        await afterPenalty(cards, color);
+    }
+
+    async function afterPenalty(cards, color, drawAmount) {
         const value = cards[0].value;
         const targets = (S.room && S.room.me && S.room.me.effectTargets) || [];
         const needsTarget = Boolean(S.room.settings.effectTargeting)
             && ["skip", "draw2", "wild4"].includes(value)
             && targets.length > 1;
         if (needsTarget) {
-            openTargetDialog(cards, color, targets);
+            openTargetDialog(cards, color, targets, drawAmount);
             return;
         }
-        await submitPlay(cards, color, []);
+        await submitPlay(cards, color, [], drawAmount);
     }
 
-    async function submitPlay(cards, color, targets) {
+    /* 1.10.0：+4 可以选择抽 4 张还是 6 张 */
+    function openPenaltyDialog(cards, color) {
+        S.penaltyPick = { cards, color };
+        const count = cards.length;
+        const remaining = ((S.room && S.room.me && S.room.me.hand) || [])
+            .filter((card) => !cards.some((played) => played.id === card.id));
+        const hasColor = remaining.some((card) => card.color === color);
+        const colorName = COLOR_LABELS[color] || color;
+        const fourTotal = 4 * count;
+        const sixTotal = 6 * count;
+        const warning = hasColor ? "" : `你手里没有${colorName}色，选 +4 会自动变成 +6。`;
+        openDialog(`
+            <div class="uno-dialog-card">
+                <h3>要让目标抽几张？</h3>
+                <p>${count > 1 ? `这批 ${count} 张 +4 会让每个生效玩家抽 ${fourTotal} 张或 ${sixTotal} 张。` : "万能 +4 可以让目标抽 4 张或 6 张。"}${warning ? `<br>${esc(warning)}` : ""}</p>
+                <div class="uno-penalty-grid">
+                    <button type="button" class="uno-btn uno-penalty-btn${hasColor ? " primary" : ""}" data-uno-act="pick-penalty" data-amount="4">
+                        <strong>抽 ${fourTotal} 张</strong>
+                        <small>+4${hasColor ? "" : " · 将自动升级"}</small>
+                    </button>
+                    <button type="button" class="uno-btn uno-penalty-btn${hasColor ? "" : " primary"}" data-uno-act="pick-penalty" data-amount="6">
+                        <strong>抽 ${sixTotal} 张</strong>
+                        <small>+6</small>
+                    </button>
+                </div>
+                <div class="uno-dialog-actions">
+                    <button type="button" class="uno-btn ghost" data-uno-act="dialog-cancel">取消</button>
+                </div>
+            </div>`);
+    }
+
+    async function submitPlay(cards, color, targets, drawAmount) {
         if (!S.room) {
             return;
         }
         S.busy = true;
         try {
-            const data = await S.api.uno.play(S.room.id, {
+            const payload = {
                 cards: cards.map((card) => card.id),
                 color,
                 targets
-            });
+            };
+            if (drawAmount === 4 || drawAmount === 6) {
+                payload.drawAmount = drawAmount;
+            }
+            const data = await S.api.uno.play(S.room.id, payload);
             S.selected.clear();
             applyRoom(data.room);
+            if (data.autoUpgraded) {
+                toast(`你手里没有${COLOR_LABELS[color] || color}色，+4 已自动变成 +6`);
+            }
         } catch (error) {
             report(error);
         } finally {
@@ -1350,8 +1415,21 @@
             </div>`);
     }
 
-    function openTargetDialog(cards, color, targets) {
-        S.pendingPlay = { cards, color };
+    function openTargetDialog(cards, color, targets, drawAmount) {
+        S.pendingPlay = { cards, color, drawAmount };
+        const value = cards[0].value;
+        const remaining = ((S.room.me && S.room.me.hand) || [])
+            .filter((card) => !cards.some((played) => played.id === card.id));
+        const autoUpgrade = value === "wild4"
+            && drawAmount === 4
+            && !remaining.some((card) => card.color === color);
+        const effectiveDraw = autoUpgrade ? 6 : drawAmount;
+        const total = value === "wild4"
+            ? (effectiveDraw === 6 ? 6 : 4) * cards.length
+            : (value === "draw2" ? 2 * cards.length : 0);
+        const effectText = value === "skip"
+            ? `每人跳过 ${cards.length} 次`
+            : (total ? `每人抽 ${total} 张${autoUpgrade ? "（自动升级为 +6）" : ""}` : "");
         const names = new Map((S.room.players || []).map((player) => [player.login, player.name || player.login]));
         const rows = targets.map((login, index) => `
             <label class="uno-target-row">
@@ -1363,7 +1441,7 @@
         openDialog(`
             <div class="uno-dialog-card">
                 <h3>选择生效玩家</h3>
-                <p>只能选择接下来 1~2 名玩家或自己的队友；可以多选。默认只作用于下家。</p>
+                <p>只能选择接下来 1~2 名玩家或自己的队友；可以多选。默认只作用于下家。${effectText ? `<br>${esc(effectText)}。` : ""}</p>
                 <div class="uno-target-list">${rows}</div>
                 <div class="uno-dialog-actions">
                     <button type="button" class="uno-btn ghost" data-uno-act="dialog-cancel">取消</button>
@@ -1385,7 +1463,7 @@
         const pending = S.pendingPlay;
         S.pendingPlay = null;
         closeDialog();
-        await submitPlay(pending.cards, pending.color, checked);
+        await submitPlay(pending.cards, pending.color, checked, pending.drawAmount);
     }
 
     function openDialog(html) {
@@ -1404,7 +1482,9 @@
     }
 
     async function drawCard() {
-        if (!S.room || !myTurn(S.room) || S.room.game.drewThisTurn) {
+        const canDrawAny = Boolean(S.room && S.room.game)
+            && (Number(S.room.game.deckCount) > 0 || Number(S.room.game.discardCount) > 1);
+        if (!S.room || !myTurn(S.room) || !canDrawAny) {
             return;
         }
         S.busy = true;
@@ -1413,10 +1493,10 @@
             applyRoom(data.room);
             if (data.drawn) {
                 toast(data.playable
-                    ? `抽到 ${cardName(data.drawn)}，可以出牌或过牌`
-                    : `抽到 ${cardName(data.drawn)}，不能出，回合结束`);
+                    ? `抽到 ${cardName(data.drawn)}，可以出牌或继续抽牌`
+                    : `抽到 ${cardName(data.drawn)}，不能出，可以继续抽或过牌`);
             } else {
-                toast("牌堆已经空了，回合结束");
+                toast("牌堆已经空了，可以过牌");
             }
         } catch (error) {
             report(error);

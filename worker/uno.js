@@ -1,4 +1,4 @@
-/* Vitual XRing 1.9.0 — 聊天室 UNO
+/* Vitual XRing 1.10.0 — 聊天室 UNO
  *
  * 服务端负责全部牌局状态（手牌、牌堆、回合、方向、累计效果、队内可见性），
  * 客户端只负责渲染和提交动作，所以改前端代码没法作弊。
@@ -11,7 +11,7 @@
  * 客户端收到后重新拉一次 GET /api/uno/rooms/:id。
  */
 
-export const UNO_VERSION = "1.9.0";
+export const UNO_VERSION = "1.10.0";
 
 export const UNO_MAX_PLAYERS = 10;
 export const UNO_MAX_MIXED_PLAYERS = 18;
@@ -293,6 +293,7 @@ export function startGame(room) {
         direction: 1,
         effects: {},
         drewThisTurn: false,
+        drawCount: 0,
         turnNumber: 1,
         winners: [],
         log: [],
@@ -355,6 +356,7 @@ export function advanceTurn(room, fromIndex) {
 
     game.turnIndex = index;
     game.drewThisTurn = false;
+    game.drawCount = 0;
 }
 
 export function nextPlayer(room, fromIndex = null) {
@@ -509,6 +511,15 @@ export function playCards(room, login, cardIds, options = {}) {
         color = wanted || cards[cards.length - 1].color;
     }
 
+    /* 1.10.0：万能 +4 可以让目标抽 4 张或 6 张 */
+    let requestedDraw = 4;
+    if (value === "wild4" && options.drawAmount !== undefined && options.drawAmount !== null) {
+        requestedDraw = Number(options.drawAmount);
+        if (requestedDraw !== 4 && requestedDraw !== 6) {
+            return badRequest("bad_draw_amount", "万能 +4 只能选择抽 4 张或 6 张");
+        }
+    }
+
     const effectKind = ["skip", "draw2", "wild4"].includes(value);
     let targets = [];
     if (effectKind) {
@@ -541,12 +552,33 @@ export function playCards(room, login, cardIds, options = {}) {
     game.color = color;
     game.turnNumber += 1;
 
+    /* 1.10.0：选择 +4 时如果转的颜色已经不在手里，自动升级为 +6 */
+    let wild4Draw = 0;
+    let autoUpgraded = false;
+    if (value === "wild4") {
+        const remainingHand = game.hands[login] || [];
+        if (requestedDraw === 4 && !remainingHand.some((card) => card.color === color)) {
+            wild4Draw = 6;
+            autoUpgraded = true;
+        } else {
+            wild4Draw = requestedDraw;
+        }
+    }
+
     let text = `${player.name} 出了 ${cards.map(cardLabel).join("、")}`;
     const playedColors = new Set(cards.map((card) => card.color));
     if (wild || playedColors.size > 1) {
         text += `，指定${UNO_COLOR_LABELS[color] || ""}色`;
     }
+    if (value === "wild4") {
+        text += `，效果 +${wild4Draw}`;
+    }
     const playLog = pushLog(room, "play", text);
+    if (autoUpgraded) {
+        pushLog(room, "system", `手里没有${UNO_COLOR_LABELS[color] || color}色，+4 自动升级为 +6`);
+    } else if (value === "wild4" && requestedDraw === 6) {
+        pushLog(room, "system", "选择让目标抽 6 张");
+    }
 
     if (value === "reverse") {
         if (cards.length % 2 === 1) {
@@ -571,7 +603,7 @@ export function playCards(room, login, cardIds, options = {}) {
     }
 
     if (value === "draw2" || value === "wild4") {
-        const perTarget = (value === "draw2" ? 2 : 4) * cards.length;
+        const perTarget = (value === "draw2" ? 2 : wild4Draw) * cards.length;
         for (const target of targets) {
             const drawn = drawForPlayer(room, target, perTarget);
             addSkip(room, target, 1);
@@ -596,7 +628,7 @@ export function playCards(room, login, cardIds, options = {}) {
 
     room.updatedAt = Date.now();
     room.seq += 1;
-    return { ok: true, log: playLog };
+    return { ok: true, log: playLog, autoUpgraded, wild4Draw };
 }
 
 export function drawForCurrent(room, login) {
@@ -612,26 +644,26 @@ export function drawForCurrent(room, login) {
     if (!current || current.login !== login) {
         return badRequest("not_your_turn", "还没轮到你");
     }
-    if (game.drewThisTurn) {
-        return badRequest("already_drew", "本回合已经抽过牌了，可以出牌或过牌");
-    }
 
+    /* 1.10.0：一回合可以抽任意多张牌；抽完不自动结束回合，由玩家出牌或过牌 */
     const top = game.discard[game.discard.length - 1];
     const drawn = drawForPlayer(room, login, 1);
-    if (!drawn.length) {
-        pushLog(room, "system", "牌堆已经空了，直接过牌");
-        advanceTurn(room, game.turnIndex);
-    } else {
+    game.drewThisTurn = true;
+    if (drawn.length) {
+        game.drawCount = (Number(game.drawCount) || 0) + 1;
         pushLog(room, "draw", `${player.name} 抽了 1 张牌`);
-        if (isPlayableCard(drawn[0], top, game.color)) {
-            game.drewThisTurn = true;
-        } else {
-            advanceTurn(room, game.turnIndex);
-        }
+    } else {
+        pushLog(room, "system", "牌堆已经空了，可以过牌");
     }
     room.updatedAt = Date.now();
     room.seq += 1;
-    return { ok: true, drawn: drawn[0] || null, playable: drawn.length ? isPlayableCard(drawn[0], top, game.color) : false };
+    const playable = drawn.length ? isPlayableCard(drawn[0], top, game.color) : false;
+    return {
+        ok: true,
+        drawn: drawn[0] || null,
+        playable,
+        drawCount: Number(game.drawCount) || 0
+    };
 }
 
 export function passTurn(room, login) {
@@ -647,7 +679,7 @@ export function passTurn(room, login) {
     if (!current || current.login !== login) {
         return badRequest("not_your_turn", "还没轮到你");
     }
-    if (!game.drewThisTurn) {
+    if (!game.drewThisTurn && (game.deck.length > 0 || game.discard.length > 1)) {
         return badRequest("cannot_pass", "只有抽牌之后才能过牌");
     }
     pushLog(room, "pass", `${player.name} 选择过牌`);
@@ -836,6 +868,7 @@ export function roomView(room, login) {
             deckCount: game.deck.length,
             discardCount: game.discard.length,
             drewThisTurn: Boolean(game.drewThisTurn),
+            drawCount: Number(game.drawCount) || 0,
             turnNumber: game.turnNumber,
             winners: game.winners,
             winnerNames: room.players.filter((player) => game.winners.includes(player.login)).map((player) => player.name),
@@ -1349,7 +1382,8 @@ export function createUno(deps) {
         return await withRoom(env, roomId, login, async (room) => {
             const result = playCards(room, login, body.cards, {
                 color: body.color,
-                targets: Array.isArray(body.targets) ? body.targets : []
+                targets: Array.isArray(body.targets) ? body.targets : [],
+                drawAmount: body.drawAmount
             });
             if (result.error) {
                 return { response: jsonResponse({ error: result.error.code, message: result.error.message }, 409, cors) };
@@ -1357,7 +1391,12 @@ export function createUno(deps) {
             runBotTurns(room);
             await saveRoom(env, room);
             await announce(env, room, { type: "uno:update" });
-            return { response: jsonResponse({ ok: true, room: roomView(room, login) }, 200, cors) };
+            return { response: jsonResponse({
+                ok: true,
+                autoUpgraded: Boolean(result.autoUpgraded),
+                wild4Draw: Number(result.wild4Draw) || 0,
+                room: roomView(room, login)
+            }, 200, cors) };
         });
     }
 
@@ -1374,6 +1413,7 @@ export function createUno(deps) {
                 ok: true,
                 drawn: result.drawn,
                 playable: Boolean(result.playable),
+                drawCount: Number(result.drawCount) || 0,
                 room: roomView(room, login)
             }, 200, cors) };
         });

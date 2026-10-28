@@ -69,7 +69,7 @@ function makeCard(id, color, value) {
 
 function makeRoom(options = {}) {
     const status = options.status || "playing";
-    const hand = options.hand || [makeCard("red:5:1", "red", "5"), makeCard("blue:7:1", "blue", "7")];
+    const hand = options.hand || [makeCard("red:5:1", "red", "5"), makeCard("blue:7:1", "blue", "7"), makeCard("wild:wild4:1", "wild", "wild4")];
     return {
         id: "u_uitest",
         code: "UITEST",
@@ -130,6 +130,7 @@ function makeRoom(options = {}) {
             deckCount: 80,
             discardCount: 12,
             drewThisTurn: false,
+            drawCount: 0,
             turnNumber: 3,
             winners: status === "finished" ? ["Alice"] : [],
             winnerNames: status === "finished" ? ["爱丽丝"] : [],
@@ -233,6 +234,7 @@ function prepare() {
                 const drawn = makeCard("green:3:1", "green", "3");
                 const room = makeRoom();
                 room.game.drewThisTurn = true;
+                room.game.drawCount = 1;
                 room.me.hand = [...room.me.hand, drawn];
                 room.players[0].hand = room.me.hand;
                 room.players[0].cards = room.me.hand.length;
@@ -251,7 +253,7 @@ function prepare() {
     vm.runInThisContext(fs.readFileSync(new URL("../../vtx-uno.js", import.meta.url), "utf8"), {
         filename: "vtx-uno.js"
     });
-    assert.equal(window.VTXUno.version, "1.9.0");
+    assert.equal(window.VTXUno.version, "1.10.0");
     window.VTXUno.init({
         api,
         toast: () => {},
@@ -306,7 +308,7 @@ test("1.9.0：点击「开始对战」进入牌桌，选牌后可以出牌", asy
     assert.equal(calls.play[0].payload.color, "red");
 });
 
-test("1.9.0：抽牌后提示与按钮状态会同步刷新", async () => {
+test("1.10.0：抽牌后提示与按钮状态会同步刷新，且可以继续抽", async () => {
     const { overlay, calls } = prepare();
     const drawButton = makeNode("button");
     drawButton.dataset.unoAct = "draw";
@@ -314,7 +316,49 @@ test("1.9.0：抽牌后提示与按钮状态会同步刷新", async () => {
     await flush();
     assert.equal(calls.draw.length, 1);
     const body = overlay.querySelector("#vtx-uno-body");
-    assert.match(body.innerHTML, /本回合已抽牌|抽到/);
+    assert.match(body.innerHTML, /本回合已抽 1 张/);
+    assert.doesNotMatch(body.innerHTML, /data-uno-act="draw" disabled/);
+});
+
+test("1.10.0：万能 +4 先选颜色，再选抽 4 张还是 6 张", async () => {
+    const { overlay, calls } = prepare();
+    const lobbyButton = makeNode("button");
+    lobbyButton.dataset.unoAct = "lobby";
+    click(lobbyButton);
+    await flush();
+    const createButton = makeNode("button");
+    createButton.dataset.unoAct = "create-ai";
+    click(createButton);
+    await flush();
+
+    const cardButton = makeNode("button");
+    cardButton.dataset.unoCard = "wild:wild4:1";
+    click(cardButton);
+    await flush();
+
+    const playButton = makeNode("button");
+    playButton.dataset.unoAct = "play";
+    click(playButton);
+    await flush();
+
+    const redButton = makeNode("button");
+    redButton.dataset.unoAct = "pick-color";
+    redButton.dataset.color = "red";
+    click(redButton);
+    await flush();
+
+    const sixButton = makeNode("button");
+    sixButton.dataset.unoAct = "pick-penalty";
+    sixButton.dataset.amount = "6";
+    click(sixButton);
+    await flush();
+
+    const last = calls.play[calls.play.length - 1];
+    assert.ok(last, "应该发出出牌请求");
+    assert.deepEqual(last.payload.cards, ["wild:wild4:1"]);
+    assert.equal(last.payload.color, "red");
+    assert.equal(last.payload.drawAmount, 6);
+    assert.equal(overlay.hidden, false);
 });
 
 test("1.9.0：大厅返回后仍能看到房间列表", async () => {

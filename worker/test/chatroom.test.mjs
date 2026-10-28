@@ -210,8 +210,8 @@ test("1.9.0：聊天室渲染 UNO 邀请卡片与会话预览", () => {
 test("1.9.0：聊天室加载 UNO 右上角按钮、脚本与邀请入口", () => {
     const html = fs.readFileSync(new URL("../../chatroom.html", import.meta.url), "utf8");
     assert.match(html, /id="uno-btn"/);
-    assert.match(html, /src="vtx-uno\.js\?v=1\.9\.0"/);
-    assert.match(html, /href="vtx-uno\.css\?v=1\.9\.0"/);
+    assert.match(html, /src="vtx-uno\.js\?v=1\.10\.0"/);
+    assert.match(html, /href="vtx-uno\.css\?v=1\.10\.0"/);
     assert.match(html, /id="uno-invite-btn"/);
-    assert.match(html, /REQUIRED_API_VERSION = "1\.9\.0"/);
+    assert.match(html, /REQUIRED_API_VERSION = "1\.10\.0"/);
 });

@@ -359,29 +359,105 @@ test("1.9.0：组队模式下队友手牌可见、对手不可见，队内聊天
     assert.deepEqual(bobChats, ["大家好", "对手队"]);
 });
 
-test("1.9.0：抽牌后可以过牌；抽到不能出的牌自动结束回合", () => {
+test("1.10.0：一回合可以连续抽多张牌，抽到不能出的牌不会自动结束回合", () => {
     const room = makeRoom(["Alice", "Bob"]);
     setTop(room, makeCard("red", "5"), "red");
     setHand(room, "Alice", [makeCard("blue", "9")]);
-    room.game.deck = [makeCard("green", "7")];
-    const drawn = drawForCurrent(room, "Alice");
-    assert.equal(drawn.error, undefined, JSON.stringify(drawn));
-    assert.equal(drawn.playable, false);
+    room.game.deck = [makeCard("green", "7"), makeCard("yellow", "2")];
+    const first = drawForCurrent(room, "Alice");
+    assert.equal(first.error, undefined, JSON.stringify(first));
+    assert.equal(first.playable, false);
+    assert.equal(first.drawCount, 1);
+    assert.equal(room.players[room.game.turnIndex].login, "Alice");
+    assert.equal(room.game.hands.Alice.length, 2);
+
+    const second = drawForCurrent(room, "Alice");
+    assert.equal(second.error, undefined, JSON.stringify(second));
+    assert.equal(second.drawCount, 2);
+    assert.equal(room.game.hands.Alice.length, 3);
+    assert.equal(room.players[room.game.turnIndex].login, "Alice");
+    assert.equal(passTurn(room, "Alice").error, undefined);
     assert.equal(room.players[room.game.turnIndex].login, "Bob");
+    assert.equal(room.game.drawCount, 0);
 
     const room2 = makeRoom(["Alice", "Bob"]);
     setTop(room2, makeCard("red", "5"), "red");
     setHand(room2, "Alice", [makeCard("blue", "9")]);
-    room2.game.deck = [makeCard("red", "8")];
+    room2.game.deck = [makeCard("blue", "3"), makeCard("red", "8")];
     const drawn2 = drawForCurrent(room2, "Alice");
     assert.equal(drawn2.playable, true);
     assert.equal(room2.players[room2.game.turnIndex].login, "Alice");
     assert.equal(room2.game.drewThisTurn, true);
+    /* 抽到能出的牌以后还可以继续抽 */
+    const again = drawForCurrent(room2, "Alice");
+    assert.equal(again.error, undefined, JSON.stringify(again));
     assert.equal(playCards(room2, "Alice", ["red:8:1"]).error, undefined);
-    assert.equal(room2.game.hands.Alice.length, 1);
+    assert.equal(room2.game.hands.Alice.length, 2);
 
     const room3 = makeRoom(["Alice", "Bob"]);
     assert.equal(passTurn(room3, "Alice").error.code, "cannot_pass");
+
+    const room4 = makeRoom(["Alice", "Bob"]);
+    room4.game.deck = [];
+    room4.game.discard = [makeCard("red", "5")];
+    room4.game.color = "red";
+    setHand(room4, "Alice", [makeCard("blue", "9")]);
+    assert.equal(passTurn(room4, "Alice").error, undefined);
+    assert.equal(room4.players[room4.game.turnIndex].login, "Bob");
+});
+
+test("1.10.0：+4 可以选择 +4 / +6；选 +4 但指定颜色不在手里时自动升级为 +6", () => {
+    const base = () => {
+        const room = makeRoom(["Alice", "Bob"]);
+        setTop(room, makeCard("red", "5"), "red");
+        return room;
+    };
+
+    let room = base();
+    setHand(room, "Alice", [makeCard("wild", "wild4", 1), makeCard("red", "7")]);
+    let bobCards = room.game.hands.Bob.length;
+    let result = playCards(room, "Alice", ["wild:wild4:1"], { color: "red", drawAmount: 4 });
+    assert.equal(result.error, undefined, JSON.stringify(result));
+    assert.equal(result.autoUpgraded, false);
+    assert.equal(result.wild4Draw, 4);
+    assert.equal(room.game.hands.Bob.length, bobCards + 4);
+
+    room = base();
+    setHand(room, "Alice", [makeCard("wild", "wild4", 1), makeCard("blue", "7")]);
+    bobCards = room.game.hands.Bob.length;
+    result = playCards(room, "Alice", ["wild:wild4:1"], { color: "red", drawAmount: 4 });
+    assert.equal(result.error, undefined, JSON.stringify(result));
+    assert.equal(result.autoUpgraded, true);
+    assert.equal(result.wild4Draw, 6);
+    assert.equal(room.game.hands.Bob.length, bobCards + 6);
+
+    room = base();
+    setHand(room, "Alice", [makeCard("wild", "wild4", 1), makeCard("red", "7")]);
+    bobCards = room.game.hands.Bob.length;
+    result = playCards(room, "Alice", ["wild:wild4:1"], { color: "red", drawAmount: 6 });
+    assert.equal(result.error, undefined, JSON.stringify(result));
+    assert.equal(result.autoUpgraded, false);
+    assert.equal(result.wild4Draw, 6);
+    assert.equal(room.game.hands.Bob.length, bobCards + 6);
+
+    room = base();
+    setHand(room, "Alice", [makeCard("wild", "wild4", 1), makeCard("blue", "7")]);
+    result = playCards(room, "Alice", ["wild:wild4:1"], { color: "red", drawAmount: 5 });
+    assert.equal(result.error.code, "bad_draw_amount");
+    assert.equal(room.game.hands.Alice.length, 2);
+
+    room = base();
+    setHand(room, "Alice", [
+        makeCard("wild", "wild4", 1),
+        makeCard("wild", "wild4", 2),
+        makeCard("blue", "7")
+    ]);
+    bobCards = room.game.hands.Bob.length;
+    result = playCards(room, "Alice", ["wild:wild4:1", "wild:wild4:2"], { color: "red", drawAmount: 4 });
+    assert.equal(result.error, undefined, JSON.stringify(result));
+    assert.equal(result.autoUpgraded, true);
+    assert.equal(result.wild4Draw, 6);
+    assert.equal(room.game.hands.Bob.length, bobCards + 12);
 });
 
 test("1.9.0：组队模式下一名队友出完牌，整队获胜", () => {
@@ -467,7 +543,7 @@ test("1.9.0：UNO 状态开放，暴露模式与牌局能力", async () => {
     const { env } = await prepare();
     const status = await api(env, "GET", "/api/uno/status");
     assert.equal(status.status, 200);
-    assert.equal(status.data.version, "1.9.0");
+    assert.equal(status.data.version, "1.10.0");
     assert.equal(status.data.enabled, true);
     assert.deepEqual(status.data.modes, ["ai", "normal", "mixed", "match"]);
     assert.equal(status.data.maxPlayers, 10);
@@ -771,6 +847,72 @@ test("1.9.0：两名真人可以完整打完一局（出牌 / 抽牌 / 过牌 / 
 
     assert.equal(room.status, "finished", `牌局应该结束：${JSON.stringify(room.game && room.game.log.slice(-5))}`);
     assert.ok(Array.isArray(room.game.winners) && room.game.winners.length > 0);
+});
+
+test("1.10.0：+4/+6 与连续抽牌走 HTTP 接口", async () => {
+    const { env, tokens } = await prepare();
+    const created = await api(env, "POST", "/api/uno/rooms", {
+        token: tokens.Alice,
+        body: { mode: "normal" }
+    });
+    const roomId = created.data.room.id;
+    await api(env, "POST", "/api/uno/rooms/join", { token: tokens.Bob, body: { roomId } });
+    const started = await api(env, "POST", `/api/uno/rooms/${roomId}/start`, { token: tokens.Alice });
+    assert.equal(started.status, 200, JSON.stringify(started.data));
+
+    const key = `uno:room:${roomId}`;
+    const stored = await env.ACCOUNTS_KV.get(key, "json");
+    stored.game.hands.Alice = [
+        { id: "wild:wild4:1", color: "wild", value: "wild4" },
+        { id: "blue:7:1", color: "blue", value: "7" }
+    ];
+    stored.game.discard = [{ id: "red:5:1", color: "red", value: "5" }];
+    stored.game.color = "red";
+    stored.game.turnIndex = 0;
+    stored.game.deck = [
+        { id: "green:3:1", color: "green", value: "3" },
+        { id: "yellow:4:1", color: "yellow", value: "4" },
+        ...Array.from({ length: 6 }, (_, index) => ({
+            id: `fill:${index}`,
+            color: "green",
+            value: String((index % 9) + 1)
+        }))
+    ];
+    stored.game.drewThisTurn = false;
+    stored.game.drawCount = 0;
+    await env.ACCOUNTS_KV.put(key, JSON.stringify(stored));
+
+    const invalid = await api(env, "POST", `/api/uno/rooms/${roomId}/play`, {
+        token: tokens.Alice,
+        body: { cards: ["wild:wild4:1"], color: "red", drawAmount: 5 }
+    });
+    assert.equal(invalid.status, 409);
+    assert.equal(invalid.data.error, "bad_draw_amount");
+
+    const bobBefore = (await env.ACCOUNTS_KV.get(key, "json")).game.hands.Bob.length;
+    const played = await api(env, "POST", `/api/uno/rooms/${roomId}/play`, {
+        token: tokens.Alice,
+        body: { cards: ["wild:wild4:1"], color: "red", drawAmount: 4 }
+    });
+    assert.equal(played.status, 200, JSON.stringify(played.data));
+    assert.equal(played.data.autoUpgraded, true);
+    assert.equal(played.data.wild4Draw, 6);
+    assert.equal(played.data.room.game.turnLogin, "Alice");
+    assert.equal((await env.ACCOUNTS_KV.get(key, "json")).game.hands.Bob.length, bobBefore + 6);
+
+    const first = await api(env, "POST", `/api/uno/rooms/${roomId}/draw`, { token: tokens.Alice });
+    assert.equal(first.status, 200, JSON.stringify(first.data));
+    assert.equal(first.data.drawCount, 1);
+    assert.equal(first.data.room.game.turnLogin, "Alice");
+    const second = await api(env, "POST", `/api/uno/rooms/${roomId}/draw`, { token: tokens.Alice });
+    assert.equal(second.status, 200, JSON.stringify(second.data));
+    assert.equal(second.data.drawCount, 2);
+    assert.equal(second.data.room.game.turnLogin, "Alice");
+    assert.equal(second.data.room.me.hand.length, 3);
+
+    const passed = await api(env, "POST", `/api/uno/rooms/${roomId}/pass`, { token: tokens.Alice });
+    assert.equal(passed.status, 200, JSON.stringify(passed.data));
+    assert.equal(passed.data.room.game.turnLogin, "Bob");
 });
 
 test("1.9.0：不能替别人出牌 / 不在房间看不到牌局", async () => {
