@@ -617,10 +617,25 @@
 
 .uno-target-list { display: grid; gap: 7px; max-height: 240px; overflow: auto; margin-bottom: 12px; }
 
-.uno-penalty-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
-.uno-penalty-btn { min-height: 76px; flex-direction: column; gap: 2px; padding: 10px; text-align: center; }
-.uno-penalty-btn strong { font-size: 18px; font-style: italic; }
-.uno-penalty-btn small { font-size: 11px; opacity: 0.8; font-weight: 500; }
+/* 1.10.2：被 +4 选中的玩家在这里选择抽 4 / 6 张 */
+.uno-wild4-prompt {
+    display: grid;
+    gap: 7px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.045);
+    font-size: 13px;
+}
+
+.uno-wild4-prompt.for-me {
+    border-color: rgba(255, 216, 77, 0.55);
+    background: rgba(255, 216, 77, 0.1);
+    box-shadow: 0 0 0 1px rgba(255, 216, 77, 0.25);
+}
+
+.uno-wild4-prompt p { margin: 0; color: #c9d5e8; line-height: 1.55; }
+.uno-wild4-head { font-size: 15px; color: #ffd84d; }
 .uno-target-row {
     display: flex;
     align-items: center;
@@ -631,7 +646,7 @@
     font-size: 13px;
     cursor: pointer;
 }
-.uno-target-row input { accent-color: #ffd84d; }
+.uno-target-row input { accent-color: #ffd84d; width: 16px; height: 16px; }
 
 .uno-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
 

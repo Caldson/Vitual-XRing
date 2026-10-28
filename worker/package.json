@@ -1,6 +1,6 @@
 {
     "name": "vtx-api",
-    "version": "1.10.1",
+    "version": "1.10.2",
     "private": true,
     "type": "module",
     "description": "Vitual XRing account API (Cloudflare Worker)",

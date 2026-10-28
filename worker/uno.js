@@ -1,4 +1,4 @@
-/* Vitual XRing 1.10.1 — 聊天室 UNO
+/* Vitual XRing 1.10.2 — 聊天室 UNO
  *
  * 服务端负责全部牌局状态（手牌、牌堆、回合、方向、累计效果、队内可见性），
  * 客户端只负责渲染和提交动作，所以改前端代码没法作弊。
@@ -11,7 +11,7 @@
  * 客户端收到后重新拉一次 GET /api/uno/rooms/:id。
  */
 
-export const UNO_VERSION = "1.10.1";
+export const UNO_VERSION = "1.10.2";
 
 export const UNO_MAX_PLAYERS = 10;
 export const UNO_MAX_MIXED_PLAYERS = 18;
@@ -294,6 +294,7 @@ export function startGame(room) {
         effects: {},
         drewThisTurn: false,
         drawCount: 0,
+        pendingWild4: null,
         turnNumber: 1,
         winners: [],
         log: [],
@@ -438,6 +439,7 @@ function pushLog(room, kind, text) {
 
 export function finishGame(room, winners, reason) {
     const game = room.game;
+    game.pendingWild4 = null;
     game.winners = Array.from(new Set((winners || []).filter(Boolean)));
     game.finishedAt = Date.now();
     game.lastAction = { at: game.finishedAt, kind: "win", text: String(reason || "牌局结束") };
@@ -463,6 +465,9 @@ export function playCards(room, login, cardIds, options = {}) {
     const player = room.players.find((item) => item.login === login);
     if (!player) {
         return badRequest("not_in_room", "你不在这个房间里");
+    }
+    if (game.pendingWild4) {
+        return badRequest("pending_wild4", "等待 +4 目标选择抽 4 张还是 6 张");
     }
     const current = room.players[game.turnIndex];
     if (!current || current.login !== login) {
@@ -513,15 +518,6 @@ export function playCards(room, login, cardIds, options = {}) {
         color = wanted || cards[cards.length - 1].color;
     }
 
-    /* 1.10.0：万能 +4 可以让目标抽 4 张或 6 张 */
-    let requestedDraw = 4;
-    if (value === "wild4" && options.drawAmount !== undefined && options.drawAmount !== null) {
-        requestedDraw = Number(options.drawAmount);
-        if (requestedDraw !== 4 && requestedDraw !== 6) {
-            return badRequest("bad_draw_amount", "万能 +4 只能选择抽 4 张或 6 张");
-        }
-    }
-
     const effectKind = ["skip", "draw2", "wild4"].includes(value);
     let targets = [];
     if (effectKind) {
@@ -531,8 +527,11 @@ export function playCards(room, login, cardIds, options = {}) {
         }
         if (room.settings.effectTargeting && Array.isArray(options.targets) && options.targets.length) {
             const requested = Array.from(new Set(options.targets.slice(0, 20).map((item) => String(item || "").trim()).filter(Boolean)));
+            if (requested.length > 1) {
+                return badRequest("bad_target", "生效玩家只能选择一名");
+            }
             if (requested.some((target) => !eligible.includes(target))) {
-                return badRequest("bad_target", "生效玩家只能选择接下来 1~2 名玩家或自己的队友");
+                return badRequest("bad_target", "生效玩家只能选择接下来 1~2 名玩家或自己的队友之一");
             }
             targets = requested;
         } else {
@@ -554,18 +553,13 @@ export function playCards(room, login, cardIds, options = {}) {
     game.color = color;
     game.turnNumber += 1;
 
-    /* 1.10.0：选择 +4 时如果转的颜色已经不在手里，自动升级为 +6 */
-    let wild4Draw = 0;
-    let autoUpgraded = false;
-    if (value === "wild4") {
-        const remainingHand = game.hands[login] || [];
-        if (requestedDraw === 4 && !remainingHand.some((card) => card.color === color)) {
-            wild4Draw = 6;
-            autoUpgraded = true;
-        } else {
-            wild4Draw = requestedDraw;
-        }
-    }
+    /* 1.10.2：+4 的抽 4 / 抽 6 由被选中的玩家决定；先记下“缺少指定颜色时自动 +6” */
+    const wild4ForcedSix = value === "wild4"
+        ? !(game.hands[login] || []).some((card) => card.color === color)
+        : false;
+    const targetPlayer = value === "wild4" && targets.length
+        ? room.players.find((item) => item.login === targets[0])
+        : null;
 
     let text = `${player.name} 出了 ${cards.map(cardLabel).join("、")}`;
     const playedColors = new Set(cards.map((card) => card.color));
@@ -573,14 +567,9 @@ export function playCards(room, login, cardIds, options = {}) {
         text += `，指定${UNO_COLOR_LABELS[color] || ""}色`;
     }
     if (value === "wild4") {
-        text += `，效果 +${wild4Draw}`;
+        text += `，等待 ${targetPlayer ? targetPlayer.name : targets[0]} 选择抽 4 张或 6 张`;
     }
     const playLog = pushLog(room, "play", text);
-    if (autoUpgraded) {
-        pushLog(room, "system", `手里没有${UNO_COLOR_LABELS[color] || color}色，+4 自动升级为 +6`);
-    } else if (value === "wild4" && requestedDraw === 6) {
-        pushLog(room, "system", "选择让目标抽 6 张");
-    }
 
     if (value === "reverse") {
         if (cards.length % 2 === 1) {
@@ -599,23 +588,44 @@ export function playCards(room, login, cardIds, options = {}) {
     if (value === "skip") {
         for (const target of targets) {
             addSkip(room, target, cards.length);
-            const targetPlayer = room.players.find((item) => item.login === target);
-            pushLog(room, "skip", `${targetPlayer ? targetPlayer.name : target} 被禁止出牌 ${cards.length} 次`);
+            const skipTarget = room.players.find((item) => item.login === target);
+            pushLog(room, "skip", `${skipTarget ? skipTarget.name : target} 被禁止出牌 ${cards.length} 次`);
         }
     }
 
-    if (value === "draw2" || value === "wild4") {
-        const perTarget = (value === "draw2" ? 2 : wild4Draw) * cards.length;
+    if (value === "draw2") {
+        const perTarget = 2 * cards.length;
         for (const target of targets) {
             const drawn = drawForPlayer(room, target, perTarget);
             addSkip(room, target, 1);
-            const targetPlayer = room.players.find((item) => item.login === target);
-            pushLog(room, "draw", `${targetPlayer ? targetPlayer.name : target} 摸 ${drawn.length} 张牌${cards.length > 1 ? `（${cards.length} 张生效牌 × ${value === "draw2" ? 2 : 4}）` : ""}`);
+            const drawTarget = room.players.find((item) => item.login === target);
+            pushLog(room, "draw", `${drawTarget ? drawTarget.name : target} 摸 ${drawn.length} 张牌${cards.length > 1 ? `（${cards.length} 张生效牌 × 2）` : ""}`);
         }
     }
 
     const remaining = game.hands[login];
-    if (!remaining.length) {
+    if (value === "wild4") {
+        if (!remaining.length) {
+            const winners = room.settings.teamMode && player.team !== null
+                ? teamMembers(room, player.team).map((item) => item.login)
+                : [login];
+            const names = room.players
+                .filter((item) => winners.includes(item.login))
+                .map((item) => item.name)
+                .join("、");
+            finishGame(room, winners, `${names} 获胜（出完了所有牌）`);
+        } else {
+            game.pendingWild4 = {
+                by: login,
+                target: targets[0],
+                color,
+                count: cards.length,
+                forcedSix: wild4ForcedSix,
+                at: Date.now()
+            };
+            pushLog(room, "system", `${targetPlayer ? targetPlayer.name : targets[0]} 需要选择抽 4 张还是 6 张`);
+        }
+    } else if (!remaining.length) {
         const winners = room.settings.teamMode && player.team !== null
             ? teamMembers(room, player.team).map((item) => item.login)
             : [login];
@@ -630,7 +640,7 @@ export function playCards(room, login, cardIds, options = {}) {
 
     room.updatedAt = Date.now();
     room.seq += 1;
-    return { ok: true, log: playLog, autoUpgraded, wild4Draw };
+    return { ok: true, log: playLog, pendingWild4: Boolean(game.pendingWild4) };
 }
 
 export function drawForCurrent(room, login) {
@@ -641,6 +651,9 @@ export function drawForCurrent(room, login) {
     const player = room.players.find((item) => item.login === login);
     if (!player || player.bot) {
         return badRequest("not_in_room", "你不在这个房间里");
+    }
+    if (game.pendingWild4) {
+        return badRequest("pending_wild4", "等待 +4 目标选择抽 4 张还是 6 张");
     }
     const current = room.players[game.turnIndex];
     if (!current || current.login !== login) {
@@ -677,6 +690,9 @@ export function passTurn(room, login) {
     if (!player || player.bot) {
         return badRequest("not_in_room", "你不在这个房间里");
     }
+    if (game.pendingWild4) {
+        return badRequest("pending_wild4", "等待 +4 目标选择抽 4 张还是 6 张");
+    }
     const current = room.players[game.turnIndex];
     if (!current || current.login !== login) {
         return badRequest("not_your_turn", "还没轮到你");
@@ -689,6 +705,50 @@ export function passTurn(room, login) {
     room.updatedAt = Date.now();
     room.seq += 1;
     return { ok: true };
+}
+
+/* 1.10.2：被 +4 选中的玩家自己选择抽 4 张还是 6 张 */
+export function resolveWild4(room, login, drawAmount) {
+    if (!room || room.status !== "playing" || !room.game) {
+        return badRequest("not_playing", "牌局还没开始或已经结束");
+    }
+    const game = room.game;
+    const pending = game.pendingWild4;
+    if (!pending) {
+        return badRequest("no_pending_wild4", "当前没有等待选择的 +4");
+    }
+    if (pending.target !== login) {
+        return badRequest("not_wild4_target", "只有被 +4 选中的玩家可以选择抽牌数量");
+    }
+    const choice = Number(drawAmount);
+    if (choice !== 4 && choice !== 6) {
+        return badRequest("bad_draw_amount", "只能选择抽 4 张或 6 张");
+    }
+    const targetPlayer = room.players.find((item) => item.login === pending.target);
+    if (!targetPlayer) {
+        game.pendingWild4 = null;
+        return badRequest("not_in_room", "目标玩家已经不在房间里");
+    }
+    const autoUpgraded = Boolean(pending.forcedSix && choice === 4);
+    const perCard = pending.forcedSix ? 6 : choice;
+    const drawn = drawForPlayer(room, pending.target, perCard * pending.count);
+    addSkip(room, pending.target, 1);
+    pushLog(
+        room,
+        "draw",
+        `${targetPlayer.name} 选择抽 ${perCard * pending.count} 张${autoUpgraded ? "（出牌者没有该颜色，+4 自动升级为 +6）" : ""}`
+    );
+    game.pendingWild4 = null;
+    advanceTurn(room, game.turnIndex);
+    room.updatedAt = Date.now();
+    room.seq += 1;
+    return {
+        ok: true,
+        autoUpgraded,
+        wild4Draw: perCard,
+        drawAmount: perCard * pending.count,
+        drawnCount: drawn.length
+    };
 }
 
 /* ───────────────── 机器人 ───────────────── */
@@ -772,6 +832,19 @@ export function botTakeTurn(room) {
 export function runBotTurns(room) {
     let guard = 0;
     while (room.status === "playing" && room.game && guard < 300) {
+        if (room.game.pendingWild4) {
+            const pending = room.game.pendingWild4;
+            const target = room.players.find((player) => player.login === pending.target);
+            if (!target || !target.bot) {
+                break;
+            }
+            const resolved = resolveWild4(room, pending.target, 4);
+            guard += 1;
+            if (resolved.error) {
+                break;
+            }
+            continue;
+        }
         const current = room.players[room.game.turnIndex];
         if (!current || !current.bot) {
             break;
@@ -828,6 +901,11 @@ export function roomView(room, login) {
     const hand = game && me ? (game.hands[login] || []) : [];
     const playable = game && top ? hand.filter((card) => isPlayableCard(card, top, game.color)).map((card) => card.id) : [];
     const effectTargets = isMyTurn && room.settings.effectTargeting ? eligibleEffectTargets(room, login) : [];
+    const pending = game && game.pendingWild4 ? game.pendingWild4 : null;
+    const nameOf = (targetLogin) => {
+        const target = room.players.find((player) => player.login === targetLogin);
+        return target ? target.name : targetLogin;
+    };
 
     return {
         id: room.id,
@@ -858,7 +936,15 @@ export function roomView(room, login) {
             hand,
             playable,
             effectTargets,
-            teammates
+            teammates,
+            wild4Choice: pending && pending.target === login ? {
+                by: pending.by,
+                byName: nameOf(pending.by),
+                color: pending.color,
+                count: pending.count,
+                forcedSix: Boolean(pending.forcedSix),
+                options: [4, 6]
+            } : null
         } : null,
         game: game ? {
             turnLogin: room.players[game.turnIndex] ? room.players[game.turnIndex].login : "",
@@ -871,6 +957,15 @@ export function roomView(room, login) {
             discardCount: game.discard.length,
             drewThisTurn: Boolean(game.drewThisTurn),
             drawCount: Number(game.drawCount) || 0,
+            pendingWild4: pending ? {
+                by: pending.by,
+                byName: nameOf(pending.by),
+                target: pending.target,
+                targetName: nameOf(pending.target),
+                color: pending.color,
+                count: pending.count,
+                at: pending.at
+            } : null,
             turnNumber: game.turnNumber,
             winners: game.winners,
             winnerNames: room.players.filter((player) => game.winners.includes(player.login)).map((player) => player.name),
@@ -1384,9 +1479,27 @@ export function createUno(deps) {
         return await withRoom(env, roomId, login, async (room) => {
             const result = playCards(room, login, body.cards, {
                 color: body.color,
-                targets: Array.isArray(body.targets) ? body.targets : [],
-                drawAmount: body.drawAmount
+                targets: Array.isArray(body.targets) ? body.targets : []
             });
+            if (result.error) {
+                return { response: jsonResponse({ error: result.error.code, message: result.error.message }, 409, cors) };
+            }
+            runBotTurns(room);
+            await saveRoom(env, room);
+            await announce(env, room, { type: "uno:update" });
+            return { response: jsonResponse({
+                ok: true,
+                pendingWild4: Boolean(result.pendingWild4 && room.game.pendingWild4),
+                room: roomView(room, login)
+            }, 200, cors) };
+        });
+    }
+
+    /* 1.10.2：只有被 +4 选中的玩家能调用 */
+    async function handleWild4Choice(request, env, cors, roomId, login) {
+        const body = plainObject(await readJsonBody(request));
+        return await withRoom(env, roomId, login, async (room) => {
+            const result = resolveWild4(room, login, body.drawAmount);
             if (result.error) {
                 return { response: jsonResponse({ error: result.error.code, message: result.error.message }, 409, cors) };
             }
@@ -1397,6 +1510,8 @@ export function createUno(deps) {
                 ok: true,
                 autoUpgraded: Boolean(result.autoUpgraded),
                 wild4Draw: Number(result.wild4Draw) || 0,
+                drawAmount: Number(result.drawAmount) || 0,
+                drawnCount: Number(result.drawnCount) || 0,
                 room: roomView(room, login)
             }, 200, cors) };
         });
@@ -1565,7 +1680,7 @@ export function createUno(deps) {
             return await handleRoomDetail(request, env, cors, roomId, login);
         }
 
-        match = path.match(/^\/api\/uno\/rooms\/([^/]+)\/(start|settings|teams|leave|play|draw|pass|chat)$/);
+        match = path.match(/^\/api\/uno\/rooms\/([^/]+)\/(start|settings|teams|leave|play|draw|pass|chat|wild4)$/);
         if (match) {
             const roomId = decodeURIComponent(match[1]);
             if (!UNO_ROOM_ID_PATTERN.test(roomId)) {
@@ -1592,6 +1707,9 @@ export function createUno(deps) {
             }
             if (action === "pass" && method === "POST") {
                 return await handlePass(request, env, cors, roomId, login);
+            }
+            if (action === "wild4" && method === "POST") {
+                return await handleWild4Choice(request, env, cors, roomId, login);
             }
             if (action === "chat" && method === "POST") {
                 return await handleChat(request, env, cors, roomId, login);

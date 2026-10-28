@@ -212,7 +212,8 @@ function prepare() {
         return prepared;
     }
     const document = setupDom();
-    const calls = { create: [], play: [], draw: [], start: [], invite: [] };
+    const calls = { create: [], play: [], draw: [], start: [], invite: [], wild4: [] };
+    let drawCall = 0;
     const room = makeRoom();
     const api = {
         uno: {
@@ -231,18 +232,42 @@ function prepare() {
             },
             draw: async () => {
                 calls.draw.push(true);
-                const yellow = makeCard("yellow:1:1", "yellow", "1");
-                const drawn = makeCard("red:1:1", "red", "1");
-                const room = makeRoom({ hand: [yellow, drawn] });
-                room.game.top = makeCard("yellow:5:1", "yellow", "5");
-                room.game.color = "yellow";
-                room.game.drewThisTurn = true;
-                room.game.drawCount = 1;
-                room.me.hand = [yellow, drawn];
-                room.me.playable = ["yellow:1:1"];
-                room.players[0].hand = room.me.hand;
-                room.players[0].cards = 2;
-                return { room, drawn, playable: false };
+                drawCall += 1;
+                if (drawCall === 1) {
+                    const yellow = makeCard("yellow:1:1", "yellow", "1");
+                    const drawn = makeCard("red:1:1", "red", "1");
+                    const drawnRoom = makeRoom({ hand: [yellow, drawn] });
+                    drawnRoom.game.top = makeCard("yellow:5:1", "yellow", "5");
+                    drawnRoom.game.color = "yellow";
+                    drawnRoom.game.drewThisTurn = true;
+                    drawnRoom.game.drawCount = 1;
+                    drawnRoom.me.hand = [yellow, drawn];
+                    drawnRoom.me.playable = ["yellow:1:1"];
+                    drawnRoom.players[0].hand = drawnRoom.me.hand;
+                    drawnRoom.players[0].cards = 2;
+                    return { room: drawnRoom, drawn, playable: false };
+                }
+                const red8 = makeCard("red:8:1", "red", "8");
+                const green8 = makeCard("green:8:1", "green", "8");
+                const drawnRoom = makeRoom({ hand: [red8, green8] });
+                drawnRoom.game.top = makeCard("red:9:1", "red", "9");
+                drawnRoom.game.color = "red";
+                drawnRoom.game.drewThisTurn = true;
+                drawnRoom.game.drawCount = 1;
+                drawnRoom.me.hand = [red8, green8];
+                drawnRoom.me.playable = ["red:8:1"];
+                drawnRoom.players[0].hand = drawnRoom.me.hand;
+                drawnRoom.players[0].cards = 2;
+                return { room: drawnRoom, drawn: green8, playable: false };
+            },
+            wild4: async (id, drawAmount) => {
+                calls.wild4.push({ id, drawAmount });
+                return {
+                    room: makeRoom(),
+                    autoUpgraded: false,
+                    wild4Draw: drawAmount,
+                    drawAmount
+                };
             },
             start: async () => {
                 calls.start.push(true);
@@ -257,7 +282,7 @@ function prepare() {
     vm.runInThisContext(fs.readFileSync(new URL("../../vtx-uno.js", import.meta.url), "utf8"), {
         filename: "vtx-uno.js"
     });
-    assert.equal(window.VTXUno.version, "1.10.1");
+    assert.equal(window.VTXUno.version, "1.10.2");
     window.VTXUno.init({
         api,
         toast: () => {},
@@ -357,7 +382,44 @@ test("1.10.1：抽到的红 1 可以和原来的黄 1 一起出，并选择转�
     assert.equal(last.payload.color, "red");
 });
 
-test("1.10.0：万能 +4 先选颜色，再选抽 4 张还是 6 张", async () => {
+test("1.10.2：红 8 + 绿 8 可以先点绿 8 再点红 8，并转成绿色", async () => {
+    const { overlay, calls } = prepare();
+    const drawButton = makeNode("button");
+    drawButton.dataset.unoAct = "draw";
+    click(drawButton);
+    await flush();
+    const body = overlay.querySelector("#vtx-uno-body");
+
+    /* 绿 8 本身压不住红 9，但手里有同点数的红 8，允许先选绿 8 */
+    const greenButton = makeNode("button");
+    greenButton.dataset.unoCard = "green:8:1";
+    click(greenButton);
+    await flush();
+    assert.match(body.innerHTML, /uno-card green[^"]*selected/);
+
+    const redButton = makeNode("button");
+    redButton.dataset.unoCard = "red:8:1";
+    click(redButton);
+    await flush();
+
+    const playButton = makeNode("button");
+    playButton.dataset.unoAct = "play";
+    click(playButton);
+    await flush();
+
+    const colorButton = makeNode("button");
+    colorButton.dataset.unoAct = "pick-color";
+    colorButton.dataset.color = "green";
+    click(colorButton);
+    await flush();
+
+    const last = calls.play[calls.play.length - 1];
+    assert.ok(last, "应该发出出牌请求");
+    assert.deepEqual(last.payload.cards.slice().sort(), ["green:8:1", "red:8:1"]);
+    assert.equal(last.payload.color, "green");
+});
+
+test("1.10.2：出 +4 时只选颜色和目标，4/6 由被选中的玩家决定", async () => {
     const { overlay, calls } = prepare();
     const lobbyButton = makeNode("button");
     lobbyButton.dataset.unoAct = "lobby";
@@ -384,18 +446,96 @@ test("1.10.0：万能 +4 先选颜色，再选抽 4 张还是 6 张", async () =
     click(redButton);
     await flush();
 
-    const sixButton = makeNode("button");
-    sixButton.dataset.unoAct = "pick-penalty";
-    sixButton.dataset.amount = "6";
-    click(sixButton);
-    await flush();
-
     const last = calls.play[calls.play.length - 1];
     assert.ok(last, "应该发出出牌请求");
     assert.deepEqual(last.payload.cards, ["wild:wild4:1"]);
     assert.equal(last.payload.color, "red");
-    assert.equal(last.payload.drawAmount, 6);
+    assert.equal("drawAmount" in last.payload, false, "出牌者不再传 drawAmount");
     assert.equal(overlay.hidden, false);
+});
+
+test("1.10.2：被 +4 选中的玩家可以自己选择抽 4 / 6 张", async () => {
+    const { overlay, api, calls } = prepare();
+    const pendingRoom = makeRoom();
+    pendingRoom.game.pendingWild4 = {
+        by: "Bob",
+        byName: "鲍勃",
+        target: "Alice",
+        targetName: "爱丽丝",
+        color: "red",
+        count: 1,
+        at: Date.now()
+    };
+    pendingRoom.me.wild4Choice = {
+        by: "Bob",
+        byName: "鲍勃",
+        color: "red",
+        count: 1,
+        forcedSix: true,
+        options: [4, 6]
+    };
+    pendingRoom.game.turnLogin = "Bob";
+    pendingRoom.game.turnName = "鲍勃";
+    const originalRoom = api.uno.room;
+    api.uno.room = async () => ({ room: pendingRoom });
+    window.VTXUno.openRoom({ roomId: "u_uitest" });
+    await flush();
+
+    const body = overlay.querySelector("#vtx-uno-body");
+    assert.match(body.innerHTML, /你被 \+4 了/);
+    assert.match(body.innerHTML, /自动变成 \+6/);
+
+    const sixButton = makeNode("button");
+    sixButton.dataset.unoAct = "wild4-choice";
+    sixButton.dataset.amount = "6";
+    click(sixButton);
+    await flush();
+    assert.equal(calls.wild4.length, 1);
+    assert.equal(calls.wild4[0].drawAmount, 6);
+    api.uno.room = originalRoom;
+});
+
+test("1.10.2：生效玩家弹窗是单选（radio），不再允许多选", async () => {
+    const { overlay, api } = prepare();
+    const room = makeRoom({
+        hand: [makeCard("red:skip:1", "red", "skip"), makeCard("blue:2:1", "blue", "2")]
+    });
+    room.players.push({
+        login: "Bob",
+        name: "鲍勃",
+        uid: 2,
+        bot: false,
+        team: null,
+        cards: 7,
+        hand: null,
+        skip: 0,
+        host: false
+    });
+    room.game.top = makeCard("red:5:1", "red", "5");
+    room.game.color = "red";
+    room.me.hand = [makeCard("red:skip:1", "red", "skip"), makeCard("blue:2:1", "blue", "2")];
+    room.me.playable = ["red:skip:1"];
+    room.me.effectTargets = ["Bob", "bot_1"];
+    const originalRoom = api.uno.room;
+    api.uno.room = async () => ({ room });
+    window.VTXUno.openRoom({ roomId: "u_uitest" });
+    await flush();
+
+    const cardButton = makeNode("button");
+    cardButton.dataset.unoCard = "red:skip:1";
+    click(cardButton);
+    await flush();
+    const playButton = makeNode("button");
+    playButton.dataset.unoAct = "play";
+    click(playButton);
+    await flush();
+
+    const dialog = overlay.querySelector("#vtx-uno-dialog");
+    assert.match(dialog.innerHTML, /type="radio"/);
+    assert.match(dialog.innerHTML, /name="uno-target"/);
+    assert.match(dialog.innerHTML, /只能选择一名/);
+    api.uno.room = originalRoom;
+    window.VTXUno.close();
 });
 
 test("1.9.0：大厅返回后仍能看到房间列表", async () => {
