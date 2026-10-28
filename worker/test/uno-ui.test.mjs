@@ -282,7 +282,7 @@ function prepare() {
     vm.runInThisContext(fs.readFileSync(new URL("../../vtx-uno.js", import.meta.url), "utf8"), {
         filename: "vtx-uno.js"
     });
-    assert.equal(window.VTXUno.version, "1.10.2");
+    assert.equal(window.VTXUno.version, "1.10.3");
     window.VTXUno.init({
         api,
         toast: () => {},
@@ -389,6 +389,9 @@ test("1.10.2：红 8 + 绿 8 可以先点绿 8 再点红 8，并转成绿色", a
     click(drawButton);
     await flush();
     const body = overlay.querySelector("#vtx-uno-body");
+    /* 绿 8 单独压不住，但和红 8 同点数，应该显示为「可搭配」，不能是 unplayable */
+    assert.match(body.innerHTML, /uno-card green[^"]*batchable/);
+    assert.doesNotMatch(body.innerHTML, /uno-card green[^"]*unplayable/);
 
     /* 绿 8 本身压不住红 9，但手里有同点数的红 8，允许先选绿 8 */
     const greenButton = makeNode("button");
@@ -484,6 +487,10 @@ test("1.10.2：被 +4 选中的玩家可以自己选择抽 4 / 6 张", async () 
     const body = overlay.querySelector("#vtx-uno-body");
     assert.match(body.innerHTML, /你被 \+4 了/);
     assert.match(body.innerHTML, /自动变成 \+6/);
+    const dialog = overlay.querySelector("#vtx-uno-dialog");
+    assert.equal(dialog.hidden, false, "应该自动弹出 +4/+6 选择框");
+    assert.match(dialog.innerHTML, /抽 4 张/);
+    assert.match(dialog.innerHTML, /抽 6 张/);
 
     const sixButton = makeNode("button");
     sixButton.dataset.unoAct = "wild4-choice";
@@ -492,6 +499,7 @@ test("1.10.2：被 +4 选中的玩家可以自己选择抽 4 / 6 张", async () 
     await flush();
     assert.equal(calls.wild4.length, 1);
     assert.equal(calls.wild4[0].drawAmount, 6);
+    assert.equal(dialog.hidden, true, "选择后弹窗应该关闭");
     api.uno.room = originalRoom;
 });
 

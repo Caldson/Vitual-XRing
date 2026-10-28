@@ -1,4 +1,4 @@
-/* Vitual XRing 1.10.2 — 聊天室 UNO 前端
+/* Vitual XRing 1.10.3 — 聊天室 UNO 前端
  *
  * 只在 chatroom.html 里使用：window.VTXUno.init({ api, toast, ... }) 之后，
  * 聊天室右上角的 UNO 按钮、会话输入框旁的「UNO」按钮和聊天里的邀请卡片都会调用这里。
@@ -8,7 +8,7 @@
 (function () {
     "use strict";
 
-    const VERSION = "1.10.2";
+    const VERSION = "1.10.3";
     const COLORS = ["red", "yellow", "green", "blue"];
     const COLOR_LABELS = { red: "红", yellow: "黄", green: "绿", blue: "蓝", wild: "万能" };
     const MODE_LABELS = { ai: "人机对战", normal: "普通房间", mixed: "混合对战", match: "随机匹配" };
@@ -38,6 +38,8 @@
         chatDraft: "",
         colorPick: null,
         pendingPlay: null,
+        wild4DialogKey: null,
+        wild4DialogOpen: false,
         deepLinkUsed: false
     };
 
@@ -177,7 +179,9 @@
         if (options.selected) {
             classes.push("selected");
         }
-        if (options.playable === false) {
+        if (options.batchable) {
+            classes.push("batchable");
+        } else if (options.playable === false) {
             classes.push("unplayable");
         }
         if (options.dim) {
@@ -190,8 +194,11 @@
         if (options.static) {
             return `<div class="${classes.join(" ")}">${inner}</div>`;
         }
+        const title = options.batchable
+            ? `${cardName(card)}（可以和其他同点数牌一起出）`
+            : cardName(card);
         return `<button type="button" class="${classes.join(" ")}" data-uno-card="${esc(card.id)}"` +
-            ` title="${esc(cardName(card))}" aria-pressed="${options.selected ? "true" : "false"}">${inner}</button>`;
+            ` title="${esc(title)}" aria-pressed="${options.selected ? "true" : "false"}">${inner}</button>`;
     }
 
     /* ───────────────── 初始化 ───────────────── */
@@ -287,6 +294,7 @@
             return;
         }
         S.root.hidden = true;
+        S.wild4DialogKey = null;
         closeDialog();
         stopPolling();
     }
@@ -398,9 +406,45 @@
         }
         render();
         updateTurnBadge();
+        maybeOpenWild4Dialog(room);
         if (!options.silent) {
             startPolling();
         }
+    }
+
+    /* 1.10.3：被 +4 的玩家自动弹出选择框，避免在长牌桌里找不到按钮 */
+    function maybeOpenWild4Dialog(room) {
+        const choice = room.me && room.me.wild4Choice;
+        const pending = room.game && room.game.pendingWild4;
+        if (!choice || !pending) {
+            S.wild4DialogKey = null;
+            if (S.wild4DialogOpen) {
+                S.wild4DialogOpen = false;
+                closeDialog();
+            }
+            return;
+        }
+        const key = `${room.id}:${pending.at || 0}`;
+        if (S.wild4DialogKey === key) {
+            return;
+        }
+        S.wild4DialogKey = key;
+        S.wild4DialogOpen = true;
+        const count = Number(pending.count) || 1;
+        const colorName = COLOR_LABELS[pending.color] || pending.color;
+        openDialog(`
+            <div class="uno-dialog-card">
+                <h3>你被 +4 了</h3>
+                <p>${esc(pending.byName)} 指定了 ${esc(colorName)} 色${count > 1 ? `（${count} 张 +4）` : ""}。请选择抽多少张：</p>
+                <div class="uno-row uno-wild4-actions">
+                    <button type="button" class="uno-btn primary" data-uno-act="wild4-choice" data-amount="4">抽 ${4 * count} 张</button>
+                    <button type="button" class="uno-btn" data-uno-act="wild4-choice" data-amount="6">抽 ${6 * count} 张</button>
+                </div>
+                ${choice.forcedSix ? `<p class="uno-muted">出牌者手里没有这个颜色：选 +4 会自动变成 +6。</p>` : ""}
+                <div class="uno-dialog-actions">
+                    <button type="button" class="uno-btn ghost" data-uno-act="dialog-cancel">稍后选择</button>
+                </div>
+            </div>`);
     }
 
     /* 面板关掉以后，右上角 UNO 按钮上用一个小红点提醒「轮到你了」 */
@@ -784,13 +828,22 @@
         const target = game.turnName || "…";
         const hand = me ? sortedHand(me.hand) : [];
         const playable = new Set(me ? (me.playable || []) : []);
-        const handHtml = hand.map((card) => cardMarkup(card, {
-            selected: selected.has(card.id),
-            playable: playable.has(card.id) && mine
-        })).join("") || '<div class="uno-chat-empty">没有手牌</div>';
+        const pending = game.pendingWild4 || null;
+        const canAct = mine && !pending;
+        /* 1.10.3：同点数里有一张能出时，其他牌虽然单独出不了，
+           但只是“不能单独出”，不是完全不可用；用 batchable 样式区分 */
+        const legalValues = new Set(hand.filter((card) => playable.has(card.id)).map((card) => card.value));
+        const handHtml = hand.map((card) => {
+            const isPlayable = playable.has(card.id);
+            const isBatchable = canAct && !isPlayable && legalValues.has(card.value);
+            return cardMarkup(card, {
+                selected: selected.has(card.id),
+                playable: canAct ? isPlayable : undefined,
+                batchable: isBatchable
+            });
+        }).join("") || '<div class="uno-chat-empty">没有手牌</div>';
         const drew = Boolean(game.drewThisTurn);
         const drawCount = Number(game.drawCount) || 0;
-        const pending = game.pendingWild4 || null;
         const wild4Choice = me && me.wild4Choice ? me.wild4Choice : null;
         const pendingCount = pending ? Number(pending.count) || 1 : 0;
         const canDrawAny = Number(game.deckCount) > 0 || Number(game.discardCount) > 1;
@@ -1399,6 +1452,7 @@
         if (!S.room || S.busy) {
             return;
         }
+        closeDialog();
         S.busy = true;
         try {
             const data = await S.api.uno.wild4(S.room.id, amount);
@@ -1484,6 +1538,7 @@
     }
 
     function closeDialog() {
+        S.wild4DialogOpen = false;
         if (S.dialog) {
             S.dialog.hidden = true;
             S.dialog.innerHTML = "";

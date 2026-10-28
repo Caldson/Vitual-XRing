@@ -491,6 +491,9 @@
 .uno-card.selected { transform: translateY(-13px); box-shadow: 0 0 0 3px #ffd84d, 0 10px 20px rgba(0, 0, 0, 0.4); }
 .uno-card.unplayable { opacity: 0.42; }
 .uno-card.unplayable:hover { transform: none; }
+/* 1.10.3：不能单独出、但能和同点数牌一起出的牌，用金色描边提示可搭配 */
+.uno-card.batchable { box-shadow: 0 0 0 2px rgba(255, 216, 77, 0.65), 0 5px 12px rgba(0, 0, 0, 0.32); }
+.uno-card.batchable:hover { transform: translateY(-5px); }
 .uno-card.mini { width: 40px; height: 58px; border-radius: 7px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); }
 .uno-card.mini .uno-card-oval { width: 28px; height: 40px; font-size: 13px; }
 .uno-card.mini .uno-card-corner { font-size: 8px; top: 2px; left: 3px; }
@@ -636,6 +639,8 @@
 
 .uno-wild4-prompt p { margin: 0; color: #c9d5e8; line-height: 1.55; }
 .uno-wild4-head { font-size: 15px; color: #ffd84d; }
+.uno-wild4-actions { display: flex; gap: 10px; margin: 4px 0 12px; }
+.uno-wild4-actions .uno-btn { flex: 1; min-height: 56px; }
 .uno-target-row {
     display: flex;
     align-items: center;
