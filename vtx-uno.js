@@ -1,4 +1,4 @@
-/* Vitual XRing 1.10.3 — 聊天室 UNO 前端
+/* Vitual XRing 2.0.0 — 聊天室 UNO 前端
  *
  * 只在 chatroom.html 里使用：window.VTXUno.init({ api, toast, ... }) 之后，
  * 聊天室右上角的 UNO 按钮、会话输入框旁的「UNO」按钮和聊天里的邀请卡片都会调用这里。
@@ -8,7 +8,7 @@
 (function () {
     "use strict";
 
-    const VERSION = "1.10.3";
+    const VERSION = "2.0.0";
     const COLORS = ["red", "yellow", "green", "blue"];
     const COLOR_LABELS = { red: "红", yellow: "黄", green: "绿", blue: "蓝", wild: "万能" };
     const MODE_LABELS = { ai: "人机对战", normal: "普通房间", mixed: "混合对战", match: "随机匹配" };
