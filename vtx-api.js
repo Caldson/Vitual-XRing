@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "1.8.2";
+    const API_VERSION = "1.9.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -1060,6 +1060,41 @@
         )
     };
 
+    /* ───────── 1.9.0：聊天室 UNO ───────── */
+
+    const uno = {
+        status: () => apiRequest("/uno/status", { auth: false }),
+        rooms: () => apiRequest("/uno/rooms"),
+        create: (payload) => apiRequest("/uno/rooms", { method: "POST", body: payload || {} }),
+        join: (payload) => apiRequest("/uno/rooms/join", { method: "POST", body: payload || {} }),
+        match: () => apiRequest("/uno/match", { method: "POST" }),
+        room: (id) => apiRequest(`/uno/rooms/${encodeId(id)}`),
+        leave: (id) => apiRequest(`/uno/rooms/${encodeId(id)}/leave`, { method: "POST" }),
+        start: (id) => apiRequest(`/uno/rooms/${encodeId(id)}/start`, { method: "POST" }),
+        settings: (id, changes) => apiRequest(`/uno/rooms/${encodeId(id)}/settings`, {
+            method: "POST",
+            body: changes || {}
+        }),
+        teams: (id, payload) => apiRequest(`/uno/rooms/${encodeId(id)}/teams`, {
+            method: "POST",
+            body: payload || {}
+        }),
+        play: (id, payload) => apiRequest(`/uno/rooms/${encodeId(id)}/play`, {
+            method: "POST",
+            body: payload || {}
+        }),
+        draw: (id) => apiRequest(`/uno/rooms/${encodeId(id)}/draw`, { method: "POST" }),
+        pass: (id) => apiRequest(`/uno/rooms/${encodeId(id)}/pass`, { method: "POST" }),
+        chat: (id, text, scope) => apiRequest(`/uno/rooms/${encodeId(id)}/chat`, {
+            method: "POST",
+            body: { text, scope }
+        }),
+        invite: (conversationId, roomId) => apiRequest(
+            `/chat/conversations/${encodeId(conversationId)}/uno`,
+            { method: "POST", body: { roomId } }
+        )
+    };
+
     /* ───────── 1.7.1：Vitx® 视频（服务端存储，大文件走 R2 分片） ───────── */
 
     // 「Bearer」拆开写，避免被日志脱敏工具截断
@@ -1300,6 +1335,7 @@
         adminDelete,
         chatStatus,
         chat,
+        uno,
         chatSocketUrl: chatSocketUrl,
         chatMediaUrl: chatMediaUrl,
         video,

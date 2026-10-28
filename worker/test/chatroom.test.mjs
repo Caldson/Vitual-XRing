@@ -78,7 +78,8 @@ function loadChatroom() {
             transferCard,
             transferStatusLabel,
             messagePreviewText,
-            isAudioMedia
+            isAudioMedia,
+            unoInviteCard
         };
     })();`);
     vm.runInThisContext(code, { filename: "chatroom-inline.js" });
@@ -169,4 +170,48 @@ test("1.8.0：识别音乐文件并生成 [音乐] 预览", () => {
         chat.messagePreviewText({ type: "file", media: { name: "报告.pdf", type: "application/pdf" } }),
         "[文件] 报告.pdf"
     );
+});
+
+test("1.9.0：聊天室渲染 UNO 邀请卡片与会话预览", () => {
+    const chat = loadChatroom();
+    const invite = {
+        roomId: "u_testroom",
+        code: "ABC123",
+        name: "周末开黑",
+        mode: "normal",
+        hostName: "爱丽丝",
+        players: 2,
+        capacity: 10,
+        status: "waiting"
+    };
+    const card = chat.unoInviteCard({
+        id: "m_uno",
+        sender: "Alice",
+        senderName: "爱丽丝",
+        uno: invite
+    });
+    assert.match(card, /data-uno-room="u_testroom"/);
+    assert.match(card, /周末开黑/);
+    assert.match(card, /爱丽丝/);
+    assert.match(card, /加入/);
+    assert.match(card, /2\/10/);
+
+    const finished = chat.unoInviteCard({
+        id: "m_uno2",
+        sender: "Alice",
+        uno: { ...invite, status: "finished" }
+    });
+    assert.match(finished, /已结束/);
+    assert.match(finished, /查看/);
+
+    assert.equal(chat.messagePreviewText({ type: "uno" }), "[UNO 邀请] 一起来玩 UNO");
+});
+
+test("1.9.0：聊天室加载 UNO 右上角按钮、脚本与邀请入口", () => {
+    const html = fs.readFileSync(new URL("../../chatroom.html", import.meta.url), "utf8");
+    assert.match(html, /id="uno-btn"/);
+    assert.match(html, /src="vtx-uno\.js\?v=1\.9\.0"/);
+    assert.match(html, /href="vtx-uno\.css\?v=1\.9\.0"/);
+    assert.match(html, /id="uno-invite-btn"/);
+    assert.match(html, /REQUIRED_API_VERSION = "1\.9\.0"/);
 });

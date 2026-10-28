@@ -1445,6 +1445,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="vtx-uno.css?v=1.9.0">
 </head>
 <body>
 <div class="app" id="app" hidden>
@@ -1452,9 +1453,10 @@
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
-            <span class="version-badge">v1.8.2 聊天室</span>
+            <span class="version-badge">v1.9.0 聊天室</span>
         </div>
         <div class="topbar-spacer"></div>
+        <button type="button" class="uno-top-btn" id="uno-btn" title="打开 UNO（人机对战 / 普通房间 / 混合对战 / 随机匹配）">UNO</button>
         <span class="status"><span class="status-dot" id="conn-dot"></span><span id="conn-text">连接中…</span></span>
         <a href="manager.html">← 返回账户</a>
     </header>
@@ -1489,7 +1491,7 @@
             <div class="empty-state">
                 <div>
                     <h2>聊天室已开放</h2>
-                    <p>选择一个会话开始聊天。支持单聊、群聊、Markdown、代码块、Discord 时间块、长消息展开、红包与转账。<br>图片、文件与音乐上传后保留 14 天，音乐可以直接播放；聊天记录会一直保留。</p>
+                    <p>选择一个会话开始聊天。支持单聊、群聊、Markdown、代码块、Discord 时间块、长消息展开、红包与转账。<br>右上角的 <strong>UNO</strong> 可以开人机对战、普通房间、混合对战，或在会话里直接邀请好友。<br>图片、文件与音乐上传后保留 14 天，音乐可以直接播放；聊天记录会一直保留。</p>
                 </div>
             </div>
         </main>
@@ -1519,9 +1521,10 @@
 <div class="menu" id="menu"></div>
 <div class="toast" id="toast"></div>
 
-<script src="vtx-markdown.js?v=1.8.2"></script>
-<script src="vtx-qr.js?v=1.8.2"></script>
-<script src="vtx-api.js?v=1.8.2"></script>
+<script src="vtx-markdown.js?v=1.9.0"></script>
+<script src="vtx-qr.js?v=1.9.0"></script>
+<script src="vtx-api.js?v=1.9.0"></script>
+<script src="vtx-uno.js?v=1.9.0"></script>
 <script>
 (function () {
     "use strict";
@@ -1560,7 +1563,7 @@
     };
 
     let api = window.VTXApi;
-    const REQUIRED_API_VERSION = "1.8.2";
+    const REQUIRED_API_VERSION = "1.9.0";
     const SDK_URL = "vtx-api.js";
 
     /* 1.3.0：iPad / iPhone 视口高度修正（issue #2）
@@ -1985,6 +1988,7 @@
             }
         });
         bindUi();
+        initUno();
         try {
             await api.chat.adminConversations();
             state.isAdmin = true;
@@ -2018,6 +2022,25 @@
         window.addEventListener("resize", () => el("menu").classList.remove("open"));
         /* 相对时间（<t:...,R>）每分钟刷新一次 */
         setInterval(() => refreshMarkdownTimes(document), 30000);
+    }
+
+    /* 1.9.0：聊天室右上角的 UNO 入口。牌桌界面在 vtx-uno.js 里，这里只把登录状态、
+       会话列表和 WebSocket 事件接过去。 */
+    function initUno() {
+        if (!window.VTXUno || typeof window.VTXUno.init !== "function") {
+            return;
+        }
+        window.VTXUno.init({
+            api,
+            toast,
+            getConversations: () => state.conversations,
+            getCurrentConversation: () => state.current,
+            refreshConversations
+        });
+        const button = el("uno-btn");
+        if (button) {
+            button.addEventListener("click", () => window.VTXUno.open());
+        }
     }
 
     function switchTab(tab) {
@@ -2180,6 +2203,9 @@
         }
         if (message.type === "transfer" && message.transfer) {
             return `[转账] ${formatAmount(message.transfer.cents)} VTX ${transferStatusLabel(message.transfer)}`;
+        }
+        if (message.type === "uno") {
+            return "[UNO 邀请] 一起来玩 UNO";
         }
         return String(message.text || "");
     }
@@ -2506,6 +2532,7 @@
                             <button type="button" class="attach-btn" id="attach-btn" title="发送图片、文件或音乐（音乐可直接播放，保留 14 天）"${dissolved ? " disabled" : ""}>图片/文件</button>
                             ${conv.type === "group" ? `<button type="button" class="attach-btn" id="redpacket-btn" title="发拼手速红包"${dissolved ? " disabled" : ""}>红包</button>` : ""}
                             <button type="button" class="attach-btn" id="transfer-btn" title="给会话成员转账（需要密码）"${dissolved ? " disabled" : ""}>转账</button>
+                            <button type="button" class="attach-btn" id="uno-invite-btn" title="邀请好友玩 UNO"${dissolved ? " disabled" : ""}>UNO</button>
                         </div>
                         <div class="composer-input">
                             <textarea id="message-input" placeholder="${dissolved ? "群聊已解散，只能查看历史消息" : "输入消息，支持 Markdown、代码块和 &lt;t:时间戳&gt;，Enter 发送"}"${dissolved ? " disabled" : ""}></textarea>
@@ -2644,6 +2671,9 @@
 
     function mediaOrText(message) {
         const expired = message.media && message.media.expiresAt && Number(message.media.expiresAt) < Date.now();
+        if (message.type === "uno" && message.uno) {
+            return unoInviteCard(message);
+        }
         if (message.type === "transfer" && message.transfer) {
             return transferCard(message);
         }
@@ -2679,6 +2709,23 @@
                 ${message.text ? messageCaptionHtml(message) : ""}`;
         }
         return messageTextHtml(message);
+    }
+
+    /* 1.9.0：聊天里的 UNO 邀请卡片。点击后交给 vtx-uno.js 打开 / 加入房间。 */
+    function unoInviteCard(message) {
+        const info = message.uno || {};
+        const modeText = info.mode === "ai" ? "人机对战" : (info.mode === "mixed" ? "混合对战" : "普通房间");
+        const statusText = info.status === "playing" ? "进行中" : (info.status === "finished" ? "已结束" : "等待加入");
+        const finished = info.status === "finished";
+        const roomId = escapeHtml(info.roomId || "");
+        return `<div class="uno-invite-card${finished ? " is-finished" : ""}" data-uno-room="${roomId}" role="button" tabindex="0">
+            <div class="uno-invite-badge">UNO</div>
+            <div class="uno-invite-info">
+                <strong>${escapeHtml(info.name || "UNO 房间")}</strong>
+                <span>${escapeHtml(info.hostName || message.senderName || "好友")} 邀请你玩 UNO · ${modeText} · ${Number(info.players) || 0}/${Number(info.capacity) || 10} 人 · ${statusText}</span>
+            </div>
+            <button type="button" class="uno-invite-join" data-uno-room="${roomId}">${finished ? "查看" : "加入"}</button>
+        </div>`;
     }
 
     function transferStatusLabel(transfer) {
@@ -2887,6 +2934,14 @@
         if (transferBtn) {
             transferBtn.addEventListener("click", openTransferDialog);
         }
+        const unoInviteBtn = el("uno-invite-btn");
+        if (unoInviteBtn) {
+            unoInviteBtn.addEventListener("click", () => {
+                if (window.VTXUno) {
+                    window.VTXUno.inviteToCurrent();
+                }
+            });
+        }
         const messageBox = el("messages");
         if (messageBox) {
             messageBox.addEventListener("click", (event) => {
@@ -2903,6 +2958,14 @@
                 if (transfer) {
                     event.preventDefault();
                     openTransferDetailById(transfer.dataset.transfer);
+                    return;
+                }
+                const unoRoom = event.target.closest("[data-uno-room]");
+                if (unoRoom) {
+                    event.preventDefault();
+                    if (window.VTXUno && unoRoom.dataset.unoRoom) {
+                        window.VTXUno.openRoom({ roomId: unoRoom.dataset.unoRoom });
+                    }
                     return;
                 }
                 const button = event.target.closest("[data-grab]");
@@ -4902,6 +4965,12 @@
 
     function handleEvent(event) {
         if (!event || !event.type) {
+            return;
+        }
+        if (String(event.type).startsWith("uno:")) {
+            if (window.VTXUno) {
+                window.VTXUno.handleEvent(event);
+            }
             return;
         }
         if (event.type === "hello" || event.type === "presence") {

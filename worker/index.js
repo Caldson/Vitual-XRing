@@ -58,7 +58,9 @@
  *   PASSWORD_VIEW_KEY           （可选，1.4.0）给管理员看的密码副本加密密钥；不配就不存副本
  */
 
-const VERSION = "1.8.2";
+import { createUno, UNO_VERSION } from "./uno.js";
+
+const VERSION = "1.9.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -71,7 +73,7 @@ const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "1.8.2";
+const CHAT_VERSION = "1.9.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -2768,7 +2770,7 @@ async function handleChatStatus(request, env, cors) {
             "friends", "direct", "groups", "group-admin", "announcement",
             "recall", "forward", "reply", "search", "mute-pin", "files-images", "expiring-media",
             "public-channel-admin", "group-dissolve", "uid", "group-number", "group-qr",
-            "invite-code", "redpacket"
+            "invite-code", "redpacket", "uno"
         ],
         mediaTtlSeconds: CHAT_MEDIA_TTL_SECONDS,
         message: chatEnabled(env) ? "聊天室已开放" : "版本9.0，我们聊天室见"
@@ -3075,6 +3077,10 @@ function messagePreview(message) {
     if (message.type === "transfer" && message.transfer) {
         return `[转账] ${fromCents(message.transfer.cents)} VTX ${transferStatusText(message.transfer)}`;
     }
+    if (message.type === "uno") {
+        const name = message.uno && message.uno.name ? ` ${message.uno.name}` : "";
+        return `[UNO 邀请]${name}`;
+    }
     return String(message.text || "");
 }
 
@@ -3121,6 +3127,7 @@ function messageView(message, options = {}) {
         system: Boolean(message.system),
         packet: message.recalled ? null : (message.packet || null),
         transfer: message.recalled ? null : (message.transfer || null),
+        uno: message.recalled ? null : (message.uno || null),
         at: Number(message.at) || 0,
         time: message.time || ""
     };
@@ -3294,6 +3301,21 @@ function chatConversationId(value) {
     const id = String(value || "").trim();
     return CHAT_CONVERSATION_PATTERN.test(id) ? id : "";
 }
+
+/* 1.9.0：UNO 服务（牌局状态在 worker/uno.js 里，这里只注入聊天室已有的工具函数） */
+const uno = createUno({
+    jsonResponse,
+    requireSession,
+    readJsonBody,
+    plainObject,
+    randomCode,
+    hasKv,
+    chatEnabled,
+    chatGuard,
+    loadAccounts,
+    notifyChat,
+    withStoreLock
+});
 
 function chatNotAMember(cors) {
     return jsonResponse({ error: "forbidden", message: "你不在这个会话里" }, 403, cors);
@@ -3801,6 +3823,107 @@ async function handleChatSend(request, env, cors, id, compatRoom = "") {
             view: messageView(result.message)
         }, 201, cors);
     }
+
+    return jsonResponse({
+        ok: true,
+        conversation: result.view,
+        message: messageView(result.message)
+    }, 201, cors);
+}
+
+/* 1.9.0：把 UNO 房间邀请发到单聊 / 群聊里 */
+async function handleChatUnoInvite(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+    const login = session.payload.sub;
+    const accounts = await loadAccounts(env);
+    if (!accounts[login]) {
+        return jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const roomId = String(body.roomId || "").trim();
+    const info = await uno.inviteInfo(env, roomId, login);
+    if (info.error) {
+        const status = info.error.code === "not_found" ? 404 : (info.error.code === "forbidden" ? 403 : 400);
+        return jsonResponse({ error: info.error.code, message: info.error.message }, status, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        await ensurePublicGroups(env);
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        if (chatGroupDissolved(conv)) {
+            return { error: chatDissolvedResponse(cors) };
+        }
+        if (conv.type === "direct") {
+            const peer = (conv.members || []).find((item) => item !== login);
+            const mine = await readChatUser(env, login);
+            const theirs = peer ? await readChatUser(env, peer) : null;
+            if (mine.blocked.includes(peer) || (theirs && theirs.blocked.includes(login))) {
+                return { error: jsonResponse({ error: "blocked", message: "对方已被拉黑，无法发送消息" }, 403, cors) };
+            }
+            if (!isPlatformAdmin(env, login) && peer && !mine.friends.some((item) => item.login === peer)) {
+                return { error: jsonResponse({ error: "not_friend", message: "你们已经不是好友了" }, 403, cors) };
+            }
+        }
+
+        const at = Date.now();
+        const message = {
+            id: randomCode(9),
+            conversation: conv.id,
+            sender: login,
+            senderName: chatMemberAlias(conv, accounts, login),
+            type: "uno",
+            text: `邀请你玩 UNO：${info.invite.name}`,
+            uno: info.invite,
+            replyTo: null,
+            mentions: [],
+            forwarded: false,
+            at,
+            time: shanghaiTimestamp(at)
+        };
+        await appendMessage(env, conv, message);
+        await saveConversation(env, conv);
+        if (conv.type === "direct") {
+            for (const member of conv.members) {
+                await ensureConversationEntry(env, member, conv.id);
+            }
+        }
+        const messages = await readChatMessages(env, conv.id);
+        return {
+            conv,
+            message,
+            targets: conversationTargets(conv, accounts),
+            view: conversationView(
+                env,
+                conv,
+                chatEntry(await loadChatUser(env, login), conv.id),
+                messages,
+                login,
+                accounts
+            )
+        };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+
+    await notifyChat(env, result.targets, {
+        type: "message",
+        conversation: result.view,
+        message: messageView(result.message)
+    });
 
     return jsonResponse({
         ok: true,
@@ -4748,6 +4871,7 @@ async function handleChatForward(request, env, cors, messageId) {
                 type: source.type === "system" || decorative ? "text" : source.type,
                 text: decorative ? messagePreview(source) : source.text,
                 media: decorative ? null : (source.media || null),
+                uno: decorative ? null : (source.uno || null),
                 replyTo: null,
                 mentions: [],
                 forwarded: true,
@@ -7190,7 +7314,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "1.8.2";
+const VIDEO_VERSION = "1.9.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -9568,6 +9692,15 @@ async function routeChat(request, env, cors) {
         }
     }
 
+    match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/uno$/);
+    if (match && method === "POST") {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        return await handleChatUnoInvite(request, env, cors, id);
+    }
+
     match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/messages$/);
     if (match) {
         const id = chatConversationId(decodeURIComponent(match[1]));
@@ -10018,6 +10151,10 @@ export default {
                     chat: {
                         version: CHAT_VERSION,
                         enabled: chatEnabled(env)
+                    },
+                    uno: {
+                        version: UNO_VERSION,
+                        enabled: chatEnabled(env) && hasKv(env)
                     }
                 }, 200, cors);
             }
@@ -10197,6 +10334,13 @@ export default {
 
             if (url.pathname.startsWith("/api/videos")) {
                 return await routeVideos(request, env, cors);
+            }
+
+            if (url.pathname.startsWith("/api/uno/")) {
+                const unoResponse = await uno.routeUno(request, env, cors);
+                if (unoResponse) {
+                    return unoResponse;
+                }
             }
 
             if (url.pathname.startsWith("/api/chat/")) {

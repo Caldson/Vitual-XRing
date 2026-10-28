@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`1.8.2`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**；**1.7.3 解除聊天室 500 字限制（长消息折叠 + 全文弹窗）、聊天室支持 Discord 风格 Markdown（代码块 / 时间块 / 粗体 / 斜体等）与转账，见第 24 节**；**1.8.0 把聊天室图片 / 文件从 20 分钟改为保留 14 天，见第 25 节**；**1.8.0 同时支持聊天室音乐文件直接播放（音频上限 20 MB），见第 26 节**；**1.8.1 新增「关注 UP 主」，见第 27 节**；**1.8.2 新增「举报视频」（理由、照片证据、补充文字与管理员处理），见第 28 节**）
+- API 版本：`1.9.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**；**1.7.3 解除聊天室 500 字限制（长消息折叠 + 全文弹窗）、聊天室支持 Discord 风格 Markdown（代码块 / 时间块 / 粗体 / 斜体等）与转账，见第 24 节**；**1.8.0 把聊天室图片 / 文件从 20 分钟改为保留 14 天，见第 25 节**；**1.8.0 同时支持聊天室音乐文件直接播放（音频上限 20 MB），见第 26 节**；**1.8.1 新增「关注 UP 主」，见第 27 节**；**1.8.2 新增「举报视频」（理由、照片证据、补充文字与管理员处理），见第 28 节**；**1.9.0 新增聊天室 UNO（人机对战 / 普通房间 / 混合对战 / 随机匹配、组队互看手牌、批量出牌、生效玩家、局内聊天与反转奇偶），见第 29 节**）
 
 ---
 
@@ -2712,3 +2712,145 @@ Content-Type: application/json
 - `worker/test/videos.test.mjs` 新增举报创建、非法理由、重复举报、证据上传 / 读取、管理员列表、忽略与删除处理
 - 版本号全套同步到 `1.8.2`：`worker/index.js` 的 `VERSION` / `CHAT_VERSION` / `VIDEO_VERSION`、`vtx-api.js` 的 `API_VERSION`、`vtx-markdown.js`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页 `<script src="...?v=1.8.2">`
 - 运行：`cd worker && npm test`
+
+---
+
+## 29. 1.9.0 更新：聊天室 UNO
+
+1.9.0 在聊天室右上角新增 **UNO** 入口，可以在群聊 / 单聊里发送邀请卡片，支持人机对战、普通房间、混合对战和随机匹配，以及组队互看手牌、批量出牌、+2 / +4 / 禁止的生效玩家、连续生效、局内聊天和反转牌奇偶结算。
+
+### 29.1 入口与邀请
+
+- `chatroom.html` 顶栏右上角新增「UNO」按钮；会话输入框旁新增「UNO」按钮，可以直接把邀请卡片发到当前单聊 / 群聊
+- 邀请卡片是消息类型 `uno`，内容由服务端生成，包含房间名、模式、人数、状态和 `roomId`；点击卡片会打开 / 加入房间
+- 邀请卡片同样支持撤回、转发、会话预览（预览文案为 `[UNO 邀请] ……`）
+- 房间码为 6 位大写字母数字，可在房间内复制发给好友
+
+### 29.2 模式
+
+| mode | 说明 | 人数 |
+|---|---|---|
+| `ai` | 1 人 vs 1~9 个人机，创建后立刻发牌 | 2~10 |
+| `normal` | 普通房间：邀请好友，或等待随机匹配 | 2~10 |
+| `mixed` | 混合对战：真人一队、人机一队，至少 2 名真人才能开始 | 2~9 真人 + 1~9 人机（最多 18） |
+| `match` | 随机匹配：随机加入一间有空位的等待中普通房间；没有则创建一间 | 同 `normal` |
+
+### 29.3 牌局规则与扩展
+
+- 标准 108 张 UNO 牌：红 / 黄 / 绿 / 蓝各 25 张（0 一张、1~9 各两张、禁止 / 反转 / +2 各两张），万能牌与万能 +4 各 4 张；每人 7 张，翻开的起手牌固定为数字牌
+- 出牌：颜色相同 **或** 数字 / 功能相同；万能牌随时可出，并指定生效颜色
+- **批量出牌**：一次可选多张相同数字 / 功能的牌（颜色可以不同）。例：红 1 + 蓝 1 + 黄 1，出牌时在出现的颜色里选择最终生效颜色；红 1 + 蓝 1 + 蓝 1 只能选红或蓝；两张红 1 也可以一起出
+- **组队**：普通房间房主可打开组队并手动分队（也可自动分两队）；队友之间能看到彼此的手牌，队内聊天只有队友能看；队友出完牌整队获胜。混合对战固定为「真人 vs 人机」
+- **生效玩家**：出 +2 / +4 / 禁止后，如果房主没有关闭「设置生效玩家」，可以把效果指定给接下来 1~2 名玩家或自己的队友（可多选）；关闭后自动只作用于下家
+- **连续生效**：一次出 N 张 +2 / +4，目标要摸 2N / 4N 张，并跳过下一次出牌；一次出 N 张禁止，目标连续 N 个自己的回合不能出牌
+- **反转牌奇偶**：一次出多张反转牌时，按张数对 2 取余结算——3 张只反转一次，4 张互相抵消；两人局的反转牌相当于让对手少出一次
+- **局内聊天**：支持「全局」和「队内」两个频道；队内消息只有同队玩家能收到，服务端按队伍过滤
+- 牌堆用完时自动把弃牌堆（保留牌堆顶）洗回牌堆
+- 抽牌：每回合最多抽 1 张；抽到能出的牌可以继续出牌或过牌，抽到不能出的牌自动结束回合
+- 判负：牌局中主动离开视为认输，对手 / 对方队伍获胜
+- 超时 / 清理：房间 KV 保留 24 小时，结束后的房间保留 2 小时；索引最多保留 200 间
+
+### 29.4 数据模型与 KV
+
+- `uno:room:{roomId}`：完整房间（玩家、手牌、牌堆、弃牌堆、方向、生效颜色、累计跳过、操作记录、局内聊天、设置）
+- `uno:index`：等待中 / 进行中房间摘要，用于随机匹配和「我的房间」（最多 200 条，自动清理过期条目）
+- 手牌只下发给本人和组队模式下的队友；对手只返回数量
+- 公开视图字段：`id`、`code`、`mode`、`status`（`waiting` / `playing` / `finished`）、`name`、`hostName`、`settings`、`players`、`me`、`game`、`chats`
+
+牌面对象：
+
+```json
+{ "id": "red:5:1", "color": "red", "value": "5" }
+```
+
+`value` 可以是 `0`~`9`、`skip`、`reverse`、`draw2`、`wild`、`wild4`。
+
+### 29.5 接口
+
+| 方法 | 路径 | 权限 | 作用 |
+|---|---|---|---|
+| `GET` | `/api/uno/status` | 公开 | 版本、开关、模式、人数上限与能力列表 |
+| `GET` | `/api/uno/rooms` | 登录 | 等待中的普通房间 + 我的房间 |
+| `POST` | `/api/uno/rooms` | 登录 | 创建房间 |
+| `POST` | `/api/uno/rooms/join` | 登录 | 按 `roomId` 或 `code` 加入 |
+| `POST` | `/api/uno/match` | 登录 | 随机匹配（没有空房时自动创建） |
+| `GET` | `/api/uno/rooms/{roomId}` | 房间成员 | 读取牌局视图 |
+| `POST` | `/api/uno/rooms/{roomId}/start` | 房主 | 开始牌局 |
+| `POST` | `/api/uno/rooms/{roomId}/settings` | 房主 | 修改组队 / 生效玩家设置 / 房间名（仅等待中） |
+| `POST` | `/api/uno/rooms/{roomId}/teams` | 房主 | 设置队伍：`{ "teams": [["Alice","Bob"],["Carol"]] }` 或 `{ "auto": true }` |
+| `POST` | `/api/uno/rooms/{roomId}/leave` | 房间成员 | 离开；牌局中离开视为认输 |
+| `POST` | `/api/uno/rooms/{roomId}/play` | 当前回合玩家 | 出牌 |
+| `POST` | `/api/uno/rooms/{roomId}/draw` | 当前回合玩家 | 抽 1 张 |
+| `POST` | `/api/uno/rooms/{roomId}/pass` | 当前回合玩家 | 抽牌后过牌 |
+| `POST` | `/api/uno/rooms/{roomId}/chat` | 房间成员 | 局内聊天 |
+| `POST` | `/api/chat/conversations/{conversationId}/uno` | 会话成员 | 在单聊 / 群聊发送 UNO 邀请卡片 |
+
+创建房间：
+
+```http
+POST /api/uno/rooms
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "mode": "normal", "teamMode": true, "effectTargeting": true }
+```
+
+`mode` 为 `ai` 或 `mixed` 时 `bots` 必填（1~9）；`normal` 可省略。
+
+出牌（批量出牌 + 最终颜色 + 生效玩家）：
+
+```http
+POST /api/uno/rooms/u_xxx/play
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "cards": ["red:1:1", "blue:1:1", "yellow:1:1"],
+  "color": "blue",
+  "targets": ["Bob"]
+}
+```
+
+- 所有牌必须是同一 `value`，且每张都能压住当前牌堆顶，否则 `409 illegal_play` / `409 mixed_batch`
+- 彩色牌批量出牌时 `color` 必须是这批牌出现过的颜色，否则 `409 bad_color`
+- 万能牌 / 万能 +4 必须传 `color`，否则 `409 need_color`
+- `targets` 只能包含接下来 1~2 名玩家或自己的队友，否则 `409 bad_target`；不传时默认下家
+- 返回 `{ "ok": true, "room": { ... } }`，服务端已经把机器人回合跑完
+
+局内聊天：
+
+```http
+POST /api/uno/rooms/u_xxx/chat
+Content-Type: application/json
+
+{ "text": "队友注意，我剩一张", "scope": "team" }
+```
+
+`scope` 为 `global`（默认）或 `team`；队内消息需要房间开启组队且自己已经分队。
+
+### 29.6 WebSocket 事件
+
+复用 ChatHub，只发给房间里的真人玩家：
+
+```json
+{ "type": "uno:update", "room": "u_xxx", "seq": 12 }
+{ "type": "uno:chat", "room": "u_xxx", "seq": 13, "scope": "team", "message": { "login": "Alice", "name": "爱丽丝", "scope": "team", "text": "…", "at": 1760000000000 } }
+{ "type": "uno:started", "room": "u_xxx", "seq": 4 }
+```
+
+客户端收到 `uno:update` / `uno:started` 后重新拉取 `GET /api/uno/rooms/{roomId}`；收到 `uno:chat` 直接把消息追加到队内 / 全局聊天。
+
+### 29.7 前端
+
+- `vtx-uno.js`：大厅、等待房间、牌桌、选色 / 选生效玩家弹窗、局内聊天、轮询与 WebSocket 刷新
+- `vtx-uno.css`：UNO 面板、牌面、聊天邀请卡片和移动端布局
+- `chatroom.html`：右上角 UNO 按钮、输入框旁 UNO 邀请按钮、`type: "uno"` 消息卡片、`uno:*` 实时事件转发
+- SDK：`VTXApi.uno` 提供 `status / rooms / create / join / match / room / leave / start / settings / teams / play / draw / pass / chat / invite`
+
+### 29.8 测试与版本
+
+- `worker/test/uno.test.mjs`：牌堆、批量出牌与最终颜色、反转奇偶、禁止叠加、+2 倍数、生效玩家限制、组队手牌可见性、队内聊天过滤、抽牌 / 过牌、机器人回合、随机匹配、混合对战、邀请卡片、房主权限与认输
+- `worker/test/uno-ui.test.mjs`：大厅渲染、创建人机对战、选牌出牌、抽牌刷新与关闭面板
+- `worker/test/chatroom.test.mjs`：邀请卡片、会话预览、UNO 按钮与脚本版本
+- 版本号全套同步到 `1.9.0`：`worker/index.js` 的 `VERSION` / `CHAT_VERSION` / `VIDEO_VERSION`、`worker/uno.js` 的 `UNO_VERSION`、`vtx-api.js` 的 `API_VERSION`、`vtx-markdown.js`、`chatroom.html` 的 `REQUIRED_API_VERSION`、各页 `<script src="...?v=1.9.0">`
+- 运行：`cd worker && node test/uno.test.mjs && node test/uno-ui.test.mjs`
