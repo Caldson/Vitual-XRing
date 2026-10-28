@@ -1,4 +1,4 @@
-/* Vitual XRing 1.10.0 — 聊天室 UNO
+/* Vitual XRing 1.10.1 — 聊天室 UNO
  *
  * 服务端负责全部牌局状态（手牌、牌堆、回合、方向、累计效果、队内可见性），
  * 客户端只负责渲染和提交动作，所以改前端代码没法作弊。
@@ -11,7 +11,7 @@
  * 客户端收到后重新拉一次 GET /api/uno/rooms/:id。
  */
 
-export const UNO_VERSION = "1.10.0";
+export const UNO_VERSION = "1.10.1";
 
 export const UNO_MAX_PLAYERS = 10;
 export const UNO_MAX_MIXED_PLAYERS = 18;
@@ -491,8 +491,10 @@ export function playCards(room, login, cardIds, options = {}) {
         return badRequest("mixed_batch", "一次只能出相同数字或相同功能的牌");
     }
     const top = game.discard[game.discard.length - 1];
-    if (cards.some((card) => !isPlayableCard(card, top, game.color))) {
-        return badRequest("illegal_play", "这些牌现在不能出：颜色或数字要和牌堆顶一致");
+    /* 1.10.1：批量出牌只要求同点数里至少有一张能压住牌堆顶；
+       其余同点数牌（包括本回合抽到的）可以一起出，并参与最终颜色选择 */
+    if (!cards.some((card) => isPlayableCard(card, top, game.color))) {
+        return badRequest("illegal_play", "这一批里至少要有一张能压住当前牌堆顶的牌");
     }
 
     const wild = isWildCard(cards[0]);

@@ -231,13 +231,17 @@ function prepare() {
             },
             draw: async () => {
                 calls.draw.push(true);
-                const drawn = makeCard("green:3:1", "green", "3");
-                const room = makeRoom();
+                const yellow = makeCard("yellow:1:1", "yellow", "1");
+                const drawn = makeCard("red:1:1", "red", "1");
+                const room = makeRoom({ hand: [yellow, drawn] });
+                room.game.top = makeCard("yellow:5:1", "yellow", "5");
+                room.game.color = "yellow";
                 room.game.drewThisTurn = true;
                 room.game.drawCount = 1;
-                room.me.hand = [...room.me.hand, drawn];
+                room.me.hand = [yellow, drawn];
+                room.me.playable = ["yellow:1:1"];
                 room.players[0].hand = room.me.hand;
-                room.players[0].cards = room.me.hand.length;
+                room.players[0].cards = 2;
                 return { room, drawn, playable: false };
             },
             start: async () => {
@@ -253,7 +257,7 @@ function prepare() {
     vm.runInThisContext(fs.readFileSync(new URL("../../vtx-uno.js", import.meta.url), "utf8"), {
         filename: "vtx-uno.js"
     });
-    assert.equal(window.VTXUno.version, "1.10.0");
+    assert.equal(window.VTXUno.version, "1.10.1");
     window.VTXUno.init({
         api,
         toast: () => {},
@@ -318,6 +322,39 @@ test("1.10.0：抽牌后提示与按钮状态会同步刷新，且可以继续�
     const body = overlay.querySelector("#vtx-uno-body");
     assert.match(body.innerHTML, /本回合已抽 1 张/);
     assert.doesNotMatch(body.innerHTML, /data-uno-act="draw" disabled/);
+});
+
+test("1.10.1：抽到的红 1 可以和原来的黄 1 一起出，并选择转成红色", async () => {
+    const { overlay, calls } = prepare();
+    const body = overlay.querySelector("#vtx-uno-body");
+
+    const yellowButton = makeNode("button");
+    yellowButton.dataset.unoCard = "yellow:1:1";
+    click(yellowButton);
+    await flush();
+
+    const redButton = makeNode("button");
+    redButton.dataset.unoCard = "red:1:1";
+    click(redButton);
+    await flush();
+    /* 红 1 本身压不住黄 5，但作为同点数批量牌可以被选中 */
+    assert.match(body.innerHTML, /uno-card red[^"]*selected/);
+
+    const playButton = makeNode("button");
+    playButton.dataset.unoAct = "play";
+    click(playButton);
+    await flush();
+
+    const colorButton = makeNode("button");
+    colorButton.dataset.unoAct = "pick-color";
+    colorButton.dataset.color = "red";
+    click(colorButton);
+    await flush();
+
+    const last = calls.play[calls.play.length - 1];
+    assert.ok(last, "应该发出出牌请求");
+    assert.deepEqual(last.payload.cards.slice().sort(), ["red:1:1", "yellow:1:1"]);
+    assert.equal(last.payload.color, "red");
 });
 
 test("1.10.0：万能 +4 先选颜色，再选抽 4 张还是 6 张", async () => {

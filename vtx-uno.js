@@ -1,4 +1,4 @@
-/* Vitual XRing 1.10.0 — 聊天室 UNO 前端
+/* Vitual XRing 1.10.1 — 聊天室 UNO 前端
  *
  * 只在 chatroom.html 里使用：window.VTXUno.init({ api, toast, ... }) 之后，
  * 聊天室右上角的 UNO 按钮、会话输入框旁的「UNO」按钮和聊天里的邀请卡片都会调用这里。
@@ -8,7 +8,7 @@
 (function () {
     "use strict";
 
-    const VERSION = "1.10.0";
+    const VERSION = "1.10.1";
     const COLORS = ["red", "yellow", "green", "blue"];
     const COLOR_LABELS = { red: "红", yellow: "黄", green: "绿", blue: "蓝", wild: "万能" };
     const MODE_LABELS = { ai: "人机对战", normal: "普通房间", mixed: "混合对战", match: "随机匹配" };
@@ -561,7 +561,7 @@
                 <ul>
                     <li>标准 108 张 UNO 牌；轮到你时可以出与牌堆顶颜色相同或数字/功能相同的牌，万能牌随时出。</li>
                     <li>轮到你时想抽几张就抽几张（抽到牌堆空为止），抽牌不会直接结束回合；出牌或过牌才会结束本回合。</li>
-                    <li>批量出牌：一次可以选择多张相同数字/功能的牌（颜色可以不同）；如果颜色不同，出牌时选择最终生效颜色。</li>
+                    <li>批量出牌：先选一张能压住牌堆顶的牌，之后同点数的牌（包括本回合刚抽到的）都可以一起出，并参与最终颜色选择；如果颜色不同，出牌时选择最终生效颜色。</li>
                     <li>出 +2 / +4 / 禁止后，如果房主没关闭该功能，你可以把效果指定给接下来 1~2 名玩家或自己的队友。</li>
                     <li>一次出 N 张 +2，被指定的玩家要摸 2N 张；一次出 N 张 +4，要摸 4N 或 6N 张；一次出 N 张禁止，被指定的玩家连续 N 个自己的回合都不能出牌。</li>
                     <li>万能 +4 可以选择让目标抽 4 张或 6 张；如果选 +4 但你转的颜色已经不在手里，会自动升级成 +6。</li>
@@ -797,7 +797,9 @@
             ? (drawCount > 0 ? `本回合已抽 ${drawCount} 张` : (canDrawAny ? "点这里抽牌（可多次）" : "没有牌可抽，可以过牌"))
             : "等待对手";
         const selectedCards = hand.filter((card) => selected.has(card.id));
-        const canPlay = mine && selectedCards.length > 0;
+        const selectedHasLegal = selectedCards.some((card) => playable.has(card.id));
+        const canPlay = mine && selectedCards.length > 0 && selectedHasLegal
+            && new Set(selectedCards.map((card) => card.value)).size === 1;
         const chat = chatsHtml(room);
         return `
             <div class="uno-game">
@@ -1269,19 +1271,23 @@
         if (!card) {
             return;
         }
-        if (!(S.room.me.playable || []).includes(cardId)) {
-            toast(`${cardName(card)} 现在不能出`);
-            return;
-        }
         if (S.selected.has(cardId)) {
             S.selected.delete(cardId);
             render();
             return;
         }
-        const chosen = (S.room.me.hand || []).filter((item) => S.selected.has(item.id));
+        const playableIds = new Set(S.room.me.playable || []);
+        let chosen = (S.room.me.hand || []).filter((item) => S.selected.has(item.id));
         if (chosen.length && chosen[0].value !== card.value) {
+            /* 换一组同点数牌：先清空，再判断新牌能不能作为第一张 */
             S.selected.clear();
-            toast("一次只能选择相同数字或相同功能的牌");
+            chosen = [];
+        }
+        /* 1.10.1：第一张必须是能压住牌堆顶的牌；之后同点数的牌（包括刚抽到的）
+           即使本身压不住，也可以一起参与批量出牌和最终颜色选择 */
+        if (!playableIds.has(cardId) && !(chosen.length && chosen.some((item) => playableIds.has(item.id)))) {
+            toast(`${cardName(card)} 不能单独出，请先选一张同点数、能压住牌堆顶的牌`);
+            return;
         }
         S.selected.add(cardId);
         render();
@@ -1306,6 +1312,10 @@
         }
         if (new Set(cards.map((card) => card.value)).size > 1) {
             toast("一次只能出相同数字或相同功能的牌");
+            return;
+        }
+        if (!cards.some((card) => (S.room.me.playable || []).includes(card.id))) {
+            toast("这一批里至少要有一张能压住牌堆顶的牌");
             return;
         }
         const wild = cards[0].color === "wild";

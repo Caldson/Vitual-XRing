@@ -460,6 +460,32 @@ test("1.10.0：+4 可以选择 +4 / +6；选 +4 但指定颜色不在手里时�
     assert.equal(room.game.hands.Bob.length, bobCards + 12);
 });
 
+test("1.10.1：抽到的牌只要和已选的牌同点数，也能一起出并参与最终颜色", () => {
+    const room = makeRoom(["Alice", "Bob", "Carol"]);
+    setTop(room, makeCard("yellow", "5"), "yellow");
+    setHand(room, "Alice", [
+        makeCard("yellow", "1"),
+        makeCard("blue", "7")
+    ]);
+    room.game.deck = [makeCard("red", "1")];
+    const drawn = drawForCurrent(room, "Alice");
+    assert.equal(drawn.playable, false, "红 1 本身压不住黄 5");
+    assert.equal(room.game.hands.Alice.length, 3);
+
+    const result = playCards(room, "Alice", ["yellow:1:1", "red:1:1"], { color: "red" });
+    assert.equal(result.error, undefined, JSON.stringify(result));
+    assert.equal(room.game.color, "red");
+    assert.equal(room.game.discard[room.game.discard.length - 1].color, "red");
+    assert.equal(room.game.hands.Alice.length, 1);
+    assert.equal(room.players[room.game.turnIndex].login, "Bob");
+
+    const room2 = makeRoom(["Alice", "Bob"]);
+    setTop(room2, makeCard("yellow", "5"), "yellow");
+    setHand(room2, "Alice", [makeCard("red", "1"), makeCard("blue", "1")]);
+    const rejected = playCards(room2, "Alice", ["red:1:1", "blue:1:1"], { color: "red" });
+    assert.equal(rejected.error.code, "illegal_play");
+});
+
 test("1.9.0：组队模式下一名队友出完牌，整队获胜", () => {
     const room = makeRoom(["Alice", "Bob", "Carol"], { teamMode: true });
     setTop(room, makeCard("red", "5"), "red");
@@ -543,7 +569,7 @@ test("1.9.0：UNO 状态开放，暴露模式与牌局能力", async () => {
     const { env } = await prepare();
     const status = await api(env, "GET", "/api/uno/status");
     assert.equal(status.status, 200);
-    assert.equal(status.data.version, "1.10.0");
+    assert.equal(status.data.version, "1.10.1");
     assert.equal(status.data.enabled, true);
     assert.deepEqual(status.data.modes, ["ai", "normal", "mixed", "match"]);
     assert.equal(status.data.maxPlayers, 10);
@@ -913,6 +939,46 @@ test("1.10.0：+4/+6 与连续抽牌走 HTTP 接口", async () => {
     const passed = await api(env, "POST", `/api/uno/rooms/${roomId}/pass`, { token: tokens.Alice });
     assert.equal(passed.status, 200, JSON.stringify(passed.data));
     assert.equal(passed.data.room.game.turnLogin, "Bob");
+});
+
+test("1.10.1：HTTP 接口允许把压不住的同点数抽牌一起出并转色", async () => {
+    const { env, tokens } = await prepare();
+    const created = await api(env, "POST", "/api/uno/rooms", {
+        token: tokens.Alice,
+        body: { mode: "normal" }
+    });
+    const roomId = created.data.room.id;
+    await api(env, "POST", "/api/uno/rooms/join", { token: tokens.Bob, body: { roomId } });
+    await api(env, "POST", `/api/uno/rooms/${roomId}/start`, { token: tokens.Alice });
+
+    const key = `uno:room:${roomId}`;
+    const stored = await env.ACCOUNTS_KV.get(key, "json");
+    stored.game.hands.Alice = [
+        { id: "yellow:1:1", color: "yellow", value: "1" },
+        { id: "blue:7:1", color: "blue", value: "7" }
+    ];
+    stored.game.discard = [{ id: "yellow:5:1", color: "yellow", value: "5" }];
+    stored.game.color = "yellow";
+    stored.game.turnIndex = 0;
+    stored.game.deck = [{ id: "red:1:1", color: "red", value: "1" }];
+    stored.game.drewThisTurn = false;
+    stored.game.drawCount = 0;
+    await env.ACCOUNTS_KV.put(key, JSON.stringify(stored));
+
+    const drawn = await api(env, "POST", `/api/uno/rooms/${roomId}/draw`, { token: tokens.Alice });
+    assert.equal(drawn.status, 200, JSON.stringify(drawn.data));
+    assert.equal(drawn.data.drawn.id, "red:1:1");
+    assert.equal(drawn.data.playable, false);
+
+    const played = await api(env, "POST", `/api/uno/rooms/${roomId}/play`, {
+        token: tokens.Alice,
+        body: { cards: ["yellow:1:1", "red:1:1"], color: "red" }
+    });
+    assert.equal(played.status, 200, JSON.stringify(played.data));
+    assert.equal(played.data.room.game.color, "red");
+    assert.equal(played.data.room.game.top.color, "red");
+    assert.equal(played.data.room.me.hand.length, 1);
+    assert.equal(played.data.room.game.turnLogin, "Bob");
 });
 
 test("1.9.0：不能替别人出牌 / 不在房间看不到牌局", async () => {
