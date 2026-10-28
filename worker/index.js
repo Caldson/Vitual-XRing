@@ -35,6 +35,10 @@
  *   - 聊天室 mention（@ 提及）：消息携带 mentions（只保留本会话成员），
  *     会话列表新增 mentionUnread（未读里 @ 我的条数）
  *
+ * 2.1.0：
+ *   - 礼品兑换码：站主创建 VTX / 实物礼品码，用户通过 /api/me/redeem 兑换；
+ *     兑换码单次使用，记录在 KV 的 gift:codes，余额写入复用 commitAccounts 写锁
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -60,7 +64,7 @@
 
 import { createUno, UNO_VERSION } from "./uno.js";
 
-const VERSION = "2.0.1";
+const VERSION = "2.1.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -71,9 +75,20 @@ const STORE_KEY = "accounts";
 const MIGRATED_KEY = "migrated-from-github";
 const ADMIN_LOG_KEY = "admin-log";
 const ADMIN_LOG_LIMIT = 200;
+/* 2.1.0：礼品兑换码 */
+const GIFT_CODES_KEY = "gift:codes";
+const GIFT_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const GIFT_CODE_GROUPS = 4;
+const GIFT_CODE_GROUP_LENGTH = 5;
+const GIFT_CODE_LENGTH = GIFT_CODE_GROUPS * GIFT_CODE_GROUP_LENGTH;
+const GIFT_MAX_CREATE_COUNT = 20;
+const GIFT_NAME_MAX = 60;
+const GIFT_DESCRIPTION_MAX = 200;
+const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
+const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "2.0.1";
+const CHAT_VERSION = "2.1.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -199,6 +214,7 @@ function storedChatMediaType(declaredType, name) {
 const loginAttempts = new Map();
 const writeAttempts = new Map();
 const tradeAttempts = new Map();
+const giftRedeemAttempts = new Map();
 const registerAttempts = new Map();
 const adminAttempts = new Map();
 
@@ -2727,6 +2743,352 @@ async function handleAdminLog(request, env, cors) {
     const entries = Array.isArray(stored) ? stored.slice(-ADMIN_LOG_LIMIT).reverse() : [];
 
     return jsonResponse({ ok: true, storage: "kv", entries }, 200, cors);
+}
+
+/* ───────────────────────────── 2.1.0 礼品兑换码 ───────────────────────────── */
+
+function normalizeGiftCode(value) {
+    const raw = String(value ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (raw.length !== GIFT_CODE_LENGTH) {
+        return "";
+    }
+    const chunks = [];
+    for (let index = 0; index < raw.length; index += GIFT_CODE_GROUP_LENGTH) {
+        chunks.push(raw.slice(index, index + GIFT_CODE_GROUP_LENGTH));
+    }
+    return chunks.join("-");
+}
+
+function randomGiftCode() {
+    const bytes = new Uint8Array(GIFT_CODE_LENGTH);
+    crypto.getRandomValues(bytes);
+    const chars = Array.from(bytes, (byte) => GIFT_CODE_ALPHABET[byte % GIFT_CODE_ALPHABET.length]);
+    return normalizeGiftCode(chars.join(""));
+}
+
+function giftExpiry(value) {
+    if (value === undefined || value === null || value === "") {
+        return 0;
+    }
+    const parsed = typeof value === "number" ? value : Date.parse(String(value));
+    return Number.isFinite(parsed) ? Math.floor(parsed) : NaN;
+}
+
+function giftStatus(record, now = Date.now()) {
+    if (Number(record.usedAt) > 0) {
+        return "used";
+    }
+    if (record.status === "disabled") {
+        return "disabled";
+    }
+    if (Number(record.expiresAt) > 0 && Number(record.expiresAt) <= now) {
+        return "expired";
+    }
+    return "active";
+}
+
+function giftCodeView(record) {
+    const gift = record && record.gift ? record.gift : {};
+    const type = gift.type === "vtx" ? "vtx" : "item";
+    return {
+        code: record.code,
+        gift: {
+            name: gift.name || "",
+            type,
+            amount: type === "vtx" ? fromCents(Number(gift.amountCents) || 0) : "",
+            description: gift.description || ""
+        },
+        status: giftStatus(record),
+        createdAt: Number(record.createdAt) || 0,
+        createdBy: record.createdBy || "",
+        expiresAt: Number(record.expiresAt) || 0,
+        usedAt: Number(record.usedAt) || 0,
+        usedBy: record.usedBy || "",
+        usedByName: record.usedByName || ""
+    };
+}
+
+async function readGiftCodes(env) {
+    const stored = await env.ACCOUNTS_KV.get(GIFT_CODES_KEY, "json");
+    return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+}
+
+async function writeGiftCodes(env, codes) {
+    await env.ACCOUNTS_KV.put(GIFT_CODES_KEY, JSON.stringify(codes));
+}
+
+async function handleAdminGiftList(request, env, cors) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "storage_unavailable", message: "礼品兑换码需要 Workers KV" }, 503, cors);
+    }
+    const codes = await readGiftCodes(env);
+    const list = Object.values(codes)
+        .filter((record) => record && record.code)
+        .map(giftCodeView)
+        .sort((left, right) => right.createdAt - left.createdAt);
+    return jsonResponse({ ok: true, count: list.length, codes: list.slice(0, 500) }, 200, cors);
+}
+
+async function handleAdminGiftCreate(request, env, cors) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (throttled(adminAttempts, clientIp(request), WRITE_WINDOW_MS, WRITE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "操作过于频繁，请稍后再试" }, 429, cors);
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "storage_unavailable", message: "礼品兑换码需要 Workers KV" }, 503, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const type = String(body.type || "vtx").trim().toLowerCase();
+    if (type !== "vtx" && type !== "item") {
+        return jsonResponse({ error: "bad_request", message: "礼品类型只能是 vtx 或 item" }, 400, cors);
+    }
+    const amountCents = type === "vtx" ? toCents(body.amount) : 0;
+    if (type === "vtx" && (amountCents === null || amountCents <= 0 || amountCents > MAX_TRADE_CENTS)) {
+        return jsonResponse({ error: "bad_request", message: `VTX 礼品金额需要大于 0，且不超过 ${fromCents(MAX_TRADE_CENTS)}` }, 400, cors);
+    }
+
+    let name = String(body.name ?? "").trim().slice(0, GIFT_NAME_MAX);
+    if (!name) {
+        if (type === "vtx") {
+            name = `${fromCents(amountCents)} VTX 礼品`;
+        } else {
+            return jsonResponse({ error: "bad_request", message: "请填写礼品名称" }, 400, cors);
+        }
+    }
+    const description = String(body.description ?? "").trim().slice(0, GIFT_DESCRIPTION_MAX);
+    const count = Math.floor(Number(body.count ?? 1));
+    if (!Number.isFinite(count) || count < 1 || count > GIFT_MAX_CREATE_COUNT) {
+        return jsonResponse({ error: "bad_request", message: `一次最多生成 ${GIFT_MAX_CREATE_COUNT} 个兑换码` }, 400, cors);
+    }
+    const expiresAt = giftExpiry(body.expiresAt);
+    if (Number.isNaN(expiresAt)) {
+        return jsonResponse({ error: "bad_request", message: "有效期格式不正确" }, 400, cors);
+    }
+    if (expiresAt > 0 && expiresAt <= Date.now()) {
+        return jsonResponse({ error: "bad_request", message: "有效期必须晚于当前时间" }, 400, cors);
+    }
+
+    let manualCode = "";
+    if (body.code !== undefined && body.code !== null && String(body.code).trim() !== "") {
+        manualCode = normalizeGiftCode(body.code);
+        if (!manualCode) {
+            return jsonResponse({ error: "bad_code", message: "兑换码格式应类似 ABCDE-12345-ABCDE-67890" }, 400, cors);
+        }
+        if (count !== 1) {
+            return jsonResponse({ error: "bad_request", message: "指定兑换码时只能生成 1 个" }, 400, cors);
+        }
+    }
+
+    const created = [];
+    const createdAt = Date.now();
+    await commitAccounts(env, async () => {
+        const codes = await readGiftCodes(env);
+        for (let index = 0; index < count; index += 1) {
+            let code = manualCode;
+            if (!code) {
+                for (let attempt = 0; attempt < 100; attempt += 1) {
+                    const candidate = randomGiftCode();
+                    if (!codes[candidate] && !created.some((record) => record.code === candidate)) {
+                        code = candidate;
+                        break;
+                    }
+                }
+            }
+            if (!code) {
+                throw new HttpError(500, "code_exhausted", "生成兑换码失败，请重试");
+            }
+            if (codes[code]) {
+                throw new HttpError(409, "code_exists", "兑换码已存在，请换一个");
+            }
+            const record = {
+                code,
+                gift: {
+                    name,
+                    type,
+                    amountCents: type === "vtx" ? amountCents : 0,
+                    description
+                },
+                status: "active",
+                createdAt,
+                createdBy: session.payload.sub,
+                expiresAt,
+                usedAt: 0,
+                usedBy: "",
+                usedByName: ""
+            };
+            codes[code] = record;
+            created.push(record);
+        }
+        await writeGiftCodes(env, codes);
+        return `创建礼品兑换码：${created.map((record) => record.code).join(", ")}`;
+    });
+
+    await appendAdminLog(env, session.payload.sub, "gift_create", created.map((record) => record.code).join(","), `type=${type}; count=${created.length}`);
+    return jsonResponse({ ok: true, count: created.length, codes: created.map(giftCodeView) }, 201, cors);
+}
+
+async function handleAdminGiftUpdate(request, env, cors, rawCode) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "storage_unavailable", message: "礼品兑换码需要 Workers KV" }, 503, cors);
+    }
+    const code = normalizeGiftCode(rawCode);
+    if (!code) {
+        return jsonResponse({ error: "bad_code", message: "兑换码格式不正确" }, 400, cors);
+    }
+    const body = plainObject(await readJsonBody(request));
+    const status = String(body.status || "").trim();
+    if (status !== "active" && status !== "disabled") {
+        return jsonResponse({ error: "bad_request", message: "status 只能是 active 或 disabled" }, 400, cors);
+    }
+
+    let updated = null;
+    await commitAccounts(env, async () => {
+        const codes = await readGiftCodes(env);
+        const record = codes[code];
+        if (!record) {
+            throw new HttpError(404, "not_found", "兑换码不存在");
+        }
+        if (Number(record.usedAt) > 0) {
+            throw new HttpError(400, "gift_used", "已使用的兑换码不能修改");
+        }
+        record.status = status;
+        updated = record;
+        await writeGiftCodes(env, codes);
+        return `礼品兑换码 ${code} → ${status}`;
+    });
+
+    await appendAdminLog(env, session.payload.sub, "gift_update", code, `status=${status}`);
+    return jsonResponse({ ok: true, code: giftCodeView(updated) }, 200, cors);
+}
+
+async function handleAdminGiftDelete(request, env, cors, rawCode) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "storage_unavailable", message: "礼品兑换码需要 Workers KV" }, 503, cors);
+    }
+    const code = normalizeGiftCode(rawCode);
+    if (!code) {
+        return jsonResponse({ error: "bad_code", message: "兑换码格式不正确" }, 400, cors);
+    }
+
+    await commitAccounts(env, async () => {
+        const codes = await readGiftCodes(env);
+        const record = codes[code];
+        if (!record) {
+            throw new HttpError(404, "not_found", "兑换码不存在");
+        }
+        if (Number(record.usedAt) > 0) {
+            throw new HttpError(400, "gift_used", "已使用的兑换码不能删除");
+        }
+        delete codes[code];
+        await writeGiftCodes(env, codes);
+        return `删除礼品兑换码：${code}`;
+    });
+
+    await appendAdminLog(env, session.payload.sub, "gift_delete", code, "");
+    return jsonResponse({ ok: true, removed: code }, 200, cors);
+}
+
+async function handleGiftRedeem(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "storage_unavailable", message: "礼品兑换码需要 Workers KV" }, 503, cors);
+    }
+    if (throttled(giftRedeemAttempts, clientIp(request), GIFT_REDEEM_WINDOW_MS, GIFT_REDEEM_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "兑换尝试过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const login = session.payload.sub;
+    const body = plainObject(await readJsonBody(request));
+    const code = normalizeGiftCode(body.code);
+    if (!code) {
+        return jsonResponse({ error: "bad_code", message: "兑换码格式应类似 ABCDE-12345-ABCDE-67890" }, 400, cors);
+    }
+
+    let gift = null;
+    let trade = null;
+    let message = "";
+
+    const accounts = await commitAccounts(env, async (data) => {
+        const account = requireOwnAccount(data, login);
+        const codes = await readGiftCodes(env);
+        const record = codes[code];
+        if (!record) {
+            throw new HttpError(404, "not_found", "兑换码不存在");
+        }
+        if (Number(record.usedAt) > 0) {
+            throw new HttpError(400, "gift_used", "该兑换码已被使用");
+        }
+        if (record.status === "disabled") {
+            throw new HttpError(400, "gift_disabled", "该兑换码已停用");
+        }
+        if (Number(record.expiresAt) > 0 && Number(record.expiresAt) <= Date.now()) {
+            throw new HttpError(400, "gift_expired", "该兑换码已过期");
+        }
+
+        const info = record.gift && typeof record.gift === "object" ? record.gift : {};
+        const type = info.type === "vtx" ? "vtx" : "item";
+        const amountCents = type === "vtx" ? Number(info.amountCents) || 0 : 0;
+        if (type === "vtx" && amountCents <= 0) {
+            throw new HttpError(500, "gift_invalid", "礼品金额配置错误，请联系站主");
+        }
+
+        if (type === "vtx") {
+            const balance = toCents(account.money) ?? 0;
+            account.money = fromCents(balance + amountCents);
+        }
+        trade = pushTrade(account, {
+            name: "礼品兑换",
+            description: info.description || `兑换 ${info.name || "礼品"}`,
+            price: `+${fromCents(amountCents)}`,
+            time: shanghaiTimestamp(),
+            from: "礼品兑换",
+            to: account.username || login
+        });
+
+        record.usedAt = Date.now();
+        record.usedBy = login;
+        record.usedByName = account.username || login;
+        await writeGiftCodes(env, codes);
+
+        gift = {
+            name: info.name || "礼品",
+            type,
+            amount: type === "vtx" ? fromCents(amountCents) : "",
+            description: info.description || ""
+        };
+        message = type === "vtx"
+            ? `兑换成功：${gift.name}，已到账 ${gift.amount} VTX。`
+            : `兑换成功：${gift.name}。请凭此记录到 XRingCR 相关门店领取。`;
+        return `礼品兑换：${login} ← ${gift.name}`;
+    });
+
+    return jsonResponse({
+        ok: true,
+        code,
+        gift,
+        message,
+        trade,
+        account: selfAccount(accounts[login])
+    }, 200, cors);
 }
 
 /* ───────────────────────────── 9.0 聊天室 ───────────────────────────── */
@@ -7314,7 +7676,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "2.0.1";
+const VIDEO_VERSION = "2.1.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -10307,6 +10669,10 @@ export default {
                 return await handleLoginLocation(request, env, cors);
             }
 
+            if (url.pathname === "/api/me/redeem" && request.method === "POST") {
+                return await handleGiftRedeem(request, env, cors);
+            }
+
             if (url.pathname === "/api/admin/accounts") {
                 if (request.method === "GET") {
                     return await handleAdminList(request, env, cors);
@@ -10318,6 +10684,26 @@ export default {
 
             if (url.pathname === "/api/admin/log" && request.method === "GET") {
                 return await handleAdminLog(request, env, cors);
+            }
+
+            if (url.pathname === "/api/admin/gifts") {
+                if (request.method === "GET") {
+                    return await handleAdminGiftList(request, env, cors);
+                }
+                if (request.method === "POST") {
+                    return await handleAdminGiftCreate(request, env, cors);
+                }
+            }
+
+            const adminGiftRoute = url.pathname.match(/^\/api\/admin\/gifts\/([^/]+)$/);
+            if (adminGiftRoute) {
+                const code = decodeURIComponent(adminGiftRoute[1]);
+                if (request.method === "PUT") {
+                    return await handleAdminGiftUpdate(request, env, cors, code);
+                }
+                if (request.method === "DELETE") {
+                    return await handleAdminGiftDelete(request, env, cors, code);
+                }
             }
 
             const adminAccountRoute = url.pathname.match(/^\/api\/admin\/accounts\/([^/]+)$/);

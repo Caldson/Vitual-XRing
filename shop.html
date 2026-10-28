@@ -126,6 +126,77 @@
             line-height: 1.7;
         }
 
+        .redeem-card {
+            margin: 22px 0 26px;
+            padding: 20px 22px;
+            border: 1px solid #e0e7f1;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #ffffff, #f7faff);
+            box-shadow: 0 12px 34px rgba(31, 52, 92, 0.06);
+        }
+
+        .redeem-head h2 {
+            margin: 4px 0 4px;
+            font-size: 20px;
+        }
+
+        .redeem-head p {
+            margin: 0;
+            color: #738097;
+            line-height: 1.65;
+        }
+
+        .redeem-form {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .redeem-input {
+            flex: 1;
+            min-width: 0;
+            height: 46px;
+            padding: 0 14px;
+            border: 1px solid #d8e0ec;
+            border-radius: 11px;
+            background: #fff;
+            color: #172033;
+            font: inherit;
+            font-weight: 650;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .redeem-input:focus {
+            outline: none;
+            border-color: #3867e8;
+            box-shadow: 0 0 0 3px rgba(56, 103, 232, 0.12);
+        }
+
+        .redeem-form .primary-button {
+            flex: 0 0 112px;
+            width: auto;
+            min-width: 110px;
+        }
+
+        .redeem-hint {
+            margin: 10px 0 0;
+            color: #8a94a6;
+            font-size: 12.5px;
+            line-height: 1.65;
+        }
+
+        @media (max-width: 520px) {
+            .redeem-form {
+                flex-direction: column;
+            }
+
+            .redeem-form .primary-button {
+                flex: none;
+                width: 100%;
+            }
+        }
+
         .status {
             margin: 0 0 18px;
             padding: 12px 14px;
@@ -512,7 +583,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v2.0.1</span>
+            <span class="version">v2.1.0</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -524,6 +595,19 @@
             <p class="eyebrow">XRing 商店</p>
             <h1>商品列表</h1>
             <p class="hero-copy">使用 VTX 购买商品，可按分类筛选。下单后请把凭证截图发到 XRingCR 群，次日线下领取。</p>
+        </section>
+
+        <section class="redeem-card" aria-labelledby="redeem-title">
+            <div class="redeem-head">
+                <p class="eyebrow">礼品兑换</p>
+                <h2 id="redeem-title">输入礼品兑换码</h2>
+                <p>兑换码可在 XRingCR 相关门店获取；VTX 礼品兑换成功后余额会立即到账。</p>
+            </div>
+            <form id="redeem-form" class="redeem-form">
+                <input id="redeem-code" class="redeem-input" type="text" maxlength="40" autocomplete="off" spellcheck="false" placeholder="ABCDE-12345-ABCDE-67890" required>
+                <button id="redeem-button" class="primary-button" type="submit">兑换</button>
+            </form>
+            <p class="redeem-hint">请在XRingCR相关门店获取礼品兑换码，请勿轻易购买非官方的礼品兑换码，可能造成财产损失！</p>
         </section>
 
         <p id="shop-message" class="status" role="status" aria-live="polite" hidden></p>
@@ -567,7 +651,7 @@
         </form>
     </dialog>
 
-    <script src="vtx-api.js?v=2.0.1"></script>
+    <script src="vtx-api.js?v=2.1.0"></script>
 
 
     <script>
@@ -590,6 +674,9 @@
         const passwordInput = document.getElementById("checkout-password");
         const totalLabel = document.getElementById("checkout-total");
         const submitButton = document.getElementById("checkout-submit");
+        const redeemForm = document.getElementById("redeem-form");
+        const redeemInput = document.getElementById("redeem-code");
+        const redeemButton = document.getElementById("redeem-button");
 
         let shopData = null;
         let accountsData = null;
@@ -1005,6 +1092,38 @@
             renderBalance();
         }
 
+        async function redeemGift(event) {
+            event.preventDefault();
+
+            const code = redeemInput.value.trim();
+            if (!code) {
+                showMessage("请输入礼品兑换码。", "error");
+                return;
+            }
+
+            const originalText = redeemButton.textContent;
+            redeemButton.disabled = true;
+            redeemButton.textContent = "兑换中…";
+
+            try {
+                const result = await window.VTXApi.redeem(code);
+                if (result.account) {
+                    accountsData = { ...(accountsData || {}), [accountName]: result.account };
+                    renderBalance();
+                } else {
+                    await loadAccount();
+                }
+                redeemInput.value = "";
+                showMessage(result.message || "兑换成功。", "success");
+                message.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            } catch (error) {
+                showMessage(networkMessage(error, "兑换失败，请检查网络后重试。"), "error");
+            } finally {
+                redeemButton.disabled = false;
+                redeemButton.textContent = originalText;
+            }
+        }
+
         async function purchase(event) {
             event.preventDefault();
 
@@ -1087,6 +1206,7 @@
 
         document.getElementById("checkout-cancel").addEventListener("click", closeCheckout);
         form.addEventListener("submit", purchase);
+        redeemForm.addEventListener("submit", redeemGift);
         quantityInput.addEventListener("input", renderTotal);
 
         async function init() {

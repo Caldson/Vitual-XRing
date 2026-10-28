@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "2.0.1";
+    const API_VERSION = "2.1.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -811,6 +811,26 @@
         return await apiRequest(`/admin/accounts/${encodeURIComponent(login)}`, { method: "DELETE" });
     }
 
+    async function redeem(code) {
+        return await apiRequest("/me/redeem", { method: "POST", body: { code } });
+    }
+
+    async function adminGifts() {
+        return await apiRequest("/admin/gifts");
+    }
+
+    async function adminCreateGift(options) {
+        return await apiRequest("/admin/gifts", { method: "POST", body: options });
+    }
+
+    async function adminUpdateGift(code, changes) {
+        return await apiRequest(`/admin/gifts/${encodeURIComponent(code)}`, { method: "PUT", body: changes });
+    }
+
+    async function adminDeleteGift(code) {
+        return await apiRequest(`/admin/gifts/${encodeURIComponent(code)}`, { method: "DELETE" });
+    }
+
     async function chatStatus() {
         return await apiRequest("/chat/status", { auth: false });
     }
@@ -1332,11 +1352,16 @@
         purchase,
         shopStock,
         recordLoginLocation,
+        redeem,
         adminAccounts,
         adminLog,
         adminCreate,
         adminUpdate,
         adminDelete,
+        adminGifts,
+        adminCreateGift,
+        adminUpdateGift,
+        adminDeleteGift,
         chatStatus,
         chat,
         uno,

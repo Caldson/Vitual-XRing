@@ -336,6 +336,94 @@
             line-height: 1.8;
         }
 
+        .field[hidden] {
+            display: none;
+        }
+
+        .field select {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #dbe2ee;
+            border-radius: 10px;
+            background: #fff;
+            color: #172033;
+            font: inherit;
+        }
+
+        .gift-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .gift-item {
+            padding: 12px 14px;
+            border: 1px solid #e3e8f1;
+            border-radius: 12px;
+            background: #fbfcff;
+        }
+
+        .gift-main {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 14px;
+        }
+
+        .gift-code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+        }
+
+        .gift-meta {
+            margin: 6px 0 0;
+            color: #697791;
+            font-size: 12.5px;
+            line-height: 1.65;
+        }
+
+        .gift-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .gift-actions button {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+
+        .gift-status {
+            display: inline-flex;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #eef2f8;
+            color: #52617a;
+            font-size: 12px;
+        }
+
+        .gift-status.active {
+            background: #e8f7ef;
+            color: #1f7a52;
+        }
+
+        .gift-status.used {
+            background: #eef2f8;
+            color: #738097;
+        }
+
+        .gift-status.disabled {
+            background: #fdeef0;
+            color: #a9202f;
+        }
+
+        .gift-status.expired {
+            background: #fff4e5;
+            color: #9a5b00;
+        }
+
         footer {
             margin-top: 32px;
             color: #8793a8;
@@ -362,7 +450,7 @@
         </a>
         <div class="topbar-actions">
             <span class="admin-chip">站主专用</span>
-            <span class="version">v2.0.1</span>
+            <span class="version">v2.1.0</span>
             <a href="manager.html">返回账户</a>
             <a href="admin.html">仓库修改器</a>
             <a href="chatroom.html">聊天室</a>
@@ -461,6 +549,61 @@
             </section>
         </div>
 
+        <section class="panel" style="margin-top:18px;" id="gift-panel">
+            <div class="panel-title">
+                <span>礼品兑换码</span>
+                <button id="gift-refresh" class="ghost" type="button">刷新</button>
+            </div>
+            <p class="copy">站主可以创建 VTX 或实物礼品兑换码；兑换码格式：ABCDE-12345-ABCDE-67890。兑换码只展示给站主，用户输入后即可领取。</p>
+
+            <form id="gift-form">
+                <div class="row">
+                    <div class="field">
+                        <label for="gift-name">礼品名称</label>
+                        <input id="gift-name" type="text" maxlength="60" required placeholder="例如：10 VTX 礼品">
+                    </div>
+                    <div class="field">
+                        <label for="gift-type">礼品类型</label>
+                        <select id="gift-type">
+                            <option value="vtx">VTX</option>
+                            <option value="item">实物 / 其它礼品</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="field" id="gift-amount-field">
+                        <label for="gift-amount">VTX 数量</label>
+                        <input id="gift-amount" type="text" inputmode="decimal" placeholder="例如：10.00">
+                    </div>
+                    <div class="field">
+                        <label for="gift-count">生成数量</label>
+                        <input id="gift-count" type="number" min="1" max="20" step="1" value="1">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="gift-description">兑换说明（可选）</label>
+                    <input id="gift-description" type="text" maxlength="200" placeholder="例如：请到 XRingCR 门店出示此兑换码">
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label for="gift-expires">有效期（可选）</label>
+                        <input id="gift-expires" type="datetime-local">
+                    </div>
+                    <div class="field">
+                        <label for="gift-code">兑换码（可选，留空自动生成）</label>
+                        <input id="gift-code" type="text" maxlength="40" placeholder="ABCDE-12345-ABCDE-67890">
+                    </div>
+                </div>
+                <div class="actions">
+                    <button id="gift-create" class="primary" type="submit">生成兑换码</button>
+                </div>
+            </form>
+
+            <p id="gift-message" class="status" role="status" aria-live="polite" hidden></p>
+            <div id="gift-list" class="gift-list"></div>
+            <p id="gift-empty" class="empty" hidden>还没有礼品兑换码。</p>
+        </section>
+
         <section class="panel" style="margin-top:18px;">
             <h2>审计记录</h2>
             <ol id="audit-list" class="audit"></ol>
@@ -470,7 +613,7 @@
         <footer>Vitual XRing 8.0 · 账户数据存储于 Workers KV</footer>
     </main>
 
-    <script src="vtx-api.js?v=2.0.1"></script>
+    <script src="vtx-api.js?v=2.1.0"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";
@@ -489,10 +632,23 @@
         const createForm = document.getElementById("create-form");
         const auditList = document.getElementById("audit-list");
         const auditEmpty = document.getElementById("audit-empty");
+        const giftForm = document.getElementById("gift-form");
+        const giftName = document.getElementById("gift-name");
+        const giftType = document.getElementById("gift-type");
+        const giftAmountField = document.getElementById("gift-amount-field");
+        const giftAmount = document.getElementById("gift-amount");
+        const giftCount = document.getElementById("gift-count");
+        const giftDescription = document.getElementById("gift-description");
+        const giftExpires = document.getElementById("gift-expires");
+        const giftCode = document.getElementById("gift-code");
+        const giftMessage = document.getElementById("gift-message");
+        const giftList = document.getElementById("gift-list");
+        const giftEmpty = document.getElementById("gift-empty");
 
         let accountsData = {};
         let selected = null;
         let passwordVisible = false;
+        let giftCodes = [];
 
         function showMessage(text, kind) {
             messageBox.textContent = text;
@@ -657,6 +813,237 @@
             }
         }
 
+        function showGiftMessage(text, kind) {
+            giftMessage.textContent = text;
+            giftMessage.className = `status ${kind}`;
+            giftMessage.hidden = false;
+        }
+
+        function giftDateLabel(ms) {
+            const value = Number(ms);
+            if (!value) {
+                return "";
+            }
+            try {
+                return new Date(value).toLocaleString("zh-CN", { hour12: false });
+            } catch (error) {
+                return "";
+            }
+        }
+
+        function syncGiftType() {
+            const vtx = giftType.value === "vtx";
+            giftAmountField.hidden = !vtx;
+            giftAmount.disabled = !vtx;
+            giftAmount.required = vtx;
+        }
+
+        function renderGifts() {
+            giftList.textContent = "";
+            giftEmpty.hidden = giftCodes.length > 0;
+            const labels = { active: "未使用", used: "已使用", disabled: "已停用", expired: "已过期" };
+
+            for (const record of giftCodes) {
+                const item = document.createElement("article");
+                item.className = "gift-item";
+
+                const main = document.createElement("div");
+                main.className = "gift-main";
+
+                const code = document.createElement("span");
+                code.className = "gift-code";
+                code.textContent = record.code;
+
+                const status = document.createElement("span");
+                status.className = `gift-status ${record.status}`;
+                status.textContent = labels[record.status] || record.status;
+
+                const title = document.createElement("strong");
+                title.textContent = record.gift.name || "礼品";
+
+                const kind = document.createElement("span");
+                kind.textContent = record.gift.type === "vtx"
+                    ? `VTX ${record.gift.amount}`
+                    : "实物 / 其它";
+
+                main.append(code, status, title, kind);
+                item.appendChild(main);
+
+                const meta = document.createElement("p");
+                meta.className = "gift-meta";
+                const parts = [];
+                if (record.expiresAt) {
+                    parts.push(`有效期至 ${giftDateLabel(record.expiresAt)}`);
+                }
+                if (record.usedAt) {
+                    parts.push(`已由 ${record.usedByName || record.usedBy} 于 ${giftDateLabel(record.usedAt)} 使用`);
+                }
+                if (record.createdAt) {
+                    parts.push(`创建于 ${giftDateLabel(record.createdAt)}`);
+                }
+                if (record.gift.description) {
+                    parts.push(record.gift.description);
+                }
+                meta.textContent = parts.join(" · ") || "—";
+                item.appendChild(meta);
+
+                const actions = document.createElement("div");
+                actions.className = "gift-actions";
+
+                const copy = document.createElement("button");
+                copy.type = "button";
+                copy.className = "ghost";
+                copy.textContent = "复制兑换码";
+                copy.dataset.giftAction = "copy";
+                copy.dataset.giftCode = record.code;
+                actions.appendChild(copy);
+
+                if (record.status !== "used") {
+                    const toggle = document.createElement("button");
+                    toggle.type = "button";
+                    toggle.className = "ghost";
+                    toggle.textContent = record.status === "disabled" ? "启用" : "停用";
+                    toggle.dataset.giftAction = record.status === "disabled" ? "enable" : "disable";
+                    toggle.dataset.giftCode = record.code;
+                    actions.appendChild(toggle);
+
+                    const remove = document.createElement("button");
+                    remove.type = "button";
+                    remove.className = "danger";
+                    remove.textContent = "删除";
+                    remove.dataset.giftAction = "delete";
+                    remove.dataset.giftCode = record.code;
+                    actions.appendChild(remove);
+                }
+
+                item.appendChild(actions);
+                giftList.appendChild(item);
+            }
+        }
+
+        async function loadGifts() {
+            try {
+                const data = await window.VTXApi.adminGifts();
+                giftCodes = Array.isArray(data.codes) ? data.codes : [];
+                renderGifts();
+            } catch (error) {
+                giftCodes = [];
+                renderGifts();
+                showGiftMessage(error instanceof TypeError ? "无法连接服务器读取礼品兑换码。" : error.message, "error");
+            }
+        }
+
+        giftType.addEventListener("change", syncGiftType);
+
+        giftForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const button = document.getElementById("gift-create");
+            const name = giftName.value.trim();
+            const type = giftType.value;
+            const amount = giftAmount.value.trim();
+            const count = Math.floor(Number(giftCount.value || 1));
+            const description = giftDescription.value.trim();
+            const manualCode = giftCode.value.trim();
+
+            if (!name) {
+                showGiftMessage("请填写礼品名称。", "error");
+                return;
+            }
+            if (type === "vtx" && !amount) {
+                showGiftMessage("请填写 VTX 数量。", "error");
+                return;
+            }
+
+            const payload = { name, type, count, description };
+            if (type === "vtx") {
+                payload.amount = amount;
+            }
+            if (manualCode) {
+                payload.code = manualCode;
+            }
+            if (giftExpires.value) {
+                const date = new Date(giftExpires.value);
+                if (Number.isNaN(date.getTime())) {
+                    showGiftMessage("有效期格式不正确。", "error");
+                    return;
+                }
+                payload.expiresAt = date.toISOString();
+            }
+
+            button.disabled = true;
+            button.textContent = "生成中…";
+
+            try {
+                const data = await window.VTXApi.adminCreateGift(payload);
+                giftForm.reset();
+                syncGiftType();
+                showGiftMessage(
+                    `已生成 ${data.count} 个兑换码：${data.codes.map((record) => record.code).join("、")}`,
+                    "success"
+                );
+                await loadGifts();
+                loadAudit();
+            } catch (error) {
+                showGiftMessage(error instanceof TypeError ? "生成失败，请检查网络后重试。" : error.message, "error");
+            } finally {
+                button.disabled = false;
+                button.textContent = "生成兑换码";
+            }
+        });
+
+        giftList.addEventListener("click", async (event) => {
+            const button = event.target.closest("button[data-gift-action]");
+            if (!button) {
+                return;
+            }
+            const code = button.dataset.giftCode;
+            const action = button.dataset.giftAction;
+
+            if (action === "copy") {
+                try {
+                    await navigator.clipboard.writeText(code);
+                    showGiftMessage(`已复制 ${code}`, "success");
+                } catch (error) {
+                    window.prompt("复制兑换码", code);
+                }
+                return;
+            }
+
+            if (action === "delete") {
+                if (!window.confirm(`确定删除兑换码 ${code}？未使用的兑换码删除后无法恢复。`)) {
+                    return;
+                }
+                try {
+                    await window.VTXApi.adminDeleteGift(code);
+                    showGiftMessage(`已删除 ${code}`, "success");
+                    await loadGifts();
+                    loadAudit();
+                } catch (error) {
+                    showGiftMessage(error instanceof TypeError ? "删除失败，请检查网络后重试。" : error.message, "error");
+                }
+                return;
+            }
+
+            if (action === "enable" || action === "disable") {
+                try {
+                    await window.VTXApi.adminUpdateGift(code, {
+                        status: action === "enable" ? "active" : "disabled"
+                    });
+                    showGiftMessage(`${action === "enable" ? "已启用" : "已停用"} ${code}`, "success");
+                    await loadGifts();
+                    loadAudit();
+                } catch (error) {
+                    showGiftMessage(error instanceof TypeError ? "操作失败，请检查网络后重试。" : error.message, "error");
+                }
+            }
+        });
+
+        document.getElementById("gift-refresh").addEventListener("click", () => {
+            loadGifts();
+        });
+
+        syncGiftType();
+
         document.getElementById("toggle-password").addEventListener("click", () => {
             const input = document.getElementById("edit-current-password");
             const toggle = document.getElementById("toggle-password");
@@ -768,10 +1155,12 @@
         document.getElementById("refresh-button").addEventListener("click", () => {
             loadAccounts();
             loadAudit();
+            loadGifts();
         });
 
         loadAccounts();
         loadAudit();
+        loadGifts();
     </script>
 </body>
 </html>
