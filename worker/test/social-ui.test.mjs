@@ -69,6 +69,8 @@ test("3.1.0：Viratch 提供站内积木运行器和 .sb3 导入", () => {
     const html = read("viratch.html");
     assert.match(html, /requestAnimationFrame/);
     assert.match(html, /createInterpreter/);
+    assert.match(html, /var MAX_SPRITES = 20/);
+    assert.match(html, /var KNOWN_EVENTS/);
     assert.match(html, /turbowarp\.org\/embed/);
     assert.match(html, /editor-save-publish/);
     assert.match(html, /\.dev|\.sb3/);
@@ -85,6 +87,7 @@ test("3.1.0：AUDIV 使用 WebRTC mesh 和会议信令", () => {
     assert.match(html, /createMeeting/);
     assert.match(html, /joinMeeting/);
     assert.match(html, /endMeeting/);
+    assert.match(html, /joinToken/);
     assert.match(html, /stun:stun\.l\.google\.com:19302/);
 });
 
