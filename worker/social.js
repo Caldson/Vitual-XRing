@@ -774,7 +774,7 @@ function rangeResponse(buffer, contentType, headers, rangeHeader, fileName) {
         "x-content-type-options": "nosniff",
         "accept-ranges": "bytes",
         "cache-control": "private, max-age=3600",
-        "content-disposition": `${fileName ? "" : ""}${fileName ? disposition : "inline"}`,
+        "content-disposition": fileName ? disposition : "inline",
         ...(headers || {})
     };
     if (!rangeHeader) {
