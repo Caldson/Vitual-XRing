@@ -1,0 +1,4736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f6f8fc">
+    <meta name="description" content="Viratch：像 Scratch 一样的积木作品社区。站内创作、运行、分享 480×360 的小作品，也可以导入 .sb3 用 Turbowarp 在线运行。">
+    <title>Viratch · 作品社区 | Vitual XRing</title>
+    <!-- 停服守卫：停服期间任何页面都会跳到 WebsiteClose.html，时间表见 vtx-closed.js -->
+    <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+    <script src="vtx-api.js?v=3.1.0"></script>
+    <script src="xring-social.js?v=3.1.0"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --blue: #2f63d8;
+            --blue-dark: #234bb0;
+            --blue-soft: #eef3ff;
+            --orange: #f0853c;
+            --orange-soft: #fff2e7;
+            --ink: #172033;
+            --muted: #6b7a90;
+            --line: #e6ebf4;
+            --bg: #f6f8fc;
+            --card: #ffffff;
+            --ok: #2f9e6f;
+            --danger: #c63b4d;
+            --radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        html {
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding-bottom: 20px;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 8% -4%, #ffefe2 0, transparent 34%),
+                radial-gradient(circle at 92% 2%, #e8efff 0, transparent 36%),
+                var(--bg);
+        }
+
+        a {
+            color: var(--blue);
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+            color: inherit;
+        }
+
+        button {
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        /* ───────── 顶栏 ───────── */
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.93);
+            border-bottom: 1px solid var(--line);
+            backdrop-filter: blur(12px);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--ink);
+            text-decoration: none;
+            flex: 0 0 auto;
+        }
+
+        .brand-mark {
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            border-radius: 11px;
+            background: linear-gradient(135deg, var(--orange), var(--blue));
+            color: #fff;
+            font-size: 18px;
+            font-weight: 800;
+            box-shadow: 0 6px 14px rgba(47, 99, 216, 0.22);
+        }
+
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.15;
+        }
+
+        .brand-text strong {
+            font-size: 17px;
+            letter-spacing: 0.01em;
+        }
+
+        .brand-text small {
+            color: var(--muted);
+            font-size: 11.5px;
+        }
+
+        .topnav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .topnav-link {
+            padding: 7px 12px;
+            border-radius: 999px;
+            color: var(--muted);
+            font-size: 13.5px;
+            font-weight: 650;
+            text-decoration: none;
+        }
+
+        .topnav-link:hover {
+            background: #f0f4fd;
+            color: var(--ink);
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-left: auto;
+        }
+
+        .version {
+            padding: 4px 9px;
+            border-radius: 999px;
+            background: var(--blue-soft);
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .session-chip .chip {
+            display: inline-flex;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: #f4f7fd;
+            color: var(--muted);
+            font-size: 12.5px;
+            font-weight: 650;
+            text-decoration: none;
+        }
+
+        .session-chip .chip.login {
+            background: var(--blue);
+            color: #fff;
+        }
+
+        .back {
+            padding: 6px 8px;
+            border-radius: 8px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 650;
+            text-decoration: none;
+        }
+
+        .back:hover {
+            color: var(--blue);
+            background: #f2f6fe;
+        }
+
+        .wrap {
+            width: min(100%, 1180px);
+            margin: 0 auto;
+            padding: 22px 20px 0;
+        }
+
+        /* ───────── 按钮 ───────── */
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 9px 15px;
+            border: 1px solid #d8e1ef;
+            border-radius: 11px;
+            background: #fff;
+            color: var(--ink);
+            font-size: 13.5px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: background 0.15s, border-color 0.15s, transform 0.15s;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #f5f8ff;
+            border-color: #bcccec;
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .btn.primary {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff;
+        }
+
+        .btn.primary:hover:not(:disabled) {
+            background: var(--blue-dark);
+            border-color: var(--blue-dark);
+        }
+
+        .btn.ghost {
+            border-color: transparent;
+            background: transparent;
+            color: var(--muted);
+        }
+
+        .btn.danger {
+            border-color: #f1c9cf;
+            background: #fff7f8;
+            color: var(--danger);
+        }
+
+        .btn.danger:hover:not(:disabled) {
+            background: #fdeef0;
+        }
+
+        .btn.small {
+            padding: 7px 11px;
+            border-radius: 9px;
+            font-size: 12.5px;
+        }
+
+        .btn.tiny {
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 11.5px;
+        }
+
+        /* ───────── 首页 ───────── */
+
+        .hero {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.9fr);
+            gap: 22px;
+            align-items: center;
+            padding: 26px;
+            border: 1px solid #e9eef8;
+            border-radius: 22px;
+            background: linear-gradient(120deg, #fff7f1 0%, #ffffff 42%, #eef4ff 100%);
+            box-shadow: 0 18px 40px rgba(38, 70, 140, 0.07);
+            overflow: hidden;
+        }
+
+        .eyebrow {
+            margin: 0 0 6px;
+            color: var(--orange);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            margin: 0 0 10px;
+            font-size: clamp(26px, 3.4vw, 38px);
+            line-height: 1.18;
+            letter-spacing: -0.01em;
+        }
+
+        .hero-sub {
+            margin: 0;
+            max-width: 560px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.75;
+        }
+
+        .search {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 560px;
+            margin: 18px 0 14px;
+            padding: 6px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: #fff;
+            box-shadow: 0 8px 20px rgba(31, 55, 110, 0.06);
+        }
+
+        .search input {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 6px;
+            border: 0;
+            outline: none;
+            background: transparent;
+            font-size: 14px;
+        }
+
+        .search button {
+            border: 0;
+            border-radius: 10px;
+            padding: 9px 16px;
+            background: var(--blue);
+            color: #fff;
+            font-size: 13.5px;
+            font-weight: 700;
+        }
+
+        .search .search-clear {
+            padding: 9px 10px;
+            background: transparent;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 9px;
+        }
+
+        .login-note {
+            margin: 12px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.65;
+        }
+
+        .hero-art {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .hero-card {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 13px;
+            border: 1px solid #e9eef8;
+            border-radius: 14px;
+            background: #fff;
+            box-shadow: 0 8px 20px rgba(40, 70, 140, 0.08);
+            color: #43506a;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        .hero-card span {
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .hero-card.c1 { transform: rotate(-2deg); }
+        .hero-card.c2 { transform: rotate(1.5deg); }
+        .hero-card.c3 { transform: rotate(1deg); }
+        .hero-card.c4 { transform: rotate(-1.5deg); }
+
+        .home-section {
+            margin-top: 26px;
+        }
+
+        .section-head {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 4px;
+        }
+
+        .section-head h2 {
+            margin: 0;
+            font-size: 21px;
+        }
+
+        .section-sub {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .home-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tab {
+            padding: 8px 13px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 650;
+        }
+
+        .tab:hover {
+            border-color: #c4d3ef;
+            background: #f7faff;
+        }
+
+        .tab.active {
+            border-color: var(--blue);
+            background: var(--blue);
+            color: #fff;
+        }
+
+        .count-line {
+            min-height: 18px;
+            margin: 12px 0;
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+        .project-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 16px;
+        }
+
+        .project-card {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: #fff;
+            color: inherit;
+            text-decoration: none;
+            box-shadow: 0 8px 22px rgba(31, 55, 110, 0.05);
+            transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+        }
+
+        .project-card:hover {
+            transform: translateY(-3px);
+            border-color: #cad8f2;
+            box-shadow: 0 16px 34px rgba(31, 55, 110, 0.12);
+        }
+
+        .card-cover {
+            position: relative;
+            display: grid;
+            place-items: center;
+            height: 126px;
+            background: linear-gradient(135deg, var(--a, #eef3ff), var(--b, #e3ecff));
+        }
+
+        .cover-emoji {
+            font-size: 54px;
+            line-height: 1;
+            filter: drop-shadow(0 6px 10px rgba(40, 60, 120, 0.16));
+        }
+
+        .cover-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .tag {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.88);
+            color: #52617a;
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+        }
+
+        .tag.draft {
+            left: auto;
+            right: 10px;
+            background: #fff4e5;
+            color: #a8641b;
+        }
+
+        .card-run {
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+            width: 30px;
+            height: 30px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: rgba(47, 99, 216, 0.92);
+            color: #fff;
+            font-size: 12px;
+            box-shadow: 0 6px 14px rgba(47, 99, 216, 0.3);
+        }
+
+        .card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 0;
+            padding: 13px 14px 14px;
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 800;
+            line-height: 1.35;
+            word-break: break-word;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .card-desc {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.5;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 10px;
+            margin-top: 2px;
+            color: #6b7a90;
+            font-size: 11.5px;
+        }
+
+        .card-foot {
+            color: #8b98ab;
+            font-size: 11px;
+        }
+
+        /* ───────── 状态面板 ───────── */
+
+        .state-panel {
+            margin: 18px 0;
+            padding: 22px;
+            border: 1px dashed #d7e2f2;
+            border-radius: 16px;
+            background: #fbfcff;
+            color: var(--muted);
+            text-align: center;
+            font-size: 13.5px;
+        }
+
+        .state-panel.empty {
+            padding: 34px 22px;
+        }
+
+        .state-panel.error {
+            border-style: solid;
+            border-color: #f2ccd2;
+            background: #fff7f8;
+            color: #9a2d3b;
+        }
+
+        .state-panel h2,
+        .state-panel h3 {
+            margin: 0 0 6px;
+            color: var(--ink);
+            font-size: 18px;
+        }
+
+        .state-panel.error h2 {
+            color: #9a2d3b;
+        }
+
+        .empty-emoji {
+            margin-bottom: 6px;
+            font-size: 46px;
+        }
+
+        .empty-actions {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            margin-right: 4px;
+            border-radius: 50%;
+            border: 2px solid #cbd8f0;
+            border-top-color: var(--blue);
+            vertical-align: -2px;
+            animation: vtx-spin 0.8s linear infinite;
+        }
+
+        @keyframes vtx-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ───────── 面板 ───────── */
+
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--card);
+            box-shadow: 0 8px 24px rgba(31, 55, 110, 0.05);
+        }
+
+        .panel-label {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+            color: #3a4a63;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .panel-label .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--orange), var(--blue));
+        }
+
+        .panel-label .stage-tools,
+        .panel-label .count-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+        }
+
+        .count-badge {
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #f3f6fc;
+            color: var(--muted);
+            font-size: 11.5px;
+        }
+
+        .run-status {
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: #f4f7fd;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .hint {
+            margin: 10px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .hint.compact {
+            margin-top: 6px;
+        }
+
+        /* ───────── 创作器 ───────── */
+
+        .editor-head {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 18px 20px;
+            margin-bottom: 16px;
+        }
+
+        .editor-head-main {
+            min-width: 0;
+        }
+
+        .crumb {
+            display: inline-flex;
+            margin: 0 0 10px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 650;
+            text-decoration: none;
+        }
+
+        .crumb:hover {
+            color: var(--blue);
+        }
+
+        .editor-head h1 {
+            margin: 0 0 4px;
+            font-size: 23px;
+        }
+
+        .editor-sub {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12.5px;
+            line-height: 1.6;
+        }
+
+        .editor-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .editor-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        .stage-panel,
+        .side-panel,
+        .scripts-panel,
+        .meta-panel {
+            padding: 16px;
+        }
+
+        .scripts-panel,
+        .meta-panel {
+            grid-column: 1 / -1;
+        }
+
+        .stage-wrap {
+            padding: 8px;
+            border: 1px solid #e2e9f5;
+            border-radius: 14px;
+            background: #eef2fa;
+        }
+
+        .stage-wrap canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 4 / 3;
+            border-radius: 10px;
+            background: #fff;
+            cursor: crosshair;
+            touch-action: manipulation;
+        }
+
+        .help {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--line);
+            color: #52617a;
+            font-size: 12.5px;
+        }
+
+        .help summary {
+            cursor: pointer;
+            color: var(--blue);
+            font-weight: 700;
+        }
+
+        .help ul {
+            margin: 8px 0 6px;
+            padding-left: 18px;
+            line-height: 1.7;
+        }
+
+        .help p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        /* 角色列表 */
+
+        .sprite-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 260px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+
+        .sprite-item {
+            display: grid;
+            grid-template-columns: 30px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            background: #fff;
+            text-align: left;
+        }
+
+        .sprite-item:hover {
+            background: #f7faff;
+        }
+
+        .sprite-item.active {
+            border-color: #9db7f0;
+            background: #eef4ff;
+            box-shadow: inset 0 0 0 1px #c8d8f8;
+        }
+
+        .sprite-glyph {
+            font-size: 20px;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .sprite-name {
+            overflow: hidden;
+            font-size: 13px;
+            font-weight: 700;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .sprite-meta {
+            color: var(--muted);
+            font-size: 10.5px;
+            white-space: nowrap;
+        }
+
+        .sprite-add {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .sprite-add input {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 9px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: #fff;
+            font-size: 13px;
+        }
+
+        .sprite-add .emoji-input {
+            flex: 0 0 58px;
+            width: 58px;
+            text-align: center;
+        }
+
+        .sprite-props {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px dashed var(--line);
+        }
+
+        .props-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            color: #4d5c74;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .field input,
+        .field select,
+        .field textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: #fff;
+            color: var(--ink);
+            font-size: 13px;
+            font-weight: 500;
+            outline: none;
+        }
+
+        .field input:focus,
+        .field select:focus,
+        .field textarea:focus {
+            border-color: #9db7f0;
+            box-shadow: 0 0 0 3px rgba(47, 99, 216, 0.1);
+        }
+
+        .field textarea {
+            min-height: 58px;
+            resize: vertical;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .field.wide {
+            grid-column: 1 / -1;
+        }
+
+        /* 脚本 */
+
+        .script-add-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .scripts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .script-card {
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: linear-gradient(180deg, #fbfdff, #f7faff);
+        }
+
+        .script-head {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .script-head select {
+            padding: 6px 9px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            font-size: 12.5px;
+            font-weight: 650;
+        }
+
+        .script-head .key-input {
+            width: 130px;
+            padding: 6px 8px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            font-size: 12.5px;
+        }
+
+        .script-hint {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .script-head .btn.tiny {
+            margin-left: auto;
+        }
+
+        .block-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .block-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 7px;
+            padding: 7px 8px;
+            border: 1px solid #e3eaf6;
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .block-row[data-op="repeat"],
+        .block-row[data-op="forever"] {
+            border-left: 4px solid #f0a13b;
+        }
+
+        .block-row[data-op="end"] {
+            border-left: 4px solid #b9c9e8;
+        }
+
+        .block-label {
+            min-width: 62px;
+            color: #3a4a63;
+            font-size: 12.5px;
+            font-weight: 800;
+        }
+
+        .inline-field {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--muted);
+            font-size: 11.5px;
+            font-weight: 650;
+        }
+
+        .inline-field input,
+        .inline-field select {
+            min-width: 0;
+            padding: 5px 7px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            background: #fff;
+            font-size: 12px;
+        }
+
+        .inline-field input[type="number"],
+        .tiny-field input[type="number"] {
+            width: 68px;
+        }
+
+        .block-text {
+            flex: 1 1 160px;
+            min-width: 120px;
+            padding: 6px 8px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            font-size: 12.5px;
+        }
+
+        .block-hint {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .block-remove {
+            margin-left: auto;
+        }
+
+        .block-empty {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .script-warning {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+            padding: 6px 8px;
+            border: 1px solid #f4dfbe;
+            border-radius: 8px;
+            background: #fff7ea;
+            color: #96601b;
+            font-size: 11.5px;
+        }
+
+        .add-block {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px dashed var(--line);
+        }
+
+        .add-block-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .block-params {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .block-text-field input {
+            width: 170px;
+        }
+
+        /* ───────── 作品详情 ───────── */
+
+        .detail-head {
+            margin-bottom: 18px;
+        }
+
+        .detail-head h1 {
+            margin: 4px 0 8px;
+            font-size: clamp(22px, 3vw, 30px);
+            line-height: 1.25;
+            word-break: break-word;
+        }
+
+        .detail-meta {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .author-line {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: #3a4a63;
+            font-weight: 700;
+        }
+
+        .avatar {
+            width: 26px;
+            height: 26px;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--orange), var(--blue));
+            color: #fff;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .dot-sep {
+            color: #b3bfd2;
+        }
+
+        .pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin-top: 12px;
+        }
+
+        .pill {
+            padding: 4px 9px;
+            border-radius: 999px;
+            background: #f2f6fd;
+            color: #51637f;
+            font-size: 11.5px;
+            font-weight: 700;
+        }
+
+        .pill.engine {
+            background: var(--orange-soft);
+            color: #a4641f;
+        }
+
+        .pill.ok {
+            background: #e9f7f0;
+            color: #22714f;
+        }
+
+        .pill.draft {
+            background: #fff3e2;
+            color: #9a5b18;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        .detail-main,
+        .detail-side {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        .detail-main .panel,
+        .detail-side .panel {
+            padding: 16px;
+        }
+
+        .author-card {
+            text-align: center;
+        }
+
+        .author-avatar {
+            width: 56px;
+            height: 56px;
+            display: grid;
+            place-items: center;
+            margin: 2px auto 8px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--orange), var(--blue));
+            color: #fff;
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .author-card h2 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .author-card .muted {
+            margin: 4px 0 12px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: center;
+            gap: 26px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--line);
+        }
+
+        .stat-row div {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .stat-row b {
+            font-size: 17px;
+        }
+
+        .stat-row span {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .action-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .action-list .btn {
+            justify-content: flex-start;
+        }
+
+        .prose {
+            margin: 0;
+            color: #3b4a62;
+            font-size: 14px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .info-list {
+            display: grid;
+            grid-template-columns: 84px minmax(0, 1fr);
+            gap: 8px 10px;
+            margin: 0;
+            font-size: 12.5px;
+        }
+
+        .info-list dt {
+            color: var(--muted);
+        }
+
+        .info-list dd {
+            margin: 0;
+            color: #3b4a62;
+            word-break: break-all;
+        }
+
+        .sb3-frame-wrap {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            overflow: hidden;
+            border: 1px solid #e2e9f5;
+            border-radius: 12px;
+            background: #f0f4fb;
+        }
+
+        .sb3-frame-wrap iframe {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        #detail-sb3 .btn {
+            margin: 10px 8px 0 0;
+        }
+
+        /* ───────── 弹窗 / toast / 页脚 ───────── */
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            z-index: 70;
+            display: grid;
+            place-items: center;
+            padding: 18px;
+            background: rgba(16, 28, 48, 0.45);
+            backdrop-filter: blur(3px);
+        }
+
+        .modal-card {
+            width: min(100%, 470px);
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 20px;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 30px 80px rgba(10, 25, 60, 0.3);
+        }
+
+        .modal-card h2 {
+            margin: 0 0 6px;
+            font-size: 18px;
+        }
+
+        .modal-note {
+            margin: 0 0 10px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .modal-card .field {
+            margin-top: 10px;
+        }
+
+        .file-line {
+            margin: 0 0 6px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: #f5f8fe;
+            color: #45536c;
+            font-size: 12.5px;
+            word-break: break-all;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 28px;
+            z-index: 90;
+            max-width: min(92vw, 480px);
+            padding: 11px 16px;
+            border-radius: 12px;
+            background: rgba(24, 36, 56, 0.94);
+            color: #fff;
+            font-size: 13px;
+            line-height: 1.5;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, 16px);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        .toast.error {
+            background: rgba(150, 36, 52, 0.96);
+        }
+
+        .toast.success {
+            background: rgba(28, 110, 76, 0.96);
+        }
+
+        .site-foot {
+            width: min(100%, 1180px);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 34px auto 0;
+            padding: 18px 20px 30px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+        .site-foot a {
+            color: var(--muted);
+            text-decoration: none;
+        }
+
+        .site-foot a:hover {
+            color: var(--blue);
+        }
+
+        /* ───────── 响应式 ───────── */
+
+        @media (max-width: 980px) {
+            .hero {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-art {
+                display: none;
+            }
+
+            .editor-grid,
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .scripts-panel,
+            .meta-panel {
+                grid-column: auto;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .wrap {
+                padding: 16px 12px 0;
+            }
+
+            .topbar {
+                padding: 10px 12px;
+            }
+
+            .brand-text small {
+                display: none;
+            }
+
+            .topnav {
+                order: 3;
+                width: 100%;
+            }
+
+            .topbar-actions {
+                width: 100%;
+                margin-left: 0;
+                justify-content: flex-start;
+            }
+
+            .hero {
+                padding: 20px 16px;
+                border-radius: 18px;
+            }
+
+            .project-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+
+            .card-cover {
+                height: 104px;
+            }
+
+            .cover-emoji {
+                font-size: 42px;
+            }
+
+            .meta-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .editor-head {
+                padding: 14px;
+            }
+
+            .editor-actions .run-status {
+                order: 3;
+                width: 100%;
+            }
+
+            .detail-main .panel,
+            .detail-side .panel,
+            .stage-panel,
+            .side-panel,
+            .scripts-panel,
+            .meta-panel {
+                padding: 13px;
+            }
+
+            .script-card {
+                padding: 10px;
+            }
+
+            .site-foot {
+                padding: 16px 12px 26px;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .project-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .detail-head h1 {
+                font-size: 22px;
+            }
+
+            .sprite-add {
+                flex-wrap: wrap;
+            }
+
+            .sprite-add .emoji-input {
+                flex: 0 0 52px;
+            }
+
+            .sprite-add .btn {
+                flex: 1 1 100%;
+            }
+
+            .block-text-field input {
+                width: 140px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="viratch.html" title="Viratch 首页">
+            <span class="brand-mark">V</span>
+            <span class="brand-text">
+                <strong>Viratch</strong>
+                <small>积木作品社区</small>
+            </span>
+        </a>
+
+        <nav class="topnav" aria-label="Viratch 导航">
+            <a class="topnav-link" href="viratch.html">作品广场</a>
+            <a class="topnav-link" href="viratch.html?create=1">创作</a>
+            <a class="topnav-link" href="manager.html">我的账户</a>
+        </nav>
+
+        <div class="topbar-actions">
+            <button class="btn ghost small" type="button" data-import>⬆ 导入 .sb3</button>
+            <span class="version" title="页面版本">v3.1.0</span>
+            <span id="session-chip" class="session-chip"></span>
+            <a class="back" href="manager.html">← 返回账户</a>
+        </div>
+    </header>
+
+    <main class="wrap" id="view-home">
+        <section class="hero">
+            <div class="hero-copy">
+                <p class="eyebrow">Viratch · 积木作品社区</p>
+                <h1>把积木拼成会动的小作品</h1>
+                <p class="hero-sub">在站内创作器里给角色排积木：移动、说话、重复、永远循环……保存后一键发布；也可以导入 .sb3，用 Turbowarp 在线运行。</p>
+
+                <form class="search" id="home-search-form" role="search">
+                    <input id="home-search-input" type="search" placeholder="搜索作品标题、作者或标签" autocomplete="off" aria-label="搜索作品">
+                    <button id="home-search-clear" class="search-clear" type="button" hidden>清除</button>
+                    <button type="submit">搜索</button>
+                </form>
+
+                <div class="hero-actions">
+                    <a class="btn primary" href="viratch.html?create=1">🚀 开始创作</a>
+                    <button class="btn" type="button" data-import>📦 导入 .sb3</button>
+                </div>
+                <p class="login-note" id="home-login-note"></p>
+            </div>
+
+            <div class="hero-art" aria-hidden="true">
+                <div class="hero-card c1"><span>🐱</span><b>移动 10 步</b></div>
+                <div class="hero-card c2"><span>💬</span><b>说「你好！」2 秒</b></div>
+                <div class="hero-card c3"><span>🔁</span><b>重复 10 次</b></div>
+                <div class="hero-card c4"><span>🏳</span><b>当绿旗被点击</b></div>
+            </div>
+        </section>
+
+        <section class="home-section">
+            <div class="section-head">
+                <div>
+                    <h2 id="home-heading">最新作品</h2>
+                    <p class="section-sub" id="home-sub">来看看大家最近做了什么。</p>
+                </div>
+                <div class="home-tabs" role="tablist" aria-label="作品排序">
+                    <button class="tab active" type="button" data-sort="new" role="tab" aria-selected="true">🕘 最新</button>
+                    <button class="tab" type="button" data-sort="hot" role="tab" aria-selected="false">🔥 热门</button>
+                    <button class="tab" type="button" data-mode="mine" role="tab" aria-selected="false">👤 我的作品</button>
+                </div>
+            </div>
+
+            <p class="count-line" id="home-count"></p>
+            <div class="project-grid" id="home-grid"></div>
+
+            <div class="state-panel" id="home-loading" hidden><span class="spinner"></span> 正在读取作品…</div>
+
+            <div class="state-panel empty" id="home-empty" hidden>
+                <div class="empty-emoji">🧩</div>
+                <h3 id="empty-title">还没有作品</h3>
+                <p id="empty-text">成为第一个在 Viratch 发布作品的人吧。</p>
+                <div class="empty-actions">
+                    <a class="btn primary" href="viratch.html?create=1">开始创作</a>
+                    <button class="btn" type="button" data-import>导入 .sb3</button>
+                </div>
+            </div>
+
+            <div class="state-panel error" id="home-error" hidden>
+                <p id="home-error-text"></p>
+                <div class="empty-actions">
+                    <button class="btn" type="button" id="home-error-retry">重新加载</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <main class="wrap" id="view-editor" hidden>
+        <section class="panel editor-head">
+            <div class="editor-head-main">
+                <a class="crumb" href="viratch.html">← 作品广场</a>
+                <h1 id="editor-heading">站内创作器</h1>
+                <p class="editor-sub">480 × 360 舞台 · 角色用 emoji 绘制 · 作品保存在 Viratch 服务器</p>
+            </div>
+            <div class="editor-actions">
+                <span class="run-status" id="editor-run-status">未运行</span>
+                <button class="btn" type="button" id="editor-save-draft">保存草稿</button>
+                <button class="btn primary" type="button" id="editor-save-publish">保存并发布</button>
+                <a class="btn ghost" href="viratch.html">退出</a>
+            </div>
+        </section>
+
+        <div class="editor-grid">
+            <section class="panel stage-panel">
+                <div class="panel-label">
+                    <span class="dot"></span> 舞台
+                    <div class="stage-tools">
+                        <button class="btn primary small" type="button" id="editor-run">🏳 运行</button>
+                        <button class="btn small" type="button" id="editor-stop" disabled>■ 停止</button>
+                    </div>
+                </div>
+                <div class="stage-wrap">
+                    <canvas id="editor-canvas" width="480" height="360" aria-label="作品舞台 480×360"></canvas>
+                </div>
+                <p class="hint">点角色选中；运行后点角色会触发「当角色被点击」，按键盘会触发「当按下按键」脚本。重复 / 永远循环有步数上限（<span id="step-budget-note">单帧与累计步数</span>），不会把页面卡死。</p>
+                <details class="help">
+                    <summary>支持哪些积木？</summary>
+                    <ul>
+                        <li>移动、转向、移到 x/y</li>
+                        <li>说（文字 + 秒数）、等待</li>
+                        <li>重复 N 次、永远循环、结束循环</li>
+                        <li>下一个造型、改变大小、变色</li>
+                    </ul>
+                    <p>「重复 / 永远」后面继续添加的积木会放进循环里；想结束循环时，再加一块「结束循环」。造型可以填多个 emoji（空格分隔），用「下一个造型」切换。</p>
+                </details>
+            </section>
+
+            <section class="panel side-panel">
+                <div class="panel-label">
+                    <span class="dot"></span> 角色
+                    <span class="count-badge" id="sprite-count">0 / 20</span>
+                </div>
+                <div class="sprite-list" id="editor-sprites"></div>
+                <form class="sprite-add" id="sprite-add-form">
+                    <input id="new-sprite-emoji" class="emoji-input" type="text" value="🐱" maxlength="8" aria-label="新角色 emoji" title="角色 emoji，可填多个造型（空格分隔）">
+                    <input id="new-sprite-name" type="text" maxlength="24" placeholder="新角色名称" autocomplete="off" aria-label="新角色名称">
+                    <button class="btn small" type="submit">＋ 添加</button>
+                </form>
+                <div class="sprite-props" id="sprite-props"></div>
+            </section>
+
+            <section class="panel scripts-panel">
+                <div class="panel-label">
+                    <span class="dot"></span> <span id="scripts-title">脚本</span>
+                </div>
+                <div class="script-add-row">
+                    <label class="inline-field">事件
+                        <select id="new-script-event">
+                            <option value="flag">🏳 当绿旗被点击</option>
+                            <option value="click">🖱 当角色被点击</option>
+                            <option value="key">⌨ 当按下按键</option>
+                        </select>
+                    </label>
+                    <button class="btn small" type="button" id="new-script-btn">＋ 新建脚本</button>
+                </div>
+                <div class="scripts-list" id="scripts-list"></div>
+
+                <div class="add-block">
+                    <div class="add-block-row">
+                        <label class="inline-field">积木
+                            <select id="block-op">
+                                <option value="move">移动 N 步</option>
+                                <option value="turn">转向 N 度</option>
+                                <option value="goto">移到 x,y</option>
+                                <option value="say">说 文字 N 秒</option>
+                                <option value="wait">等待 N 秒</option>
+                                <option value="repeat">重复 N 次</option>
+                                <option value="forever">永远循环</option>
+                                <option value="nextcostume">下一个造型</option>
+                                <option value="changesize">改变大小 N%</option>
+                                <option value="changecolor">变色 N 度</option>
+                                <option value="end">结束循环</option>
+                            </select>
+                        </label>
+                        <label class="inline-field">加到
+                            <select id="block-target"></select>
+                        </label>
+                    </div>
+                    <div class="block-params" id="block-params"></div>
+                    <button class="btn small primary" type="button" id="block-add">＋ 添加积木</button>
+                </div>
+            </section>
+
+            <section class="panel meta-panel">
+                <div class="panel-label"><span class="dot"></span> 作品信息</div>
+                <div class="meta-grid">
+                    <label class="field wide">作品标题
+                        <input id="editor-title-input" type="text" maxlength="80" placeholder="例如：小猫散步" autocomplete="off">
+                    </label>
+                    <label class="field">封面 emoji
+                        <input id="editor-cover" type="text" maxlength="8" value="🐱">
+                    </label>
+                    <label class="field">舞台背景
+                        <input id="editor-bg" type="color" value="#ffffff">
+                    </label>
+                    <label class="field wide">作品简介
+                        <textarea id="editor-desc" maxlength="500" rows="2" placeholder="简单介绍一下这个作品（最多 500 字）"></textarea>
+                    </label>
+                    <label class="field wide">玩法说明
+                        <textarea id="editor-instructions" maxlength="300" rows="2" placeholder="怎么玩？比如：点绿旗开始，点小猫它会说话（最多 300 字）"></textarea>
+                    </label>
+                </div>
+                <p class="hint">保存后会自动跳到作品详情页；「保存并发布」会让所有人都能看到。作品数据上限 256 KB。</p>
+            </section>
+        </div>
+    </main>
+
+    <main class="wrap" id="view-detail" hidden>
+        <div class="state-panel" id="detail-loading"><span class="spinner"></span> 正在读取作品…</div>
+
+        <section class="state-panel error" id="detail-error" hidden>
+            <h2>读不到这个作品</h2>
+            <p id="detail-error-text"></p>
+            <div class="empty-actions">
+                <a class="btn primary" href="viratch.html">← 返回作品广场</a>
+                <button class="btn" type="button" id="detail-error-retry">重试</button>
+            </div>
+        </section>
+
+        <div id="detail-content" hidden>
+            <a class="crumb" href="viratch.html">← 返回作品广场</a>
+            <div class="detail-head">
+                <h1 id="detail-title">作品</h1>
+                <div class="detail-meta">
+                    <span class="author-line"><span class="avatar" id="detail-avatar">V</span><span id="detail-author">作者</span></span>
+                    <span class="dot-sep">·</span>
+                    <span id="detail-time"></span>
+                </div>
+                <div class="pill-row" id="detail-meta-pills"></div>
+            </div>
+
+            <div class="detail-grid">
+                <div class="detail-main">
+                    <section class="panel player-panel">
+                        <div class="panel-label">
+                            <span class="dot"></span> 运行
+                            <div class="stage-tools" id="detail-run-tools">
+                                <button class="btn primary small" type="button" id="detail-run">🏳 运行作品</button>
+                                <button class="btn small" type="button" id="detail-stop" disabled>■ 停止</button>
+                                <span class="run-status" id="detail-run-status">已就绪</span>
+                            </div>
+                        </div>
+
+                        <div id="detail-xr">
+                            <div class="stage-wrap">
+                                <canvas id="detail-canvas" width="480" height="360" aria-label="作品舞台 480×360"></canvas>
+                            </div>
+                            <p class="hint">站内引擎在浏览器本地运行（requestAnimationFrame 逐帧解释积木），不会上传任何运行数据。</p>
+                        </div>
+
+                        <div id="detail-sb3" hidden>
+                            <div class="sb3-frame-wrap">
+                                <iframe id="detail-sb3-frame" title="Turbowarp 在线运行" allowfullscreen loading="lazy" referrerpolicy="no-referrer"></iframe>
+                            </div>
+                            <p class="hint" id="detail-sb3-note"></p>
+                            <a class="btn" id="detail-download" href="#" download rel="noopener">⬇ 下载 .sb3</a>
+                        </div>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-label"><span class="dot"></span> 作品介绍</div>
+                        <p class="prose" id="detail-description"></p>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-label"><span class="dot"></span> 玩法说明</div>
+                        <p class="prose" id="detail-instructions"></p>
+                    </section>
+                </div>
+
+                <aside class="detail-side">
+                    <section class="panel author-card">
+                        <div class="author-avatar" id="author-avatar">V</div>
+                        <h2 id="author-name">作者</h2>
+                        <p class="muted" id="author-sub">Viratch 创作者</p>
+                        <div class="stat-row">
+                            <div><b id="stat-views">0</b><span>浏览</span></div>
+                            <div><b id="stat-likes">0</b><span>点赞</span></div>
+                        </div>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-label"><span class="dot"></span> 操作</div>
+                        <div class="action-list" id="detail-actions"></div>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-label"><span class="dot"></span> 作品信息</div>
+                        <dl class="info-list" id="detail-info"></dl>
+                    </section>
+                </aside>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-foot">
+        <span><b>Viratch</b> · 积木作品社区 · 站内创作器</span>
+        <span>Vitual XRing 3.1.0</span>
+        <a href="manager.html">返回账户</a>
+    </footer>
+
+    <div class="modal" id="import-modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
+            <h2 id="import-modal-title">导入 .sb3 作品</h2>
+            <p class="modal-note">文件会先上传到 Viratch，再发布成作品。站内播放 .sb3 需要联网（使用 Turbowarp）；导入本身只上传文件。</p>
+            <p class="file-line">已选择：<b id="import-file-name">—</b></p>
+            <label class="field">作品标题
+                <input id="import-title-input" type="text" maxlength="80" autocomplete="off">
+            </label>
+            <label class="field">作品简介
+                <textarea id="import-desc" maxlength="500" rows="2" placeholder="最多 500 字"></textarea>
+            </label>
+            <label class="field">玩法说明
+                <textarea id="import-instructions" maxlength="300" rows="2" placeholder="最多 300 字"></textarea>
+            </label>
+            <div class="modal-actions">
+                <button class="btn" type="button" id="import-cancel">取消</button>
+                <button class="btn primary" type="button" id="import-confirm">上传并发布</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="confirm-modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+            <h2 id="confirm-title">确认操作</h2>
+            <p class="modal-note" id="confirm-text"></p>
+            <div class="modal-actions">
+                <button class="btn" type="button" id="confirm-cancel">取消</button>
+                <button class="btn danger" type="button" id="confirm-ok">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="import-input" accept=".sb3" hidden>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <noscript>
+        <p style="text-align:center;padding:20px">Viratch 需要 JavaScript 才能创建和运行作品，请开启后再试。</p>
+    </noscript>
+
+    <script id="viratch-app">
+    /* Viratch 页面脚本（3.1.0） */
+    (function () {
+        "use strict";
+
+        /* ================= 常量与工具 ================= */
+
+        var KIND = "scratch";
+        var MAX_PROJECT_BYTES = 256 * 1024;
+        var MAX_SB3_BYTES = 24 * 1024 * 1024;
+        var STAGE_W = 480;
+        var STAGE_H = 360;
+        var BLOCK_LABELS = {
+            move: "移动",
+            turn: "转向",
+            goto: "移到",
+            say: "说",
+            wait: "等待",
+            repeat: "重复",
+            forever: "永远循环",
+            nextcostume: "下一个造型",
+            changesize: "改变大小",
+            changecolor: "变色",
+            end: "结束循环"
+        };
+
+        function $(id) {
+            return document.getElementById(id);
+        }
+
+        function esc(value) {
+            return String(value == null ? "" : value).replace(/[&<>"']/g, function (char) {
+                return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char];
+            });
+        }
+
+        function hashText(text) {
+            var hash = 0;
+            var value = String(text == null ? "" : text);
+            for (var index = 0; index < value.length; index += 1) {
+                hash = (hash * 31 + value.charCodeAt(index)) % 1000003;
+            }
+            return hash;
+        }
+
+        function fmtInt(value) {
+            var number = Number(value) || 0;
+            try {
+                return number.toLocaleString("zh-CN");
+            } catch (error) {
+                return String(number);
+            }
+        }
+
+        function firstChar(text) {
+            var chars = Array.from(String(text == null ? "" : text));
+            return chars.length ? chars[0] : "V";
+        }
+
+        function fileSize(bytes) {
+            var size = Number(bytes) || 0;
+            if (size >= 1024 * 1024) {
+                return (size / (1024 * 1024)).toFixed(1) + " MB";
+            }
+            if (size >= 1024) {
+                return Math.round(size / 1024) + " KB";
+            }
+            return size + " B";
+        }
+
+        function errorText(error, fallback) {
+            if (error && error.message) {
+                return String(error.message);
+            }
+            return fallback || "操作失败，请稍后再试";
+        }
+
+        function safeHex(value) {
+            var text = String(value == null ? "" : value).trim();
+            if (/^#[0-9a-fA-F]{3}$/.test(text)) {
+                return ("#" + text.slice(1).split("").map(function (char) { return char + char; }).join("")).toLowerCase();
+            }
+            if (/^#[0-9a-fA-F]{6}$/.test(text)) {
+                return text.toLowerCase();
+            }
+            return "#ffffff";
+        }
+
+        function normalizeCostume(raw) {
+            var tokens = String(raw == null ? "" : raw).trim().split(/\s+/).filter(Boolean);
+            if (!tokens.length || tokens.length > 3) {
+                return "";
+            }
+            var joined = tokens.join(" ");
+            if (joined.length > 8) {
+                return "";
+            }
+            return joined;
+        }
+
+        function costumeTokens(emoji) {
+            var tokens = String(emoji == null ? "" : emoji).split(/\s+/).filter(Boolean);
+            return tokens.length ? tokens.slice(0, 4) : ["🐱"];
+        }
+
+        function spriteGlyph(sprite, costume) {
+            var tokens = costumeTokens(sprite && sprite.emoji);
+            var index = Math.abs(Math.floor(Number(costume) || 0)) % tokens.length;
+            return tokens[index] || "🐱";
+        }
+
+        function normalizeCover(raw) {
+            var text = String(raw == null ? "" : raw).trim();
+            if (!text || text.length > 8 || /\s/.test(text)) {
+                return "";
+            }
+            return text;
+        }
+
+        function timeAgo(timestamp) {
+            if (window.XRSocial && typeof window.XRSocial.timeAgo === "function") {
+                return window.XRSocial.timeAgo(timestamp);
+            }
+            return "";
+        }
+
+        function toast(message, kind) {
+            var node = $("toast");
+            if (!node) {
+                return;
+            }
+            node.textContent = String(message == null ? "" : message);
+            node.className = "toast show" + (kind === "error" ? " error" : kind === "success" ? " success" : "");
+            clearTimeout(toast._timer);
+            toast._timer = window.setTimeout(function () {
+                node.className = "toast";
+            }, 3400);
+        }
+
+        function isLoggedIn() {
+            return Boolean(window.VTXApi && typeof window.VTXApi.hasSession === "function" && window.VTXApi.hasSession());
+        }
+
+        function requireLogin(message) {
+            if (isLoggedIn()) {
+                return true;
+            }
+            toast(message || "请先登录 Viratch 账户再做这个操作", "error");
+            return false;
+        }
+
+        function makeButton(text, className, handler) {
+            var button = document.createElement("button");
+            button.type = "button";
+            button.className = className || "btn";
+            button.textContent = text;
+            if (typeof handler === "function") {
+                button.addEventListener("click", handler);
+            }
+            return button;
+        }
+
+        /* ================= Viratch 解释器开始（可独立测试） ================= */
+
+        var VIRATCH_BUDGET = { frameSteps: 12000, totalSteps: 4000000, loopIterations: 3000 };
+
+        function vNumber(value, fallback) {
+            var number = Number(value);
+            return Number.isFinite(number) ? number : fallback;
+        }
+
+        function vClamp(value, min, max) {
+            var number = vNumber(value, min);
+            if (number < min) {
+                return min;
+            }
+            if (number > max) {
+                return max;
+            }
+            return number;
+        }
+
+        function normalizeKeyName(raw) {
+            var key = String(raw == null ? "" : raw).trim().toLowerCase();
+            if (!key) {
+                return "";
+            }
+            if (key === " ") {
+                return "space";
+            }
+            var map = {
+                "space": "space",
+                "空格": "space",
+                "spacebar": "space",
+                "enter": "enter",
+                "回车": "enter",
+                "return": "enter",
+                "up": "arrowup",
+                "上": "arrowup",
+                "↑": "arrowup",
+                "arrowup": "arrowup",
+                "down": "arrowdown",
+                "下": "arrowdown",
+                "↓": "arrowdown",
+                "arrowdown": "arrowdown",
+                "left": "arrowleft",
+                "左": "arrowleft",
+                "←": "arrowleft",
+                "arrowleft": "arrowleft",
+                "right": "arrowright",
+                "右": "arrowright",
+                "→": "arrowright",
+                "arrowright": "arrowright"
+            };
+            return map[key] || key;
+        }
+
+        function vCompileScript(rawScript) {
+            var source = rawScript && Array.isArray(rawScript.blocks) ? rawScript.blocks.slice(0, MAX_BLOCKS) : [];
+            var blocks = [];
+            for (var index = 0; index < source.length; index += 1) {
+                var raw = source[index];
+                if (!raw || typeof raw !== "object") {
+                    continue;
+                }
+                blocks.push({
+                    op: String(raw.op == null ? "" : raw.op).slice(0, 20),
+                    a: vNumber(raw.a, 0),
+                    b: vNumber(raw.b, 0),
+                    text: String(raw.text == null ? "" : raw.text).slice(0, 60)
+                });
+            }
+            var endFor = new Map();
+            var stack = [];
+            blocks.forEach(function (block, blockIndex) {
+                if (block.op === "repeat" || block.op === "forever") {
+                    stack.push(blockIndex);
+                } else if (block.op === "end" && stack.length) {
+                    endFor.set(stack.pop(), blockIndex);
+                }
+            });
+            return {
+                event: KNOWN_EVENTS.indexOf(rawScript && rawScript.event) >= 0 ? rawScript.event : "flag",
+                key: String(rawScript && rawScript.key == null ? "" : rawScript.key).slice(0, 8),
+                blocks: blocks,
+                endFor: endFor
+            };
+        }
+
+        function createInterpreter(project, options) {
+            var opts = options || {};
+            var frameBudget = vNumber(opts.frameBudget, VIRATCH_BUDGET.frameSteps) || VIRATCH_BUDGET.frameSteps;
+            var totalBudget = vNumber(opts.totalBudget, VIRATCH_BUDGET.totalSteps) || VIRATCH_BUDGET.totalSteps;
+            var loopBudget = vNumber(opts.loopBudget, VIRATCH_BUDGET.loopIterations) || VIRATCH_BUDGET.loopIterations;
+            var source = project && Array.isArray(project.sprites) ? project.sprites : [];
+            var sprites = [];
+            var scriptMap = new Map();
+            var states = new Map();
+            var threads = [];
+            var totalSteps = 0;
+            var frameSteps = 0;
+            var budgetHit = false;
+
+            source.forEach(function (raw, index) {
+                if (!raw || typeof raw !== "object" || sprites.length >= MAX_SPRITES) {
+                    return;
+                }
+                var id = String(raw.id || ("spr_" + index)).slice(0, 40);
+                var sprite = {
+                    id: id,
+                    name: String(raw.name || "角色").slice(0, 24),
+                    emoji: String(raw.emoji || "🐱").slice(0, 8),
+                    x: vClamp(vNumber(raw.x, 0), -100000, 100000),
+                    y: vClamp(vNumber(raw.y, 0), -100000, 100000),
+                    size: vClamp(vNumber(raw.size, 100), 10, 300),
+                    direction: vNumber(raw.direction, 90),
+                    costume: Math.max(0, Math.floor(vNumber(raw.costume, 0)))
+                };
+                sprites.push(sprite);
+                var scripts = (Array.isArray(raw.scripts) ? raw.scripts : []).slice(0, MAX_SCRIPTS).map(function (script) {
+                    return vCompileScript(script);
+                });
+                scriptMap.set(id, scripts);
+                states.set(id, {
+                    x: sprite.x,
+                    y: sprite.y,
+                    size: sprite.size,
+                    direction: sprite.direction,
+                    costume: sprite.costume,
+                    tint: 0,
+                    bubble: null
+                });
+            });
+
+            function reset() {
+                threads = [];
+                totalSteps = 0;
+                frameSteps = 0;
+                budgetHit = false;
+                states.clear();
+                sprites.forEach(function (sprite) {
+                    states.set(sprite.id, {
+                        x: sprite.x,
+                        y: sprite.y,
+                        size: sprite.size,
+                        direction: sprite.direction,
+                        costume: sprite.costume,
+                        tint: 0,
+                        bubble: null
+                    });
+                });
+            }
+
+            function stateOf(id) {
+                return states.get(id) || null;
+            }
+
+            function spawnScripts(eventName, filter) {
+                var target = filter || {};
+                var created = 0;
+                sprites.forEach(function (sprite) {
+                    if (target.spriteId && target.spriteId !== sprite.id) {
+                        return;
+                    }
+                    var scripts = scriptMap.get(sprite.id) || [];
+                    scripts.forEach(function (script) {
+                        if (script.event !== eventName || !script.blocks.length) {
+                            return;
+                        }
+                        if (eventName === "key") {
+                            var wanted = normalizeKeyName(target.key);
+                            if (!wanted || !script.key || normalizeKeyName(script.key) !== wanted) {
+                                return;
+                            }
+                        }
+                        threads.push({
+                            spriteId: sprite.id,
+                            blocks: script.blocks,
+                            endFor: script.endFor,
+                            ip: 0,
+                            loops: [],
+                            waitUntil: 0,
+                            done: false,
+                            frameIters: 0
+                        });
+                        created += 1;
+                    });
+                });
+                return created;
+            }
+
+            function hasEvent(eventName) {
+                var found = false;
+                scriptMap.forEach(function (scripts) {
+                    scripts.forEach(function (script) {
+                        if (script.event === eventName && script.blocks.length) {
+                            found = true;
+                        }
+                    });
+                });
+                return found;
+            }
+
+            function stepThread(thread, now) {
+                while (!thread.done) {
+                    if (thread.waitUntil > now) {
+                        return;
+                    }
+                    if (thread.ip < 0 || thread.ip >= thread.blocks.length) {
+                        thread.done = true;
+                        return;
+                    }
+                    if (frameSteps >= frameBudget) {
+                        return;
+                    }
+                    var block = thread.blocks[thread.ip];
+                    frameSteps += 1;
+                    totalSteps += 1;
+                    if (totalSteps > totalBudget) {
+                        budgetHit = true;
+                        return;
+                    }
+                    var state = states.get(thread.spriteId);
+                    if (!state) {
+                        thread.done = true;
+                        return;
+                    }
+                    var op = block.op;
+                    switch (op) {
+                    case "move": {
+                        var steps = vClamp(vNumber(block.a, 0), -5000, 5000);
+                        var radians = ((vNumber(state.direction, 90) - 90) * Math.PI) / 180;
+                        state.x = vClamp(vNumber(state.x, 0) + Math.cos(radians) * steps, -100000, 100000);
+                        state.y = vClamp(vNumber(state.y, 0) + Math.sin(radians) * steps, -100000, 100000);
+                        thread.ip += 1;
+                        break;
+                    }
+                    case "turn": {
+                        var delta = vClamp(vNumber(block.a, 0), -3600, 3600);
+                        state.direction = vNumber(state.direction, 90) + delta;
+                        thread.ip += 1;
+                        break;
+                    }
+                    case "goto": {
+                        state.x = vClamp(vNumber(block.a, 0), -100000, 100000);
+                        state.y = vClamp(vNumber(block.b, 0), -100000, 100000);
+                        thread.ip += 1;
+                        break;
+                    }
+                    case "say": {
+                        var text = String(block.text || "").slice(0, 60);
+                        var seconds = vClamp(vNumber(block.a, 0), 0, 60);
+                        state.bubble = text ? { text: text, until: seconds > 0 ? now + seconds * 1000 : 0 } : null;
+                        thread.ip += 1;
+                        if (text && seconds > 0) {
+                            thread.waitUntil = now + seconds * 1000;
+                            return;
+                        }
+                        break;
+                    }
+                    case "wait": {
+                        var waitSeconds = vClamp(vNumber(block.a, 0), 0, 60);
+                        thread.ip += 1;
+                        if (waitSeconds > 0) {
+                            thread.waitUntil = now + waitSeconds * 1000;
+                            return;
+                        }
+                        break;
+                    }
+                    case "nextcostume": {
+                        state.costume = (Math.floor(vNumber(state.costume, 0)) + 1) % 1000;
+                        thread.ip += 1;
+                        break;
+                    }
+                    case "changesize": {
+                        var sizeDelta = vClamp(vNumber(block.a, 0), -300, 300);
+                        state.size = vClamp(vNumber(state.size, 100) + sizeDelta, 10, 300);
+                        thread.ip += 1;
+                        break;
+                    }
+                    case "changecolor": {
+                        var tintDelta = vClamp(vNumber(block.a, 0), -360, 360);
+                        state.tint = (vNumber(state.tint, 0) + tintDelta + 360) % 360;
+                        thread.ip += 1;
+                        break;
+                    }
+                    case "repeat": {
+                        var times = Math.floor(vClamp(vNumber(block.a, 0), 0, 1000000));
+                        var repeatEnd = thread.endFor.has(thread.ip) ? thread.endFor.get(thread.ip) : thread.blocks.length;
+                        if (times <= 0 || thread.ip + 1 >= repeatEnd) {
+                            thread.ip = Math.min(repeatEnd + 1, thread.blocks.length);
+                            break;
+                        }
+                        thread.loops.push({ start: thread.ip + 1, endIndex: repeatEnd, remaining: times - 1 });
+                        thread.ip += 1;
+                        break;
+                    }
+                    case "forever": {
+                        var foreverEnd = thread.endFor.has(thread.ip) ? thread.endFor.get(thread.ip) : thread.blocks.length;
+                        if (thread.ip + 1 >= foreverEnd) {
+                            thread.ip = Math.min(foreverEnd + 1, thread.blocks.length);
+                            break;
+                        }
+                        thread.loops.push({ start: thread.ip + 1, endIndex: foreverEnd, remaining: Infinity });
+                        thread.ip += 1;
+                        break;
+                    }
+                    case "end": {
+                        var loop = thread.loops[thread.loops.length - 1];
+                        if (!loop || loop.endIndex !== thread.ip) {
+                            thread.ip += 1;
+                            break;
+                        }
+                        thread.frameIters += 1;
+                        if (thread.frameIters > loopBudget) {
+                            return;
+                        }
+                        if (loop.remaining > 0) {
+                            if (Number.isFinite(loop.remaining)) {
+                                loop.remaining -= 1;
+                            }
+                            thread.ip = loop.start;
+                        } else {
+                            thread.loops.pop();
+                            thread.ip += 1;
+                        }
+                        break;
+                    }
+                    default:
+                        thread.ip += 1;
+                    }
+                }
+            }
+
+            function clearExpiredBubbles(now) {
+                states.forEach(function (state) {
+                    if (state.bubble && state.bubble.until && state.bubble.until <= now) {
+                        state.bubble = null;
+                    }
+                });
+            }
+
+            function step(now) {
+                var time = vNumber(now, 0);
+                frameSteps = 0;
+                var active = 0;
+                if (!budgetHit) {
+                    for (var index = 0; index < threads.length; index += 1) {
+                        var thread = threads[index];
+                        if (thread.done) {
+                            continue;
+                        }
+                        thread.frameIters = 0;
+                        stepThread(thread, time);
+                        if (budgetHit) {
+                            break;
+                        }
+                        if (!thread.done) {
+                            active += 1;
+                        }
+                    }
+                }
+                clearExpiredBubbles(time);
+                return { active: active, budgetHit: budgetHit };
+            }
+
+            function stats() {
+                return { steps: totalSteps, budgetHit: budgetHit, threads: threads.length };
+            }
+
+            reset();
+
+            return {
+                sprites: sprites,
+                states: states,
+                reset: reset,
+                stateOf: stateOf,
+                spawnScripts: spawnScripts,
+                hasEvent: hasEvent,
+                step: step,
+                stats: stats
+            };
+        }
+
+        /* ================= Viratch 解释器结束 ================= */
+
+        /* ================= 画布绘制 ================= */
+
+        function roundRect(ctx, x, y, width, height, radius) {
+            var r = Math.min(radius, width / 2, height / 2);
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + width - r, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+            ctx.lineTo(x + width, y + height - r);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+            ctx.lineTo(x + r, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
+
+        function baseState(sprite) {
+            return {
+                x: vClamp(vNumber(sprite && sprite.x, 0), -100000, 100000),
+                y: vClamp(vNumber(sprite && sprite.y, 0), -100000, 100000),
+                size: vClamp(vNumber(sprite && sprite.size, 100), 10, 300),
+                direction: vNumber(sprite && sprite.direction, 90),
+                costume: Math.max(0, Math.floor(vNumber(sprite && sprite.costume, 0))),
+                tint: 0,
+                bubble: null
+            };
+        }
+
+        function drawScene(ctx, project, states, selectionId) {
+            if (!ctx || !project) {
+                return;
+            }
+            var sprites = Array.isArray(project.sprites) ? project.sprites : [];
+            ctx.save();
+            ctx.clearRect(0, 0, STAGE_W, STAGE_H);
+            ctx.fillStyle = safeHex(project.background);
+            ctx.fillRect(0, 0, STAGE_W, STAGE_H);
+
+            ctx.save();
+            ctx.strokeStyle = "rgba(47, 99, 216, 0.06)";
+            ctx.lineWidth = 1;
+            for (var gx = 60; gx < STAGE_W; gx += 60) {
+                ctx.beginPath();
+                ctx.moveTo(gx + 0.5, 0);
+                ctx.lineTo(gx + 0.5, STAGE_H);
+                ctx.stroke();
+            }
+            for (var gy = 60; gy < STAGE_H; gy += 60) {
+                ctx.beginPath();
+                ctx.moveTo(0, gy + 0.5);
+                ctx.lineTo(STAGE_W, gy + 0.5);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            for (var index = 0; index < sprites.length; index += 1) {
+                var sprite = sprites[index];
+                if (!sprite || typeof sprite !== "object") {
+                    continue;
+                }
+                var state = (states && typeof states.get === "function" && states.get(sprite.id)) || baseState(sprite);
+                drawSprite(ctx, sprite, state, selectionId && selectionId === sprite.id);
+            }
+            ctx.restore();
+        }
+
+        function drawSprite(ctx, sprite, state, selected) {
+            var x = vClamp(vNumber(state && state.x, 0), -100000, 100000);
+            var y = vClamp(vNumber(state && state.y, 0), -100000, 100000);
+            var size = vClamp(vNumber(state && state.size, 100), 10, 300);
+            var direction = vNumber(state && state.direction, 90);
+            var costume = Math.max(0, Math.floor(vNumber(state && state.costume, 0)));
+            var tint = vNumber(state && state.tint, 0);
+            var px = 54 * (size / 100);
+            var cx = STAGE_W / 2 + x;
+            var cy = STAGE_H / 2 - y;
+            var glyph = spriteGlyph(sprite, costume);
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(-((direction - 90) * Math.PI) / 180);
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = Math.max(8, px) + "px \"Segoe UI Emoji\",\"Apple Color Emoji\",\"Noto Color Emoji\",\"Segoe UI\",sans-serif";
+            if (tint) {
+                ctx.filter = "hue-rotate(" + Math.round(tint) + "deg)";
+            }
+            ctx.fillStyle = "#1f2b3d";
+            ctx.fillText(glyph, 0, 0);
+            ctx.filter = "none";
+            ctx.restore();
+
+            if (selected) {
+                ctx.save();
+                ctx.setLineDash([5, 4]);
+                ctx.strokeStyle = "#2f63d8";
+                ctx.lineWidth = 1.5;
+                roundRect(ctx, cx - px * 0.62, cy - px * 0.62, px * 1.24, px * 1.24, 8);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            if (state && state.bubble && state.bubble.text) {
+                drawBubble(ctx, cx, cy, px, state.bubble.text);
+            }
+        }
+
+        function drawBubble(ctx, cx, cy, px, text) {
+            ctx.save();
+            ctx.font = "13px \"Segoe UI\",\"Microsoft YaHei\",sans-serif";
+            var maxWidth = 190;
+            var lines = wrapBubbleText(ctx, String(text).slice(0, 60), maxWidth);
+            var lineHeight = 18;
+            var width = 30;
+            lines.forEach(function (line) {
+                width = Math.max(width, ctx.measureText(line).width + 18);
+            });
+            width = Math.min(maxWidth + 18, width);
+            var height = lines.length * lineHeight + 12;
+            var bx = vClamp(cx - width / 2, 6, STAGE_W - width - 6);
+            var by = cy - px * 0.72 - height - 10;
+            if (by < 6) {
+                by = cy + px * 0.58 + 10;
+            }
+            by = vClamp(by, 6, STAGE_H - height - 6);
+
+            ctx.fillStyle = "#ffffff";
+            ctx.strokeStyle = "#cbd6ea";
+            ctx.lineWidth = 1.5;
+            roundRect(ctx, bx, by, width, height, 10);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#26364e";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "top";
+            lines.forEach(function (line, index) {
+                ctx.fillText(line, bx + 9, by + 8 + index * lineHeight);
+            });
+            ctx.restore();
+        }
+
+        function wrapBubbleText(ctx, text, maxWidth) {
+            var lines = [];
+            var paragraphs = text.split(/\n/);
+            paragraphs.forEach(function (paragraph) {
+                var line = "";
+                var chars = Array.from(paragraph);
+                for (var index = 0; index < chars.length; index += 1) {
+                    var next = line + chars[index];
+                    if (line && ctx.measureText(next).width > maxWidth) {
+                        lines.push(line);
+                        line = chars[index];
+                    } else {
+                        line = next;
+                    }
+                }
+                lines.push(line);
+            });
+            return lines.slice(0, 5);
+        }
+
+        /* ================= 舞台播放器 ================= */
+
+        function createPlayer(canvas, options) {
+            var opts = options || {};
+            var onState = typeof opts.onState === "function" ? opts.onState : function () {};
+            var ctx = canvas.getContext("2d");
+            var project = null;
+            var interpreter = null;
+            var running = false;
+            var raf = 0;
+            var selectionId = "";
+
+            function setupCanvas() {
+                var dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                canvas.width = Math.round(STAGE_W * dpr);
+                canvas.height = Math.round(STAGE_H * dpr);
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            setupCanvas();
+
+            function emit(extra) {
+                var payload = {
+                    running: running,
+                    budget: false,
+                    idle: false,
+                    spawned: 0,
+                    reason: ""
+                };
+                if (extra) {
+                    Object.keys(extra).forEach(function (key) {
+                        payload[key] = extra[key];
+                    });
+                }
+                onState(payload);
+            }
+
+            function drawStatic() {
+                if (!project) {
+                    return;
+                }
+                drawScene(ctx, project, null, selectionId);
+            }
+
+            function ensureLoop() {
+                if (!running || !interpreter) {
+                    return;
+                }
+                if (!raf) {
+                    raf = window.requestAnimationFrame(frame);
+                }
+            }
+
+            function frame() {
+                raf = 0;
+                if (!running || !interpreter) {
+                    return;
+                }
+                var result = interpreter.step(window.performance && window.performance.now ? window.performance.now() : Date.now());
+                drawScene(ctx, project, interpreter.states, "");
+                if (result.budgetHit) {
+                    running = false;
+                    interpreter = null;
+                    emit({ running: false, budget: true });
+                    return;
+                }
+                if (!result.active) {
+                    emit({ running: true, idle: true });
+                    return;
+                }
+                raf = window.requestAnimationFrame(frame);
+            }
+
+            function halt() {
+                if (raf) {
+                    window.cancelAnimationFrame(raf);
+                    raf = 0;
+                }
+                running = false;
+                interpreter = null;
+            }
+
+            function preview(nextProject, nextSelection) {
+                if (running) {
+                    return;
+                }
+                if (nextProject) {
+                    project = nextProject;
+                }
+                selectionId = nextSelection || "";
+                drawStatic();
+            }
+
+            function start(nextProject) {
+                halt();
+                if (nextProject) {
+                    project = nextProject;
+                }
+                if (!project || !Array.isArray(project.sprites) || !project.sprites.length) {
+                    emit({ running: false, reason: "empty-project" });
+                    return { ok: false, reason: "empty-project" };
+                }
+                interpreter = createInterpreter(project, {
+                    frameBudget: VIRATCH_BUDGET.frameSteps,
+                    totalBudget: VIRATCH_BUDGET.totalSteps,
+                    loopBudget: VIRATCH_BUDGET.loopIterations
+                });
+                interpreter.reset();
+                var spawned = interpreter.spawnScripts("flag", null);
+                var interactive = interpreter.hasEvent("click") || interpreter.hasEvent("key");
+                if (!spawned && !interactive) {
+                    interpreter = null;
+                    drawStatic();
+                    emit({ running: false, reason: "no-script" });
+                    return { ok: false, reason: "no-script" };
+                }
+                running = true;
+                selectionId = "";
+                drawScene(ctx, project, interpreter.states, "");
+                if (spawned) {
+                    ensureLoop();
+                    emit({ running: true, spawned: spawned });
+                } else {
+                    emit({ running: true, spawned: 0, idle: true });
+                }
+                return { ok: true, spawned: spawned };
+            }
+
+            function stop(silent) {
+                halt();
+                if (project) {
+                    drawStatic();
+                }
+                if (!silent) {
+                    emit({ running: false, reason: "stop" });
+                }
+            }
+
+            function isRunning() {
+                return running;
+            }
+
+            function pointFromEvent(clientX, clientY) {
+                var rect = canvas.getBoundingClientRect();
+                if (!rect.width || !rect.height) {
+                    return null;
+                }
+                var x = ((clientX - rect.left) / rect.width) * STAGE_W;
+                var y = ((clientY - rect.top) / rect.height) * STAGE_H;
+                if (!Number.isFinite(x) || !Number.isFinite(y)) {
+                    return null;
+                }
+                if (x < 0 || y < 0 || x > STAGE_W || y > STAGE_H) {
+                    return null;
+                }
+                return { x: x, y: y };
+            }
+
+            function hitTest(x, y) {
+                if (!project) {
+                    return "";
+                }
+                var sprites = Array.isArray(project.sprites) ? project.sprites : [];
+                for (var index = sprites.length - 1; index >= 0; index -= 1) {
+                    var sprite = sprites[index];
+                    if (!sprite || typeof sprite !== "object") {
+                        continue;
+                    }
+                    var state = (running && interpreter ? interpreter.states.get(sprite.id) : null) || baseState(sprite);
+                    var size = vClamp(vNumber(state.size, 100), 10, 300);
+                    var px = 54 * (size / 100);
+                    var cx = STAGE_W / 2 + vClamp(vNumber(state.x, 0), -100000, 100000);
+                    var cy = STAGE_H / 2 - vClamp(vNumber(state.y, 0), -100000, 100000);
+                    var radius = Math.max(14, px * 0.55);
+                    if (Math.abs(x - cx) <= radius && Math.abs(y - cy) <= radius) {
+                        return sprite.id;
+                    }
+                }
+                return "";
+            }
+
+            function clickStage(x, y) {
+                if (!running || !interpreter) {
+                    return 0;
+                }
+                var id = hitTest(x, y);
+                if (!id) {
+                    return 0;
+                }
+                var spawned = interpreter.spawnScripts("click", { spriteId: id });
+                if (spawned) {
+                    ensureLoop();
+                }
+                return spawned;
+            }
+
+            function triggerKey(rawKey) {
+                if (!running || !interpreter) {
+                    return 0;
+                }
+                var key = normalizeKeyName(rawKey);
+                if (!key) {
+                    return 0;
+                }
+                var spawned = interpreter.spawnScripts("key", { key: key });
+                if (spawned) {
+                    ensureLoop();
+                }
+                return spawned;
+            }
+
+            return {
+                preview: preview,
+                start: start,
+                stop: stop,
+                isRunning: isRunning,
+                pointFromEvent: pointFromEvent,
+                hitTest: hitTest,
+                clickStage: clickStage,
+                triggerKey: triggerKey,
+                getProject: function () { return project; }
+            };
+        }
+
+        /* ================= 页面状态 ================= */
+
+        var home = { q: "", sort: "new", mode: "all", requestId: 0 };
+        var editor = {
+            id: "",
+            item: null,
+            sprites: [],
+            selectedId: "",
+            blockTarget: 0,
+            player: null,
+            saving: false
+        };
+        var detailState = { id: "", item: null, engine: "xr", player: null };
+        var pendingImportFile = null;
+        var confirmResolve = null;
+        var localSpriteSeq = 0;
+
+        function localSpriteId() {
+            localSpriteSeq += 1;
+            return "spr_" + Date.now().toString(36) + localSpriteSeq.toString(36) + Math.random().toString(36).slice(2, 5);
+        }
+
+        function showView(name) {
+            ["home", "editor", "detail"].forEach(function (key) {
+                var node = $("view-" + key);
+                if (node) {
+                    node.hidden = key !== name;
+                }
+            });
+            document.body.dataset.view = name;
+            window.scrollTo(0, 0);
+        }
+
+        function paintSessionChip() {
+            var chip = $("session-chip");
+            var note = $("home-login-note");
+            var logged = isLoggedIn();
+            if (chip) {
+                if (logged) {
+                    chip.innerHTML = '<span class="chip user">👤 ' + esc(window.VTXApi.currentLogin ? window.VTXApi.currentLogin() : "已登录") + "</span>";
+                } else {
+                    chip.innerHTML = '<a class="chip login" href="login.html?next=viratch.html">登录</a>';
+                }
+            }
+            if (note) {
+                if (logged) {
+                    note.textContent = "已登录 " + (window.VTXApi.currentLogin ? window.VTXApi.currentLogin() : "") + "：可以创作、保存、导入和点赞。";
+                } else {
+                    note.innerHTML = '还没有登录？<a href="login.html?next=viratch.html">登录 Viratch</a> 后才能保存作品、导入 .sb3 和点赞。';
+                }
+            }
+        }
+
+        function paintBudgetNote() {
+            var note = $("step-budget-note");
+            if (note) {
+                note.textContent = "单帧 " + VIRATCH_BUDGET.frameSteps + " 步、一次运行累计 " + VIRATCH_BUDGET.totalSteps + " 步";
+            }
+        }
+
+        /* ================= 首页 ================= */
+
+        function setTabs() {
+            Array.prototype.forEach.call(document.querySelectorAll("[data-sort]"), function (button) {
+                var active = home.mode === "all" && button.dataset.sort === home.sort;
+                button.classList.toggle("active", active);
+                button.setAttribute("aria-selected", active ? "true" : "false");
+            });
+            Array.prototype.forEach.call(document.querySelectorAll("[data-mode]"), function (button) {
+                var active = home.mode === "mine";
+                button.classList.toggle("active", active);
+                button.setAttribute("aria-selected", active ? "true" : "false");
+            });
+            var mine = home.mode === "mine";
+            $("home-heading").textContent = home.q ? "搜索结果" : mine ? "我的作品" : home.sort === "hot" ? "热门作品" : "最新作品";
+            $("home-sub").textContent = home.q
+                ? "关于「" + home.q + "」的作品"
+                : mine
+                    ? "你保存过的作品（含草稿），只有自己能看到草稿"
+                    : home.sort === "hot"
+                        ? "按浏览量和点赞数排序。"
+                        : "来看看大家最近做了什么。";
+        }
+
+        function coverHtml(item) {
+            var icon = String(item && item.icon ? item.icon : "").trim();
+            if (/^https?:\/\//i.test(icon)) {
+                return '<img class="cover-img" src="' + esc(icon) + '" alt="" loading="lazy" referrerpolicy="no-referrer">';
+            }
+            return '<span class="cover-emoji">' + esc(icon || "🐱") + "</span>";
+        }
+
+        function projectCard(item) {
+            var engine = item.extra && item.extra.engine === "sb3" ? "sb3" : "xr";
+            var hue = hashText(item.id) % 360;
+            var draft = item.mine && item.published === false;
+            var description = item.description ? '<span class="card-desc">' + esc(item.description) + "</span>" : "";
+            return '<a class="project-card" href="viratch.html?id=' + encodeURIComponent(item.id) + '">'
+                + '<span class="card-cover" style="--a:hsl(' + hue + ' 85% 92%);--b:hsl(' + ((hue + 55) % 360) + ' 80% 87%)">'
+                + coverHtml(item)
+                + '<span class="tag engine">' + (engine === "sb3" ? "Scratch 3 文件" : "站内作品") + "</span>"
+                + (draft ? '<span class="tag draft">草稿</span>' : "")
+                + '<span class="card-run">▶</span>'
+                + "</span>"
+                + '<span class="card-body">'
+                + '<span class="card-title">' + esc(item.title || "未命名作品") + "</span>"
+                + description
+                + '<span class="card-meta">'
+                + "<span>👤 " + esc(item.ownerName || item.owner || "匿名") + "</span>"
+                + "<span>👁 " + fmtInt(item.views) + "</span>"
+                + "<span>👍 " + fmtInt(item.likes) + "</span>"
+                + "</span>"
+                + '<span class="card-foot">' + esc(timeAgo(item.at) || item.time || "") + "</span>"
+                + "</span>"
+                + "</a>";
+        }
+
+        function updateEmptyCopy() {
+            var mine = home.mode === "mine";
+            $("empty-title").textContent = home.q ? "没有找到匹配的作品" : mine ? "你还没有发布作品" : "还没有作品";
+            $("empty-text").textContent = home.q
+                ? "换个关键词试试，或者自己做一个。"
+                : mine
+                    ? "去创作器做一个，或者导入 .sb3 作品。"
+                    : "成为第一个在 Viratch 发布作品的人吧。";
+        }
+
+        function showHomeError(message) {
+            $("home-loading").hidden = true;
+            $("home-empty").hidden = true;
+            $("home-grid").hidden = true;
+            $("home-error").hidden = false;
+            $("home-error-text").textContent = message;
+            $("home-count").textContent = "";
+        }
+
+        function loadHome() {
+            if (!window.VTXApi || !window.VTXApi.social) {
+                showHomeError("页面依赖的 vtx-api.js 没有加载成功，请刷新重试。");
+                return;
+            }
+            var requestId = home.requestId + 1;
+            home.requestId = requestId;
+            $("home-loading").hidden = false;
+            $("home-empty").hidden = true;
+            $("home-error").hidden = true;
+            $("home-grid").hidden = false;
+            $("home-grid").innerHTML = "";
+            $("home-count").textContent = "正在读取作品…";
+
+            var options = { limit: 60 };
+            if (home.q) {
+                options.q = home.q;
+            }
+            if (home.sort === "hot") {
+                options.sort = "hot";
+            }
+            if (home.mode === "mine") {
+                options.owner = window.VTXApi.currentLogin();
+            }
+
+            window.VTXApi.social.list(KIND, options).then(function (data) {
+                if (requestId !== home.requestId) {
+                    return;
+                }
+                var items = data && Array.isArray(data.items) ? data.items : [];
+                var grid = $("home-grid");
+                grid.innerHTML = items.map(projectCard).join("");
+                grid.hidden = items.length === 0;
+                $("home-empty").hidden = items.length > 0;
+                updateEmptyCopy();
+                if (items.length) {
+                    var hasMore = Boolean(data && data.hasMore);
+                    var label = home.q
+                        ? "搜索「" + home.q + "」找到 " + items.length + " 个作品"
+                        : home.mode === "mine"
+                            ? "我的作品：" + items.length + " 个"
+                            : (home.sort === "hot" ? "热门作品：" : "最新作品：") + items.length + " 个";
+                    if (hasMore) {
+                        label += "（只显示最新的 60 个，可搜索更多）";
+                    }
+                    $("home-count").textContent = label;
+                } else {
+                    $("home-count").textContent = "";
+                }
+            }).catch(function (error) {
+                if (requestId !== home.requestId) {
+                    return;
+                }
+                showHomeError("读取作品失败：" + errorText(error));
+            }).then(function () {
+                if (requestId !== home.requestId) {
+                    return;
+                }
+                $("home-loading").hidden = true;
+            });
+        }
+
+        function onHomeSearch(event) {
+            event.preventDefault();
+            home.q = $("home-search-input").value.trim();
+            home.mode = "all";
+            $("home-search-clear").hidden = !home.q;
+            setTabs();
+            loadHome();
+        }
+
+        /* ================= 弹窗 ================= */
+
+        function openModal(node) {
+            if (!node) {
+                return;
+            }
+            node.hidden = false;
+            var focusable = node.querySelector("input, textarea, select, button");
+            if (focusable) {
+                window.setTimeout(function () {
+                    focusable.focus();
+                }, 30);
+            }
+        }
+
+        function closeModal(node) {
+            if (node) {
+                node.hidden = true;
+            }
+        }
+
+        function confirmAction(options) {
+            var opts = options || {};
+            return new Promise(function (resolve) {
+                $("confirm-title").textContent = opts.title || "确认操作";
+                $("confirm-text").textContent = opts.text || "";
+                $("confirm-ok").textContent = opts.okText || "确认";
+                openModal($("confirm-modal"));
+                confirmResolve = function (value) {
+                    $("confirm-modal").hidden = true;
+                    confirmResolve = null;
+                    resolve(Boolean(value));
+                };
+            });
+        }
+
+        /* ================= 导入 .sb3 ================= */
+
+        function chooseImportFile() {
+            if (!requireLogin("请先登录后再导入 .sb3 作品")) {
+                return;
+            }
+            var input = $("import-input");
+            input.value = "";
+            input.click();
+        }
+
+        function onImportFileChange(event) {
+            var file = event.target.files && event.target.files[0];
+            if (!file) {
+                return;
+            }
+            if (!/\.sb3$/i.test(file.name)) {
+                toast("只支持 .sb3 作品文件（Scratch 3 项目）", "error");
+                return;
+            }
+            if (file.size > MAX_SB3_BYTES) {
+                toast("文件超过 24 MB，无法上传", "error");
+                return;
+            }
+            pendingImportFile = file;
+            $("import-file-name").textContent = file.name + "（" + fileSize(file.size) + "）";
+            $("import-title-input").value = file.name.replace(/\.sb3$/i, "").slice(0, 80);
+            $("import-desc").value = "";
+            $("import-instructions").value = "";
+            openModal($("import-modal"));
+        }
+
+        function closeImportModal() {
+            closeModal($("import-modal"));
+        }
+
+        function confirmImport() {
+            if (!pendingImportFile) {
+                toast("请先选择一个 .sb3 文件", "error");
+                return;
+            }
+            if (!requireLogin("请先登录后再导入 .sb3 作品")) {
+                return;
+            }
+            var title = $("import-title-input").value.trim();
+            if (!title) {
+                toast("请填写作品标题", "error");
+                $("import-title-input").focus();
+                return;
+            }
+            var description = $("import-desc").value.trim().slice(0, 500);
+            var instructions = $("import-instructions").value.trim().slice(0, 300);
+            var button = $("import-confirm");
+            var file = pendingImportFile;
+            button.disabled = true;
+            button.textContent = "上传中…";
+            var createdId = "";
+            var uploaded = false;
+
+            window.VTXApi.social.create(KIND, {
+                title: title,
+                description: description,
+                instructions: instructions,
+                engine: "sb3",
+                icon: "📦"
+            }).then(function (created) {
+                createdId = created && created.item ? created.item.id : "";
+                if (!createdId) {
+                    throw new Error("服务端没有返回作品 ID");
+                }
+                return window.VTXApi.social.upload(KIND, createdId, file);
+            }).then(function () {
+                uploaded = true;
+                return window.VTXApi.social.publish(KIND, createdId);
+            }).then(function () {
+                pendingImportFile = null;
+                button.disabled = false;
+                button.textContent = "上传并发布";
+                closeImportModal();
+                toast("导入成功，正在打开作品…", "success");
+                window.setTimeout(function () {
+                    window.location.href = new URL("viratch.html?id=" + encodeURIComponent(createdId), window.location.href).href;
+                }, 500);
+            }).catch(function (error) {
+                var message = errorText(error);
+                button.disabled = false;
+                button.textContent = "上传并发布";
+                if (!createdId) {
+                    toast("导入失败：" + message, "error");
+                    return;
+                }
+                if (uploaded) {
+                    // 文件已经传上去了，只是发布失败：保留草稿，作者可以在详情页重新发布。
+                    pendingImportFile = null;
+                    closeImportModal();
+                    toast("文件已上传，但发布失败：" + message + "，可在详情页重新发布", "error");
+                    window.setTimeout(function () {
+                        window.location.href = new URL("viratch.html?id=" + encodeURIComponent(createdId), window.location.href).href;
+                    }, 1200);
+                    return;
+                }
+                // 草稿建好了但文件没传成功：把空草稿清掉，避免作品列表里留下垃圾。
+                window.VTXApi.social.remove(KIND, createdId).catch(function () {}).then(function () {
+                    toast("导入失败：" + message, "error");
+                });
+            });
+        }
+
+        /* ================= 创作器 ================= */
+
+        function defaultProject() {
+            return {
+                v: 1,
+                width: STAGE_W,
+                height: STAGE_H,
+                background: "#ffffff",
+                sprites: [{
+                    id: localSpriteId(),
+                    name: "小猫",
+                    emoji: "🐱",
+                    x: 0,
+                    y: 0,
+                    size: 100,
+                    direction: 90,
+                    costume: 0,
+                    scripts: [{
+                        event: "flag",
+                        key: "",
+                        blocks: [
+                            { op: "say", a: 2, b: 0, text: "你好，我是 Viratch！" },
+                            { op: "move", a: 60, b: 0, text: "" },
+                            { op: "turn", a: 15, b: 0, text: "" }
+                        ]
+                    }]
+                }]
+            };
+        }
+
+        function prepareProject(raw) {
+            var base = raw && typeof raw === "object" && Array.isArray(raw.sprites) ? raw : null;
+            var source = base ? base.sprites : defaultProject().sprites;
+            var sprites = [];
+            source.slice(0, MAX_SPRITES).forEach(function (sprite, index) {
+                if (!sprite || typeof sprite !== "object") {
+                    return;
+                }
+                var id = String(sprite.id || localSpriteId()).slice(0, 40);
+                if (sprites.some(function (item) { return item.id === id; })) {
+                    id = id + "_" + index;
+                }
+                sprites.push({
+                    id: id,
+                    name: String(sprite.name || ("角色 " + (index + 1))).slice(0, 24),
+                    emoji: normalizeCostume(sprite.emoji) || "🐱",
+                    x: vClamp(vNumber(sprite.x, 0), -999, 999),
+                    y: vClamp(vNumber(sprite.y, 0), -999, 999),
+                    size: vClamp(vNumber(sprite.size, 100), 10, 300),
+                    direction: vClamp(vNumber(sprite.direction, 90), -3600, 3600),
+                    costume: Math.max(0, Math.floor(vNumber(sprite.costume, 0))),
+                    scripts: (Array.isArray(sprite.scripts) ? sprite.scripts : []).slice(0, MAX_SCRIPTS).map(function (script) {
+                        return {
+                            event: script && KNOWN_EVENTS.indexOf(script.event) >= 0 ? script.event : "flag",
+                            key: String(script && script.key ? script.key : "").slice(0, 8),
+                            blocks: (script && Array.isArray(script.blocks) ? script.blocks : []).slice(0, MAX_BLOCKS).map(function (block) {
+                                return {
+                                    op: String(block && block.op ? block.op : "").slice(0, 20),
+                                    a: vNumber(block && block.a, 0),
+                                    b: vNumber(block && block.b, 0),
+                                    text: String(block && block.text ? block.text : "").slice(0, 60)
+                                };
+                            })
+                        };
+                    })
+                });
+            });
+            if (!sprites.length) {
+                sprites = defaultProject().sprites;
+            }
+            return {
+                v: 1,
+                width: STAGE_W,
+                height: STAGE_H,
+                background: safeHex(base ? base.background : "#ffffff"),
+                sprites: sprites
+            };
+        }
+
+        function buildProject() {
+            var background = $("editor-bg") ? safeHex($("editor-bg").value) : "#ffffff";
+            return {
+                v: 1,
+                width: STAGE_W,
+                height: STAGE_H,
+                background: background,
+                sprites: editor.sprites.map(function (sprite) {
+                    return {
+                        id: sprite.id,
+                        name: String(sprite.name || "角色").slice(0, 24),
+                        emoji: String(sprite.emoji || "🐱").slice(0, 8),
+                        x: vNumber(sprite.x, 0),
+                        y: vNumber(sprite.y, 0),
+                        size: vClamp(vNumber(sprite.size, 100), 10, 300),
+                        direction: vNumber(sprite.direction, 90),
+                        costume: Math.max(0, Math.floor(vNumber(sprite.costume, 0))),
+                        scripts: sprite.scripts.map(function (script) {
+                            return {
+                                event: KNOWN_EVENTS.indexOf(script.event) >= 0 ? script.event : "flag",
+                                key: String(script.key || "").slice(0, 8),
+                                blocks: script.blocks.map(function (block) {
+                                    return {
+                                        op: String(block.op || "").slice(0, 20),
+                                        a: vNumber(block.a, 0),
+                                        b: vNumber(block.b, 0),
+                                        text: String(block.text || "").slice(0, 60)
+                                    };
+                                })
+                            };
+                        })
+                    };
+                })
+            };
+        }
+
+        function selectedSprite() {
+            var found = editor.sprites.filter(function (sprite) {
+                return sprite.id === editor.selectedId;
+            })[0];
+            return found || editor.sprites[0] || null;
+        }
+
+        function blockLabel(op) {
+            return BLOCK_LABELS[op] || ("未知积木（" + (op || "?") + "）");
+        }
+
+        function eventLabel(script) {
+            if (!script) {
+                return "";
+            }
+            if (script.event === "click") {
+                return "当角色被点击";
+            }
+            if (script.event === "key") {
+                return "当按下 " + (script.key || "?");
+            }
+            return "当 🏳 被点击";
+        }
+
+        function blockDepths(blocks) {
+            var depth = 0;
+            return blocks.map(function (block) {
+                if (block.op === "end") {
+                    depth = Math.max(0, depth - 1);
+                    return depth;
+                }
+                var current = depth;
+                if (block.op === "repeat" || block.op === "forever") {
+                    depth += 1;
+                }
+                return current;
+            });
+        }
+
+        function countOpenLoops(blocks) {
+            var depth = 0;
+            blocks.forEach(function (block) {
+                if (block.op === "repeat" || block.op === "forever") {
+                    depth += 1;
+                } else if (block.op === "end" && depth > 0) {
+                    depth -= 1;
+                }
+            });
+            return depth;
+        }
+
+        function matchingEnd(blocks, openIndex) {
+            var depth = 0;
+            for (var index = openIndex; index < blocks.length; index += 1) {
+                var op = blocks[index] && blocks[index].op;
+                if (op === "repeat" || op === "forever") {
+                    depth += 1;
+                } else if (op === "end") {
+                    depth -= 1;
+                    if (depth === 0) {
+                        return index;
+                    }
+                }
+            }
+            return -1;
+        }
+
+        function stopEditingRun() {
+            if (editor.player && editor.player.isRunning()) {
+                editor.player.stop();
+            }
+        }
+
+        function refreshEditorPreview() {
+            if (!editor.player) {
+                return;
+            }
+            editor.player.preview(buildProject(), editor.selectedId);
+        }
+
+        function afterEdit(options) {
+            var opts = options || {};
+            stopEditingRun();
+            refreshEditorPreview();
+            if (opts.sprites) {
+                renderSprites();
+            }
+            if (opts.props) {
+                renderProps();
+            }
+            if (opts.scripts) {
+                renderScripts();
+            }
+        }
+
+        function renderSprites() {
+            var box = $("editor-sprites");
+            if (!box) {
+                return;
+            }
+            box.innerHTML = "";
+            editor.sprites.forEach(function (sprite) {
+                var button = document.createElement("button");
+                button.type = "button";
+                button.className = "sprite-item" + (sprite.id === editor.selectedId ? " active" : "");
+                var glyph = document.createElement("span");
+                glyph.className = "sprite-glyph";
+                glyph.textContent = spriteGlyph(sprite, sprite.costume);
+                var name = document.createElement("span");
+                name.className = "sprite-name";
+                name.textContent = sprite.name;
+                var meta = document.createElement("span");
+                meta.className = "sprite-meta";
+                meta.textContent = "x " + Math.round(vNumber(sprite.x, 0)) + " · y " + Math.round(vNumber(sprite.y, 0));
+                button.appendChild(glyph);
+                button.appendChild(name);
+                button.appendChild(meta);
+                button.addEventListener("click", function () {
+                    selectSprite(sprite.id);
+                });
+                box.appendChild(button);
+            });
+            $("sprite-count").textContent = editor.sprites.length + " / " + MAX_SPRITES;
+        }
+
+        function selectSprite(id) {
+            if (!editor.sprites.some(function (sprite) { return sprite.id === id; })) {
+                return;
+            }
+            editor.selectedId = id;
+            editor.blockTarget = 0;
+            renderSprites();
+            renderProps();
+            renderScripts();
+            if (editor.player && !editor.player.isRunning()) {
+                refreshEditorPreview();
+            }
+        }
+
+        function renderProps() {
+            var box = $("sprite-props");
+            if (!box) {
+                return;
+            }
+            box.innerHTML = "";
+            var sprite = selectedSprite();
+            if (!sprite) {
+                return;
+            }
+
+            var nameField = document.createElement("label");
+            nameField.className = "field";
+            nameField.textContent = "名称";
+            var nameInput = document.createElement("input");
+            nameInput.type = "text";
+            nameInput.maxLength = 24;
+            nameInput.value = sprite.name;
+            nameInput.addEventListener("change", function () {
+                var value = nameInput.value.trim().slice(0, 24);
+                if (!value) {
+                    toast("角色名称不能为空", "error");
+                    nameInput.value = sprite.name;
+                    return;
+                }
+                sprite.name = value;
+                nameInput.value = value;
+                renderSprites();
+                renderScripts();
+            });
+            nameField.appendChild(nameInput);
+            box.appendChild(nameField);
+
+            var costumeField = document.createElement("label");
+            costumeField.className = "field";
+            costumeField.textContent = "造型 emoji（多个用空格分隔）";
+            var costumeInput = document.createElement("input");
+            costumeInput.type = "text";
+            costumeInput.maxLength = 12;
+            costumeInput.value = sprite.emoji;
+            costumeInput.title = "多个造型用空格分隔，最多 3 个，总长度不超过 8 个字符";
+            costumeInput.addEventListener("change", function () {
+                var value = normalizeCostume(costumeInput.value);
+                if (!value) {
+                    toast("造型不合法：最多 3 个 emoji（空格分隔），总长度不超过 8 个字符", "error");
+                    costumeInput.value = sprite.emoji;
+                    return;
+                }
+                sprite.emoji = value;
+                costumeInput.value = value;
+                renderSprites();
+                stopEditingRun();
+                refreshEditorPreview();
+            });
+            costumeField.appendChild(costumeInput);
+            box.appendChild(costumeField);
+
+            var grid = document.createElement("div");
+            grid.className = "props-grid";
+
+            var numberField = function (labelText, value, min, max, apply) {
+                var label = document.createElement("label");
+                label.className = "field";
+                label.textContent = labelText;
+                var input = document.createElement("input");
+                input.type = "number";
+                input.value = String(Math.round(value));
+                input.min = String(min);
+                input.max = String(max);
+                input.step = "1";
+                input.addEventListener("input", function () {
+                    var number = Number(input.value);
+                    if (!Number.isFinite(number)) {
+                        return;
+                    }
+                    apply(number);
+                    stopEditingRun();
+                    refreshEditorPreview();
+                });
+                input.addEventListener("change", function () {
+                    var number = vClamp(vNumber(input.value, value), min, max);
+                    input.value = String(number);
+                    apply(number);
+                    stopEditingRun();
+                    refreshEditorPreview();
+                    renderSprites();
+                });
+                label.appendChild(input);
+                grid.appendChild(label);
+            };
+
+            numberField("x（-240 ~ 240）", sprite.x, -999, 999, function (value) { sprite.x = value; });
+            numberField("y（-180 ~ 180）", sprite.y, -999, 999, function (value) { sprite.y = value; });
+            numberField("方向（90 = 向右）", sprite.direction, -360, 360, function (value) { sprite.direction = value; });
+            numberField("大小 %（10 ~ 300）", sprite.size, 10, 300, function (value) { sprite.size = value; });
+            box.appendChild(grid);
+
+            var tokens = costumeTokens(sprite.emoji);
+            var costumeNote = document.createElement("p");
+            costumeNote.className = "hint compact";
+            costumeNote.textContent = "造型 " + ((Math.max(0, Math.floor(sprite.costume)) % tokens.length) + 1) + " / " + tokens.length
+                + "：" + tokens.join(" ") + "（运行时「下一个造型」会切换）";
+            box.appendChild(costumeNote);
+
+            var remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "btn small danger";
+            remove.textContent = "🗑 删除这个角色";
+            remove.disabled = editor.sprites.length <= 1;
+            remove.addEventListener("click", function () {
+                if (editor.sprites.length <= 1) {
+                    toast("至少保留一个角色", "error");
+                    return;
+                }
+                var index = editor.sprites.findIndex(function (item) { return item.id === sprite.id; });
+                if (index < 0) {
+                    return;
+                }
+                editor.sprites.splice(index, 1);
+                editor.selectedId = editor.sprites[0].id;
+                editor.blockTarget = 0;
+                afterEdit({ sprites: true, props: true, scripts: true });
+                toast("已删除角色「" + sprite.name + "」");
+            });
+            box.appendChild(remove);
+        }
+
+        function renderBlockTarget() {
+            var select = $("block-target");
+            if (!select) {
+                return;
+            }
+            select.innerHTML = "";
+            var sprite = selectedSprite();
+            if (!sprite || !sprite.scripts.length) {
+                var option = document.createElement("option");
+                option.value = "";
+                option.textContent = "先新建脚本";
+                select.appendChild(option);
+                select.disabled = true;
+                return;
+            }
+            select.disabled = false;
+            sprite.scripts.forEach(function (script, index) {
+                var item = document.createElement("option");
+                item.value = String(index);
+                item.textContent = "脚本 " + (index + 1) + "：" + eventLabel(script);
+                select.appendChild(item);
+            });
+            if (!sprite.scripts[editor.blockTarget]) {
+                editor.blockTarget = sprite.scripts.length - 1;
+            }
+            select.value = String(editor.blockTarget);
+        }
+
+        function buildBlockRow(script, block, blockIndex, depth) {
+            var row = document.createElement("div");
+            row.className = "block-row";
+            row.dataset.op = block.op || "";
+            row.style.marginLeft = Math.min(180, (depth || 0) * 18) + "px";
+
+            var label = document.createElement("span");
+            label.className = "block-label";
+            label.textContent = blockLabel(block.op);
+            row.appendChild(label);
+
+            var mark = function () {
+                stopEditingRun();
+                refreshEditorPreview();
+            };
+
+            var addNumber = function (name, value, min, max, apply) {
+                var wrap = document.createElement("label");
+                wrap.className = "inline-field tiny-field";
+                wrap.textContent = name;
+                var input = document.createElement("input");
+                input.type = "number";
+                input.value = String(value);
+                input.min = String(min);
+                input.max = String(max);
+                input.addEventListener("input", function () {
+                    var number = Number(input.value);
+                    if (!Number.isFinite(number)) {
+                        return;
+                    }
+                    apply(number);
+                    mark();
+                });
+                input.addEventListener("change", function () {
+                    var number = vClamp(vNumber(input.value, value), min, max);
+                    input.value = String(number);
+                    apply(number);
+                    mark();
+                });
+                wrap.appendChild(input);
+                row.appendChild(wrap);
+            };
+
+            switch (block.op) {
+            case "move":
+                addNumber("步数", block.a, -2000, 2000, function (value) { block.a = value; });
+                break;
+            case "turn":
+                addNumber("角度", block.a, -360, 360, function (value) { block.a = value; });
+                break;
+            case "goto":
+                addNumber("x", block.a, -240, 240, function (value) { block.a = value; });
+                addNumber("y", block.b, -180, 180, function (value) { block.b = value; });
+                break;
+            case "say": {
+                var textInput = document.createElement("input");
+                textInput.type = "text";
+                textInput.className = "block-text";
+                textInput.maxLength = 60;
+                textInput.placeholder = "说的话";
+                textInput.value = block.text || "";
+                textInput.addEventListener("input", function () {
+                    block.text = textInput.value.slice(0, 60);
+                    mark();
+                });
+                row.appendChild(textInput);
+                addNumber("秒", block.a, 0, 60, function (value) { block.a = value; });
+                break;
+            }
+            case "wait":
+                addNumber("秒", block.a, 0, 60, function (value) { block.a = value; });
+                break;
+            case "repeat":
+                addNumber("次数", block.a, 0, 1000000, function (value) { block.a = value; });
+                break;
+            case "changesize":
+                addNumber("变化 %", block.a, -300, 300, function (value) { block.a = value; });
+                break;
+            case "changecolor":
+                addNumber("色相角度", block.a, -360, 360, function (value) { block.a = value; });
+                break;
+            case "forever": {
+                var foreverHint = document.createElement("span");
+                foreverHint.className = "block-hint";
+                foreverHint.textContent = "一直循环（记得点「停止」）";
+                row.appendChild(foreverHint);
+                break;
+            }
+            case "end": {
+                var endHint = document.createElement("span");
+                endHint.className = "block-hint";
+                endHint.textContent = "结束最近的循环";
+                row.appendChild(endHint);
+                break;
+            }
+            case "nextcostume": {
+                var costumeHint = document.createElement("span");
+                costumeHint.className = "block-hint";
+                costumeHint.textContent = "切换到下一个造型";
+                row.appendChild(costumeHint);
+                break;
+            }
+            default: {
+                var unknownHint = document.createElement("span");
+                unknownHint.className = "block-hint";
+                unknownHint.textContent = block.op || "未知积木";
+                row.appendChild(unknownHint);
+            }
+            }
+
+            var remove = makeButton("✕", "btn tiny danger block-remove", function () {
+                removeBlock(script, blockIndex);
+            });
+            remove.title = "删除这块积木";
+            row.appendChild(remove);
+            return row;
+        }
+
+        function removeBlock(script, index) {
+            var block = script.blocks[index];
+            if (!block) {
+                return;
+            }
+            if (block.op === "repeat" || block.op === "forever") {
+                var endIndex = matchingEnd(script.blocks, index);
+                if (endIndex >= 0) {
+                    script.blocks.splice(endIndex, 1);
+                }
+            }
+            script.blocks.splice(index, 1);
+            afterEdit({ scripts: true });
+        }
+
+        function buildScriptCard(sprite, script, index) {
+            var card = document.createElement("div");
+            card.className = "script-card";
+
+            var head = document.createElement("div");
+            head.className = "script-head";
+
+            var eventSelect = document.createElement("select");
+            [["flag", "🏳 当绿旗被点击"], ["click", "🖱 当角色被点击"], ["key", "⌨ 当按下按键"]].forEach(function (pair) {
+                var option = document.createElement("option");
+                option.value = pair[0];
+                option.textContent = pair[1];
+                eventSelect.appendChild(option);
+            });
+            eventSelect.value = script.event;
+            eventSelect.addEventListener("change", function () {
+                script.event = KNOWN_EVENTS.indexOf(eventSelect.value) >= 0 ? eventSelect.value : "flag";
+                afterEdit({ scripts: true });
+            });
+            head.appendChild(eventSelect);
+
+            var hint = document.createElement("span");
+            hint.className = "script-hint";
+            if (script.event === "key") {
+                var keyInput = document.createElement("input");
+                keyInput.type = "text";
+                keyInput.className = "key-input";
+                keyInput.maxLength = 8;
+                keyInput.placeholder = "按键，如 a / 空格 / ↑";
+                keyInput.value = script.key || "";
+                keyInput.addEventListener("change", function () {
+                    script.key = keyInput.value.trim().slice(0, 8);
+                    keyInput.value = script.key;
+                    afterEdit({ scripts: true });
+                });
+                head.appendChild(keyInput);
+                hint.textContent = "按下这个键时执行";
+            } else if (script.event === "click") {
+                hint.textContent = "运行后点击这个角色时执行";
+            } else {
+                hint.textContent = "点「运行」时执行";
+            }
+            head.appendChild(hint);
+
+            var remove = makeButton("删除脚本", "btn tiny danger", function () {
+                sprite.scripts.splice(index, 1);
+                editor.blockTarget = Math.max(0, Math.min(editor.blockTarget, sprite.scripts.length - 1));
+                afterEdit({ scripts: true });
+                toast("已删除脚本");
+            });
+            head.appendChild(remove);
+            card.appendChild(head);
+
+            var list = document.createElement("div");
+            list.className = "block-list";
+            if (!script.blocks.length) {
+                var empty = document.createElement("p");
+                empty.className = "block-empty";
+                empty.textContent = "还没有积木。在下面选一块积木，点「＋ 添加积木」。";
+                list.appendChild(empty);
+            } else {
+                var depths = blockDepths(script.blocks);
+                script.blocks.forEach(function (block, blockIndex) {
+                    list.appendChild(buildBlockRow(script, block, blockIndex, depths[blockIndex]));
+                });
+            }
+            card.appendChild(list);
+
+            var openLoops = countOpenLoops(script.blocks);
+            if (openLoops > 0) {
+                var warning = document.createElement("div");
+                warning.className = "script-warning";
+                var warningText = document.createElement("span");
+                warningText.textContent = "还有 " + openLoops + " 个循环没有「结束循环」，运行到脚本末尾会自动结束。";
+                warning.appendChild(warningText);
+                warning.appendChild(makeButton("补全结束标记", "btn tiny", function () {
+                    for (var count = 0; count < openLoops; count += 1) {
+                        script.blocks.push({ op: "end", a: 0, b: 0, text: "" });
+                    }
+                    afterEdit({ scripts: true });
+                }));
+                card.appendChild(warning);
+            }
+            return card;
+        }
+
+        function renderScripts() {
+            var box = $("scripts-list");
+            if (!box) {
+                return;
+            }
+            box.innerHTML = "";
+            var sprite = selectedSprite();
+            $("scripts-title").textContent = sprite ? "脚本 · " + sprite.name : "脚本";
+            if (!sprite) {
+                renderBlockTarget();
+                return;
+            }
+            if (!sprite.scripts.length) {
+                var empty = document.createElement("p");
+                empty.className = "block-empty";
+                empty.textContent = "这个角色还没有脚本。选好事件类型，点「＋ 新建脚本」开始。";
+                box.appendChild(empty);
+            }
+            sprite.scripts.forEach(function (script, index) {
+                box.appendChild(buildScriptCard(sprite, script, index));
+            });
+            $("new-script-btn").disabled = sprite.scripts.length >= MAX_SCRIPTS;
+            renderBlockTarget();
+        }
+
+        function renderBlockParams() {
+            var box = $("block-params");
+            if (!box) {
+                return;
+            }
+            box.innerHTML = "";
+            var op = $("block-op").value;
+
+            var addNumber = function (labelText, field, value, min, max) {
+                var wrap = document.createElement("label");
+                wrap.className = "inline-field tiny-field";
+                wrap.textContent = labelText;
+                var input = document.createElement("input");
+                input.type = "number";
+                input.dataset.field = field;
+                input.value = String(value);
+                input.min = String(min);
+                input.max = String(max);
+                wrap.appendChild(input);
+                box.appendChild(wrap);
+            };
+            var addText = function (labelText, value) {
+                var wrap = document.createElement("label");
+                wrap.className = "inline-field block-text-field";
+                wrap.textContent = labelText;
+                var input = document.createElement("input");
+                input.type = "text";
+                input.dataset.field = "text";
+                input.maxLength = 60;
+                input.value = value;
+                wrap.appendChild(input);
+                box.appendChild(wrap);
+            };
+            var addHint = function (text) {
+                var hint = document.createElement("span");
+                hint.className = "block-hint";
+                hint.textContent = text;
+                box.appendChild(hint);
+            };
+
+            switch (op) {
+            case "move":
+                addNumber("步数", "a", 10, -2000, 2000);
+                break;
+            case "turn":
+                addNumber("角度", "a", 15, -360, 360);
+                break;
+            case "goto":
+                addNumber("x", "a", 0, -240, 240);
+                addNumber("y", "b", 0, -180, 180);
+                break;
+            case "say":
+                addText("内容", "你好！");
+                addNumber("秒", "a", 2, 0, 60);
+                break;
+            case "wait":
+                addNumber("秒", "a", 1, 0, 60);
+                break;
+            case "repeat":
+                addNumber("次数", "a", 10, 0, 1000000);
+                break;
+            case "changesize":
+                addNumber("变化 %", "a", 10, -300, 300);
+                break;
+            case "changecolor":
+                addNumber("色相角度", "a", 30, -360, 360);
+                break;
+            case "forever":
+                addHint("循环会一直执行，需要点「停止」或触发步数上限。");
+                break;
+            case "nextcostume":
+                addHint("每执行一次切换到下一个造型。");
+                break;
+            case "end":
+                addHint("把最近的「重复 / 永远」闭合。");
+                break;
+            default:
+                break;
+            }
+        }
+
+        function addBlock() {
+            var sprite = selectedSprite();
+            if (!sprite) {
+                toast("先选择一个角色", "error");
+                return;
+            }
+            var script = sprite.scripts[Number($("block-target").value)];
+            if (!script) {
+                toast("先新建一条脚本，再添加积木", "error");
+                return;
+            }
+            if (script.blocks.length >= MAX_BLOCKS) {
+                toast("一条脚本最多 80 块积木，拆成多条脚本吧", "error");
+                return;
+            }
+            var op = $("block-op").value;
+            var block = { op: op, a: 0, b: 0, text: "" };
+            Array.prototype.forEach.call($("block-params").querySelectorAll("[data-field]"), function (input) {
+                var field = input.dataset.field;
+                if (field === "text") {
+                    block.text = String(input.value || "").slice(0, 60);
+                } else if (field === "a") {
+                    block.a = vNumber(input.value, 0);
+                } else if (field === "b") {
+                    block.b = vNumber(input.value, 0);
+                }
+            });
+            if (op === "say" && !block.text.trim()) {
+                toast("给「说」填一句台词吧", "error");
+                return;
+            }
+            script.blocks.push(block);
+            afterEdit({ scripts: true });
+            toast("已添加「" + blockLabel(op) + "」");
+        }
+
+        function addScript() {
+            var sprite = selectedSprite();
+            if (!sprite) {
+                toast("先选择一个角色", "error");
+                return;
+            }
+            if (sprite.scripts.length >= MAX_SCRIPTS) {
+                toast("一个角色最多 12 条脚本", "error");
+                return;
+            }
+            sprite.scripts.push({
+                event: $("new-script-event").value,
+                key: "",
+                blocks: []
+            });
+            editor.blockTarget = sprite.scripts.length - 1;
+            afterEdit({ scripts: true });
+            toast("已新建脚本");
+        }
+
+        function addSpriteFromForm(event) {
+            event.preventDefault();
+            if (editor.sprites.length >= MAX_SPRITES) {
+                toast("一个作品最多 20 个角色", "error");
+                return;
+            }
+            var emoji = normalizeCostume($("new-sprite-emoji").value);
+            if (!emoji) {
+                toast("角色 emoji 不合法：最多 3 个造型（空格分隔）且不超过 8 个字符", "error");
+                return;
+            }
+            var name = ($("new-sprite-name").value || "").trim().slice(0, 24) || ("角色 " + (editor.sprites.length + 1));
+            var sprite = {
+                id: localSpriteId(),
+                name: name,
+                emoji: emoji,
+                x: 0,
+                y: 0,
+                size: 100,
+                direction: 90,
+                costume: 0,
+                scripts: [{
+                    event: "flag",
+                    key: "",
+                    blocks: [{ op: "move", a: 40, b: 0, text: "" }]
+                }]
+            };
+            editor.sprites.push(sprite);
+            editor.selectedId = sprite.id;
+            editor.blockTarget = 0;
+            afterEdit({ sprites: true, props: true, scripts: true });
+            $("new-sprite-name").value = "";
+            toast("已添加角色「" + sprite.name + "」");
+        }
+
+        function updateEditorPlayerState(state) {
+            $("editor-run").disabled = false;
+            $("editor-stop").disabled = !state.running;
+            if (state.budget) {
+                $("editor-run-status").textContent = "步数超限，已自动停止";
+                toast("脚本步数超过上限，已自动停止（防止页面卡死）", "error");
+                return;
+            }
+            if (state.running) {
+                $("editor-run-status").textContent = state.idle ? "运行中（等待点击或按键）" : "运行中…";
+                return;
+            }
+            if (state.reason === "no-script") {
+                $("editor-run-status").textContent = "没有可运行的脚本";
+                toast("先给角色加一条「当绿旗被点击」或「当角色被点击 / 当按下按键」的脚本吧", "error");
+                return;
+            }
+            if (state.reason === "empty-project") {
+                $("editor-run-status").textContent = "舞台是空的";
+                return;
+            }
+            $("editor-run-status").textContent = "已停止";
+        }
+
+        function setSaveBusy(busy) {
+            $("editor-save-draft").disabled = busy;
+            $("editor-save-publish").disabled = busy;
+            $("editor-save-publish").textContent = busy ? "保存中…" : "保存并发布";
+            $("editor-save-draft").textContent = editor.id ? "保存修改" : "保存草稿";
+        }
+
+        function saveProject(publish) {
+            if (editor.saving) {
+                return;
+            }
+            if (!requireLogin("请先登录后再保存作品")) {
+                return;
+            }
+            var title = $("editor-title-input").value.trim();
+            if (!title) {
+                toast("请先填写作品标题", "error");
+                $("editor-title-input").focus();
+                return;
+            }
+            if (!editor.sprites.length) {
+                toast("至少需要一个角色", "error");
+                return;
+            }
+            var cover = normalizeCover($("editor-cover").value);
+            if (!cover) {
+                toast("封面 emoji 不合法（填一个 emoji，不超过 8 个字符）", "error");
+                return;
+            }
+            var description = $("editor-desc").value.trim().slice(0, 500);
+            var instructions = $("editor-instructions").value.trim().slice(0, 300);
+            var project = buildProject();
+            var bytes = 0;
+            try {
+                bytes = new TextEncoder().encode(JSON.stringify(project)).length;
+            } catch (error) {
+                bytes = 0;
+            }
+            if (bytes > MAX_PROJECT_BYTES) {
+                toast("作品数据超过 256 KB，请减少脚本或文字", "error");
+                return;
+            }
+
+            editor.saving = true;
+            setSaveBusy(true);
+            var targetId = editor.id;
+
+            var createOrUpdate = targetId
+                ? window.VTXApi.social.update(KIND, targetId, {
+                    title: title,
+                    description: description,
+                    icon: cover,
+                    extra: { instructions: instructions, project: project }
+                }).then(function () {
+                    return targetId;
+                })
+                : window.VTXApi.social.create(KIND, {
+                    title: title,
+                    description: description,
+                    icon: cover,
+                    engine: "xr",
+                    project: project,
+                    instructions: instructions
+                }).then(function (created) {
+                    if (!created || !created.item || !created.item.id) {
+                        throw new Error("服务端没有返回作品 ID");
+                    }
+                    return created.item.id;
+                });
+
+            createOrUpdate.then(function (id) {
+                editor.id = id;
+                if (!publish) {
+                    return { id: id, publishError: "" };
+                }
+                return window.VTXApi.social.publish(KIND, id).then(function () {
+                    return { id: id, publishError: "" };
+                }).catch(function (error) {
+                    return { id: id, publishError: errorText(error) };
+                });
+            }).then(function (result) {
+                editor.saving = false;
+                setSaveBusy(false);
+                if (result.publishError) {
+                    toast("作品已保存，但发布失败：" + result.publishError, "error");
+                } else {
+                    toast(publish ? "作品已发布！" : "作品已保存", "success");
+                }
+                window.setTimeout(function () {
+                    window.location.href = new URL("viratch.html?id=" + encodeURIComponent(result.id), window.location.href).href;
+                }, result.publishError ? 1400 : 420);
+            }).catch(function (error) {
+                editor.saving = false;
+                setSaveBusy(false);
+                toast("保存失败：" + errorText(error), "error");
+            });
+        }
+
+        function runEditorProject() {
+            if (!editor.player) {
+                return;
+            }
+            editor.player.start(buildProject());
+        }
+
+        function initEditor(item) {
+            var rawProject = item && item.extra ? item.extra.project : null;
+            var project = prepareProject(rawProject);
+            editor.item = item || null;
+            editor.id = item ? item.id : "";
+            editor.sprites = project.sprites;
+            editor.selectedId = project.sprites[0] ? project.sprites[0].id : "";
+            editor.blockTarget = 0;
+            editor.saving = false;
+
+            $("editor-title-input").value = item ? (item.title || "") : "";
+            var icon = item && item.icon ? String(item.icon).trim() : "";
+            $("editor-cover").value = icon && !/^https?:\/\//i.test(icon) ? icon.slice(0, 8) : (project.sprites[0] ? project.sprites[0].emoji.split(" ")[0] : "🐱");
+            $("editor-bg").value = safeHex(project.background);
+            $("editor-desc").value = item ? (item.description || "") : "";
+            $("editor-instructions").value = item && item.extra ? (item.extra.instructions || "") : "";
+            $("editor-run-status").textContent = "未运行";
+            $("editor-stop").disabled = true;
+
+            if (!editor.player) {
+                editor.player = createPlayer($("editor-canvas"), { onState: updateEditorPlayerState });
+            }
+            editor.player.preview(buildProject(), editor.selectedId);
+            renderSprites();
+            renderProps();
+            renderScripts();
+            renderBlockParams();
+            setSaveBusy(false);
+            paintBudgetNote();
+            document.title = item
+                ? "编辑《" + (item.title || "作品") + "》 · Viratch | Vitual XRing"
+                : "创作器 · Viratch | Vitual XRing";
+        }
+
+        function loadEditor(id) {
+            showView("editor");
+            $("editor-run-status").textContent = "正在读取作品…";
+            if (!window.VTXApi || !window.VTXApi.social) {
+                toast("页面依赖的 vtx-api.js 没有加载成功，请刷新重试。", "error");
+                return;
+            }
+            window.VTXApi.social.get(KIND, id).then(function (data) {
+                var item = data && data.item;
+                if (!item) {
+                    throw new Error("服务端没有返回作品数据");
+                }
+                if (!item.mine) {
+                    toast("只有作者本人可以编辑这个作品", "error");
+                    window.setTimeout(function () {
+                        window.location.href = new URL("viratch.html?id=" + encodeURIComponent(id), window.location.href).href;
+                    }, 900);
+                    return null;
+                }
+                if (item.extra && item.extra.engine === "sb3") {
+                    toast(".sb3 作品不能在站内创作器编辑，下载后用 Scratch 打开吧", "error");
+                    window.setTimeout(function () {
+                        window.location.href = new URL("viratch.html?id=" + encodeURIComponent(id), window.location.href).href;
+                    }, 1200);
+                    return null;
+                }
+                initEditor(item);
+                return null;
+            }).catch(function (error) {
+                toast("读取作品失败：" + errorText(error), "error");
+                window.setTimeout(function () {
+                    window.location.href = new URL("viratch.html", window.location.href).href;
+                }, 1200);
+            });
+        }
+
+        /* ================= 作品详情 ================= */
+
+        function sb3EmbedUrl(id) {
+            var fileUrl = window.VTXApi.social.fileUrl(id);
+            try {
+                var parsed = new URL(fileUrl);
+                // 不把当前登录 token 交给第三方站点：已发布的作品文件本身是公开的。
+                parsed.searchParams.delete("token");
+                fileUrl = parsed.href;
+            } catch (error) {
+                /* 保留 SDK 返回的原地址 */
+            }
+            return "https://turbowarp.org/embed?project_url=" + encodeURIComponent(fileUrl) + "&autostart=1";
+        }
+
+        function paintDetailMeta(item) {
+            var engine = item.extra && item.extra.engine === "sb3" ? "Scratch 3 文件" : "站内引擎";
+            var pills = [
+                '<span class="pill">👁 ' + fmtInt(item.views) + " 浏览</span>",
+                '<span class="pill">👍 ' + fmtInt(item.likes) + " 点赞</span>",
+                '<span class="pill engine">' + engine + "</span>"
+            ];
+            if (item.published === false) {
+                pills.push('<span class="pill draft">草稿（仅自己可见）</span>');
+            } else {
+                pills.push('<span class="pill ok">已发布</span>');
+            }
+            $("detail-meta-pills").innerHTML = pills.join("");
+        }
+
+        function renderDetailInfo(item) {
+            var engine = item.extra && item.extra.engine === "sb3" ? "Scratch 3（Turbowarp 运行）" : "站内 Viratch 解释器";
+            var rows = [["引擎", engine], ["作品 ID", item.id]];
+            if (item.file) {
+                rows.push(["文件", item.file.name + "（" + fileSize(item.file.size) + "）"]);
+            } else if (engine === "站内 Viratch 解释器") {
+                rows.push(["文件", "站内作品无需文件"]);
+            }
+            rows.push(["发布时间", item.time || "—"]);
+            rows.push(["浏览 / 点赞", fmtInt(item.views) + " / " + fmtInt(item.likes)]);
+            $("detail-info").innerHTML = rows.map(function (row) {
+                return "<dt>" + esc(row[0]) + "</dt><dd>" + esc(row[1]) + "</dd>";
+            }).join("");
+        }
+
+        function renderDetailActions(item) {
+            var box = $("detail-actions");
+            box.innerHTML = "";
+
+            var like = makeButton("👍 " + (item.liked ? "已点赞" : "点赞") + "（" + fmtInt(item.likes) + "）", "btn primary", function () {
+                if (!requireLogin("请先登录后再点赞")) {
+                    return;
+                }
+                like.disabled = true;
+                window.VTXApi.social.like(KIND, item.id).then(function (result) {
+                    item.liked = Boolean(result && result.liked);
+                    if (result && typeof result.likes === "number") {
+                        item.likes = result.likes;
+                    }
+                    like.textContent = "👍 " + (item.liked ? "已点赞" : "点赞") + "（" + fmtInt(item.likes) + "）";
+                    $("stat-likes").textContent = fmtInt(item.likes);
+                    paintDetailMeta(item);
+                    toast(item.liked ? "已点赞" : "已取消点赞", "success");
+                }).catch(function (error) {
+                    toast("点赞失败：" + errorText(error), "error");
+                }).then(function () {
+                    like.disabled = false;
+                });
+            });
+            box.appendChild(like);
+
+            box.appendChild(makeButton("🔗 复制链接", "btn", function () {
+                var url = new URL("viratch.html?id=" + encodeURIComponent(item.id), window.location.href).href;
+                if (window.XRSocial && typeof window.XRSocial.copyLink === "function") {
+                    window.XRSocial.copyLink(url);
+                    return;
+                }
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(url).then(function () {
+                        toast("链接已复制", "success");
+                    }).catch(function () {
+                        toast(url);
+                    });
+                    return;
+                }
+                toast(url);
+            }));
+
+            if (item.mine) {
+                if (item.published === false) {
+                    var publish = makeButton("📢 发布作品", "btn primary", function () {
+                        publish.disabled = true;
+                        window.VTXApi.social.publish(KIND, item.id).then(function () {
+                            item.published = true;
+                            paintDetailMeta(item);
+                            renderDetailActions(item);
+                            toast("作品已发布，所有人都能看到啦", "success");
+                        }).catch(function (error) {
+                            publish.disabled = false;
+                            toast("发布失败：" + errorText(error), "error");
+                        });
+                    });
+                    box.appendChild(publish);
+                }
+                if (!(item.extra && item.extra.engine === "sb3")) {
+                    var edit = document.createElement("a");
+                    edit.className = "btn";
+                    edit.textContent = "✏️ 在创作器里编辑";
+                    edit.href = "viratch.html?edit=" + encodeURIComponent(item.id);
+                    box.appendChild(edit);
+                }
+                box.appendChild(makeButton("🗑 删除作品", "btn danger", function () {
+                    confirmAction({
+                        title: "删除这个作品？",
+                        text: "《" + (item.title || "未命名作品") + "》删除后不能恢复，点赞和文件都会一起删除。",
+                        okText: "确认删除"
+                    }).then(function (ok) {
+                        if (!ok) {
+                            return null;
+                        }
+                        return window.VTXApi.social.remove(KIND, item.id).then(function () {
+                            toast("作品已删除", "success");
+                            window.setTimeout(function () {
+                                window.location.href = new URL("viratch.html", window.location.href).href;
+                            }, 500);
+                        });
+                    }).catch(function (error) {
+                        toast("删除失败：" + errorText(error), "error");
+                    });
+                }));
+            } else if (!isLoggedIn()) {
+                var login = document.createElement("a");
+                login.className = "btn ghost";
+                login.href = "login.html?next=viratch.html";
+                login.textContent = "登录后可以点赞 / 收藏";
+                box.appendChild(login);
+            }
+        }
+
+        function updateDetailPlayerState(state) {
+            $("detail-run").disabled = false;
+            $("detail-stop").disabled = !state.running;
+            if (state.budget) {
+                $("detail-run-status").textContent = "步数超限，已自动停止";
+                toast("脚本步数超过上限，已自动停止（防止页面卡死）", "error");
+                return;
+            }
+            if (state.running) {
+                $("detail-run-status").textContent = state.idle ? "运行中（等待点击或按键）" : "运行中…";
+                return;
+            }
+            if (state.reason === "no-script") {
+                $("detail-run-status").textContent = "没有可运行的脚本";
+                toast("这个作品还没有「当绿旗被点击」或可交互的脚本", "error");
+                return;
+            }
+            if (state.reason === "empty-project") {
+                $("detail-run-status").textContent = "作品数据为空";
+                return;
+            }
+            $("detail-run-status").textContent = "已停止";
+        }
+
+        function setupDetailPlayer(item, engine) {
+            var project = item.extra ? item.extra.project : null;
+            $("detail-xr").hidden = engine !== "xr";
+            $("detail-sb3").hidden = engine !== "sb3";
+            $("detail-run-tools").hidden = engine === "sb3";
+
+            if (engine === "xr") {
+                var runnable = project && Array.isArray(project.sprites) && project.sprites.length > 0;
+                detailState.player = createPlayer($("detail-canvas"), { onState: updateDetailPlayerState });
+                $("detail-run").disabled = !runnable;
+                $("detail-stop").disabled = true;
+                $("detail-run-status").textContent = runnable ? "已就绪" : "作品数据缺失";
+                if (runnable) {
+                    detailState.player.preview(project, "");
+                }
+                return;
+            }
+
+            detailState.player = null;
+            $("detail-run").disabled = true;
+            $("detail-stop").disabled = true;
+            var ready = Boolean(item.ready && item.file && item.file.name);
+            var frame = $("detail-sb3-frame");
+            var download = $("detail-download");
+            var note = $("detail-sb3-note");
+
+            if (ready) {
+                download.href = window.VTXApi.social.fileUrl(item.id, { download: true });
+                download.hidden = false;
+            } else {
+                download.hidden = true;
+            }
+
+            if (ready && item.published !== false) {
+                frame.hidden = false;
+                frame.src = sb3EmbedUrl(item.id);
+                note.textContent = "上方由 Turbowarp 在线运行，需要联网访问 turbowarp.org。如果加载不出来，可以下载 .sb3 后用 Scratch 打开。";
+            } else {
+                frame.hidden = true;
+                frame.removeAttribute("src");
+                note.textContent = ready
+                    ? "作品还没有发布，发布后其他人才能在线运行；现在可以先下载 .sb3 检查。"
+                    : "这个作品的文件还没有上传完成，暂时不能在线运行。";
+            }
+        }
+
+        function renderDetail(item) {
+            var engine = item.extra && item.extra.engine === "sb3" ? "sb3" : "xr";
+            detailState.item = item;
+            detailState.engine = engine;
+            $("detail-loading").hidden = true;
+            $("detail-error").hidden = true;
+            $("detail-content").hidden = false;
+            document.title = (item.title || "作品") + " · Viratch | Vitual XRing";
+
+            var author = item.ownerName || item.owner || "匿名";
+            $("detail-title").textContent = item.title || "未命名作品";
+            $("detail-author").textContent = author;
+            $("detail-avatar").textContent = firstChar(author);
+            $("author-avatar").textContent = firstChar(author);
+            $("author-name").textContent = author;
+            $("author-sub").textContent = item.time ? "发布于 " + item.time : "Viratch 创作者";
+            $("detail-time").textContent = timeAgo(item.at) || item.time || "";
+            $("stat-views").textContent = fmtInt(item.views);
+            $("stat-likes").textContent = fmtInt(item.likes);
+            $("detail-description").textContent = item.description || "作者还没有填写作品介绍。";
+            $("detail-instructions").textContent = (item.extra && item.extra.instructions) || "作者还没有填写玩法说明。";
+
+            paintDetailMeta(item);
+            renderDetailActions(item);
+            renderDetailInfo(item);
+            setupDetailPlayer(item, engine);
+        }
+
+        function loadDetail(id) {
+            detailState.id = id;
+            $("detail-loading").hidden = false;
+            $("detail-error").hidden = true;
+            $("detail-content").hidden = true;
+            if (detailState.player && detailState.player.isRunning()) {
+                detailState.player.stop(true);
+            }
+            detailState.player = null;
+            if (!window.VTXApi || !window.VTXApi.social) {
+                $("detail-loading").hidden = true;
+                $("detail-error").hidden = false;
+                $("detail-error-text").textContent = "页面依赖的 vtx-api.js 没有加载成功，请刷新重试。";
+                return;
+            }
+            window.VTXApi.social.get(KIND, id).then(function (data) {
+                if (!data || !data.item) {
+                    throw new Error("服务端没有返回作品数据");
+                }
+                renderDetail(data.item);
+            }).catch(function (error) {
+                $("detail-loading").hidden = true;
+                $("detail-error").hidden = false;
+                $("detail-content").hidden = true;
+                $("detail-error-text").textContent = error && error.status === 404
+                    ? "作品不存在，或者作者还没有发布它。"
+                    : "读取作品失败：" + errorText(error);
+                document.title = "作品不存在 · Viratch | Vitual XRing";
+            });
+        }
+
+        /* ================= 全局交互 ================= */
+
+        function onEditorCanvasClick(event) {
+            if (!editor.player) {
+                return;
+            }
+            var point = editor.player.pointFromEvent(event.clientX, event.clientY);
+            if (!point) {
+                return;
+            }
+            if (editor.player.isRunning()) {
+                editor.player.clickStage(point.x, point.y);
+                return;
+            }
+            var id = editor.player.hitTest(point.x, point.y);
+            if (id && id !== editor.selectedId) {
+                selectSprite(id);
+            }
+        }
+
+        function onDetailCanvasClick(event) {
+            if (!detailState.player) {
+                return;
+            }
+            var point = detailState.player.pointFromEvent(event.clientX, event.clientY);
+            if (!point) {
+                return;
+            }
+            detailState.player.clickStage(point.x, point.y);
+        }
+
+        function activePlayer() {
+            var detailView = $("view-detail");
+            if (detailView && !detailView.hidden) {
+                return detailState.player;
+            }
+            var editorView = $("view-editor");
+            if (editorView && !editorView.hidden) {
+                return editor.player;
+            }
+            return null;
+        }
+
+        function onGlobalKeyDown(event) {
+            if (!event || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) {
+                return;
+            }
+            var target = event.target;
+            if (target && (target.isContentEditable || /^(input|textarea|select|button|a)$/i.test(target.tagName || ""))) {
+                return;
+            }
+            var player = activePlayer();
+            if (!player || !player.isRunning()) {
+                return;
+            }
+            var spawned = player.triggerKey(event.key);
+            if (spawned) {
+                event.preventDefault();
+            }
+        }
+
+        function closeTopModal() {
+            if (confirmResolve) {
+                confirmResolve(false);
+                return true;
+            }
+            if (!$("import-modal").hidden) {
+                closeImportModal();
+                return true;
+            }
+            return false;
+        }
+
+        function bindGlobalEvents() {
+            Array.prototype.forEach.call(document.querySelectorAll("[data-import]"), function (button) {
+                button.addEventListener("click", chooseImportFile);
+            });
+
+            $("import-input").addEventListener("change", onImportFileChange);
+            $("import-cancel").addEventListener("click", closeImportModal);
+            $("import-confirm").addEventListener("click", confirmImport);
+            $("confirm-cancel").addEventListener("click", function () {
+                if (confirmResolve) {
+                    confirmResolve(false);
+                }
+            });
+            $("confirm-ok").addEventListener("click", function () {
+                if (confirmResolve) {
+                    confirmResolve(true);
+                }
+            });
+
+            Array.prototype.forEach.call(document.querySelectorAll(".modal"), function (modal) {
+                modal.addEventListener("click", function (event) {
+                    if (event.target !== modal) {
+                        return;
+                    }
+                    if (modal.id === "confirm-modal") {
+                        if (confirmResolve) {
+                            confirmResolve(false);
+                        }
+                        return;
+                    }
+                    closeModal(modal);
+                });
+            });
+
+            $("home-search-form").addEventListener("submit", onHomeSearch);
+            $("home-search-input").addEventListener("input", function () {
+                $("home-search-clear").hidden = !$("home-search-input").value;
+            });
+            $("home-search-clear").addEventListener("click", function () {
+                $("home-search-input").value = "";
+                home.q = "";
+                home.mode = "all";
+                $("home-search-clear").hidden = true;
+                setTabs();
+                loadHome();
+            });
+
+            Array.prototype.forEach.call(document.querySelectorAll("[data-sort]"), function (button) {
+                button.addEventListener("click", function () {
+                    home.sort = button.dataset.sort === "hot" ? "hot" : "new";
+                    home.mode = "all";
+                    home.q = "";
+                    $("home-search-input").value = "";
+                    $("home-search-clear").hidden = true;
+                    setTabs();
+                    loadHome();
+                });
+            });
+
+            Array.prototype.forEach.call(document.querySelectorAll("[data-mode]"), function (button) {
+                button.addEventListener("click", function () {
+                    if (!requireLogin("请先登录后查看「我的作品」")) {
+                        return;
+                    }
+                    home.mode = "mine";
+                    home.q = "";
+                    $("home-search-input").value = "";
+                    $("home-search-clear").hidden = true;
+                    setTabs();
+                    loadHome();
+                });
+            });
+
+            $("home-error-retry").addEventListener("click", loadHome);
+            $("detail-error-retry").addEventListener("click", function () {
+                if (detailState.id) {
+                    loadDetail(detailState.id);
+                }
+            });
+
+            $("editor-save-draft").addEventListener("click", function () {
+                saveProject(false);
+            });
+            $("editor-save-publish").addEventListener("click", function () {
+                saveProject(true);
+            });
+            $("editor-run").addEventListener("click", runEditorProject);
+            $("editor-stop").addEventListener("click", function () {
+                if (editor.player) {
+                    editor.player.stop();
+                }
+            });
+            $("sprite-add-form").addEventListener("submit", addSpriteFromForm);
+            $("new-script-btn").addEventListener("click", addScript);
+            $("block-op").addEventListener("change", renderBlockParams);
+            $("block-target").addEventListener("change", function () {
+                editor.blockTarget = Number($("block-target").value) || 0;
+            });
+            $("block-add").addEventListener("click", addBlock);
+            $("editor-bg").addEventListener("input", function () {
+                if (!editor.sprites.length) {
+                    return;
+                }
+                stopEditingRun();
+                refreshEditorPreview();
+            });
+
+            $("editor-canvas").addEventListener("click", onEditorCanvasClick);
+            $("detail-canvas").addEventListener("click", onDetailCanvasClick);
+            $("detail-run").addEventListener("click", function () {
+                if (!detailState.player || !detailState.item) {
+                    return;
+                }
+                var project = detailState.item.extra ? detailState.item.extra.project : null;
+                detailState.player.start(project);
+            });
+            $("detail-stop").addEventListener("click", function () {
+                if (detailState.player) {
+                    detailState.player.stop();
+                }
+            });
+
+            document.addEventListener("keydown", onGlobalKeyDown);
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape" || event.key === "Esc") {
+                    closeTopModal();
+                }
+            });
+        }
+
+        function init() {
+            paintSessionChip();
+            paintBudgetNote();
+            bindGlobalEvents();
+            setTabs();
+
+            if (!window.VTXApi || !window.VTXApi.social || !window.XRSocial) {
+                showView("home");
+                showHomeError("页面依赖的 vtx-api.js / xring-social.js 没有加载成功，请刷新重试。");
+                return;
+            }
+
+            var params = new URLSearchParams(window.location.search);
+            var id = String(params.get("id") || "").trim();
+            var editId = String(params.get("edit") || "").trim();
+            var create = params.get("create");
+
+            if (id) {
+                showView("detail");
+                loadDetail(id);
+                return;
+            }
+            if (editId) {
+                showView("editor");
+                loadEditor(editId);
+                return;
+            }
+            if (create === "" || create === "1") {
+                showView("editor");
+                initEditor(null);
+                return;
+            }
+            showView("home");
+            setTabs();
+            loadHome();
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", init, { once: true });
+        } else {
+            init();
+        }
+    })();
+    </script>
+</body>
+</html>

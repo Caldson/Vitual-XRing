@@ -658,6 +658,59 @@
             cursor: wait;
         }
 
+        .social-hub {
+            margin: 18px 0;
+            padding: 20px 22px;
+            border-radius: 18px;
+            background: #fff;
+            border: 1px solid #e6ecf7;
+            box-shadow: 0 6px 18px rgba(40, 80, 150, .05);
+        }
+
+        .social-hub h2 {
+            margin: 0 0 12px;
+            font-size: 17px;
+        }
+
+        .social-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .social-chip {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding: 11px 12px;
+            border: 1px solid #e2eaf7;
+            border-radius: 12px;
+            background: #f8fbff;
+            color: #2b3a52;
+            text-decoration: none;
+            transition: border-color .15s, transform .15s;
+        }
+
+        .social-chip:hover {
+            border-color: #b9c8f5;
+            transform: translateY(-1px);
+        }
+
+        .social-chip b {
+            font-size: 13.5px;
+        }
+
+        .social-chip span {
+            font-size: 11.5px;
+            color: #7b8aa6;
+        }
+
+        @media (max-width: 900px) {
+            .social-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
         @media (max-width: 520px) {
             .topbar {
                 padding: 14px 20px;
@@ -709,7 +762,7 @@
             <a class="topbar-link" href="API_VTXPAY.html?type=code">收款码</a>
             <a id="admin-button" class="admin-link" href="admin.html" hidden>管理员仓库修改器</a>
             <a id="accounts-admin-button" class="admin-link" href="accounts-admin.html" hidden>账号修改</a>
-            <span class="version">v2.1.0</span>
+            <span class="version">v3.1.0</span>
             <button id="logout-button" class="logout-button" type="button">退出登录</button>
         </div>
     </header>
@@ -727,6 +780,20 @@
             <div class="balance-footer">
                 <button id="checkin-button" class="checkin-button" type="button">每日签到 +5 VTX</button>
                 <span id="checkin-hint" class="checkin-hint"></span>
+            </div>
+        </section>
+
+        <section class="social-hub" aria-labelledby="social-hub-title">
+            <h2 id="social-hub-title">Vitual XRing 分享生态</h2>
+            <div class="social-grid">
+                <a class="social-chip" href="vimidi.html"><b>🎼 Vimidi</b><span>MIDI 分享与识曲</span></a>
+                <a class="social-chip" href="vmusic.html"><b>🎵 VMusic</b><span>在线音乐平台</span></a>
+                <a class="social-chip" href="viratch.html"><b>🐱 Viratch</b><span>Scratch 作品</span></a>
+                <a class="social-chip" href="audiv.html"><b>🎙️ AUDIV</b><span>语音会议</span></a>
+                <a class="social-chip" href="vistyle.html"><b>🎨 ViStyle</b><span>CSS 样式包</span></a>
+                <a class="social-chip" href="vclang.html"><b>💻 VClang</b><span>C++ 项目</span></a>
+                <a class="social-chip" href="vitx-dynamic.html"><b>📝 Vitx 动态</b><span>图文动态</span></a>
+                <a class="social-chip" href="share.html?create=1"><b>🔗 分享</b><span>自定义分享卡片</span></a>
             </div>
         </section>
 
@@ -868,8 +935,8 @@
 
     <footer>Vitual XRing · 账户余额以账户数据为准</footer>
 
-    <script src="vtx-api.js?v=2.1.0"></script>
-    <script src="vtx-geo.js?v=2.1.0"></script>
+    <script src="vtx-api.js?v=3.1.0"></script>
+    <script src="vtx-geo.js?v=3.1.0"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";

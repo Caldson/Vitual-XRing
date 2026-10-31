@@ -288,8 +288,32 @@
         });
     }
 
+    /* 3.1.0：分享生态的只读 / 创建卡片接口（上传与定价购买请用完整版 vtx-api.js） */
+    function socialRequest(path, options) {
+        return request(`/api/social${path}`, options);
+    }
+
+    const social = {
+        resolve: (url) => socialRequest(`/resolve?url=${encodeURIComponent(String(url || ""))}`),
+        list: (kind, options = {}) => {
+            const params = new URLSearchParams();
+            for (const key of ["q", "owner", "sort", "before", "limit"]) {
+                if (options[key] !== undefined && options[key] !== null && options[key] !== "") {
+                    params.set(key, String(options[key]));
+                }
+            }
+            const query = params.toString();
+            return socialRequest(`/kinds/${encodeURIComponent(String(kind || ""))}${query ? `?${query}` : ""}`);
+        },
+        get: (kind, id) => socialRequest(`/kinds/${encodeURIComponent(String(kind || ""))}/${encodeURIComponent(String(id || ""))}`),
+        share: (payload) => socialRequest("/shares", { method: "POST", body: payload || {} }),
+        shareGet: (id) => socialRequest(`/shares/${encodeURIComponent(String(id || ""))}`),
+        meeting: (no) => socialRequest(`/meetings/${encodeURIComponent(String(no || ""))}`)
+    };
+
     global.VTX = {
         configure,
+        social,
         login,
         register,
         setToken,

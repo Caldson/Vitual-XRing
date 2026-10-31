@@ -41,6 +41,16 @@ class_name = "AccountsLock"
 tag = "v2-accounts-lock"
 new_sqlite_classes = ["AccountsLock"]
 
+# 3.1.0：AUDIV 语音会议的 WebSocket 中转。每个会议号一个实例，
+# 只转发 WebRTC 信令和成员状态，不保存音视频。
+[[durable_objects.bindings]]
+name = "MEETINGS"
+class_name = "MeetingHub"
+
+[[migrations]]
+tag = "v3-meetings"
+new_sqlite_classes = ["MeetingHub"]
+
 [vars]
 REPO = "Caldson/Vitual-XRing"
 BRANCH = "main"
@@ -62,6 +72,8 @@ CHAT_ENABLED = "true"
 # 1.2.0：站点公开地址。Worker 从这里读取 shop.json 作为服务端定价依据；
 # 不填时用请求的 Origin（workers.dev 部署会自动回落到下面这个默认值）
 PUBLIC_BASE = "https://xsmmc.caldson.us.ci"
+# 3.1.0：分享生态的总开关（Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态）
+SOCIAL_ENABLED = "true"
 
 # 1.7.1：视频存储。1.7.2 起按这个顺序挑可用后端：
 #   1) 绑定了 R2（下面 [[r2_buckets]]）→ 文件存 R2，单文件 5 GB

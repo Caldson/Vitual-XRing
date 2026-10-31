@@ -39,6 +39,15 @@
  *   - 礼品兑换码：站主创建 VTX / 实物礼品码，用户通过 /api/me/redeem 兑换；
  *     兑换码单次使用，记录在 KV 的 gift:codes，余额写入复用 commitAccounts 写锁
  *
+ * 3.1.0：
+ *   - 分享生态：Vimidi（MIDI）、VMusic（音乐）、Viratch（Scratch 作品）、
+ *     AUDIV（语音会议）、ViStyle（CSS 样式包）、VClang（C++ 项目）、Vitx 动态；
+ *     统一 /api/social/*（见 social.js），聊天 / 私聊 / 视频评论 / 动态会把站内链接
+ *     自动识别成分享卡片（消息里保存快照）；
+ *   - 动态：支持图文、点赞、评论、转发；评论同样自动识别链接；
+ *   - AUDIV 使用 MeetingHub Durable Object 转发 WebRTC 信令（不保存音视频）；
+ *   - 样式包 / C++ 作品支持作者定价，购买记录写入账户 library（与余额同一次写锁）。
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -63,8 +72,10 @@
  */
 
 import { createUno, UNO_VERSION } from "./uno.js";
+import { MeetingHub } from "./meeting.js";
+import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 
-const VERSION = "2.1.0";
+const VERSION = "3.1.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -88,7 +99,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "2.1.0";
+const CHAT_VERSION = "3.1.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -504,9 +515,13 @@ function loginHistoryOf(account) {
     return history.slice(-LOGIN_HISTORY_LIMIT);
 }
 
-// 本人可见：额外带登录位置记录
+// 本人可见：额外带登录位置记录、已购买的分享作品
 function selfAccount(account) {
-    return { ...publicAccount(account), loginHistory: loginHistoryOf(account) };
+    return {
+        ...publicAccount(account),
+        loginHistory: loginHistoryOf(account),
+        library: Array.isArray(account && account.library) ? account.library : []
+    };
 }
 
 // 管理员可见：带收款码与当前密码（1.4.0 起解密 passwordSealed 返回，未配置密钥时为 null）
@@ -1517,6 +1532,29 @@ async function requireSession(request, env, cors) {
     }
 
     return { payload };
+}
+
+/* 3.1.0：分享接口的可选登录。文件播放 / 封面预览允许把 token 放在 ?token= 里，
+   跟聊天室媒体一样，方便 <audio> / <img> 这类不能自定义请求头的标签。 */
+async function optionalLogin(request, env) {
+    const header = request.headers.get("Authorization") || "";
+    let token = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
+    if (!token) {
+        try {
+            token = new URL(request.url).searchParams.get("token") || "";
+        } catch (error) {
+            token = "";
+        }
+    }
+    if (!token) {
+        return "";
+    }
+    try {
+        const payload = await verifyToken(token, env.SIGNING_SECRET);
+        return payload && payload.sub ? payload.sub : "";
+    } catch (error) {
+        return "";
+    }
 }
 
 async function handleAccounts(request, env, cors) {
@@ -3443,6 +3481,10 @@ function messagePreview(message) {
         const name = message.uno && message.uno.name ? ` ${message.uno.name}` : "";
         return `[UNO 邀请]${name}`;
     }
+    if (message.card) {
+        const label = message.card.site || "分享";
+        return `[${label}] ${message.card.title || ""}`.trim();
+    }
     return String(message.text || "");
 }
 
@@ -3482,6 +3524,7 @@ function messageView(message, options = {}) {
         type: message.type || "text",
         text,
         media: message.recalled ? null : (message.media || null),
+        card: message.recalled ? null : (message.card || null),
         replyTo: message.replyTo || null,
         mentions: Array.isArray(message.mentions) ? message.mentions : [],
         forwarded: Boolean(message.forwarded),
@@ -4075,6 +4118,12 @@ async function handleChatSend(request, env, cors, id, compatRoom = "") {
         return jsonResponse({ error: "text_too_long", message: "单条消息最多 256 KB，请分成几条发送" }, 413, cors);
     }
 
+    /* 3.1.0：消息里带站内链接时，服务端自动识别成分享卡片（聊天 / 私聊共用） */
+    let card = null;
+    if (text) {
+        card = await resolveTextCard(env, text, socialBase(env, new URL(request.url).origin));
+    }
+
     let media = null;
     if (type === "image" || type === "file") {
         const mediaId = String(body.mediaId || "").trim();
@@ -4135,6 +4184,7 @@ async function handleChatSend(request, env, cors, id, compatRoom = "") {
             type,
             text,
             media,
+            card,
             replyTo,
             mentions: validMentions,
             forwarded: false,
@@ -5150,6 +5200,7 @@ async function handleChatRecall(request, env, cors, messageId) {
             recalled: true,
             text: "",
             media: null,
+            card: null,
             mentions: [],
             replyTo: null,
             recalledAt: Date.now()
@@ -5233,6 +5284,7 @@ async function handleChatForward(request, env, cors, messageId) {
                 type: source.type === "system" || decorative ? "text" : source.type,
                 text: decorative ? messagePreview(source) : source.text,
                 media: decorative ? null : (source.media || null),
+                card: decorative ? null : (source.card || null),
                 uno: decorative ? null : (source.uno || null),
                 replyTo: null,
                 mentions: [],
@@ -5395,7 +5447,7 @@ async function handleChatSearch(request, env, cors) {
                 if (message.recalled || message.system) {
                     continue;
                 }
-                const haystack = `${message.text || ""} ${message.media && message.media.name ? message.media.name : ""}`.toLowerCase();
+                const haystack = `${message.text || ""} ${message.media && message.media.name ? message.media.name : ""} ${message.card ? `${message.card.title || ""} ${message.card.description || ""}` : ""}`.toLowerCase();
                 if (!haystack.includes(needle)) {
                     continue;
                 }
@@ -7676,7 +7728,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "2.1.0";
+const VIDEO_VERSION = "3.1.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -8216,6 +8268,7 @@ function videoCommentView(comment, login, isAdmin) {
         user: comment.user || "",
         userName: comment.userName || comment.user || "",
         text: comment.text || "",
+        card: comment.card || null,
         at: Number(comment.at) || 0,
         likes: (Number(comment.baseLikes) || 0) + likes.length,
         liked: Boolean(login && likes.includes(login)),
@@ -9653,11 +9706,14 @@ async function handleVideoComments(request, env, cors, id) {
     const accounts = await loadAccounts(env);
     const login = session.payload.sub;
     const list = await readVideoComments(env, id);
+    /* 3.1.0：评论区里的站内链接自动变成分享卡片 */
+    const card = await resolveTextCard(env, text, socialBase(env, new URL(request.url).origin));
     const comment = {
         id: `c_${randomCode(8).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 10)}`,
         user: login,
         userName: chatDisplayName(accounts, login),
         text,
+        card,
         at: Date.now(),
         likes: [],
         baseLikes: 0
@@ -10517,6 +10573,10 @@ export default {
                     uno: {
                         version: UNO_VERSION,
                         enabled: chatEnabled(env) && hasKv(env)
+                    },
+                    social: {
+                        version: SOCIAL_VERSION,
+                        enabled: hasKv(env)
                     }
                 }, 200, cors);
             }
@@ -10718,6 +10778,26 @@ export default {
                 }
             }
 
+            if (url.pathname === "/api/social" || url.pathname.startsWith("/api/social/")) {
+                return await routeSocial(request, env, cors, {
+                    jsonResponse,
+                    readJsonBody,
+                    plainObject,
+                    requireSession,
+                    optionalLogin: (req) => optionalLogin(req, env),
+                    isPlatformAdmin,
+                    checkPassword,
+                    commitAccounts,
+                    loadAccounts,
+                    displayName: async (login) => {
+                        const accounts = await loadAccounts(env);
+                        return chatDisplayName(accounts, login);
+                    },
+                    shanghaiTimestamp,
+                    clientIp
+                });
+            }
+
             if (url.pathname.startsWith("/api/videos")) {
                 return await routeVideos(request, env, cors);
             }
@@ -10750,3 +10830,6 @@ export default {
         }
     }
 };
+
+/* 3.1.0：AUDIV 会议 WebSocket 中转（Durable Object） */
+export { MeetingHub };

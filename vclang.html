@@ -1,0 +1,2202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f5f8fe">
+    <title>VClang · Vitual XRing C++ 项目分享</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --blue: #2f63d8;
+            --ink: #1b2a44;
+            --muted: #6b7d99;
+            --line: #dbe4f2;
+            --bg: #f5f8fe;
+            --good: #187a4d;
+            --warn: #a2660a;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 8% 0, #e4eeff 0, transparent 32%),
+                radial-gradient(circle at 94% 10%, #e7f6f1 0, transparent 26%),
+                var(--bg);
+            line-height: 1.6;
+        }
+
+        a {
+            color: var(--blue);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        button,
+        input,
+        textarea {
+            font: inherit;
+        }
+
+        code,
+        pre {
+            font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            border-bottom: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(10px);
+        }
+
+        .topbar-inner {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px 14px;
+            width: min(100%, 1120px);
+            margin: 0 auto;
+            padding: 11px 20px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: var(--ink);
+            font-weight: 800;
+        }
+
+        .brand:hover {
+            text-decoration: none;
+        }
+
+        .brand-mark {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #1f57c9, #5c8df2);
+            box-shadow: 0 6px 16px rgba(47, 99, 216, 0.22);
+            color: #fff;
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .brand-text small {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .version {
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #3158d1;
+            font-size: 11.5px;
+            font-weight: 800;
+        }
+
+        .topbar-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 14px;
+            margin-left: auto;
+            font-size: 13.5px;
+        }
+
+        .topbar-link {
+            color: #46566f;
+            font-weight: 650;
+        }
+
+        .topbar-link:hover {
+            color: var(--blue);
+        }
+
+        .auth {
+            color: var(--muted);
+            font-size: 12.5px;
+            font-weight: 650;
+        }
+
+        .auth a {
+            font-weight: 800;
+        }
+
+        .wrap {
+            width: min(100%, 1120px);
+            margin: 0 auto;
+            padding: 26px 20px 54px;
+        }
+
+        .hero {
+            padding: 26px 26px 24px;
+            border: 1px solid #dfe8f6;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #f4f8ff 58%, #eefaf5 100%);
+            box-shadow: 0 14px 40px rgba(35, 67, 130, 0.07);
+        }
+
+        .eyebrow {
+            margin: 0 0 6px;
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            margin: 0 0 8px;
+            font-size: clamp(23px, 3.4vw, 32px);
+            line-height: 1.28;
+            letter-spacing: -0.01em;
+        }
+
+        .hero-copy {
+            max-width: 820px;
+            margin: 0;
+            color: #5d708f;
+            font-size: 14px;
+            line-height: 1.75;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .search {
+            display: flex;
+            flex: 1 1 320px;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .search input {
+            flex: 1;
+            min-width: 0;
+            height: 42px;
+            padding: 0 13px;
+            border: 1px solid #d3deee;
+            border-radius: 10px;
+            background: #fff;
+            color: var(--ink);
+        }
+
+        .search input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(47, 99, 216, 0.12);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 40px;
+            padding: 8px 15px;
+            border: 1px solid #cfdcf0;
+            border-radius: 10px;
+            background: #fff;
+            color: #3158d1;
+            font-size: 13.5px;
+            font-weight: 750;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, transform 0.15s;
+        }
+
+        .btn:hover {
+            border-color: #b9cdf3;
+            background: #f2f7ff;
+            text-decoration: none;
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn.primary {
+            border-color: #2f63d8;
+            background: linear-gradient(135deg, #2f63d8, #4c82ef);
+            box-shadow: 0 6px 16px rgba(47, 99, 216, 0.22);
+            color: #fff;
+        }
+
+        .btn.primary:hover {
+            background: linear-gradient(135deg, #2858c5, #3f74e0);
+        }
+
+        .btn.ghost {
+            border-color: #dbe4f2;
+            background: transparent;
+            box-shadow: none;
+            color: #5d708f;
+        }
+
+        .btn.ghost:hover {
+            border-color: #c6d5ea;
+            background: #f5f8fe;
+        }
+
+        .btn.danger {
+            border-color: #e6b5ba;
+            background: #fff6f6;
+            color: #b23a43;
+        }
+
+        .btn.danger:hover {
+            border-color: #d99aa1;
+            background: #ffeded;
+        }
+
+        .btn.small {
+            min-height: 32px;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .btn.is-liked {
+            border-color: #b9cdf3;
+            background: #eef4ff;
+            color: #2f63d8;
+        }
+
+        .section-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 26px 2px 12px;
+        }
+
+        .section-head h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            min-height: 158px;
+            padding: 16px;
+            border: 1px solid #e0e8f4;
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 8px 24px rgba(35, 67, 130, 0.05);
+            color: var(--ink);
+            transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: #b9cdf3;
+            box-shadow: 0 14px 32px rgba(35, 67, 130, 0.1);
+            text-decoration: none;
+        }
+
+        .card-top {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border: 1px solid #dbe7ff;
+            border-radius: 999px;
+            background: #eef4ff;
+            color: #3158d1;
+            font-size: 11.5px;
+            font-weight: 750;
+        }
+
+        .chip.price {
+            border-color: #f1dfb4;
+            background: #fff6df;
+            color: #9a6200;
+        }
+
+        .chip.price.free {
+            border-color: #c8ead8;
+            background: #e9f8f0;
+            color: var(--good);
+        }
+
+        .card h3 {
+            margin: 2px 0 0;
+            font-size: 16px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .card-desc {
+            display: -webkit-box;
+            overflow: hidden;
+            margin: 0;
+            color: #5d708f;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+
+        .card-dev {
+            margin: 0;
+            color: #7b8aa6;
+            font-size: 11.5px;
+            overflow-wrap: anywhere;
+        }
+
+        .card-meta {
+            margin: auto 0 0;
+            color: #8494aa;
+            font-size: 12px;
+        }
+
+        .state {
+            padding: 34px 16px;
+            border: 1px dashed #cfdcef;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.65);
+            color: var(--muted);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .state p {
+            margin: 4px 0;
+        }
+
+        .state.error {
+            border-color: #f0c9cc;
+            background: #fff7f7;
+            color: #a5363f;
+        }
+
+        .state a {
+            font-weight: 750;
+        }
+
+        .panel {
+            margin-top: 22px;
+            padding: 22px;
+            border: 1px solid #dfe8f6;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 12px 32px rgba(35, 67, 130, 0.06);
+        }
+
+        .panel h2 {
+            margin: 0 0 4px;
+            font-size: 19px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            color: #40536f;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .field.wide {
+            grid-column: 1 / -1;
+        }
+
+        .field input,
+        .field textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d3deee;
+            border-radius: 10px;
+            background: #fbfdff;
+            color: var(--ink);
+            font-weight: 500;
+        }
+
+        .field input[type="file"] {
+            padding: 8px;
+            background: #f7faff;
+        }
+
+        .field input:focus,
+        .field textarea:focus {
+            outline: none;
+            border-color: var(--blue);
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(47, 99, 216, 0.12);
+        }
+
+        .field textarea {
+            min-height: 84px;
+            resize: vertical;
+        }
+
+        .hint {
+            margin: 10px 0 0;
+            color: #7b8aa6;
+            font-size: 12.5px;
+            line-height: 1.65;
+        }
+
+        .selected-files {
+            overflow: auto;
+            max-height: 180px;
+            margin: 8px 0 0;
+            padding-left: 20px;
+            color: #5d708f;
+            font-size: 12.5px;
+        }
+
+        .form-foot {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .form-foot .hint {
+            flex: 1 1 260px;
+            margin: 0;
+        }
+
+        .rules {
+            margin-top: 18px;
+            padding-top: 12px;
+            border-top: 1px solid #edf1f8;
+            color: #5d708f;
+            font-size: 13px;
+        }
+
+        .rules summary {
+            color: #40536f;
+            font-weight: 750;
+            cursor: pointer;
+        }
+
+        .rules ul {
+            margin: 8px 0 0;
+            padding-left: 20px;
+        }
+
+        .detail-top {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin: 2px 0 12px;
+        }
+
+        .back {
+            color: #5d708f;
+            font-size: 13.5px;
+            font-weight: 700;
+        }
+
+        .detail-top .row {
+            margin-left: auto;
+        }
+
+        .badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .detail-panel {
+            padding: 24px;
+            border: 1px solid #dfe8f6;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 14px 40px rgba(35, 67, 130, 0.06);
+        }
+
+        .detail-panel h1 {
+            margin: 4px 0 10px;
+            font-size: clamp(22px, 3.2vw, 30px);
+            line-height: 1.3;
+            overflow-wrap: anywhere;
+        }
+
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 16px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .meta-row span {
+            white-space: nowrap;
+        }
+
+        .desc {
+            margin: 14px 0 0;
+            color: #455a78;
+            font-size: 14px;
+            line-height: 1.75;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+        .price-box {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 10px;
+            margin-top: 16px;
+            padding: 12px 14px;
+            border: 1px solid #f1e3bd;
+            border-radius: 12px;
+            background: #fffcf3;
+        }
+
+        .price-box .price {
+            color: var(--warn);
+            font-size: 22px;
+            font-weight: 850;
+        }
+
+        .action-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .detail-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(250px, 0.65fr);
+            gap: 18px;
+            margin-top: 20px;
+        }
+
+        .detail-main h2,
+        .detail-side h2 {
+            margin: 0 0 10px;
+            font-size: 16px;
+        }
+
+        .buy-panel {
+            padding: 14px;
+            border: 1px solid #dbe4f2;
+            border-radius: 12px;
+            background: #f8fbff;
+        }
+
+        .buy-panel .field {
+            margin-bottom: 10px;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .delete-confirm {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border: 1px solid #f0c9cc;
+            border-radius: 10px;
+            background: #fff7f7;
+            color: #a5363f;
+            font-size: 13px;
+        }
+
+        .detail-side {
+            padding: 16px;
+            border: 1px solid #e3eaf5;
+            border-radius: 14px;
+            background: #fbfdff;
+        }
+
+        .file-tree {
+            font-size: 13px;
+        }
+
+        .tree-dir-label {
+            margin: 6px 0 2px;
+            color: #40536f;
+            font-size: 12.5px;
+            font-weight: 750;
+            overflow-wrap: anywhere;
+        }
+
+        .tree-children {
+            margin-left: 6px;
+            padding-left: 12px;
+            border-left: 1px dashed #dbe4f2;
+        }
+
+        .tree-file {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            width: 100%;
+            padding: 4px 5px;
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            color: #3158d1;
+            font-size: 12.5px;
+            text-align: left;
+            cursor: pointer;
+            overflow-wrap: anywhere;
+        }
+
+        .tree-file:hover {
+            background: #eef4ff;
+        }
+
+        .tree-file span:first-child {
+            overflow-wrap: anywhere;
+        }
+
+        .tree-size {
+            flex: 0 0 auto;
+            color: #8494aa;
+            font-size: 11.5px;
+        }
+
+        .source-section {
+            margin-top: 20px;
+            padding-top: 18px;
+            border-top: 1px solid #edf1f8;
+        }
+
+        .source-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .source-head h2 {
+            margin: 0;
+            font-size: 17px;
+        }
+
+        .code-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .file-block {
+            border: 1px solid #e3eaf5;
+            border-radius: 13px;
+            overflow: hidden;
+            background: #fbfdff;
+            scroll-margin-top: 76px;
+        }
+
+        .file-block.focus {
+            border-color: #7ea2ec;
+            box-shadow: 0 0 0 3px rgba(47, 99, 216, 0.12);
+        }
+
+        .file-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 9px 12px;
+            border-bottom: 1px solid #e3eaf5;
+            background: #f4f8ff;
+        }
+
+        .file-head h3 {
+            margin: 0;
+            color: #2d4b7a;
+            font-size: 13.5px;
+            overflow-wrap: anywhere;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .code-block {
+            overflow: auto;
+            max-height: 460px;
+            padding: 10px 0;
+            background: #0f1b2d;
+            color: #dbe7ff;
+            font-size: 12.5px;
+            line-height: 1.7;
+        }
+
+        .code-line {
+            display: flex;
+            min-width: max-content;
+        }
+
+        .line-no {
+            flex: 0 0 56px;
+            margin-right: 12px;
+            padding: 0 12px 0 8px;
+            border-right: 1px solid #233650;
+            color: #6f87a8;
+            font-size: 11.5px;
+            text-align: right;
+            user-select: none;
+        }
+
+        .line-code {
+            padding-right: 18px;
+            font-family: inherit;
+            white-space: pre;
+        }
+
+        .line-code .tok-keyword {
+            color: #82aaff;
+        }
+
+        .line-code .tok-string {
+            color: #c3e88d;
+        }
+
+        .line-code .tok-comment {
+            color: #7f93ad;
+            font-style: italic;
+        }
+
+        .line-code .tok-number {
+            color: #f78c6c;
+        }
+
+        .line-code .tok-pre {
+            color: #ffcb6b;
+        }
+
+        .file-note {
+            margin: 0;
+            padding: 8px 12px;
+            border-top: 1px solid #233650;
+            background: #14233a;
+            color: #9fb3cf;
+            font-size: 12px;
+        }
+
+        .notice {
+            margin-top: 18px;
+            padding: 12px 14px;
+            border: 1px solid #dbe7ff;
+            border-radius: 12px;
+            background: #f4f8ff;
+            color: #496180;
+            font-size: 12.5px;
+            line-height: 1.7;
+        }
+
+        .footer {
+            width: min(100%, 1120px);
+            margin: 0 auto;
+            padding: 0 20px 36px;
+            color: #8494aa;
+            font-size: 12.5px;
+            line-height: 1.8;
+        }
+
+        .footer p {
+            margin: 5px 0;
+        }
+
+        .footer a {
+            color: #5d708f;
+            font-weight: 650;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 28px;
+            z-index: 90;
+            max-width: min(92vw, 520px);
+            padding: 10px 16px;
+            border-radius: 11px;
+            background: rgba(25, 37, 56, 0.95);
+            box-shadow: 0 12px 30px rgba(15, 28, 48, 0.22);
+            color: #fff;
+            font-size: 13.5px;
+            line-height: 1.5;
+            opacity: 0;
+            transform: translate(-50%, 10px);
+            pointer-events: none;
+            transition: opacity 0.18s, transform 0.18s;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        .toast.error {
+            background: rgba(155, 43, 52, 0.96);
+        }
+
+        .toast.success {
+            background: rgba(22, 105, 69, 0.96);
+        }
+
+        @media (max-width: 720px) {
+            .topbar-actions {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .wrap {
+                padding: 18px 14px 44px;
+            }
+
+            .hero {
+                padding: 20px 17px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .detail-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .detail-panel {
+                padding: 18px 15px;
+            }
+
+            .footer {
+                padding: 0 14px 30px;
+            }
+
+            .card {
+                min-height: 0;
+            }
+
+            .line-no {
+                flex-basis: 44px;
+                margin-right: 9px;
+                padding-right: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="vclang.html">
+                <span class="brand-mark" aria-hidden="true">C++</span>
+                <span class="brand-text">VClang<small>Dev-C++ 项目分享</small></span>
+            </a>
+            <span class="version">v3.1.0</span>
+            <nav class="topbar-actions" aria-label="页面导航">
+                <a class="topbar-link" href="vclang.html">项目</a>
+                <a class="topbar-link" id="cpp-upload-btn" href="vclang.html#upload">上传项目</a>
+                <a class="topbar-link" href="vistyle.html">ViStyle</a>
+                <a class="topbar-link" href="manager.html">← 返回账户</a>
+                <span id="vclang-auth" class="auth"></span>
+            </nav>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <section id="vclang-home-view">
+            <div class="hero">
+                <p class="eyebrow">VClang · Dev-C++</p>
+                <h1>分享完整的 C++ 项目源码</h1>
+                <p class="hero-copy">
+                    VClang 用来分享 Dev-C++ 工程：一个 .dev 项目文件，加上 .cpp / .h 等源码文件。
+                    这里只做源码分享与文件管理，不在浏览器或服务器上编译、运行任何代码；请下载后在本地 Dev-C++ 打开工程。
+                </p>
+                <div class="hero-actions">
+                    <form id="vclang-search-form" class="search" role="search">
+                        <input id="vclang-search" type="search" placeholder="搜索项目标题、说明或作者…" maxlength="60" autocomplete="off" aria-label="搜索 C++ 项目">
+                        <button id="vclang-search-btn" class="btn primary" type="submit">搜索</button>
+                    </form>
+                    <a id="cpp-upload-cta" class="btn" href="vclang.html#upload">上传项目</a>
+                </div>
+            </div>
+
+            <div class="section-head">
+                <h2>全部项目</h2>
+                <p id="vclang-count" class="muted">正在统计…</p>
+            </div>
+            <div id="vclang-loading" class="state">正在加载项目…</div>
+            <div id="vclang-list" class="grid" aria-live="polite"></div>
+            <div id="vclang-empty" class="state" hidden>
+                <p id="vclang-empty-text">还没有上架的 C++ 项目。</p>
+                <p id="vclang-empty-hint" class="muted">成为第一个分享项目的人吧。</p>
+            </div>
+
+            <section id="vclang-upload" class="panel" hidden aria-labelledby="vclang-upload-heading">
+                <h2 id="vclang-upload-heading">上传 Dev-C++ 项目</h2>
+                <p class="muted">
+                    一次选中整个项目的文件（可多选）：必须包含一个 .dev 项目文件，以及至少一个 C++ 源文件。
+                    文件会按纯文本读取并上传到 VClang；创建草稿、保存文件、发布会自动完成。
+                </p>
+                <form id="cpp-create-form" novalidate>
+                    <div class="form-grid">
+                        <label class="field">
+                            <span>标题 *</span>
+                            <input id="cpp-title" maxlength="80" placeholder="例如：猜数字" autocomplete="off" required>
+                        </label>
+                        <label class="field">
+                            <span>价格（VTX）</span>
+                            <input id="cpp-price" type="number" min="0" max="20000" step="0.01" value="0" inputmode="decimal">
+                        </label>
+                        <label class="field">
+                            <span>编译器</span>
+                            <input id="cpp-compiler" maxlength="40" value="Dev-C++" placeholder="Dev-C++ / MinGW-w64 / MSVC" autocomplete="off">
+                        </label>
+                        <label class="field wide">
+                            <span>说明</span>
+                            <textarea id="cpp-description" maxlength="500" rows="3" placeholder="项目做什么、如何编译、依赖哪些库…"></textarea>
+                        </label>
+                        <label class="field wide">
+                            <span>项目文件 *（.dev、.cpp、.cc、.cxx、.c、.h、.hpp、.txt、.md）</span>
+                            <input id="cpp-files" type="file" multiple accept=".dev,.cpp,.cc,.cxx,.c,.h,.hpp,.txt,.md">
+                        </label>
+                    </div>
+                    <p id="cpp-file-summary" class="hint">还没有选择文件。</p>
+                    <ul id="cpp-file-list" class="selected-files"></ul>
+                    <div class="form-foot">
+                        <button id="cpp-submit" class="btn primary" type="submit">上传并发布</button>
+                        <button id="cpp-retry" class="btn" type="button" hidden>重试发布</button>
+                        <p id="cpp-create-status" class="hint" role="status"></p>
+                    </div>
+                </form>
+                <details class="rules">
+                    <summary>上传规则</summary>
+                    <ul>
+                        <li>必须包含 Dev-C++ 的 .dev 项目文件，内容里必须出现 <code>&lt;Project</code>。</li>
+                        <li>至少包含一个 .cpp / .cc / .cxx / .c / .h / .hpp 源文件。</li>
+                        <li>单文件不超过 400 KB，项目总计不超过 2 MB，最多 30 个文件；只接受纯文本文件。</li>
+                        <li>VClang 不编译、不运行代码，也不会执行 .dev 里的任何内容。</li>
+                    </ul>
+                </details>
+            </section>
+        </section>
+
+        <section id="vclang-detail-view" hidden>
+            <div id="vclang-detail-loading" class="state">正在加载项目…</div>
+            <div id="vclang-detail-error" class="state error" hidden>
+                <p id="vclang-detail-error-text">项目不存在或尚未发布。</p>
+                <a href="vclang.html">← 返回项目列表</a>
+            </div>
+
+            <article id="vclang-detail" class="detail-panel" hidden>
+                <div class="detail-top">
+                    <a class="back" href="vclang.html">← 返回项目列表</a>
+                    <div class="badges" id="vclang-detail-badges"></div>
+                    <div class="row">
+                        <button id="copy-link-btn" class="btn ghost" type="button">复制链接</button>
+                        <button id="delete-btn" class="btn danger" type="button" hidden>删除项目</button>
+                    </div>
+                </div>
+                <div id="delete-confirm" class="delete-confirm" hidden>
+                    <span>确定删除这个项目？删除后无法恢复。</span>
+                    <button id="delete-confirm-btn" class="btn danger" type="button">确认删除</button>
+                    <button id="delete-cancel-btn" class="btn ghost" type="button">取消</button>
+                </div>
+
+                <h1 id="vclang-detail-title">C++ 项目</h1>
+                <div class="meta-row">
+                    <span id="vclang-detail-author"></span>
+                    <span id="vclang-detail-compiler"></span>
+                    <span id="vclang-detail-dev"></span>
+                    <span id="vclang-detail-files"></span>
+                    <span id="vclang-detail-published"></span>
+                </div>
+                <p id="vclang-detail-description" class="desc"></p>
+
+                <div class="price-box">
+                    <span id="vclang-detail-price" class="price">—</span>
+                    <span id="vclang-detail-price-note" class="muted"></span>
+                </div>
+
+                <div class="action-row">
+                    <button id="like-btn" class="btn" type="button">👍 点赞 0</button>
+                </div>
+
+                <div class="detail-layout">
+                    <div class="detail-main">
+                        <h2>获取项目</h2>
+                        <div id="vclang-lock" class="buy-panel" hidden>
+                            <p id="vclang-lock-note" class="muted"></p>
+                            <label class="field">
+                                <span>账户密码</span>
+                                <input id="cpp-buy-password" type="password" autocomplete="current-password" maxlength="64" placeholder="购买时验证账户密码">
+                            </label>
+                            <div class="row">
+                                <button id="cpp-buy-confirm" class="btn primary" type="button">购买并查看源码</button>
+                                <a class="btn ghost" href="login.html?next=vclang.html">登录账户</a>
+                            </div>
+                            <p class="hint">密码只用于本次扣款验证，不会保存在这个页面。购买后会在详情页解锁全部文件内容。</p>
+                        </div>
+                        <div id="vclang-download-hint" class="hint" hidden>
+                            源码已解锁。请在右侧文件树或下方源码区选择文件，逐个下载；也可以“复制全部源码”。
+                        </div>
+                        <div class="notice">
+                            <strong>关于运行：</strong>VClang 只分享源码。页面不会编译、运行或执行服务器端代码；
+                            请把文件下载到本地，用 Dev-C++ 打开 .dev 工程并自行编译。
+                        </div>
+                    </div>
+
+                    <aside class="detail-side">
+                        <h2>文件树</h2>
+                        <div id="vclang-file-tree" class="file-tree"></div>
+                        <p id="vclang-tree-note" class="hint"></p>
+                    </aside>
+                </div>
+
+                <div id="vclang-source-loading" class="state" hidden>正在读取项目源码…</div>
+                <div id="vclang-source-error" class="state error" hidden>
+                    <p id="vclang-source-error-text"></p>
+                </div>
+
+                <section id="vclang-source" class="source-section" hidden>
+                    <div class="source-head">
+                        <h2>项目源码</h2>
+                        <button id="copy-all-btn" class="btn" type="button">复制全部源码</button>
+                    </div>
+                    <p id="vclang-source-note" class="hint">
+                        源码按纯文本显示并带行号；复制全部时会用注释行分隔每个文件。VClang 不会执行这些代码。
+                    </p>
+                    <div id="vclang-code" class="code-list"></div>
+                </section>
+            </article>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>
+            <a href="manager.html">← 返回账户</a> ·
+            <a href="vclang.html">项目列表</a> ·
+            <a href="vistyle.html">ViStyle</a>
+        </p>
+        <p>Vitual XRing 3.1.0 · <span class="version">v3.1.0</span> · VClang</p>
+        <p>VClang 只提供 C++ 源码分享，不在浏览器或服务器上编译、运行代码。</p>
+    </footer>
+
+    <div id="vclang-toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="vtx-api.js?v=3.1.0"></script>
+    <script src="xring-social.js?v=3.1.0"></script>
+    <script>
+        (function () {
+            "use strict";
+
+            var MAX_PRICE_VTX = 20000;
+            var MAX_FILE_BYTES = 400 * 1024;
+            var MAX_TOTAL_BYTES = 2 * 1024 * 1024;
+            var MAX_FILES = 30;
+            var MAX_RENDER_LINES = 800;
+            var MAX_RENDER_CHARS = 120000;
+            var MAX_TOTAL_RENDER_CHARS = 420000;
+            var ALLOWED_FILE = /\.(dev|cpp|cc|cxx|c|h|hpp|txt|md)$/i;
+            var SOURCE_FILE = /\.(cpp|cc|cxx|c|h|hpp)$/i;
+            var KEYWORDS = new Set((
+                "alignas alignof asm auto bool break case catch char char16_t char32_t class const constexpr const_cast continue "
+                + "decltype default delete do double dynamic_cast else enum explicit export extern false float for friend goto "
+                + "if inline int long mutable namespace new noexcept nullptr operator private protected public register "
+                + "reinterpret_cast return short signed sizeof static static_assert static_cast struct switch template this "
+                + "throw true try typedef typeid typename union unsigned using virtual void volatile wchar_t while"
+            ).split(" "));
+
+            var currentItem = null;
+            var renderedFiles = [];
+            var currentQuery = "";
+            var pending = null;
+            var homeLoaded = false;
+            var toastTimer = 0;
+
+            function $(id) {
+                return document.getElementById(id);
+            }
+
+            function show(node, visible) {
+                if (node) {
+                    node.hidden = !visible;
+                }
+            }
+
+            function setText(id, value) {
+                var node = $(id);
+                if (node) {
+                    node.textContent = String(value == null ? "" : value);
+                }
+            }
+
+            function errorMessage(error, fallback) {
+                var message = error && error.message ? String(error.message) : "";
+                return message || fallback;
+            }
+
+            function toast(message, tone) {
+                var node = $("vclang-toast");
+                if (!node) {
+                    return;
+                }
+                node.textContent = String(message == null ? "" : message);
+                node.className = "toast show" + (tone === "error" ? " error" : tone === "success" ? " success" : "");
+                clearTimeout(toastTimer);
+                toastTimer = window.setTimeout(function () {
+                    node.className = "toast";
+                }, 2800);
+            }
+
+            function socialApi() {
+                if (!window.VTXApi || !window.VTXApi.social) {
+                    throw new Error("页面脚本没有加载完成，请刷新后重试");
+                }
+                return window.VTXApi.social;
+            }
+
+            function renderAuth() {
+                var holder = $("vclang-auth");
+                if (!holder) {
+                    return;
+                }
+                holder.replaceChildren();
+                if (window.VTXApi && window.VTXApi.hasSession()) {
+                    holder.textContent = "已登录：" + (window.VTXApi.currentLogin() || "账户");
+                } else {
+                    var link = document.createElement("a");
+                    link.href = "login.html?next=vclang.html";
+                    link.textContent = "登录";
+                    holder.append(link);
+                }
+            }
+
+            function formatSize(bytes) {
+                var size = Number(bytes) || 0;
+                if (size < 1024) {
+                    return size + " B";
+                }
+                if (size < 1024 * 1024) {
+                    return (size / 1024).toFixed(1) + " KB";
+                }
+                return (size / 1024 / 1024).toFixed(1) + " MB";
+            }
+
+            function priceLabel(item) {
+                if (item && Number(item.priceCents) > 0) {
+                    return String(item.price || "0.00") + " VTX";
+                }
+                return "免费";
+            }
+
+            function buildCard(item) {
+                var card = document.createElement("a");
+                card.className = "card";
+                card.href = "vclang.html?id=" + encodeURIComponent(item.id);
+
+                var top = document.createElement("div");
+                top.className = "card-top";
+
+                var compiler = document.createElement("span");
+                compiler.className = "chip";
+                compiler.textContent = (item.extra && item.extra.compiler) || "Dev-C++";
+                top.append(compiler);
+
+                var price = document.createElement("span");
+                price.className = "chip price" + (Number(item.priceCents) > 0 ? "" : " free");
+                price.textContent = priceLabel(item);
+                top.append(price);
+
+                if (item.locked) {
+                    var locked = document.createElement("span");
+                    locked.className = "chip";
+                    locked.textContent = "需购买";
+                    top.append(locked);
+                }
+                if (item.purchased) {
+                    var bought = document.createElement("span");
+                    bought.className = "chip";
+                    bought.textContent = "已购买";
+                    top.append(bought);
+                }
+                if (item.mine) {
+                    var mine = document.createElement("span");
+                    mine.className = "chip";
+                    mine.textContent = "我的";
+                    top.append(mine);
+                }
+                if (!item.published) {
+                    var draft = document.createElement("span");
+                    draft.className = "chip";
+                    draft.textContent = "草稿";
+                    top.append(draft);
+                }
+
+                var title = document.createElement("h3");
+                title.textContent = item.title || "未命名项目";
+
+                var desc = document.createElement("p");
+                desc.className = "card-desc";
+                desc.textContent = item.description || "作者没有填写说明。";
+
+                var dev = document.createElement("p");
+                dev.className = "card-dev";
+                var devName = item.extra && item.extra.devFile ? item.extra.devFile : "—";
+                var fileCount = item.extra && Array.isArray(item.extra.files) ? item.extra.files.length : 0;
+                dev.textContent = "工程：" + devName + " · 文件 " + fileCount + " 个";
+
+                var meta = document.createElement("p");
+                meta.className = "card-meta";
+                meta.textContent = "作者：" + (item.ownerName || item.owner || "未知")
+                    + " · 浏览 " + (Number(item.views) || 0)
+                    + " · 点赞 " + (Number(item.likes) || 0);
+
+                card.append(top, title, desc, dev, meta);
+                return card;
+            }
+
+            function renderList(items) {
+                var list = $("vclang-list");
+                var empty = $("vclang-empty");
+                if (!list) {
+                    return;
+                }
+                list.replaceChildren();
+                if (!items.length) {
+                    setText("vclang-empty-text", currentQuery
+                        ? "没有找到与“" + currentQuery + "”相关的项目。"
+                        : "还没有上架的 C++ 项目。");
+                    show($("vclang-empty-hint"), true);
+                    show(empty, true);
+                    return;
+                }
+                show(empty, false);
+                var fragment = document.createDocumentFragment();
+                items.forEach(function (item) {
+                    fragment.append(buildCard(item));
+                });
+                list.append(fragment);
+            }
+
+            async function loadHome() {
+                var loading = $("vclang-loading");
+                var list = $("vclang-list");
+                show(loading, true);
+                show($("vclang-empty"), false);
+                if (list) {
+                    list.replaceChildren();
+                }
+                try {
+                    var data = await socialApi().list("cpp", { q: currentQuery, limit: 60 });
+                    var items = data && Array.isArray(data.items) ? data.items : [];
+                    renderList(items);
+                    setText("vclang-count", currentQuery
+                        ? "“" + currentQuery + "”找到 " + items.length + " 个项目"
+                        : "共 " + items.length + " 个项目" + (data && data.hasMore ? "（仅显示最新 60 个）" : ""));
+                    homeLoaded = true;
+                } catch (error) {
+                    setText("vclang-count", "加载失败");
+                    setText("vclang-empty-text", "项目加载失败，请稍后重试。");
+                    show($("vclang-empty-hint"), false);
+                    show($("vclang-empty"), true);
+                    toast(errorMessage(error, "项目加载失败"), "error");
+                } finally {
+                    show(loading, false);
+                }
+            }
+
+            function openUploadForm() {
+                var panel = $("vclang-upload");
+                show(panel, true);
+                if (panel && typeof panel.scrollIntoView === "function") {
+                    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+            }
+
+            function handleHash() {
+                if (location.hash !== "#upload") {
+                    return;
+                }
+                show($("vclang-home-view"), true);
+                show($("vclang-detail-view"), false);
+                openUploadForm();
+                if (!homeLoaded) {
+                    loadHome();
+                }
+            }
+
+            function readFileText(file) {
+                if (typeof file.text === "function") {
+                    return file.text();
+                }
+                return new Promise(function (resolve, reject) {
+                    var reader = new FileReader();
+                    reader.onload = function () {
+                        resolve(String(reader.result || ""));
+                    };
+                    reader.onerror = function () {
+                        reject(new Error("读取文件失败：" + file.name));
+                    };
+                    reader.readAsText(file, "utf-8");
+                });
+            }
+
+            function readMeta() {
+                var title = String($("cpp-title").value || "").trim();
+                var description = String($("cpp-description").value || "").trim();
+                var compiler = String($("cpp-compiler").value || "").trim() || "Dev-C++";
+                var rawPrice = String($("cpp-price").value || "").trim();
+                if (!title) {
+                    throw new Error("请填写标题");
+                }
+                if (title.length > 80) {
+                    throw new Error("标题最多 80 个字符");
+                }
+                if (description.length > 500) {
+                    throw new Error("说明最多 500 个字符");
+                }
+                if (compiler.length > 40) {
+                    throw new Error("编译器名称最多 40 个字符");
+                }
+                var price = rawPrice === "" ? 0 : Number(rawPrice);
+                if (!Number.isFinite(price) || price < 0 || price > MAX_PRICE_VTX) {
+                    throw new Error("价格需要在 0–20000 VTX 之间");
+                }
+                if (Math.abs(price * 100 - Math.round(price * 100)) > 0.000001) {
+                    throw new Error("价格最多保留两位小数");
+                }
+                return { title: title, description: description, price: price, compiler: compiler };
+            }
+
+            function renderSelectedFiles(fileList) {
+                var list = $("cpp-file-list");
+                var files = Array.prototype.slice.call(fileList || []);
+                if (list) {
+                    list.replaceChildren();
+                }
+                if (!files.length) {
+                    setText("cpp-file-summary", "还没有选择文件。");
+                    return;
+                }
+                var total = 0;
+                var hasDev = false;
+                var hasSource = false;
+                files.forEach(function (file) {
+                    total += Number(file.size) || 0;
+                    if (/\.dev$/i.test(file.name)) {
+                        hasDev = true;
+                    }
+                    if (SOURCE_FILE.test(file.name)) {
+                        hasSource = true;
+                    }
+                    if (list) {
+                        var item = document.createElement("li");
+                        item.textContent = file.name + "（" + formatSize(file.size) + "）";
+                        list.append(item);
+                    }
+                });
+                setText("cpp-file-summary", "已选择 " + files.length + " 个文件，合计 " + formatSize(total)
+                    + "；" + (hasDev ? "包含 .dev" : "缺少 .dev")
+                    + "，" + (hasSource ? "包含 C++ 源文件" : "缺少 C++ 源文件") + "。");
+            }
+
+            async function readProject(fileList) {
+                var files = Array.prototype.slice.call(fileList || []);
+                if (!files.length) {
+                    throw new Error("请选择项目文件");
+                }
+                if (files.length > MAX_FILES) {
+                    throw new Error("一次最多上传 " + MAX_FILES + " 个文件");
+                }
+                var names = new Set();
+                var total = 0;
+                var hasDev = false;
+                var hasSource = false;
+                var output = [];
+                for (var index = 0; index < files.length; index += 1) {
+                    var file = files[index];
+                    var name = String(file.name || "");
+                    if (!ALLOWED_FILE.test(name)) {
+                        throw new Error("不支持的文件类型：" + name);
+                    }
+                    if (name.indexOf("..") !== -1 || /[\u0000-\u001f]/.test(name)) {
+                        throw new Error("文件名不合法：" + name);
+                    }
+                    if (names.has(name)) {
+                        throw new Error("文件名重复：" + name);
+                    }
+                    names.add(name);
+                    if (Number(file.size) > MAX_FILE_BYTES) {
+                        throw new Error(name + " 超过 400 KB");
+                    }
+                    total += Number(file.size) || 0;
+                    if (total > MAX_TOTAL_BYTES) {
+                        throw new Error("项目总大小不能超过 2 MB");
+                    }
+                    var text = await readFileText(file);
+                    if (text.indexOf("\u0000") !== -1) {
+                        throw new Error(name + " 看起来不是纯文本文件");
+                    }
+                    if (/\.dev$/i.test(name)) {
+                        hasDev = true;
+                        if (!/<Project[\s>]/i.test(text)) {
+                            throw new Error(".dev 不是有效的 Dev-C++ 项目文件（缺少 <Project）");
+                        }
+                    }
+                    if (SOURCE_FILE.test(name)) {
+                        hasSource = true;
+                    }
+                    output.push({ name: name, text: text });
+                }
+                if (!hasDev) {
+                    throw new Error("必须包含 Dev-C++ 的 .dev 项目文件");
+                }
+                if (!hasSource) {
+                    throw new Error("项目里至少需要一个 C++ 源文件（.cpp / .h 等）");
+                }
+                return output;
+            }
+
+            function setCreateStatus(message) {
+                setText("cpp-create-status", message);
+            }
+
+            async function runPublish() {
+                if (!pending) {
+                    toast("请先选择文件并填写信息", "error");
+                    return;
+                }
+                if (!window.VTXApi || !window.VTXApi.hasSession()) {
+                    toast("请先登录后再上传项目", "error");
+                    renderAuth();
+                    return;
+                }
+                var button = $("cpp-submit");
+                var retry = $("cpp-retry");
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = "发布中…";
+                }
+                show(retry, false);
+                try {
+                    if (!pending.draftId) {
+                        setCreateStatus("正在创建草稿…");
+                        var created = await socialApi().create("cpp", pending.meta);
+                        if (!created || !created.item || !created.item.id) {
+                            throw new Error("服务端没有返回草稿编号");
+                        }
+                        pending.draftId = created.item.id;
+                    }
+                    if (!pending.filesSet) {
+                        setCreateStatus("正在上传 " + pending.files.length + " 个项目文件…");
+                        await socialApi().setFiles("cpp", pending.draftId, pending.files);
+                        pending.filesSet = true;
+                    }
+                    setCreateStatus("正在发布…");
+                    await socialApi().publish("cpp", pending.draftId);
+                    setCreateStatus("发布成功，正在打开详情…");
+                    var id = pending.draftId;
+                    pending = null;
+                    location.href = "vclang.html?id=" + encodeURIComponent(id);
+                } catch (error) {
+                    setCreateStatus("发布失败：" + errorMessage(error, "请稍后重试"));
+                    toast(errorMessage(error, "发布失败，请稍后重试"), "error");
+                    show(retry, true);
+                } finally {
+                    if (button) {
+                        button.disabled = false;
+                        button.textContent = "上传并发布";
+                    }
+                }
+            }
+
+            async function submitProject(event) {
+                event.preventDefault();
+                if (!window.VTXApi || !window.VTXApi.hasSession()) {
+                    toast("请先登录后再上传项目", "error");
+                    renderAuth();
+                    return;
+                }
+                var meta;
+                try {
+                    meta = readMeta();
+                } catch (error) {
+                    toast(errorMessage(error, "请检查表单"), "error");
+                    return;
+                }
+                var input = $("cpp-files");
+                var button = $("cpp-submit");
+                button.disabled = true;
+                button.textContent = "读取中…";
+                show($("cpp-retry"), false);
+                setCreateStatus("正在读取并检查项目文件…");
+                var projectFiles;
+                try {
+                    projectFiles = await readProject(input.files);
+                } catch (error) {
+                    setCreateStatus("检查失败：" + errorMessage(error, "请检查项目文件"));
+                    toast(errorMessage(error, "项目文件检查失败"), "error");
+                    button.disabled = false;
+                    button.textContent = "上传并发布";
+                    return;
+                }
+                pending = { meta: meta, files: projectFiles, draftId: "", filesSet: false };
+                button.disabled = false;
+                button.textContent = "上传并发布";
+                await runPublish();
+            }
+
+            function buildTree(files) {
+                var root = { dirs: new Map(), files: [] };
+                files.forEach(function (file, index) {
+                    var parts = String(file.name || "").split("/").filter(Boolean);
+                    if (!parts.length) {
+                        return;
+                    }
+                    var node = root;
+                    for (var depth = 0; depth < parts.length - 1; depth += 1) {
+                        var part = parts[depth];
+                        if (!node.dirs.has(part)) {
+                            node.dirs.set(part, { dirs: new Map(), files: [] });
+                        }
+                        node = node.dirs.get(part);
+                    }
+                    node.files.push({
+                        label: parts[parts.length - 1],
+                        index: index,
+                        size: Number(file.size) || 0
+                    });
+                });
+                return root;
+            }
+
+            function renderTreeNode(node, container, item) {
+                Array.from(node.dirs.keys()).sort().forEach(function (name) {
+                    var dirWrap = document.createElement("div");
+                    dirWrap.className = "tree-dir";
+                    var label = document.createElement("div");
+                    label.className = "tree-dir-label";
+                    label.textContent = "📁 " + name;
+                    var children = document.createElement("div");
+                    children.className = "tree-children";
+                    renderTreeNode(node.dirs.get(name), children, item);
+                    dirWrap.append(label, children);
+                    container.append(dirWrap);
+                });
+                node.files.sort(function (left, right) {
+                    return left.label.localeCompare(right.label);
+                }).forEach(function (entry) {
+                    var button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "tree-file";
+                    var name = document.createElement("span");
+                    name.textContent = "📄 " + entry.label;
+                    var size = document.createElement("span");
+                    size.className = "tree-size";
+                    size.textContent = entry.size ? formatSize(entry.size) : "";
+                    button.append(name, size);
+                    button.addEventListener("click", function () {
+                        var target = $("cpp-file-" + entry.index);
+                        if (target) {
+                            target.scrollIntoView({ behavior: "smooth", block: "start" });
+                            target.classList.add("focus");
+                            window.setTimeout(function () {
+                                target.classList.remove("focus");
+                            }, 1400);
+                        } else {
+                            toast(item && item.canDownload ? "源码还没有加载完成" : "购买后才能查看源码", "error");
+                        }
+                    });
+                    container.append(button);
+                });
+            }
+
+            function renderFileTree(item) {
+                var holder = $("vclang-file-tree");
+                if (!holder) {
+                    return;
+                }
+                holder.replaceChildren();
+                var files = item && item.extra && Array.isArray(item.extra.files) ? item.extra.files : [];
+                if (!files.length) {
+                    var empty = document.createElement("p");
+                    empty.className = "muted";
+                    empty.textContent = "服务端还没有登记项目文件。";
+                    holder.append(empty);
+                    setText("vclang-tree-note", "");
+                    return;
+                }
+                var total = files.reduce(function (sum, file) {
+                    return sum + (Number(file.size) || 0);
+                }, 0);
+                renderTreeNode(buildTree(files), holder, item);
+                setText("vclang-tree-note", "共 " + files.length + " 个文件，合计 " + formatSize(total) + "。"
+                    + (item && item.canDownload ? "点击文件名可以跳到源码。" : "购买后可以查看文件内容。"));
+            }
+
+            function updateLikeButton() {
+                var button = $("like-btn");
+                if (!button || !currentItem) {
+                    return;
+                }
+                button.textContent = (currentItem.liked ? "👍 已点赞 " : "👍 点赞 ")
+                    + (Number(currentItem.likes) || 0);
+                button.classList.toggle("is-liked", Boolean(currentItem.liked));
+            }
+
+            function renderBadges(item) {
+                var holder = $("vclang-detail-badges");
+                if (!holder) {
+                    return;
+                }
+                holder.replaceChildren();
+                var labels = [];
+                if (!item.published) {
+                    labels.push("草稿");
+                }
+                if (item.mine) {
+                    labels.push("我的项目");
+                }
+                if (item.purchased) {
+                    labels.push("已购买");
+                }
+                if (item.locked) {
+                    labels.push("未购买");
+                }
+                if (Number(item.priceCents) <= 0) {
+                    labels.push("免费");
+                }
+                if (item.ready === false) {
+                    labels.push("文件未就绪");
+                }
+                if (!labels.length) {
+                    labels.push("在售");
+                }
+                labels.forEach(function (label) {
+                    var chip = document.createElement("span");
+                    chip.className = "chip";
+                    chip.textContent = label;
+                    holder.append(chip);
+                });
+            }
+
+            function renderDetail(item) {
+                currentItem = item;
+                renderedFiles = [];
+                setText("vclang-detail-title", item.title || "未命名项目");
+                setText("vclang-detail-author", "作者：" + (item.ownerName || item.owner || "未知"));
+                setText("vclang-detail-compiler", "编译器：" + ((item.extra && item.extra.compiler) || "Dev-C++"));
+                setText("vclang-detail-dev", ".dev：" + ((item.extra && item.extra.devFile) || "未提供"));
+                var fileCount = item.extra && Array.isArray(item.extra.files) ? item.extra.files.length : 0;
+                setText("vclang-detail-files", "文件：" + fileCount + " 个");
+                setText("vclang-detail-published", item.published ? "已发布" : "草稿（仅自己可见）");
+                setText("vclang-detail-description", item.description || "作者没有填写说明。");
+                setText("vclang-detail-price", priceLabel(item));
+                setText("vclang-detail-price-note", item.mine
+                    ? "这是你上传的项目。"
+                    : item.purchased
+                        ? "已购买，可以查看全部源码。"
+                        : item.locked
+                            ? "购买后可以查看全部源码并逐个下载文件。"
+                            : "免费项目，源码公开。");
+                renderBadges(item);
+                renderFileTree(item);
+                updateLikeButton();
+
+                show($("delete-btn"), Boolean(item.mine));
+                show($("delete-confirm"), false);
+                show($("vclang-source"), false);
+                show($("vclang-source-error"), false);
+                show($("vclang-source-loading"), false);
+
+                var permitted = Boolean(item.canDownload);
+                var fileReady = item.ready !== false && fileCount > 0;
+                show($("vclang-download-hint"), permitted);
+                show($("vclang-lock"), !permitted);
+
+                if (!permitted) {
+                    var countText = fileCount ? "共 " + fileCount + " 个文件" : "这个项目";
+                    setText("vclang-lock-note", "价格 " + priceLabel(item) + "。" + countText
+                        + "的源码和下载入口需要购买后才会显示；购买不会执行或评测代码。");
+                    var password = $("cpp-buy-password");
+                    if (password) {
+                        password.value = "";
+                    }
+                } else if (!fileReady) {
+                    setText("vclang-download-hint", "项目文件还没有上传完成，暂时不能查看或下载源码。");
+                } else {
+                    setText("vclang-download-hint", "源码已解锁。请在右侧文件树或下方源码区选择文件，逐个下载；也可以“复制全部源码”。");
+                    loadProjectFiles();
+                }
+
+                show($("vclang-detail"), true);
+            }
+
+            async function loadDetail(id) {
+                show($("vclang-home-view"), false);
+                show($("vclang-detail-view"), true);
+                show($("vclang-detail-loading"), true);
+                show($("vclang-detail-error"), false);
+                show($("vclang-detail"), false);
+                show($("vclang-source"), false);
+                show($("vclang-source-loading"), false);
+                show($("vclang-source-error"), false);
+                try {
+                    var data = await socialApi().get("cpp", id);
+                    if (!data || !data.item) {
+                        throw new Error("没有找到这个项目");
+                    }
+                    renderDetail(data.item);
+                    show($("vclang-detail-loading"), false);
+                } catch (error) {
+                    show($("vclang-detail-loading"), false);
+                    setText("vclang-detail-error-text", errorMessage(error, "项目加载失败，请稍后重试。"));
+                    show($("vclang-detail-error"), true);
+                    toast(errorMessage(error, "项目加载失败"), "error");
+                }
+            }
+
+            function appendHighlighted(target, line) {
+                var source = String(line == null ? "" : line);
+                if (/^\s*#/.test(source)) {
+                    var pre = document.createElement("span");
+                    pre.className = "tok-pre";
+                    pre.textContent = source;
+                    target.append(pre);
+                    return;
+                }
+                var pattern = /\/\/.*$|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b\d+(?:\.\d+)?\b|\b[A-Za-z_][A-Za-z0-9_]*\b/g;
+                var last = 0;
+                var match = pattern.exec(source);
+                while (match) {
+                    if (match.index > last) {
+                        target.append(document.createTextNode(source.slice(last, match.index)));
+                    }
+                    var token = match[0];
+                    var className = "";
+                    if (token.indexOf("//") === 0) {
+                        className = "tok-comment";
+                    } else if (token.charAt(0) === "\"" || token.charAt(0) === "'") {
+                        className = "tok-string";
+                    } else if (/^\d/.test(token)) {
+                        className = "tok-number";
+                    } else if (KEYWORDS.has(token)) {
+                        className = "tok-keyword";
+                    }
+                    if (className) {
+                        var span = document.createElement("span");
+                        span.className = className;
+                        span.textContent = token;
+                        target.append(span);
+                    } else {
+                        target.append(document.createTextNode(token));
+                    }
+                    last = match.index + token.length;
+                    match = pattern.exec(source);
+                }
+                if (last < source.length) {
+                    target.append(document.createTextNode(source.slice(last)));
+                }
+            }
+
+            function appendCodeLine(container, line, number) {
+                var row = document.createElement("div");
+                row.className = "code-line";
+                var gutter = document.createElement("span");
+                gutter.className = "line-no";
+                gutter.textContent = String(number);
+                var code = document.createElement("code");
+                code.className = "line-code";
+                appendHighlighted(code, line);
+                row.append(gutter, code);
+                container.append(row);
+            }
+
+            function downloadCppFile(file) {
+                try {
+                    var text = String(file && file.text != null ? file.text : "");
+                    var blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+                    var url = URL.createObjectURL(blob);
+                    var anchor = document.createElement("a");
+                    anchor.href = url;
+                    anchor.download = String(file && file.name ? file.name : "file.txt").split("/").pop() || "file.txt";
+                    document.body.append(anchor);
+                    anchor.click();
+                    anchor.remove();
+                    window.setTimeout(function () {
+                        URL.revokeObjectURL(url);
+                    }, 5000);
+                } catch (error) {
+                    toast("下载失败，请使用“复制全部源码”", "error");
+                }
+            }
+
+            function renderCode(files) {
+                var holder = $("vclang-code");
+                if (!holder) {
+                    return;
+                }
+                holder.replaceChildren();
+                var totalChars = 0;
+                files.forEach(function (file, index) {
+                    var article = document.createElement("article");
+                    article.className = "file-block";
+                    article.id = "cpp-file-" + index;
+
+                    var head = document.createElement("div");
+                    head.className = "file-head";
+                    var title = document.createElement("h3");
+                    title.textContent = (index + 1) + ". " + (file.name || "未命名文件");
+                    var actions = document.createElement("div");
+                    actions.className = "file-actions";
+                    var download = document.createElement("button");
+                    download.type = "button";
+                    download.className = "btn small";
+                    download.textContent = "下载此文件";
+                    download.addEventListener("click", function () {
+                        downloadCppFile(file);
+                    });
+                    actions.append(download);
+                    head.append(title, actions);
+                    article.append(head);
+
+                    var text = String(file.text == null ? "" : file.text).replace(/\r\n?/g, "\n");
+                    if (text.indexOf("\u0000") !== -1) {
+                        var binaryNote = document.createElement("p");
+                        binaryNote.className = "file-note";
+                        binaryNote.textContent = "这个文件看起来包含二进制内容，已跳过预览；请下载后查看。";
+                        article.append(binaryNote);
+                        holder.append(article);
+                        return;
+                    }
+
+                    var block = document.createElement("div");
+                    block.className = "code-block";
+                    var lines = text.split("\n");
+                    var limit = Math.min(lines.length, MAX_RENDER_LINES);
+                    var rendered = 0;
+                    var chars = 0;
+
+                    if (totalChars >= MAX_TOTAL_RENDER_CHARS) {
+                        var skippedNote = document.createElement("p");
+                        skippedNote.className = "file-note";
+                        skippedNote.textContent = "为避免页面卡顿，已省略这个文件的预览；请使用“下载此文件”或“复制全部源码”。";
+                        article.append(skippedNote);
+                        holder.append(article);
+                        return;
+                    }
+
+                    for (var lineIndex = 0; lineIndex < limit; lineIndex += 1) {
+                        var line = lines[lineIndex];
+                        if (chars + line.length > MAX_RENDER_CHARS) {
+                            break;
+                        }
+                        chars += line.length + 1;
+                        appendCodeLine(block, line, lineIndex + 1);
+                        rendered += 1;
+                    }
+                    totalChars += chars;
+                    article.append(block);
+
+                    if (rendered < lines.length) {
+                        var note = document.createElement("p");
+                        note.className = "file-note";
+                        note.textContent = "文件较大，仅展示前 " + rendered + " 行；下载此文件或“复制全部源码”可获取完整内容。";
+                        article.append(note);
+                    }
+                    holder.append(article);
+                });
+            }
+
+            async function loadProjectFiles() {
+                if (!currentItem) {
+                    return;
+                }
+                show($("vclang-source"), false);
+                show($("vclang-source-error"), false);
+                show($("vclang-source-loading"), true);
+                try {
+                    var data = await socialApi().files("cpp", currentItem.id);
+                    renderedFiles = data && Array.isArray(data.files) ? data.files : [];
+                    if (!renderedFiles.length) {
+                        throw new Error("服务端没有返回可展示的文件");
+                    }
+                    renderCode(renderedFiles);
+                    show($("vclang-source"), true);
+                } catch (error) {
+                    setText("vclang-source-error-text", "源码加载失败：" + errorMessage(error, "请稍后重试。"));
+                    show($("vclang-source-error"), true);
+                    if (error && error.status === 403) {
+                        setText("vclang-tree-note", "需要购买后才能查看文件内容。");
+                    }
+                } finally {
+                    show($("vclang-source-loading"), false);
+                }
+            }
+
+            async function copyProjectLink() {
+                if (!currentItem) {
+                    return;
+                }
+                var url = new URL("vclang.html?id=" + encodeURIComponent(currentItem.id), location.href).href;
+                try {
+                    await XRSocial.copyText(url);
+                    toast(currentItem.published ? "链接已复制" : "草稿链接已复制，但其他人打开会看不到", "success");
+                } catch (error) {
+                    toast("复制失败，请手动复制地址栏", "error");
+                }
+            }
+
+            async function toggleLike() {
+                if (!currentItem) {
+                    return;
+                }
+                if (!window.VTXApi || !window.VTXApi.hasSession()) {
+                    toast("请先登录后再点赞", "error");
+                    renderAuth();
+                    return;
+                }
+                var button = $("like-btn");
+                button.disabled = true;
+                try {
+                    var data = await socialApi().like("cpp", currentItem.id);
+                    currentItem.liked = Boolean(data && data.liked);
+                    currentItem.likes = Number(data && data.likes) || 0;
+                    updateLikeButton();
+                    toast(currentItem.liked ? "已点赞" : "已取消点赞", "success");
+                } catch (error) {
+                    toast(errorMessage(error, "点赞失败，请稍后重试"), "error");
+                } finally {
+                    button.disabled = false;
+                }
+            }
+
+            async function buyCurrent() {
+                if (!currentItem) {
+                    return;
+                }
+                if (!window.VTXApi || !window.VTXApi.hasSession()) {
+                    toast("请先登录后再购买", "error");
+                    renderAuth();
+                    return;
+                }
+                if (Number(currentItem.priceCents) <= 0) {
+                    toast("这个项目不需要购买", "error");
+                    return;
+                }
+                var passwordInput = $("cpp-buy-password");
+                var password = String(passwordInput.value || "");
+                if (!password) {
+                    toast("请输入账户密码确认购买", "error");
+                    passwordInput.focus();
+                    return;
+                }
+                var button = $("cpp-buy-confirm");
+                var original = button.textContent;
+                button.disabled = true;
+                button.textContent = "购买中…";
+                try {
+                    await socialApi().purchase("cpp", currentItem.id, password);
+                    passwordInput.value = "";
+                    toast("购买成功，正在解锁源码…", "success");
+                    await loadDetail(currentItem.id);
+                } catch (error) {
+                    toast(errorMessage(error, "购买失败，请稍后重试"), "error");
+                    if (error && error.code === "already_purchased") {
+                        passwordInput.value = "";
+                        await loadDetail(currentItem.id);
+                    }
+                } finally {
+                    button.disabled = false;
+                    button.textContent = original;
+                }
+            }
+
+            function armDelete() {
+                show($("delete-confirm"), true);
+                $("delete-btn").disabled = true;
+            }
+
+            function cancelDelete() {
+                show($("delete-confirm"), false);
+                $("delete-btn").disabled = false;
+            }
+
+            async function deleteCurrent() {
+                if (!currentItem) {
+                    return;
+                }
+                var button = $("delete-confirm-btn");
+                button.disabled = true;
+                button.textContent = "删除中…";
+                try {
+                    await socialApi().remove("cpp", currentItem.id);
+                    toast("项目已删除", "success");
+                    window.setTimeout(function () {
+                        location.href = "vclang.html";
+                    }, 600);
+                } catch (error) {
+                    toast(errorMessage(error, "删除失败，请稍后重试"), "error");
+                    button.disabled = false;
+                    button.textContent = "确认删除";
+                }
+            }
+
+            async function copyAllFiles() {
+                if (!renderedFiles.length) {
+                    toast("源码还没有加载完成", "error");
+                    return;
+                }
+                var joined = renderedFiles.map(function (file) {
+                    return "// ===== " + String(file.name || "未命名文件") + " =====\n" + String(file.text == null ? "" : file.text);
+                }).join("\n\n");
+                try {
+                    await XRSocial.copyText(joined);
+                    toast("已复制全部源码", "success");
+                } catch (error) {
+                    toast("复制失败，请手动选择源码", "error");
+                }
+            }
+
+            function bindEvents() {
+                $("vclang-search-form").addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    var value = String($("vclang-search").value || "").trim();
+                    if (value.length > 60) {
+                        toast("搜索词最多 60 个字符", "error");
+                        return;
+                    }
+                    currentQuery = value;
+                    loadHome();
+                });
+
+                $("cpp-files").addEventListener("change", function () {
+                    renderSelectedFiles(this.files);
+                });
+
+                $("cpp-create-form").addEventListener("submit", submitProject);
+
+                $("cpp-retry").addEventListener("click", function () {
+                    runPublish();
+                });
+
+                $("like-btn").addEventListener("click", toggleLike);
+                $("copy-link-btn").addEventListener("click", copyProjectLink);
+                $("copy-all-btn").addEventListener("click", copyAllFiles);
+
+                $("delete-btn").addEventListener("click", armDelete);
+                $("delete-cancel-btn").addEventListener("click", cancelDelete);
+                $("delete-confirm-btn").addEventListener("click", deleteCurrent);
+
+                $("cpp-buy-confirm").addEventListener("click", buyCurrent);
+                $("cpp-buy-password").addEventListener("keydown", function (event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        buyCurrent();
+                    }
+                });
+
+                window.addEventListener("hashchange", handleHash);
+            }
+
+            function init() {
+                renderAuth();
+                bindEvents();
+
+                var params = new URLSearchParams(location.search);
+                var id = params.get("id");
+                if (location.hash === "#upload") {
+                    handleHash();
+                    return;
+                }
+                if (id) {
+                    loadDetail(id);
+                } else {
+                    loadHome();
+                }
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>

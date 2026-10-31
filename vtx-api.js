@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
     const DEFAULTS = { repo: "Caldson/Vitual-XRing", branch: "main", path: "account.json" };
 
     let cachedConfig = null;
@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "2.1.0";
+    const API_VERSION = "3.1.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -1080,6 +1080,191 @@
         )
     };
 
+    /* ───────── 3.1.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态 ───────── */
+
+    function socialRequest(path, options = {}) {
+        return apiRequest(`/social${path}`, options);
+    }
+
+    function socialBasePath() {
+        return chatBase();
+    }
+
+    function socialFileUrl(id, options = {}) {
+        const token = sessionToken();
+        const params = new URLSearchParams();
+        if (options.download) {
+            params.set("download", "1");
+        }
+        if (token) {
+            params.set("token", token);
+        }
+        const query = params.toString();
+        return `${socialBasePath()}/social/file/${encodeId(id)}${query ? `?${query}` : ""}`;
+    }
+
+    async function socialUpload(kind, id, file, onProgress) {
+        const token = sessionToken();
+        const base = socialBasePath();
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        const timer = controller ? setTimeout(() => controller.abort(), 180000) : null;
+        let response;
+        try {
+            response = await fetch(`${base}/social/kinds/${encodeURIComponent(kind)}/${encodeId(id)}/file`, {
+                method: "PUT",
+                headers: {
+                    authorization: `Bearer ${token}`,
+                    "content-type": file.type || "application/octet-stream",
+                    "x-file-name": encodeURIComponent(file.name || "file")
+                },
+                body: file,
+                signal: controller ? controller.signal : undefined
+            });
+        } catch (error) {
+            throw networkError("上传文件失败", error);
+        } finally {
+            if (timer) {
+                clearTimeout(timer);
+            }
+        }
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (error) {
+            data = null;
+        }
+        if (!response.ok) {
+            const error = new Error((data && data.message) || `上传失败（HTTP ${response.status}）`);
+            error.status = response.status;
+            error.code = data && data.error;
+            throw error;
+        }
+        if (typeof onProgress === "function") {
+            onProgress(1);
+        }
+        return data;
+    }
+
+    async function socialImageUpload(file) {
+        const token = sessionToken();
+        const base = socialBasePath();
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        const timer = controller ? setTimeout(() => controller.abort(), 60000) : null;
+        let response;
+        try {
+            response = await fetch(`${base}/social/images`, {
+                method: "POST",
+                headers: {
+                    authorization: `Bearer ${token}`,
+                    "content-type": file.type || "application/octet-stream"
+                },
+                body: file,
+                signal: controller ? controller.signal : undefined
+            });
+        } catch (error) {
+            throw networkError("上传图片失败", error);
+        } finally {
+            if (timer) {
+                clearTimeout(timer);
+            }
+        }
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (error) {
+            data = null;
+        }
+        if (!response.ok) {
+            const error = new Error((data && data.message) || `上传图片失败（HTTP ${response.status}）`);
+            error.status = response.status;
+            error.code = data && data.error;
+            throw error;
+        }
+        return data;
+    }
+
+    function socialListQuery(options = {}) {
+        const params = new URLSearchParams();
+        for (const key of ["q", "owner", "sort", "before", "limit"]) {
+            if (options[key] !== undefined && options[key] !== null && options[key] !== "") {
+                params.set(key, String(options[key]));
+            }
+        }
+        const query = params.toString();
+        return query ? `?${query}` : "";
+    }
+
+    const social = {
+        resolve: (url) => socialRequest(`/resolve?url=${encodeURIComponent(url)}`, { auth: false }),
+        share: (payload) => socialRequest("/shares", { method: "POST", body: payload || {} }),
+        shareGet: (id) => socialRequest(`/shares/${encodeId(id)}`, { auth: false }),
+        list: (kind, options = {}) => socialRequest(`/kinds/${encodeURIComponent(kind)}${socialListQuery(options)}`),
+        get: (kind, id) => socialRequest(`/kinds/${encodeURIComponent(kind)}/${encodeId(id)}`),
+        create: (kind, payload) => socialRequest(`/kinds/${encodeURIComponent(kind)}`, {
+            method: "POST",
+            body: payload || {}
+        }),
+        update: (kind, id, changes) => socialRequest(`/kinds/${encodeURIComponent(kind)}/${encodeId(id)}`, {
+            method: "PUT",
+            body: changes || {}
+        }),
+        remove: (kind, id) => socialRequest(`/kinds/${encodeURIComponent(kind)}/${encodeId(id)}`, {
+            method: "DELETE"
+        }),
+        upload: socialUpload,
+        uploadImage: socialImageUpload,
+        files: (kind, id) => socialRequest(`/kinds/${encodeURIComponent(kind)}/${encodeId(id)}/files`),
+        setFiles: (kind, id, files) => socialRequest(`/kinds/${encodeURIComponent(kind)}/${encodeId(id)}/files`, {
+            method: "PUT",
+            body: { files: files || [] }
+        }),
+        publish: (kind, id) => socialRequest(`/kinds/${encodeURIComponent(kind)}/${encodeId(id)}/publish`, {
+            method: "POST"
+        }),
+        like: (kind, id) => socialRequest(`/kinds/${encodeURIComponent(kind)}/${encodeId(id)}/like`, {
+            method: "POST"
+        }),
+        purchase: (kind, id, password) => socialRequest(
+            `/kinds/${encodeURIComponent(kind)}/${encodeId(id)}/purchase`,
+            { method: "POST", body: { password: String(password || "") } }
+        ),
+        comment: (id, text) => socialRequest(`/kinds/dynamic/${encodeId(id)}/comments`, {
+            method: "POST",
+            body: { text }
+        }),
+        comments: (id) => socialRequest(`/kinds/dynamic/${encodeId(id)}/comments`),
+        likeComment: (id, commentId) => socialRequest(
+            `/kinds/dynamic/${encodeId(id)}/comments/${encodeId(commentId)}/like`,
+            { method: "POST" }
+        ),
+        repost: (id, text) => socialRequest(`/kinds/dynamic/${encodeId(id)}/repost`, {
+            method: "POST",
+            body: { text }
+        }),
+        library: () => socialRequest("/me/library"),
+        meeting: (no) => socialRequest(`/meetings/${encodeURIComponent(no)}`, { auth: false }),
+        createMeeting: (payload) => socialRequest("/meetings", { method: "POST", body: payload || {} }),
+        joinMeeting: (no, password) => socialRequest(`/meetings/${encodeURIComponent(no)}/join`, {
+            method: "POST",
+            body: { password: String(password || "") }
+        }),
+        endMeeting: (no) => socialRequest(`/meetings/${encodeURIComponent(no)}/end`, { method: "POST" }),
+        fileUrl: socialFileUrl,
+        base: socialBasePath,
+        meetingSocketUrl: (no, name, peer, joinToken) => {
+            const base = socialBasePath().replace(/^http/i, "ws");
+            const params = new URLSearchParams({
+                no: String(no || ""),
+                name: String(name || "访客"),
+                peer: String(peer || "")
+            });
+            if (joinToken) {
+                params.set("token", String(joinToken));
+            }
+            return `${base}/social/meetings/ws?${params.toString()}`;
+        }
+    };
+
     /* ───────── 1.9.0：聊天室 UNO ───────── */
 
     const uno = {
@@ -1329,6 +1514,113 @@
         )
     };
 
+    /* ───────── 3.1.0：ViStyle 一键应用 ─────────
+       只在一键应用后写入 localStorage，再由这里在每个公开页面注入 <style>。
+       管理员 / 站主 / 投稿页面永不应用样式包，避免把后台改坏（页面要求明确禁止）。 */
+    const STYLE_PACK_KEY = "vtxStylePack";
+    const STYLE_BLOCKED_PAGES = /(^|\/)(admin|accounts-admin|manager|API_LOGIN|API_VTXPAY|vitxvideopublish|vistyle)(\.html)?($|\/)/i;
+
+    function styleBlocked() {
+        try {
+            return STYLE_BLOCKED_PAGES.test(new URL(document.baseURI).pathname);
+        } catch (error) {
+            return true;
+        }
+    }
+
+    function savedStyle() {
+        try {
+            const raw = localStorage.getItem(STYLE_PACK_KEY);
+            if (!raw) {
+                return null;
+            }
+            const value = JSON.parse(raw);
+            return value && value.id ? value : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    async function applyStylePack(pack) {
+        if (!pack || !pack.id) {
+            throw new Error("样式包信息不完整");
+        }
+        if (styleBlocked()) {
+            throw new Error("管理员页面不允许应用样式包");
+        }
+        const token = sessionToken();
+        const base = chatBase();
+        const response = await fetch(`${base}/social/file/${encodeId(pack.id)}?token=${encodeURIComponent(token)}`, {
+            cache: "no-store"
+        });
+        if (!response.ok) {
+            throw new Error(response.status === 403 ? "请先在 ViStyle 购买这个样式包" : "样式包读取失败");
+        }
+        const css = await response.text();
+        let node = document.getElementById("vtx-user-style");
+        if (!node) {
+            node = document.createElement("style");
+            node.id = "vtx-user-style";
+            document.head.appendChild(node);
+        }
+        node.textContent = css;
+        localStorage.setItem(STYLE_PACK_KEY, JSON.stringify({ id: pack.id, title: pack.title || "" }));
+        return true;
+    }
+
+    async function applySavedStyle() {
+        if (styleBlocked()) {
+            return false;
+        }
+        const pack = savedStyle();
+        if (!pack) {
+            return false;
+        }
+        try {
+            const token = sessionToken();
+            const base = chatBase();
+            const response = await fetch(`${base}/social/file/${encodeId(pack.id)}?token=${encodeURIComponent(token)}`, {
+                cache: "no-store"
+            });
+            if (!response.ok) {
+                return false;
+            }
+            const css = await response.text();
+            let node = document.getElementById("vtx-user-style");
+            if (!node) {
+                node = document.createElement("style");
+                node.id = "vtx-user-style";
+                document.head.appendChild(node);
+            }
+            node.textContent = css;
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function clearStylePack() {
+        try {
+            localStorage.removeItem(STYLE_PACK_KEY);
+        } catch (error) {
+            /* 忽略 */
+        }
+        const node = document.getElementById("vtx-user-style");
+        if (node) {
+            node.remove();
+        }
+    }
+
+    if (typeof document !== "undefined" && !styleBlocked()) {
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", () => {
+                applySavedStyle();
+            }, { once: true });
+        } else {
+            setTimeout(applySavedStyle, 0);
+        }
+    }
+
     window.VTXApi = {
         version: API_VERSION,
         request: apiRequest,
@@ -1364,6 +1656,11 @@
         adminDeleteGift,
         chatStatus,
         chat,
+        social,
+        applyStyle: applyStylePack,
+        applySavedStyle,
+        currentStyle: savedStyle,
+        clearStyle: clearStylePack,
         uno,
         chatSocketUrl: chatSocketUrl,
         chatMediaUrl: chatMediaUrl,

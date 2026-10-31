@@ -1,0 +1,1820 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>Vitx® 动态 | Vitual XRing</title>
+    <script src="vtx-api.js?v=3.1.0"></script>
+    <script src="xring-social.js?v=3.1.0"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --blue: #2f63d8;
+            --blue-soft: #eef3ff;
+            --ink: #172033;
+            --muted: #68768d;
+            --line: #e4e9f2;
+            --bg: #f4f7fb;
+            --card: #ffffff;
+            --warn: #d98a1c;
+            --danger: #d64545;
+        }
+
+        * { box-sizing: border-box; }
+
+        [hidden] { display: none !important; }
+
+        html, body { margin: 0; }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 12% 0%, #e9efff 0, transparent 40%),
+                radial-gradient(circle at 88% 6%, #eaf7f0 0, transparent 34%),
+                var(--bg);
+            color: var(--ink);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        button, input, textarea, select { font: inherit; color: inherit; }
+        button { cursor: pointer; touch-action: manipulation; }
+        a { color: var(--blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* ───────── 顶栏 ───────── */
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 18px;
+            padding-top: calc(10px + env(safe-area-inset-top, 0px));
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 0 0 auto;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .brand:hover { text-decoration: none; }
+
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            border-radius: 11px;
+            background: linear-gradient(135deg, #2f63d8, #6c8cff);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+        .brand-text strong { font-size: 16px; letter-spacing: 0.01em; }
+        .brand-text strong sup { font-size: 9px; vertical-align: super; }
+        .brand-text small { color: var(--muted); font-size: 11.5px; }
+
+        .nav { display: flex; gap: 4px; flex: 1 1 auto; min-width: 0; }
+
+        .nav a {
+            padding: 6px 12px;
+            border-radius: 999px;
+            color: var(--muted);
+            font-size: 13.5px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .nav a:hover { background: #f2f5fb; color: var(--ink); text-decoration: none; }
+        .nav a.active { background: var(--blue); color: #fff; }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .who {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .ghost-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: #fff;
+            color: #40506b;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .ghost-btn:hover { border-color: #b9c8f5; background: var(--blue-soft); color: var(--blue); }
+
+        .primary-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border: 0;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #2f63d8, #5b83ff);
+            color: #fff;
+            font-size: 13.5px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .primary-btn:hover { text-decoration: none; filter: brightness(1.04); }
+        .primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .primary-btn.small { padding: 5px 12px; font-size: 12.5px; border-radius: 8px; }
+
+        .version {
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: var(--blue-soft);
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .back { font-size: 12.5px; color: var(--muted); text-decoration: none; }
+        .back:hover { color: var(--blue); }
+
+        /* ───────── 布局 ───────── */
+
+        .wrap { max-width: 1080px; margin: 0 auto; padding: 20px 18px 40px; }
+
+        .page-intro { margin: 2px 2px 16px; }
+        .page-intro h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: 0.01em; }
+        .page-intro p { margin: 0; max-width: 760px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 280px;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .main-col { min-width: 0; }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: 0 1px 2px rgba(20, 40, 80, 0.04), 0 8px 24px rgba(40, 80, 150, 0.04);
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            flex: 0 0 40px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            border: 1px solid #dbe4f2;
+            background: linear-gradient(135deg, #dbe6ff, #eef3ff);
+            color: var(--blue);
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .avatar.small { width: 32px; height: 32px; flex-basis: 32px; font-size: 13px; }
+
+        /* ───────── 发布框 ───────── */
+
+        .composer { padding: 14px 16px; margin-bottom: 16px; }
+
+        .composer-top { display: flex; gap: 12px; align-items: flex-start; }
+        .composer-body { flex: 1; min-width: 0; }
+
+        #compose-text {
+            width: 100%;
+            min-height: 96px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fbfcfe;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+        }
+
+        #compose-text:focus {
+            border-color: #b9c8f5;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(47, 99, 216, 0.08);
+        }
+
+        .composer-tools {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 12.5px;
+            color: var(--muted);
+        }
+
+        .tool-btn {
+            padding: 5px 10px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: #fff;
+            color: #40506b;
+            font-size: 12.5px;
+            font-weight: 600;
+        }
+
+        .tool-btn:hover { border-color: #b9c8f5; background: var(--blue-soft); color: var(--blue); }
+        .tool-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .counter { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+        .tiny { margin: 6px 0 0; color: #8b98ab; font-size: 11.5px; line-height: 1.55; }
+        .tiny b { color: #b1711c; }
+
+        .img-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+
+        .img-row { display: flex; align-items: center; gap: 6px; }
+        .img-row .idx { width: 18px; flex: 0 0 18px; text-align: right; font-size: 11px; color: #93a0b4; }
+
+        .img-row input {
+            flex: 1;
+            min-width: 0;
+            padding: 6px 9px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: #fbfcfe;
+            font-size: 12.5px;
+            outline: none;
+        }
+
+        .img-row input:focus { border-color: #b9c8f5; background: #fff; }
+
+        .img-row .rm {
+            width: 26px;
+            height: 26px;
+            flex: 0 0 26px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            color: #8b98ab;
+            line-height: 1;
+        }
+
+        .img-row .rm:hover { color: var(--danger); border-color: #f2c9c9; background: #fff5f5; }
+
+        .preview {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border: 1px dashed #cbdcff;
+            border-radius: 12px;
+            background: #f7faff;
+        }
+
+        .preview-head { margin-bottom: 2px; color: #7090c8; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+        .preview .xr-card { margin: 0; padding: 2px 0; border: 0; background: transparent; box-shadow: none; }
+
+        .composer-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+
+        .login-hint { margin-right: auto; color: var(--muted); font-size: 12px; }
+
+        /* ───────── 信息流 ───────── */
+
+        .feed-head { display: flex; align-items: center; gap: 10px; margin: 4px 2px 10px; }
+        .feed-head h2 { margin: 0; font-size: 15.5px; }
+        .feed-status { flex: 1 1 auto; min-width: 0; color: #93a0b4; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .post {
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: 0 1px 2px rgba(20, 40, 80, 0.04);
+        }
+
+        .post-head { display: flex; align-items: center; gap: 10px; }
+        .post-who { display: flex; flex-direction: column; min-width: 0; line-height: 1.32; }
+        .post-who strong { font-size: 13.5px; color: #24344d; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .post-meta { font-size: 11.5px; color: #93a0b4; }
+
+        .post-del {
+            margin-left: auto;
+            padding: 4px 6px;
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            color: #9aa5b6;
+            font-size: 12px;
+        }
+
+        .post-del:hover { color: var(--danger); background: #fff3f3; }
+        .post-del.confirm { color: #fff; background: var(--danger); }
+
+        .post-link { margin-left: auto; color: #8b98ab; font-size: 12px; white-space: nowrap; }
+
+        .post-text { margin: 8px 0 0; font-size: 14.5px; line-height: 1.66; word-break: break-word; }
+        .post-text a { word-break: break-all; }
+
+        .img-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+        .img-grid[data-count="1"] { grid-template-columns: minmax(0, 320px); }
+        .img-grid[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .img-grid a { display: block; min-width: 0; }
+        .img-grid img {
+            display: block;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #f2f5fa;
+        }
+
+        .post-card { margin-top: 8px; }
+
+        .post-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid #f0f3f8;
+        }
+
+        .act {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 8px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+        .act:hover { background: #f2f5fb; color: var(--blue); text-decoration: none; }
+        .act.on { color: #e05a7a; font-weight: 700; }
+        .act:disabled { opacity: 0.6; cursor: wait; }
+
+        .repost-box { margin-top: 10px; padding: 10px; border: 1px solid #e7edf7; border-radius: 12px; background: #f9fbff; }
+        .repost-box textarea {
+            width: 100%;
+            min-height: 64px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: #fff;
+            font-size: 13px;
+            line-height: 1.55;
+            resize: vertical;
+            outline: none;
+        }
+        .repost-box textarea:focus { border-color: #b9c8f5; }
+        .repost-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+        .repost-left { margin-right: auto; color: #93a0b4; font-size: 11.5px; }
+
+        .empty {
+            padding: 36px 18px;
+            border: 1px dashed #d9e2f0;
+            border-radius: 16px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 13.5px;
+            text-align: center;
+        }
+
+        .empty strong { display: block; margin-bottom: 6px; color: var(--ink); font-size: 15px; }
+        .empty.small { padding: 22px 14px; font-size: 12.5px; }
+        .empty.small strong { font-size: 13.5px; }
+
+        .feed-more { margin: 6px 0 4px; text-align: center; }
+
+        .more-btn {
+            padding: 8px 22px;
+            border: 1px solid #cbdcff;
+            border-radius: 999px;
+            background: #fff;
+            color: var(--blue);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .more-btn:hover { background: var(--blue-soft); }
+
+        /* ───────── 详情 ───────── */
+
+        .back-link { display: inline-block; margin-bottom: 10px; color: #5c7296; font-size: 13px; }
+        .back-link:hover { text-decoration: underline; }
+
+        .post-detail { padding: 18px 20px; }
+        .post-detail .avatar { width: 44px; height: 44px; flex-basis: 44px; font-size: 17px; }
+        .post-detail .post-who strong { font-size: 14.5px; }
+        .post-detail .post-text { font-size: 15.5px; }
+
+        .detail-loading,
+        .detail-error {
+            margin-bottom: 14px;
+            padding: 28px 20px;
+            border: 1px dashed #d9e2f0;
+            border-radius: 16px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 13.5px;
+            text-align: center;
+        }
+
+        .detail-error strong { display: block; margin-bottom: 6px; color: #24344d; font-size: 15px; }
+        .detail-error p { margin: 0 0 12px; font-size: 13px; line-height: 1.6; }
+        .detail-error .primary-btn { text-decoration: none; }
+
+        .comments-panel { margin-top: 14px; padding: 16px; }
+        .comments-head { display: flex; align-items: baseline; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid #f0f3f8; }
+        .comments-head h2 { margin: 0; font-size: 15.5px; }
+        .comment-count { color: #93a0b4; font-size: 12px; }
+
+        .comment-form { display: flex; gap: 10px; margin: 14px 0 4px; }
+        .comment-form-body { flex: 1; min-width: 0; }
+
+        #comment-input {
+            width: 100%;
+            min-height: 74px;
+            padding: 9px 11px;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            background: #fbfcfe;
+            font-size: 13.5px;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+        }
+
+        #comment-input:focus { border-color: #b9c8f5; background: #fff; box-shadow: 0 0 0 3px rgba(47, 99, 216, 0.08); }
+
+        .comment-form-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+        .comment-form-foot .counter { margin-left: 0; }
+
+        .comment-list { margin-top: 6px; }
+
+        .comment { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px dashed #eef1f7; }
+        .comment:last-child { border-bottom: 0; }
+        .comment-main { flex: 1; min-width: 0; }
+        .comment-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+        .comment-head b { color: #2b3a52; font-size: 13px; }
+        .tag-me { padding: 1px 5px; border-radius: 5px; background: var(--blue-soft); color: var(--blue); font-size: 10px; }
+        .comment-text { margin: 4px 0 0; font-size: 13.5px; line-height: 1.62; word-break: break-word; }
+        .comment-text a { word-break: break-all; }
+        .comment-card { margin-top: 4px; }
+
+        .comment-like {
+            margin-top: 4px;
+            padding: 3px 6px;
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            color: #8391a6;
+            font-size: 12px;
+        }
+
+        .comment-like:hover { background: #f2f5fb; color: #e05a7a; }
+        .comment-like.on { color: #e05a7a; font-weight: 700; }
+        .comment-like:disabled { opacity: 0.6; }
+
+        .comment-error { margin: 10px 0; color: #c05050; font-size: 12.5px; }
+
+        /* ───────── 侧栏 ───────── */
+
+        .side-col { display: flex; flex-direction: column; gap: 14px; }
+        .side-card { padding: 14px 16px; }
+        .side-card h3 { margin: 0 0 8px; font-size: 13.5px; }
+        .side-card p { margin: 0 0 8px; color: var(--muted); font-size: 12.5px; line-height: 1.65; }
+        .side-card p:last-child { margin-bottom: 0; }
+        .side-card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; line-height: 1.8; }
+        .side-card ul b { color: #40506b; }
+        .side-links { display: flex; flex-direction: column; gap: 6px; }
+        .side-links a {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 7px 9px;
+            border-radius: 9px;
+            background: #f8fafd;
+            color: #40506b;
+            font-size: 12.5px;
+            font-weight: 600;
+        }
+        .side-links a:hover { background: var(--blue-soft); color: var(--blue); text-decoration: none; }
+
+        /* ───────── 页脚 / toast ───────── */
+
+        .site-foot {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 18px;
+            justify-content: space-between;
+            margin-top: 22px;
+            padding: 14px 4px 0;
+            color: #9aa5b6;
+            font-size: 12px;
+        }
+
+        .site-foot b { color: #6f7c90; letter-spacing: 0.02em; }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 40px;
+            z-index: 9000;
+            max-width: min(90vw, 440px);
+            padding: 9px 16px;
+            border-radius: 11px;
+            background: rgba(24, 35, 54, 0.94);
+            color: #fff;
+            font-size: 13px;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, 14px);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+        /* ───────── 响应式 ───────── */
+
+        @media (max-width: 920px) {
+            .layout { grid-template-columns: minmax(0, 1fr); }
+            .side-col { order: 2; }
+        }
+
+        @media (max-width: 720px) {
+            .wrap { padding: 12px 12px 30px; }
+            .topbar { flex-wrap: wrap; padding: 8px 12px; gap: 8px; }
+            .nav { order: 3; flex: 1 1 100%; }
+            .topbar-actions { margin-left: auto; }
+            .topbar-actions .version,
+            .topbar-actions .back { display: none; }
+            .page-intro h1 { font-size: 19px; }
+            .composer { padding: 12px; }
+            .post { padding: 12px; }
+            .post-detail { padding: 14px; }
+            .img-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .img-grid[data-count="1"] { grid-template-columns: minmax(0, 1fr); }
+            .comments-panel { padding: 12px; }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            input, textarea, select { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="vitxvideo.html" title="Vitx® 视频">
+            <span class="brand-mark">V</span>
+            <span class="brand-text">
+                <strong>Vitx<sup>®</sup></strong>
+                <small>Vitx Dynamic</small>
+            </span>
+        </a>
+
+        <nav class="nav" aria-label="主导航">
+            <a href="vitxvideo.html">视频</a>
+            <a class="active" href="vitx-dynamic.html" aria-current="page">动态</a>
+        </nav>
+
+        <div class="topbar-actions">
+            <span class="who" id="who" hidden></span>
+            <a class="ghost-btn" id="login-link" href="login.html?next=vitx-dynamic.html">登录</a>
+            <button class="primary-btn" type="button" id="btn-publish-top">发布</button>
+            <span class="version">v3.1.0</span>
+            <a class="back" href="manager.html">← 返回账户</a>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <div class="page-intro">
+            <h1>Vitx® 动态</h1>
+            <p>分享此刻的图文。粘贴 Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang 或本站分享链接，服务端会自动附带一张分享卡片；未登录也能浏览，点赞、评论、转发需要登录。</p>
+        </div>
+
+        <div class="layout">
+            <div class="main-col">
+                <section class="panel composer" id="composer" aria-label="发布动态">
+                    <div class="composer-top">
+                        <span class="avatar" id="compose-avatar" aria-hidden="true">V</span>
+                        <div class="composer-body">
+                            <textarea id="compose-text" maxlength="2000" placeholder="分享你的此刻… 粘贴站内链接会自动生成卡片" aria-label="动态正文，最多 2000 字"></textarea>
+
+                            <div class="composer-tools">
+                                <button class="tool-btn" type="button" id="compose-add-image">🖼 添加图片地址</button>
+                                <button class="tool-btn" type="button" id="compose-upload-btn">⬆ 上传本地图片</button>
+                                <input type="file" id="compose-upload" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+                                <span class="counter" id="compose-count">0 / 2000</span>
+                            </div>
+
+                            <p class="tiny" id="compose-upload-note" hidden>图片会保存在 Vitual XRing 的公开图片库（PNG / JPG / GIF / WebP，最大 4 MB）。</p>
+
+                            <div class="img-rows" id="compose-images" aria-label="图片地址列表"></div>
+
+                            <div class="preview" id="compose-card" hidden>
+                                <div class="preview-head">分享卡片预览（发布后由服务端自动附带）</div>
+                                <div id="compose-card-body"></div>
+                            </div>
+
+                            <p class="tiny">最多 9 张图片：可以点「添加图片地址」逐行填写，也可以一次粘贴多行链接；正文、图片和卡片都是公开的。</p>
+
+                            <div class="composer-foot">
+                                <span class="login-hint" id="compose-login" hidden>登录后才能发布，<a id="compose-login-link" href="login.html?next=vitx-dynamic.html">去登录</a></span>
+                                <button class="primary-btn" type="button" id="compose-publish">发布动态</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="feed-view" aria-label="动态信息流">
+                    <div class="feed-head">
+                        <h2>最新动态</h2>
+                        <span class="feed-status" id="feed-status" role="status" aria-live="polite"></span>
+                        <button class="tool-btn" type="button" id="feed-refresh">刷新</button>
+                    </div>
+
+                    <div class="feed" id="feed"></div>
+
+                    <div class="empty" id="feed-empty" hidden>
+                        <strong>还没有动态</strong>
+                        <span>发一条图文动态，或者去 <a href="vitxvideo.html">Vitx 视频</a> 逛逛。</span>
+                    </div>
+
+                    <div class="feed-more">
+                        <button class="more-btn" type="button" id="load-more" hidden>加载更多</button>
+                    </div>
+                </section>
+
+                <section id="detail-view" hidden aria-label="动态详情">
+                    <a class="back-link" href="vitx-dynamic.html">← 返回动态流</a>
+                    <div id="detail-post"></div>
+
+                    <section class="panel comments-panel" id="comments-panel">
+                        <div class="comments-head">
+                            <h2>评论</h2>
+                            <span class="comment-count" id="comment-count">0 条</span>
+                        </div>
+
+                        <form class="comment-form" id="comment-form">
+                            <span class="avatar small" id="comment-avatar" aria-hidden="true">V</span>
+                            <div class="comment-form-body">
+                                <textarea id="comment-input" maxlength="500" placeholder="写下你的评论… 评论里的站内链接会自动变成卡片" aria-label="评论内容，最多 500 字"></textarea>
+                                <div class="comment-form-foot">
+                                    <span class="counter" id="comment-count-input">0 / 500</span>
+                                    <button class="primary-btn small" type="submit" id="comment-submit">发送</button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <p class="login-hint" id="comment-login" hidden>登录后才能评论，<a id="comment-login-link" href="login.html?next=vitx-dynamic.html">去登录</a></p>
+
+                        <div class="comment-list" id="comment-list"></div>
+
+                        <div class="empty small" id="comment-empty" hidden>
+                            <strong>还没有评论</strong>
+                            <span>来说两句吧，评论里粘贴站内链接也会变成卡片。</span>
+                        </div>
+                    </section>
+                </section>
+            </div>
+
+            <aside class="side-col">
+                <section class="panel side-card">
+                    <h3>发布提示</h3>
+                    <ul>
+                        <li>正文最多 <b>2000</b> 字，图片最多 <b>9</b> 张。</li>
+                        <li>站内链接会由服务端自动识别成卡片。</li>
+                        <li>本地图片会存进公开图片库，发布后长期有效。</li>
+                        <li>点赞、评论、转发、删除自己的动态需要登录。</li>
+                    </ul>
+                </section>
+
+                <section class="panel side-card">
+                    <h3>快捷入口</h3>
+                    <div class="side-links">
+                        <a href="vitxvideo.html"><span>Vitx® 视频</span><span>→</span></a>
+                        <a href="share.html"><span>创建分享链接</span><span>→</span></a>
+                        <a href="chatroom.html"><span>聊天室</span><span>→</span></a>
+                        <a href="manager.html"><span>我的账户</span><span>→</span></a>
+                    </div>
+                </section>
+            </aside>
+        </div>
+
+        <footer class="site-foot">
+            <span><b>Contributors</b>：Caldson</span>
+            <span>Vitual XRing 3.1.0 · Vitx® 动态</span>
+        </footer>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const VERSION = "3.1.0";
+            const PAGE_SIZE = 20;
+            const TEXT_MAX = 2000;
+            const COMMENT_MAX = 500;
+            const REPOST_MAX = 500;
+            const IMAGE_MAX = 9;
+            const UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
+
+            const API = window.VTXApi || null;
+            const XS = window.XRSocial || null;
+
+            const $ = (id) => document.getElementById(id);
+
+            const state = {
+                login: "",
+                items: [],
+                hasMore: false,
+                loadingFeed: false,
+                detailId: "",
+                detail: null,
+                comments: [],
+                publishing: false,
+                uploading: false,
+                previewUrl: "",
+                previewTimer: null,
+                pendingDelete: "",
+                deleteButton: null,
+                deleteTimer: null
+            };
+
+            function messageOf(error, fallback) {
+                return (error && error.message ? String(error.message) : "") || fallback;
+            }
+
+            function esc(value) {
+                return String(value == null ? "" : value)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+            }
+
+            function isHttp(value) {
+                return /^https?:\/\//i.test(String(value == null ? "" : value).trim());
+            }
+
+            function urlRegex() {
+                return /(https?:\/\/[^\s<>"'）)】]+|(?:\.{0,2}\/)?(?:vimidi|vmusic|viratch|audiv|vistyle|vclang|vitx-dynamic|share)\.html(?:\?[^\s<>"'）)】]*)?)/gi;
+            }
+
+            function linkify(value) {
+                const raw = String(value == null ? "" : value);
+                const re = urlRegex();
+                let out = "";
+                let last = 0;
+                let match;
+                while ((match = re.exec(raw))) {
+                    const target = match[0];
+                    out += esc(raw.slice(last, match.index));
+                    const href = isHttp(target) ? target : target.replace(/^\.{0,2}\//, "");
+                    out += `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer nofollow">${esc(target)}</a>`;
+                    last = match.index + target.length;
+                    if (re.lastIndex === match.index) {
+                        re.lastIndex += 1;
+                    }
+                }
+                out += esc(raw.slice(last));
+                return out.replace(/\r?\n/g, "<br>");
+            }
+
+            function initial(name) {
+                const chars = Array.from(String(name == null ? "" : name).trim());
+                return chars.length ? chars[0].toUpperCase() : "V";
+            }
+
+            function fullTime(at) {
+                const value = Number(at) || 0;
+                if (!value) {
+                    return "";
+                }
+                try {
+                    return new Date(value).toLocaleString("zh-CN", { hour12: false });
+                } catch (error) {
+                    return "";
+                }
+            }
+
+            function timeAgo(at) {
+                if (XS && typeof XS.timeAgo === "function") {
+                    return XS.timeAgo(at);
+                }
+                const value = Number(at) || 0;
+                return value ? new Date(value).toLocaleDateString("zh-CN") : "";
+            }
+
+            function cardHtml(card) {
+                if (!card) {
+                    return "";
+                }
+                if (XS && typeof XS.cardHtml === "function") {
+                    return XS.cardHtml(card);
+                }
+                return `<div class="xr-card"><span class="xr-card-title">${esc(card.title || "分享卡片")}</span></div>`;
+            }
+
+            let toastTimer = null;
+            function toast(message) {
+                const node = $("toast");
+                if (!node) {
+                    return;
+                }
+                node.textContent = String(message || "");
+                node.classList.add("show");
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => node.classList.remove("show"), 2600);
+            }
+
+            function copyText(value, okMessage) {
+                const text = String(value || "");
+                const fallback = () => {
+                    if (XS && typeof XS.copyText === "function") {
+                        return XS.copyText(text);
+                    }
+                    return Promise.resolve();
+                };
+                if (navigator.clipboard && window.isSecureContext && typeof navigator.clipboard.writeText === "function") {
+                    navigator.clipboard.writeText(text)
+                        .then(() => toast(okMessage))
+                        .catch(() => {
+                            fallback();
+                            toast(okMessage);
+                        });
+                    return;
+                }
+                fallback();
+                toast(okMessage);
+            }
+
+            function loginHref() {
+                const page = location.pathname.split("/").pop() || "vitx-dynamic.html";
+                return `login.html?next=${encodeURIComponent(page + location.search)}`;
+            }
+
+            function refreshSessionUI() {
+                const logged = Boolean(state.login);
+                const who = $("who");
+                who.hidden = !logged;
+                who.textContent = logged ? `已登录：${state.login}` : "";
+                $("login-link").hidden = logged;
+                $("compose-login").hidden = logged;
+                $("comment-login").hidden = logged;
+                const composeAvatar = $("compose-avatar");
+                const commentAvatar = $("comment-avatar");
+                if (logged) {
+                    composeAvatar.textContent = initial(state.login);
+                    commentAvatar.textContent = initial(state.login);
+                }
+            }
+
+            /* ───────── 信息流 ───────── */
+
+            function findItem(id) {
+                return state.items.find((item) => item.id === id)
+                    || (state.detail && state.detail.id === id ? state.detail : null);
+            }
+
+            function showFeedView() {
+                $("composer").hidden = false;
+                $("feed-view").hidden = false;
+                $("detail-view").hidden = true;
+                document.title = "Vitx® 动态 | Vitual XRing";
+            }
+
+            function showDetailView() {
+                $("composer").hidden = true;
+                $("feed-view").hidden = true;
+                $("detail-view").hidden = false;
+            }
+
+            const EMPTY_FEED_HTML = "<strong>还没有动态</strong><span>发一条图文动态，或者去 <a href=\"vitxvideo.html\">Vitx 视频</a> 逛逛。</span>";
+
+            function setEmpty(title, note) {
+                $("feed-empty").innerHTML = `<strong>${esc(title)}</strong><span>${esc(note)}</span>`;
+            }
+
+            function imageGrid(images) {
+                return `<div class="img-grid" data-count="${images.length}">`
+                    + images.map((url) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer"><img src="${esc(url)}" alt="动态图片" loading="lazy" referrerpolicy="no-referrer"></a>`).join("")
+                    + "</div>";
+            }
+
+            function postHtml(item, options) {
+                const opts = options || {};
+                const extra = item.extra && typeof item.extra === "object" ? item.extra : {};
+                const author = item.ownerName || item.owner || "匿名用户";
+                const images = (Array.isArray(extra.images) ? extra.images : []).filter(isHttp).slice(0, IMAGE_MAX);
+                const text = extra.text || "";
+                const card = extra.card && typeof extra.card === "object" ? extra.card : null;
+                const isRepost = Boolean(extra.repostOf);
+                const repostCount = Number(extra.repostCount) || 0;
+                const commentCount = Number(item.comments) || 0;
+                const likeCount = Number(item.likes) || 0;
+                const postUrl = new URL(`vitx-dynamic.html?id=${encodeURIComponent(item.id)}`, location.href).href;
+
+                return `<article class="post${opts.detail ? " post-detail" : ""}" data-post="${esc(item.id)}">
+                    <header class="post-head">
+                        <span class="avatar" aria-hidden="true">${esc(initial(author))}</span>
+                        <span class="post-who">
+                            <strong>${esc(author)}</strong>
+                            <span class="post-meta" title="${esc(fullTime(item.at))}">${esc(timeAgo(item.at))}${isRepost ? " · 转发" : ""}</span>
+                        </span>
+                        ${item.mine
+                            ? `<button type="button" class="post-del" data-del="1">删除</button>`
+                            : (opts.detail ? "" : `<a class="post-link" href="${esc(postUrl)}">详情 →</a>`)}
+                    </header>
+
+                    <div class="post-body">
+                        ${text ? `<p class="post-text">${linkify(text)}</p>` : ""}
+                        ${images.length ? imageGrid(images) : ""}
+                        ${card ? `<div class="post-card">${cardHtml(card)}</div>` : ""}
+                    </div>
+
+                    <footer class="post-actions">
+                        <button type="button" class="act${item.liked ? " on" : ""}" data-act="like" aria-pressed="${item.liked ? "true" : "false"}">👍 <span data-count="likes">${likeCount}</span></button>
+                        <a class="act" href="${esc(postUrl)}#comments">💬 <span data-count="comments">${commentCount}</span></a>
+                        <button type="button" class="act" data-act="repost">🔁 <span data-count="reposts">${repostCount}</span></button>
+                        <button type="button" class="act" data-act="copy">🔗 复制链接</button>
+                        ${opts.detail ? "" : `<a class="act" href="${esc(postUrl)}">打开详情</a>`}
+                    </footer>
+
+                    <form class="repost-box" data-repost-box hidden>
+                        <textarea maxlength="${REPOST_MAX}" placeholder="说点什么再转发（留空会自动写「转发了…」）"></textarea>
+                        <div class="repost-foot">
+                            <span class="repost-left" data-repost-left>0 / ${REPOST_MAX}</span>
+                            <button type="button" class="tool-btn" data-repost-cancel>取消</button>
+                            <button type="submit" class="primary-btn small">转发</button>
+                        </div>
+                    </form>
+                </article>`;
+            }
+
+            function renderFeed() {
+                const feed = $("feed");
+                feed.innerHTML = state.items.map((item) => postHtml(item, { detail: false })).join("");
+                const empty = state.items.length === 0;
+                if (empty) {
+                    $("feed-empty").innerHTML = EMPTY_FEED_HTML;
+                }
+                $("feed-empty").hidden = !empty;
+                $("load-more").hidden = !state.hasMore || empty;
+            }
+
+            async function loadFeed(reset) {
+                if (state.loadingFeed) {
+                    return;
+                }
+                state.loadingFeed = true;
+                $("load-more").disabled = true;
+                $("feed-status").textContent = reset ? "正在加载动态…" : "正在加载更多…";
+                try {
+                    const options = { limit: PAGE_SIZE };
+                    if (!reset && state.items.length) {
+                        options.before = state.items[state.items.length - 1].at;
+                    }
+                    const data = await VTXApi.social.list("dynamic", options);
+                    const incoming = Array.isArray(data && data.items) ? data.items : [];
+                    if (reset) {
+                        state.items = incoming;
+                    } else {
+                        const known = new Set(state.items.map((item) => item.id));
+                        state.items = state.items.concat(incoming.filter((item) => !known.has(item.id)));
+                    }
+                    state.hasMore = Boolean(data && data.hasMore);
+                    renderFeed();
+                    $("feed-status").textContent = state.items.length
+                        ? `共显示 ${state.items.length} 条动态`
+                        : "";
+                } catch (error) {
+                    $("feed-status").textContent = messageOf(error, "动态加载失败");
+                    if (!state.items.length) {
+                        setEmpty("动态加载失败", "检查网络后点右上角「刷新」再试一次。");
+                        $("feed-empty").hidden = false;
+                    }
+                    toast(messageOf(error, "动态加载失败，请稍后再试"));
+                } finally {
+                    state.loadingFeed = false;
+                    $("load-more").disabled = false;
+                    $("load-more").hidden = !state.hasMore || state.items.length === 0;
+                }
+            }
+
+            /* ───────── 点赞 / 删除 / 复制 / 转发 ───────── */
+
+            function postsWithId(id) {
+                const nodes = [];
+                ["feed", "detail-post"].forEach((containerId) => {
+                    const container = $(containerId);
+                    if (!container) {
+                        return;
+                    }
+                    container.querySelectorAll("[data-post]").forEach((node) => {
+                        if (node.getAttribute("data-post") === id) {
+                            nodes.push(node);
+                        }
+                    });
+                });
+                return nodes;
+            }
+
+            function syncLikeUI(item) {
+                if (!item) {
+                    return;
+                }
+                postsWithId(item.id).forEach((node) => {
+                    const button = node.querySelector('[data-act="like"]');
+                    if (!button) {
+                        return;
+                    }
+                    button.classList.toggle("on", Boolean(item.liked));
+                    button.setAttribute("aria-pressed", item.liked ? "true" : "false");
+                    const count = button.querySelector('[data-count="likes"]');
+                    if (count) {
+                        count.textContent = String(Number(item.likes) || 0);
+                    }
+                });
+            }
+
+            function syncRepostUI(item) {
+                if (!item) {
+                    return;
+                }
+                const extra = item.extra || {};
+                postsWithId(item.id).forEach((node) => {
+                    const count = node.querySelector('[data-count="reposts"]');
+                    if (count) {
+                        count.textContent = String(Number(extra.repostCount) || 0);
+                    }
+                });
+            }
+
+            function syncCommentUI(item) {
+                if (!item) {
+                    return;
+                }
+                postsWithId(item.id).forEach((node) => {
+                    const count = node.querySelector('[data-count="comments"]');
+                    if (count) {
+                        count.textContent = String(Number(item.comments) || 0);
+                    }
+                });
+            }
+
+            async function toggleLike(id, post) {
+                if (!state.login) {
+                    toast("请先登录再点赞");
+                    return;
+                }
+                const item = findItem(id);
+                if (!item) {
+                    return;
+                }
+                const button = post ? post.querySelector('[data-act="like"]') : null;
+                if (button) {
+                    button.disabled = true;
+                }
+                try {
+                    const data = await VTXApi.social.like("dynamic", id);
+                    item.liked = Boolean(data && data.liked);
+                    item.likes = Number(data && data.likes) || 0;
+                    syncLikeUI(item);
+                } catch (error) {
+                    toast(messageOf(error, "点赞失败，请稍后再试"));
+                } finally {
+                    if (button) {
+                        button.disabled = false;
+                    }
+                }
+            }
+
+            function copyPostLink(id) {
+                const url = new URL(`vitx-dynamic.html?id=${encodeURIComponent(id)}`, location.href).href;
+                copyText(url, "动态链接已复制");
+            }
+
+            function openRepost(post) {
+                const box = post.querySelector("[data-repost-box]");
+                if (!box) {
+                    return;
+                }
+                box.hidden = !box.hidden;
+                if (!box.hidden) {
+                    const area = box.querySelector("textarea");
+                    if (area) {
+                        area.focus();
+                    }
+                }
+            }
+
+            async function doRepost(id, form) {
+                if (!state.login) {
+                    toast("请先登录再转发");
+                    return;
+                }
+                const area = form.querySelector("textarea");
+                const text = area ? area.value.trim() : "";
+                if (text.length > REPOST_MAX) {
+                    toast(`转发文字最多 ${REPOST_MAX} 个字`);
+                    return;
+                }
+                const submit = form.querySelector('button[type="submit"]');
+                if (submit) {
+                    submit.disabled = true;
+                }
+                try {
+                    const data = await VTXApi.social.repost(id, text);
+                    const created = data && data.item;
+                    const item = findItem(id);
+                    if (item) {
+                        item.extra = item.extra && typeof item.extra === "object" ? item.extra : {};
+                        item.extra.repostCount = (Number(item.extra.repostCount) || 0) + 1;
+                        syncRepostUI(item);
+                    }
+                    if (created && !state.detailId) {
+                        state.items = [created].concat(state.items.filter((entry) => entry.id !== created.id));
+                    }
+                    form.hidden = true;
+                    if (area) {
+                        area.value = "";
+                    }
+                    const left = form.querySelector("[data-repost-left]");
+                    if (left) {
+                        left.textContent = `0 / ${REPOST_MAX}`;
+                    }
+                    if (!state.detailId) {
+                        renderFeed();
+                    }
+                    toast("已转发到动态");
+                } catch (error) {
+                    toast(messageOf(error, "转发失败，请稍后再试"));
+                } finally {
+                    if (submit) {
+                        submit.disabled = false;
+                    }
+                }
+            }
+
+            async function deletePost(id, button) {
+                if (!state.login) {
+                    toast("请先登录再删除");
+                    return;
+                }
+                button.disabled = true;
+                try {
+                    await VTXApi.social.remove("dynamic", id);
+                    state.items = state.items.filter((item) => item.id !== id);
+                    if (state.detail && state.detail.id === id) {
+                        state.detail = null;
+                        window.location.replace("vitx-dynamic.html");
+                        return;
+                    }
+                    renderFeed();
+                    toast("动态已删除");
+                } catch (error) {
+                    button.disabled = false;
+                    toast(messageOf(error, "删除失败，请稍后再试"));
+                }
+            }
+
+            function handleDelete(id, button) {
+                if (state.pendingDelete !== id) {
+                    if (state.deleteButton && state.deleteButton !== button) {
+                        state.deleteButton.classList.remove("confirm");
+                        state.deleteButton.textContent = "删除";
+                    }
+                    state.pendingDelete = id;
+                    state.deleteButton = button;
+                    button.classList.add("confirm");
+                    button.textContent = "确认删除？";
+                    clearTimeout(state.deleteTimer);
+                    state.deleteTimer = setTimeout(() => {
+                        state.pendingDelete = "";
+                        state.deleteButton = null;
+                        button.classList.remove("confirm");
+                        button.textContent = "删除";
+                    }, 4000);
+                    return;
+                }
+                state.pendingDelete = "";
+                state.deleteButton = null;
+                clearTimeout(state.deleteTimer);
+                deletePost(id, button);
+            }
+
+            /* ───────── 详情 / 评论 ───────── */
+
+            async function showDetail(id) {
+                state.detailId = id;
+                showDetailView();
+                $("detail-post").innerHTML = `<div class="detail-loading">正在加载动态…</div>`;
+                $("comment-list").innerHTML = "";
+                $("comment-empty").hidden = true;
+                $("comment-count").textContent = "0 条";
+                $("detail-post").scrollIntoView({ block: "start" });
+
+                try {
+                    const data = await VTXApi.social.get("dynamic", id);
+                    if (!data || !data.item) {
+                        throw new Error("动态不存在或已被删除");
+                    }
+                    state.detail = data.item;
+                    renderDetail();
+                    await loadComments(id);
+                    if (location.hash === "#comments") {
+                        $("comments-panel").scrollIntoView({ block: "start" });
+                    }
+                } catch (error) {
+                    const message = messageOf(error, "动态不存在或已被删除");
+                    $("detail-post").innerHTML = `<div class="detail-error">
+                        <strong>${esc(message)}</strong>
+                        <p>可能是链接不完整，或者作者已经删除了这条动态。</p>
+                        <a class="primary-btn" href="vitx-dynamic.html">回到动态流</a>
+                    </div>`;
+                }
+            }
+
+            function renderDetail() {
+                const item = state.detail;
+                if (!item) {
+                    return;
+                }
+                $("detail-post").innerHTML = postHtml(item, { detail: true });
+                $("comment-count").textContent = `${Number(item.comments) || 0} 条`;
+                document.title = `${item.ownerName || item.owner || "动态"} · Vitx® 动态 | Vitual XRing`;
+            }
+
+            async function loadComments(id) {
+                try {
+                    const data = await VTXApi.social.comments(id);
+                    state.comments = Array.isArray(data && data.comments) ? data.comments : [];
+                    renderComments();
+                } catch (error) {
+                    $("comment-list").innerHTML = `<p class="comment-error">评论加载失败，请稍后刷新本页。</p>`;
+                }
+            }
+
+            function renderComments() {
+                const list = $("comment-list");
+                if (!state.comments.length) {
+                    list.innerHTML = "";
+                    $("comment-empty").hidden = false;
+                    return;
+                }
+                $("comment-empty").hidden = true;
+                list.innerHTML = state.comments.map((comment) => {
+                    const name = comment.userName || comment.user || "匿名用户";
+                    const liked = Boolean(comment.liked);
+                    return `<div class="comment" data-comment="${esc(comment.id)}">
+                        <span class="avatar small" aria-hidden="true">${esc(initial(name))}</span>
+                        <div class="comment-main">
+                            <div class="comment-head">
+                                <b>${esc(name)}</b>
+                                <span title="${esc(fullTime(comment.at))}">${esc(timeAgo(comment.at))}</span>
+                                ${comment.mine ? `<span class="tag-me">我</span>` : ""}
+                            </div>
+                            <p class="comment-text">${linkify(comment.text)}</p>
+                            ${comment.card ? `<div class="comment-card">${cardHtml(comment.card)}</div>` : ""}
+                            <button type="button" class="comment-like${liked ? " on" : ""}" data-clike="1" aria-pressed="${liked ? "true" : "false"}">👍 <span data-count="clikes">${Number(comment.likes) || 0}</span></button>
+                        </div>
+                    </div>`;
+                }).join("");
+            }
+
+            async function toggleCommentLike(commentId, button) {
+                if (!state.login) {
+                    toast("请先登录再点赞评论");
+                    return;
+                }
+                if (!state.detail) {
+                    return;
+                }
+                button.disabled = true;
+                try {
+                    const data = await VTXApi.social.likeComment(state.detail.id, commentId);
+                    const comment = state.comments.find((entry) => entry.id === commentId);
+                    if (comment) {
+                        comment.likes = Number(data && data.likes) || 0;
+                        comment.liked = Boolean(data && data.liked);
+                    }
+                    button.classList.toggle("on", Boolean(data && data.liked));
+                    button.setAttribute("aria-pressed", data && data.liked ? "true" : "false");
+                    const count = button.querySelector('[data-count="clikes"]');
+                    if (count) {
+                        count.textContent = String(Number(data && data.likes) || 0);
+                    }
+                } catch (error) {
+                    toast(messageOf(error, "点赞失败，请稍后再试"));
+                } finally {
+                    button.disabled = false;
+                }
+            }
+
+            function updateCommentCounter() {
+                const input = $("comment-input");
+                $("comment-count-input").textContent = `${input.value.length} / ${COMMENT_MAX}`;
+            }
+
+            async function submitComment(event) {
+                event.preventDefault();
+                if (!state.login) {
+                    toast("请先登录再评论");
+                    return;
+                }
+                if (!state.detail) {
+                    return;
+                }
+                const input = $("comment-input");
+                const text = input.value.trim();
+                if (!text) {
+                    toast("先写点内容再评论");
+                    return;
+                }
+                if (text.length > COMMENT_MAX) {
+                    toast(`评论最多 ${COMMENT_MAX} 个字`);
+                    return;
+                }
+                const button = $("comment-submit");
+                button.disabled = true;
+                try {
+                    const data = await VTXApi.social.comment(state.detail.id, text);
+                    if (data && data.comment) {
+                        state.comments = state.comments.concat([data.comment]);
+                    }
+                    if (data && Number.isFinite(Number(data.count))) {
+                        state.detail.comments = Number(data.count);
+                    } else {
+                        state.detail.comments = state.comments.length;
+                    }
+                    input.value = "";
+                    updateCommentCounter();
+                    $("comment-count").textContent = `${Number(state.detail.comments) || 0} 条`;
+                    syncCommentUI(state.detail);
+                    renderComments();
+                    toast("评论已发布");
+                } catch (error) {
+                    toast(messageOf(error, "评论发送失败"));
+                } finally {
+                    button.disabled = false;
+                }
+            }
+
+            /* ───────── 发布框 ───────── */
+
+            function imageInputs() {
+                return Array.from(document.querySelectorAll("#compose-images input[type=url]"));
+            }
+
+            function renumberRows() {
+                imageInputs().forEach((input, index) => {
+                    const row = input.closest(".img-row");
+                    const idx = row ? row.querySelector(".idx") : null;
+                    if (idx) {
+                        idx.textContent = String(index + 1);
+                    }
+                });
+            }
+
+            function addImageRow(value) {
+                if (imageInputs().length >= IMAGE_MAX) {
+                    toast(`最多只能添加 ${IMAGE_MAX} 张图片`);
+                    return null;
+                }
+                const row = document.createElement("div");
+                row.className = "img-row";
+
+                const idx = document.createElement("span");
+                idx.className = "idx";
+
+                const input = document.createElement("input");
+                input.type = "url";
+                input.inputMode = "url";
+                input.maxLength = 1000;
+                input.placeholder = "https://example.com/photo.jpg";
+                input.value = String(value || "");
+                input.setAttribute("aria-label", "图片地址");
+
+                const remove = document.createElement("button");
+                remove.type = "button";
+                remove.className = "rm";
+                remove.setAttribute("data-img-remove", "1");
+                remove.setAttribute("aria-label", "移除这张图片");
+                remove.textContent = "×";
+
+                row.appendChild(idx);
+                row.appendChild(input);
+                row.appendChild(remove);
+                $("compose-images").appendChild(row);
+                renumberRows();
+                return input;
+            }
+
+            function setImageValues(values) {
+                $("compose-images").innerHTML = "";
+                values.slice(0, IMAGE_MAX).forEach((value) => addImageRow(value));
+            }
+
+            function clearImages() {
+                $("compose-images").innerHTML = "";
+            }
+
+            function collectImages() {
+                const raw = imageInputs().map((input) => input.value.trim()).filter(Boolean);
+                const images = [];
+                let dropped = 0;
+                raw.forEach((value) => {
+                    if (!isHttp(value)) {
+                        dropped += 1;
+                        return;
+                    }
+                    if (!images.includes(value)) {
+                        images.push(value);
+                    }
+                });
+                return { images: images.slice(0, IMAGE_MAX), dropped };
+            }
+
+            async function handleUpload(event) {
+                const input = event.target;
+                const file = input.files && input.files[0];
+                input.value = "";
+                if (!file) {
+                    return;
+                }
+                if (!state.login) {
+                    toast("请先登录再上传图片");
+                    return;
+                }
+                if (!/^image\/(png|jpeg|gif|webp)$/i.test(file.type || "")) {
+                    toast("只支持 PNG / JPG / GIF / WebP 图片");
+                    return;
+                }
+                if (file.size > UPLOAD_MAX_BYTES) {
+                    toast("图片不能超过 4 MB");
+                    return;
+                }
+                if (state.uploading) {
+                    return;
+                }
+                if (!API || !API.social || typeof API.social.uploadImage !== "function") {
+                    toast("SDK 没有提供图片上传接口");
+                    return;
+                }
+                state.uploading = true;
+                const button = $("compose-upload-btn");
+                button.disabled = true;
+                button.textContent = "上传中…";
+                try {
+                    const result = await API.social.uploadImage(file);
+                    if (!result || !result.image || !result.image.url) {
+                        throw new Error("上传结果缺少图片地址");
+                    }
+                    if (imageInputs().length >= IMAGE_MAX) {
+                        toast(`最多 ${IMAGE_MAX} 张图片，这张没有加进去`);
+                        return;
+                    }
+                    addImageRow(result.image.url);
+                    $("compose-upload-note").hidden = false;
+                    toast("图片已上传到公开图片库");
+                } catch (error) {
+                    toast(messageOf(error, "图片上传失败"));
+                } finally {
+                    state.uploading = false;
+                    button.disabled = false;
+                    button.textContent = "⬆ 上传本地图片";
+                }
+            }
+
+            function schedulePreview() {
+                clearTimeout(state.previewTimer);
+                state.previewTimer = setTimeout(refreshPreview, 600);
+            }
+
+            async function refreshPreview() {
+                const text = $("compose-text").value;
+                const matches = text.match(urlRegex());
+                const url = matches && matches.length ? matches[0] : "";
+                const box = $("compose-card");
+                const body = $("compose-card-body");
+                if (!url) {
+                    box.hidden = true;
+                    body.innerHTML = "";
+                    state.previewUrl = "";
+                    return;
+                }
+                if (url === state.previewUrl) {
+                    return;
+                }
+                state.previewUrl = url;
+                try {
+                    const data = await VTXApi.social.resolve(url);
+                    if (state.previewUrl !== url) {
+                        return;
+                    }
+                    const card = data && data.card ? data.card : null;
+                    if (card) {
+                        body.innerHTML = cardHtml(card);
+                        box.hidden = false;
+                    } else {
+                        body.innerHTML = "";
+                        box.hidden = true;
+                    }
+                } catch (error) {
+                    if (state.previewUrl === url) {
+                        body.innerHTML = "";
+                        box.hidden = true;
+                    }
+                }
+            }
+
+            async function publish() {
+                if (!state.login) {
+                    toast("请先登录再发布动态");
+                    return;
+                }
+                if (state.publishing) {
+                    return;
+                }
+                const text = $("compose-text").value.trim();
+                const collected = collectImages();
+                if (!text && !collected.images.length) {
+                    toast("写点什么，或者加一张图片吧");
+                    return;
+                }
+                if (text.length > TEXT_MAX) {
+                    toast(`动态最多 ${TEXT_MAX} 个字`);
+                    return;
+                }
+                if (collected.dropped) {
+                    toast(`已忽略 ${collected.dropped} 个不是 http(s) 的图片地址`);
+                }
+                state.publishing = true;
+                const button = $("compose-publish");
+                button.disabled = true;
+                button.textContent = "发布中…";
+                try {
+                    const data = await VTXApi.social.create("dynamic", { text, images: collected.images });
+                    const created = data && data.item;
+                    if (created) {
+                        state.items = [created].concat(state.items.filter((item) => item.id !== created.id));
+                        renderFeed();
+                    }
+                    $("compose-text").value = "";
+                    $("compose-count").textContent = `0 / ${TEXT_MAX}`;
+                    clearImages();
+                    $("compose-card").hidden = true;
+                    $("compose-card-body").innerHTML = "";
+                    state.previewUrl = "";
+                    toast("动态已发布");
+                } catch (error) {
+                    toast(messageOf(error, "发布失败，请稍后再试"));
+                } finally {
+                    state.publishing = false;
+                    button.disabled = false;
+                    button.textContent = "发布动态";
+                }
+            }
+
+            function focusComposer() {
+                $("composer").scrollIntoView({ behavior: "smooth", block: "start" });
+                $("compose-text").focus();
+            }
+
+            /* ───────── 事件绑定 ───────── */
+
+            function bindPostContainer(container) {
+                container.addEventListener("click", (event) => {
+                    const target = event.target.closest("[data-act], [data-del], [data-repost-cancel]");
+                    if (!target || !container.contains(target)) {
+                        return;
+                    }
+                    const post = target.closest("[data-post]");
+                    if (!post) {
+                        return;
+                    }
+                    const id = post.getAttribute("data-post") || "";
+                    if (target.hasAttribute("data-del")) {
+                        handleDelete(id, target);
+                        return;
+                    }
+                    if (target.hasAttribute("data-repost-cancel")) {
+                        const box = post.querySelector("[data-repost-box]");
+                        if (box) {
+                            box.hidden = true;
+                        }
+                        return;
+                    }
+                    const act = target.getAttribute("data-act");
+                    if (act === "like") {
+                        toggleLike(id, post);
+                    } else if (act === "repost") {
+                        openRepost(post);
+                    } else if (act === "copy") {
+                        copyPostLink(id);
+                    }
+                });
+
+                container.addEventListener("submit", (event) => {
+                    const form = event.target.closest("[data-repost-box]");
+                    if (!form || !container.contains(form)) {
+                        return;
+                    }
+                    event.preventDefault();
+                    const post = form.closest("[data-post]");
+                    if (post) {
+                        doRepost(post.getAttribute("data-post") || "", form);
+                    }
+                });
+
+                container.addEventListener("input", (event) => {
+                    const form = event.target.closest("[data-repost-box]");
+                    if (!form) {
+                        return;
+                    }
+                    const left = form.querySelector("[data-repost-left]");
+                    if (left) {
+                        left.textContent = `${event.target.value.length} / ${REPOST_MAX}`;
+                    }
+                });
+            }
+
+            function bindEvents() {
+                bindPostContainer($("feed"));
+                bindPostContainer($("detail-post"));
+
+                $("comment-list").addEventListener("click", (event) => {
+                    const button = event.target.closest("[data-clike]");
+                    if (!button) {
+                        return;
+                    }
+                    const node = button.closest("[data-comment]");
+                    if (node) {
+                        toggleCommentLike(node.getAttribute("data-comment") || "", button);
+                    }
+                });
+
+                $("comment-form").addEventListener("submit", submitComment);
+                $("comment-input").addEventListener("input", updateCommentCounter);
+
+                $("feed-refresh").addEventListener("click", () => loadFeed(true));
+                $("load-more").addEventListener("click", () => loadFeed(false));
+
+                $("compose-text").addEventListener("input", () => {
+                    $("compose-count").textContent = `${$("compose-text").value.length} / ${TEXT_MAX}`;
+                    schedulePreview();
+                });
+
+                $("compose-add-image").addEventListener("click", () => {
+                    addImageRow("");
+                });
+
+                $("compose-upload-btn").addEventListener("click", () => {
+                    if (!state.login) {
+                        toast("请先登录再上传图片");
+                        return;
+                    }
+                    $("compose-upload").click();
+                });
+
+                $("compose-upload").addEventListener("change", handleUpload);
+                $("compose-publish").addEventListener("click", publish);
+
+                $("compose-images").addEventListener("click", (event) => {
+                    const remove = event.target.closest("[data-img-remove]");
+                    if (!remove) {
+                        return;
+                    }
+                    const row = remove.closest(".img-row");
+                    if (row) {
+                        row.remove();
+                    }
+                    renumberRows();
+                });
+
+                $("compose-images").addEventListener("paste", (event) => {
+                    const input = event.target.closest("input[type=url]");
+                    if (!input || !event.clipboardData) {
+                        return;
+                    }
+                    const raw = event.clipboardData.getData("text/plain") || "";
+                    const lines = raw.split(/[\r\n]+/).map((line) => line.trim()).filter(Boolean);
+                    if (lines.length < 2) {
+                        return;
+                    }
+                    event.preventDefault();
+                    const inputs = imageInputs();
+                    let start = inputs.indexOf(input);
+                    if (start < 0) {
+                        start = inputs.length - 1;
+                    }
+                    const values = inputs.map((node) => node.value);
+                    while (values.length < start + lines.length) {
+                        values.push("");
+                    }
+                    lines.forEach((line, offset) => {
+                        if (start + offset < IMAGE_MAX) {
+                            values[start + offset] = line;
+                        }
+                    });
+                    setImageValues(values);
+                });
+
+                $("compose-images").addEventListener("input", () => {
+                    if (state.previewUrl) {
+                        schedulePreview();
+                    }
+                });
+
+                $("btn-publish-top").addEventListener("click", () => {
+                    if (state.detailId) {
+                        window.location.href = "vitx-dynamic.html#compose";
+                        return;
+                    }
+                    focusComposer();
+                });
+            }
+
+            function boot() {
+                const page = location.pathname.split("/").pop() || "vitx-dynamic.html";
+                ["login-link", "compose-login-link", "comment-login-link"].forEach((id) => {
+                    const node = $(id);
+                    if (node) {
+                        node.setAttribute("href", loginHref());
+                    }
+                });
+
+                if (!API || !API.social) {
+                    $("feed-status").textContent = "没有加载到 Vitual XRing SDK（vtx-api.js），无法读取动态。";
+                    $("compose-publish").disabled = true;
+                    $("feed-refresh").disabled = true;
+                    toast("SDK 未加载，请刷新页面重试");
+                    return;
+                }
+
+                state.login = typeof VTXApi.currentLogin === "function" ? VTXApi.currentLogin() : "";
+                refreshSessionUI();
+                bindEvents();
+                updateCommentCounter();
+                $("compose-count").textContent = `0 / ${TEXT_MAX}`;
+
+                if (page !== "vitx-dynamic.html") {
+                    document.title = "Vitx® 动态 | Vitual XRing";
+                }
+
+                const params = new URLSearchParams(location.search);
+                const id = (params.get("id") || "").trim();
+
+                if (id) {
+                    showDetail(id);
+                } else {
+                    showFeedView();
+                    loadFeed(true);
+                }
+
+                if (location.hash === "#compose" && !id) {
+                    focusComposer();
+                }
+            }
+
+            boot();
+        })();
+    </script>
+</body>
+</html>

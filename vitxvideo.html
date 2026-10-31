@@ -6,7 +6,8 @@
     <meta name="theme-color" content="#f4f7fb">
     <title>Vitx® 视频 | Vitual XRing</title>
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
-    <script src="vtx-api.js?v=2.1.0"></script>
+    <script src="vtx-api.js?v=3.1.0"></script>
+<script src="xring-social.js?v=3.1.0"></script>
     <style>
         :root {
             color-scheme: light;
@@ -1301,8 +1302,9 @@
             <button class="icon-btn" type="button" id="btn-notify" title="通知设置">
                 🔔<span class="dot" id="notify-dot" hidden></span>
             </button>
+            <a class="primary-btn" href="vitx-dynamic.html" style="text-decoration: none;background:#eef4ff;color:#2c5fd0;">动态</a>
             <a class="primary-btn" href="vitxvideopublish.html" style="text-decoration: none;">投稿</a>
-            <span class="version">v2.1.0</span>
+            <span class="version">v3.1.0</span>
             <a class="back" href="manager.html">← 返回账户</a>
         </div>
     </header>
@@ -1314,7 +1316,7 @@
                 <div>
                     <p class="eyebrow">Vitual XRing 新功能预告</p>
                     <h1>你想要的一切，影视和视频，都在这里</h1>
-                    <p class="hero-sub">Vitual XRing 1.8.2：Vitx® 视频新增<b>举报此视频</b>，可选抄袭/侵权等理由、照片证据和补充文字；管理员在「举报处理」里删除视频或忽略。1.8.1 的 UP 主关注继续保留。</p>
+                    <p class="hero-sub">Vitual XRing 3.1.0：Vitx® 视频新增<b>动态</b>，支持图文、转发和评论；在评论或动态里粘贴 Vimidi、VMusic、Viratch、AUDIV、ViStyle、VClang 的链接，会自动变成可点击的分享卡片。</p>
                     <div class="versions">
                         <span class="chip">1.8.1</span>
                         <span class="arrow">→</span>
@@ -2373,6 +2375,7 @@
                                 <span class="comment-time">${esc(relativeTime(item.at))}</span>
                             </div>
                             <p class="comment-text">${esc(item.text)}</p>
+                            ${item.card && window.XRSocial ? window.XRSocial.cardHtml(item.card, { compact: true }) : ""}
                             <div class="comment-actions">
                                 <button type="button" data-comment-like="${esc(item.id)}" class="${item.liked ? "on" : ""}">👍 ${formatCount(item.likes)}</button>
                                 <button type="button" data-comment-reply="${esc(item.id)}">回复</button>

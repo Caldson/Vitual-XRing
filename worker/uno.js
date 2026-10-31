@@ -1,4 +1,4 @@
-/* Vitual XRing 2.1.0 — 聊天室 UNO
+/* Vitual XRing 3.1.0 — 聊天室 UNO
  *
  * 服务端负责全部牌局状态（手牌、牌堆、回合、方向、累计效果、队内可见性），
  * 客户端只负责渲染和提交动作，所以改前端代码没法作弊。
@@ -11,7 +11,7 @@
  * 客户端收到后重新拉一次 GET /api/uno/rooms/:id。
  */
 
-export const UNO_VERSION = "2.1.0";
+export const UNO_VERSION = "3.1.0";
 
 export const UNO_MAX_PLAYERS = 10;
 export const UNO_MAX_MIXED_PLAYERS = 18;

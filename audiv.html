@@ -1,0 +1,3717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- 停服守卫：停服期间任何页面都会跳到 WebsiteClose.html，时间表见 vtx-closed.js -->
+    <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2f63d8">
+    <meta name="description" content="AUDIV 是 Vitual XRing 的纯音频语音会议：输入会议号即可加入，支持 WebRTC 语音、文字聊天和邀请。">
+    <title>AUDIV 语音会议 | Vitual XRing</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --blue: #2f63d8;
+            --blue-deep: #1e4fc4;
+            --blue-soft: #eef4ff;
+            --ink: #172033;
+            --muted: #68768d;
+            --line: #e5ebf5;
+            --bg: #f4f7fb;
+            --card: #ffffff;
+            --danger: #d6455d;
+            --ok: #2f9e6f;
+            --warn: #b7791f;
+            --radius: 20px;
+        }
+
+        * { box-sizing: border-box; }
+
+        [hidden] { display: none !important; }
+
+        html, body { margin: 0; }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 10% 0, #e4eeff 0, transparent 34%),
+                radial-gradient(circle at 92% 6%, #e6f5f1 0, transparent 30%),
+                var(--bg);
+            color: var(--ink);
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body.room-mode {
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        button, input, textarea {
+            font: inherit;
+            color: inherit;
+        }
+
+        button { cursor: pointer; touch-action: manipulation; }
+
+        a { color: var(--blue); }
+
+        .view { min-height: 100vh; }
+
+        /* ───────── 顶栏 ───────── */
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 11px 22px;
+            padding-top: calc(11px + env(safe-area-inset-top, 0px));
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: inherit;
+            flex: 0 0 auto;
+        }
+
+        .brand-mark {
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #1e4fc4, #4c86f0);
+            color: #fff;
+            font-size: 17px;
+            box-shadow: 0 6px 16px rgba(47, 99, 216, 0.24);
+        }
+
+        .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+        .brand-text strong { font-size: 16px; letter-spacing: 0.02em; }
+        .brand-text small { color: var(--muted); font-size: 11.5px; }
+
+        .topbar-spacer { flex: 1 1 auto; min-width: 0; }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            font-size: 13px;
+        }
+
+        .top-link {
+            color: #4a5871;
+            text-decoration: none;
+            font-weight: 650;
+            padding: 6px 10px;
+            border-radius: 9px;
+            white-space: nowrap;
+        }
+
+        .top-link:hover { background: #f1f5fc; color: var(--ink); }
+
+        .version-badge {
+            padding: 4px 9px;
+            border-radius: 999px;
+            background: var(--blue-soft);
+            border: 1px solid #dbe6ff;
+            color: #2b56b8;
+            font-size: 11.5px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .login-link {
+            padding: 6px 13px;
+            border-radius: 999px;
+            background: var(--blue);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .whoami {
+            font-size: 12.5px;
+            color: var(--muted);
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* ───────── 首页 ───────── */
+
+        .home-main {
+            width: min(1140px, calc(100% - 40px));
+            margin: 0 auto;
+            padding: 26px 0 54px;
+        }
+
+        .hero {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+            gap: 38px;
+            align-items: center;
+            overflow: hidden;
+            padding: 48px 46px;
+            border-radius: 28px;
+            background: linear-gradient(130deg, #17409f 0%, #2f63d8 48%, #4f8bf2 100%);
+            color: #fff;
+            box-shadow: 0 28px 70px rgba(28, 68, 170, 0.28);
+        }
+
+        .hero::before,
+        .hero::after {
+            content: "";
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .hero::before {
+            width: 360px;
+            height: 360px;
+            top: -140px;
+            right: -90px;
+            background: rgba(255, 255, 255, 0.10);
+        }
+
+        .hero::after {
+            width: 260px;
+            height: 260px;
+            left: 36%;
+            bottom: -170px;
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .hero-copy { position: relative; z-index: 1; min-width: 0; }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            margin: 0;
+            padding: 5px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            font-size: 12.5px;
+            font-weight: 650;
+            letter-spacing: 0.02em;
+        }
+
+        .hero h1 {
+            margin: 16px 0 12px;
+            font-size: clamp(30px, 4vw, 44px);
+            line-height: 1.2;
+            letter-spacing: -0.01em;
+        }
+
+        .hero-sub {
+            margin: 0;
+            max-width: 500px;
+            color: rgba(255, 255, 255, 0.84);
+            font-size: 15px;
+            line-height: 1.75;
+        }
+
+        .hero-points {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 18px;
+            margin: 22px 0 0;
+            padding: 0;
+            list-style: none;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 13px;
+        }
+
+        .hero-points li { display: inline-flex; align-items: center; gap: 6px; }
+
+        .join-card {
+            position: relative;
+            z-index: 1;
+            padding: 24px;
+            border-radius: 22px;
+            background: #fff;
+            color: var(--ink);
+            box-shadow: 0 24px 60px rgba(10, 28, 70, 0.26);
+        }
+
+        .join-card h2 {
+            margin: 0 0 4px;
+            font-size: 20px;
+        }
+
+        .join-card .card-sub {
+            margin: 0 0 16px;
+            color: var(--muted);
+            font-size: 12.5px;
+            line-height: 1.5;
+        }
+
+        .join-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 650;
+            color: #3a4860;
+        }
+
+        .join-no {
+            width: 100%;
+            padding: 14px 12px;
+            border: 1px solid #d7e1f1;
+            border-radius: 13px;
+            background: #fbfcff;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .join-no::placeholder {
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            color: #9aa8bd;
+        }
+
+        .join-no:focus {
+            border-color: #7ea3f5;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(60, 110, 230, 0.13);
+        }
+
+        .join-form { margin-bottom: 14px; }
+
+        .join-form .btn { margin-top: 10px; }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 14px 0;
+            color: #9aa8bd;
+            font-size: 12px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--line);
+        }
+
+        .card-hint {
+            margin: 12px 2px 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .card-hint a { font-weight: 650; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 11px 18px;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            background: #eef2f9;
+            color: #25324a;
+            font-size: 14.5px;
+            font-weight: 700;
+            transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+        }
+
+        .btn:hover { background: #e6ecf7; }
+        .btn:active { transform: translateY(1px); }
+        .btn:disabled { opacity: 0.58; cursor: not-allowed; transform: none; }
+
+        .btn.primary {
+            background: linear-gradient(135deg, #2f63d8, #4c86f0);
+            color: #fff;
+            box-shadow: 0 10px 24px rgba(47, 99, 216, 0.28);
+        }
+
+        .btn.primary:hover { background: linear-gradient(135deg, #2a5ac9, #437ce2); }
+
+        .btn.ghost {
+            background: #f3f7ff;
+            color: #2c5fd0;
+            border-color: #dbe6ff;
+        }
+
+        .btn.ghost:hover { background: #e9f0ff; }
+
+        .btn.block { width: 100%; }
+
+        .btn.small {
+            padding: 7px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+        }
+
+        .recent-panel {
+            margin-top: 24px;
+            padding: 20px 22px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--card);
+            box-shadow: 0 10px 30px rgba(30, 50, 90, 0.05);
+        }
+
+        .panel-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .panel-head h2 {
+            margin: 0;
+            font-size: 16.5px;
+        }
+
+        .panel-head .panel-note {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .panel-head .text-btn { margin-left: auto; }
+
+        .text-btn {
+            padding: 5px 10px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--blue);
+            font-size: 12.5px;
+            font-weight: 650;
+        }
+
+        .text-btn:hover { background: var(--blue-soft); }
+
+        .text-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        .recent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .recent-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: #fbfcff;
+        }
+
+        .recent-main { flex: 1 1 auto; min-width: 0; }
+
+        .recent-title {
+            overflow: hidden;
+            color: #1f2b44;
+            font-size: 14.5px;
+            font-weight: 650;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .recent-meta {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 12px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .recent-time {
+            flex: 0 0 auto;
+            color: #9aa8bd;
+            font-size: 11.5px;
+        }
+
+        .recent-empty {
+            padding: 18px 6px;
+            color: var(--muted);
+            font-size: 13.5px;
+            line-height: 1.7;
+            text-align: center;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 24px;
+        }
+
+        .feature {
+            padding: 18px 20px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: var(--card);
+        }
+
+        .feature-icon {
+            display: grid;
+            place-items: center;
+            width: 38px;
+            height: 38px;
+            margin-bottom: 10px;
+            border-radius: 12px;
+            background: var(--blue-soft);
+            font-size: 18px;
+        }
+
+        .feature h3 {
+            margin: 0 0 6px;
+            font-size: 14.5px;
+        }
+
+        .feature p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12.5px;
+            line-height: 1.65;
+        }
+
+        .site-foot {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px 20px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+            padding-top: 16px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .site-foot b { color: #3a4860; }
+
+        /* ───────── 会前准备 ───────── */
+
+        .lobby-main {
+            display: grid;
+            place-items: center;
+            min-height: calc(100vh - 60px);
+            padding: 40px 20px 56px;
+        }
+
+        .lobby-card {
+            width: min(100%, 480px);
+            padding: 30px;
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            background: var(--card);
+            box-shadow: 0 24px 60px rgba(28, 50, 96, 0.10);
+        }
+
+        .lobby-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: var(--blue-soft);
+            color: #2b56b8;
+            font-size: 11.5px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+        }
+
+        .lobby-card h1 {
+            margin: 12px 0 4px;
+            font-size: 24px;
+            line-height: 1.3;
+            overflow-wrap: anywhere;
+        }
+
+        .lobby-host {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .lobby-number {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 18px 0 8px;
+            padding: 12px 16px;
+            border: 1px solid #dbe7ff;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #eef4ff, #f8fbff);
+        }
+
+        .lobby-number span {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .lobby-number strong {
+            color: #1d439e;
+            font-size: 19px;
+            letter-spacing: 0.05em;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .lobby-number button {
+            margin-left: auto;
+            padding: 5px 10px;
+            border: 1px solid #cfe0ff;
+            border-radius: 8px;
+            background: #fff;
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        .lobby-lock {
+            margin: 10px 0 0;
+            color: var(--warn);
+            font-size: 12.5px;
+            font-weight: 600;
+        }
+
+        .lobby-form { margin-top: 16px; }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            margin-bottom: 14px;
+        }
+
+        .field > span {
+            color: #3a4860;
+            font-size: 13px;
+            font-weight: 650;
+        }
+
+        .field input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #d9e2f0;
+            border-radius: 12px;
+            background: #fbfcff;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+        }
+
+        .field input:focus {
+            border-color: #7ea3f5;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(60, 110, 230, 0.13);
+        }
+
+        .form-error {
+            margin: 8px 0;
+            min-height: 18px;
+            color: #c0392b;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .lobby-note {
+            margin: 14px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.65;
+        }
+
+        .lobby-back {
+            display: inline-block;
+            margin-top: 16px;
+            color: var(--muted);
+            font-size: 12.5px;
+            text-decoration: none;
+        }
+
+        .lobby-back:hover { color: var(--blue); }
+
+        .lobby-retry { width: 100%; margin-top: 4px; }
+
+        /* ───────── 会议房间 ───────── */
+
+        .room {
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            min-height: 0;
+            background: var(--bg);
+        }
+
+        .room-head {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 0 0 auto;
+            padding: 10px 20px;
+            padding-top: calc(10px + env(safe-area-inset-top, 0px));
+            border-bottom: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(12px);
+        }
+
+        .room-head-main {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .live-dot {
+            flex: 0 0 auto;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #2fae7d;
+            box-shadow: 0 0 0 4px rgba(47, 174, 125, 0.16);
+            animation: livePulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(47, 174, 125, 0.14); }
+            50% { box-shadow: 0 0 0 6px rgba(47, 174, 125, 0.08); }
+        }
+
+        .room-head-text { min-width: 0; }
+
+        .room-head h1 {
+            margin: 0;
+            overflow: hidden;
+            font-size: 16.5px;
+            line-height: 1.35;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .room-sub {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 3px;
+        }
+
+        .room-no {
+            color: var(--muted);
+            font-size: 12px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .room-no b {
+            color: #2b3d5f;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        .room-no button {
+            padding: 2px 7px;
+            border: 1px solid #dce5f4;
+            border-radius: 7px;
+            background: #fff;
+            color: var(--blue);
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .count-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #f1f5fc;
+            color: #465779;
+            font-size: 11.5px;
+            font-weight: 650;
+        }
+
+        .room-head-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+        #room-chat-toggle { display: none; }
+
+        .room-body {
+            display: flex;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .room-stage {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 0;
+            overflow-y: auto;
+            padding: 18px 20px 12px;
+        }
+
+        .notice {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 10px 14px;
+            border: 1px solid #dbe6ff;
+            border-radius: 12px;
+            background: #f4f8ff;
+            color: #2b4d8f;
+            font-size: 12.5px;
+            line-height: 1.55;
+        }
+
+        .notice.warn {
+            border-color: #f4e2bd;
+            background: #fffaf0;
+            color: #8a611a;
+        }
+
+        .notice span { flex: 1 1 200px; min-width: 0; }
+
+        .notice button {
+            flex: 0 0 auto;
+            padding: 5px 11px;
+            border: 1px solid currentColor;
+            border-radius: 8px;
+            background: transparent;
+            color: inherit;
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        .stage-topline {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            min-height: 18px;
+        }
+
+        .stage-hint {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12.5px;
+            line-height: 1.5;
+        }
+
+        .participants {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 14px;
+            align-content: start;
+            flex: 1 1 auto;
+        }
+
+        .tile {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 164px;
+            padding: 22px 16px 20px;
+            border: 1px solid #e2e9f6;
+            border-radius: 18px;
+            background: linear-gradient(160deg, #ffffff, #f3f7ff);
+            box-shadow: 0 8px 24px rgba(34, 62, 120, 0.055);
+            text-align: center;
+        }
+
+        .tile.self { border-color: #bcd1ff; background: linear-gradient(160deg, #fbfdff, #edf3ff); }
+
+        .tile.linked { box-shadow: 0 8px 24px rgba(34, 62, 120, 0.07), inset 0 0 0 1px rgba(64, 190, 145, 0.14); }
+
+        .tile-mic {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 3px 7px;
+            border: 1px solid #e3e9f3;
+            border-radius: 999px;
+            background: #fff;
+            font-size: 11px;
+            line-height: 1.25;
+        }
+
+        .tile-mic.off {
+            border-color: #ffd7de;
+            background: #fff2f4;
+        }
+
+        .avatar {
+            display: grid;
+            place-items: center;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 23px;
+            font-weight: 800;
+            letter-spacing: 0;
+            box-shadow: 0 8px 18px rgba(36, 66, 140, 0.18);
+            user-select: none;
+        }
+
+        .tile-name {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            max-width: 100%;
+        }
+
+        .tile-name b {
+            overflow: hidden;
+            max-width: 100%;
+            font-size: 13.5px;
+            font-weight: 700;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .me-tag {
+            flex: 0 0 auto;
+            padding: 1px 6px;
+            border-radius: 999px;
+            background: var(--blue);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .tile-status {
+            display: flex;
+            align-items: center;
+            gap: 1px;
+            color: #7a879c;
+            font-size: 11.5px;
+        }
+
+        .tile-status .dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            margin-right: 5px;
+            border-radius: 50%;
+            background: #b9c4d8;
+        }
+
+        .tile-status .dot.on { background: #2fae7d; }
+
+        .remote-audio {
+            position: absolute;
+            width: 0;
+            height: 0;
+            overflow: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* ───────── 聊天 ───────── */
+
+        .room-chat {
+            display: flex;
+            flex: 0 0 330px;
+            flex-direction: column;
+            min-height: 0;
+            border-left: 1px solid var(--line);
+            background: #fff;
+        }
+
+        .chat-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+            padding: 13px 16px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .chat-head h2 {
+            margin: 0;
+            font-size: 14.5px;
+        }
+
+        .chat-state {
+            padding: 1px 7px;
+            border-radius: 999px;
+            background: #f1f5fc;
+            color: var(--muted);
+            font-size: 10.5px;
+            font-weight: 600;
+        }
+
+        .chat-close {
+            display: none;
+            margin-left: auto;
+            width: 30px;
+            height: 30px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--muted);
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .chat-close:hover { background: #f1f5fc; }
+
+        .chat-list {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 0;
+            margin: 0;
+            padding: 14px 16px;
+            overflow-y: auto;
+            list-style: none;
+            overscroll-behavior: contain;
+        }
+
+        .chat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            max-width: 100%;
+        }
+
+        .chat-who {
+            color: var(--muted);
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .chat-bubble {
+            padding: 8px 11px;
+            border-radius: 4px 12px 12px 12px;
+            background: #f2f5fb;
+            color: #233149;
+            font-size: 13.5px;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .chat-item.mine .chat-who { color: #3d69c9; }
+        .chat-item.mine .chat-bubble { background: #e9f0ff; }
+
+        .chat-item.system {
+            align-items: center;
+            color: #9aa8bd;
+            font-size: 11.5px;
+            line-height: 1.6;
+            text-align: center;
+            overflow-wrap: anywhere;
+        }
+
+        .chat-form {
+            display: flex;
+            gap: 8px;
+            flex: 0 0 auto;
+            padding: 12px;
+            border-top: 1px solid var(--line);
+            padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        }
+
+        .chat-form input {
+            flex: 1 1 auto;
+            min-width: 0;
+            padding: 9px 12px;
+            border: 1px solid #dbe3f0;
+            border-radius: 10px;
+            background: #fbfcff;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .chat-form input:focus {
+            border-color: #7ea3f5;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(60, 110, 230, 0.12);
+        }
+
+        .chat-form button {
+            flex: 0 0 auto;
+            padding: 9px 14px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--blue);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .chat-form button:hover { background: #2957c0; }
+
+        .chat-scrim {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(14, 24, 44, 0.36);
+            backdrop-filter: blur(1px);
+        }
+
+        /* ───────── 底部控制条 ───────── */
+
+        .room-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex: 0 0 auto;
+            flex-wrap: wrap;
+            padding: 8px 18px calc(8px + env(safe-area-inset-bottom, 0px));
+            border-top: 1px solid var(--line);
+            background: #fff;
+        }
+
+        .ctrl {
+            display: inline-flex;
+            align-items: center;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 72px;
+            padding: 6px 8px;
+            border: 0;
+            border-radius: 12px;
+            background: transparent;
+            color: #3a4860;
+            font-size: 11.5px;
+            font-weight: 650;
+        }
+
+        .ctrl:hover { background: #f3f7fd; }
+
+        .ctrl-ico {
+            display: grid;
+            place-items: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: #f1f5fb;
+            font-size: 18px;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .ctrl:hover .ctrl-ico { background: #e7eef9; }
+
+        .ctrl.active { color: var(--danger); }
+        .ctrl.active .ctrl-ico { background: #ffe8ec; }
+
+        .ctrl.danger { color: var(--danger); }
+        .ctrl.danger .ctrl-ico { background: #ffe8ec; }
+
+        .ctrl.leave .ctrl-ico {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .ctrl.leave:hover .ctrl-ico { background: #c33a51; }
+
+        .ctrl.primary { color: #2c5fd0; }
+        .ctrl.primary .ctrl-ico { background: #e8efff; }
+
+        .ctrl:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .room-version {
+            align-self: center;
+            margin-left: auto;
+            padding-right: 4px;
+            color: #9aa8bd;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        /* ───────── 弹窗与提示 ───────── */
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            z-index: 120;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background: rgba(15, 25, 46, 0.5);
+            backdrop-filter: blur(3px);
+        }
+
+        .modal-card {
+            width: min(100%, 440px);
+            max-height: calc(100dvh - 40px);
+            overflow-y: auto;
+            padding: 24px;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 30px 80px rgba(8, 20, 46, 0.34);
+        }
+
+        .modal-card h2 {
+            margin: 0 0 6px;
+            font-size: 20px;
+        }
+
+        .modal-sub {
+            margin: 0 0 16px;
+            color: var(--muted);
+            font-size: 12.5px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .modal-actions .btn { min-width: 96px; }
+
+        .btn.danger {
+            background: linear-gradient(135deg, #d6455d, #e5677b);
+            color: #fff;
+            box-shadow: 0 10px 24px rgba(214, 69, 93, 0.24);
+        }
+
+        .btn.danger:hover { background: linear-gradient(135deg, #c33a51, #dc5c71); }
+
+        .copy-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fbfcff;
+        }
+
+        .copy-row > span {
+            flex: 0 0 auto;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .copy-row > b {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            color: #233149;
+            font-size: 13.5px;
+            letter-spacing: 0.03em;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .copy-row > code {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            color: #2b56b8;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 11.5px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .copy-row button {
+            flex: 0 0 auto;
+            padding: 5px 10px;
+            border: 1px solid #cfe0ff;
+            border-radius: 8px;
+            background: #fff;
+            color: var(--blue);
+            font-size: 11.5px;
+            font-weight: 650;
+        }
+
+        .copy-row.column {
+            display: block;
+        }
+
+        .copy-row.column > span {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .copy-row.column textarea {
+            display: block;
+            width: 100%;
+            min-height: 92px;
+            margin-bottom: 8px;
+            padding: 9px 10px;
+            border: 1px solid #dbe3f0;
+            border-radius: 9px;
+            background: #fff;
+            color: #233149;
+            font-size: 12px;
+            line-height: 1.6;
+            resize: vertical;
+        }
+
+        .copy-row.column button { margin-left: auto; display: block; }
+
+        .ended-card { text-align: center; }
+
+        .ended-icon {
+            display: grid;
+            place-items: center;
+            width: 62px;
+            height: 62px;
+            margin: 0 auto 14px;
+            border-radius: 50%;
+            background: #eef4ff;
+            font-size: 27px;
+        }
+
+        .ended-card h2 { margin-bottom: 8px; }
+
+        .ended-card p {
+            margin: 0 0 18px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 84px;
+            z-index: 300;
+            max-width: min(88vw, 460px);
+            padding: 10px 18px;
+            border-radius: 12px;
+            background: rgba(23, 32, 51, 0.94);
+            color: #fff;
+            font-size: 13.5px;
+            line-height: 1.5;
+            text-align: center;
+            opacity: 0;
+            transform: translate(-50%, 10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+            box-shadow: 0 12px 30px rgba(8, 18, 40, 0.28);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        /* ───────── 响应式 ───────── */
+
+        @media (max-width: 980px) {
+            .hero {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 26px;
+                padding: 36px 30px;
+            }
+
+            .hero-sub { font-size: 14px; }
+
+            .room-chat {
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 110;
+                width: min(360px, 92vw);
+                padding-top: env(safe-area-inset-top, 0px);
+                border-left: 1px solid var(--line);
+                box-shadow: -18px 0 50px rgba(16, 32, 64, 0.18);
+                transform: translateX(102%);
+                transition: transform 0.22s ease;
+            }
+
+            .room-chat.open { transform: none; }
+
+            #room-chat-toggle { display: inline-flex; }
+
+            .chat-close { display: inline-block; }
+
+            .chat-scrim.show { display: block; }
+        }
+
+        @media (min-width: 981px) {
+            .chat-close { display: none; }
+        }
+
+        @media (max-width: 720px) {
+            .topbar {
+                gap: 8px;
+                padding: 10px 14px;
+                padding-top: calc(10px + env(safe-area-inset-top, 0px));
+                flex-wrap: wrap;
+            }
+
+            .top-actions { gap: 6px; }
+            .whoami { display: none; }
+            .version-badge { order: 3; }
+            .top-link { padding: 5px 7px; }
+
+            .home-main {
+                width: min(100% - 24px, 1140px);
+                padding-top: 16px;
+                padding-bottom: 40px;
+            }
+
+            .hero {
+                padding: 28px 20px;
+                border-radius: 22px;
+                gap: 22px;
+            }
+
+            .hero h1 { font-size: 28px; margin-top: 12px; }
+            .hero-sub { line-height: 1.65; }
+            .hero-points { gap: 6px 14px; margin-top: 16px; font-size: 12.5px; }
+
+            .join-card { padding: 18px; border-radius: 18px; }
+            .join-no { font-size: 19px; }
+
+            .recent-panel { padding: 16px; border-radius: 18px; }
+            .recent-item { flex-wrap: wrap; }
+            .recent-main { flex-basis: calc(100% - 92px); }
+            .recent-time { order: 3; width: 100%; }
+            .recent-open { margin-left: auto; }
+
+            .features { grid-template-columns: 1fr; }
+
+            .site-foot { font-size: 11.5px; }
+
+            .lobby-card { padding: 22px; }
+            .lobby-card h1 { font-size: 21px; }
+
+            .room-head {
+                padding: 9px 12px;
+                padding-top: calc(9px + env(safe-area-inset-top, 0px));
+                gap: 8px;
+            }
+
+            .room-head h1 { font-size: 15px; }
+            .room-head-actions .btn.small { padding: 6px 9px; }
+            .room-stage { padding: 12px 12px 8px; gap: 10px; }
+            .participants { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 10px; }
+            .tile { min-height: 146px; padding: 18px 10px 16px; }
+            .avatar { width: 50px; height: 50px; font-size: 20px; }
+
+            .room-controls {
+                gap: 2px;
+                padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+            }
+
+            .ctrl { min-width: 58px; padding: 5px 6px; font-size: 10.5px; }
+            .ctrl-ico { width: 38px; height: 38px; font-size: 16px; }
+            .room-version { display: none; }
+        }
+
+        @media (max-width: 420px) {
+            .brand-text small { display: none; }
+            .hero-points li { width: 100%; }
+            .recent-main { flex-basis: 100%; }
+            .recent-open { margin-left: 0; }
+            .room-head-actions .btn.small span { display: none; }
+            .participants { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ───────── 首页 ───────── -->
+    <section class="view" id="view-home">
+        <header class="topbar">
+            <a class="brand" href="audiv.html" title="AUDIV 语音会议">
+                <span class="brand-mark" aria-hidden="true">🎙️</span>
+                <span class="brand-text">
+                    <strong>AUDIV</strong>
+                    <small>语音会议</small>
+                </span>
+            </a>
+            <span class="topbar-spacer"></span>
+            <div class="top-actions">
+                <a class="top-link" href="manager.html">← 返回账户</a>
+                <span class="version-badge">v3.1.0</span>
+                <span class="whoami" id="home-user" hidden></span>
+                <a class="login-link" id="home-login" href="login.html?next=audiv.html">登录</a>
+            </div>
+        </header>
+
+        <main class="home-main">
+            <section class="hero" aria-labelledby="hero-title">
+                <div class="hero-copy">
+                    <p class="eyebrow">🎧 AUDIV · 纯音频会议</p>
+                    <h1 id="hero-title">声音先到，想法就近了</h1>
+                    <p class="hero-sub">
+                        输入会议号就能加入，像腾讯会议一样简单。语音在浏览器之间点对点传输，
+                        服务端只中转信令；麦克风没开也能留在会议里，用文字继续聊。
+                    </p>
+                    <ul class="hero-points">
+                        <li>🔗 无需登录，点开链接即可加入</li>
+                        <li>👥 最多 16 人，纯音频 Mesh</li>
+                        <li>💬 房间内文字聊天</li>
+                    </ul>
+                </div>
+
+                <div class="join-card">
+                    <h2>加入会议</h2>
+                    <p class="card-sub">输入 9 位会议号，带不带横杠都可以。</p>
+                    <form class="join-form" id="join-form" novalidate>
+                        <label class="join-label" for="join-no">会议号</label>
+                        <input class="join-no" id="join-no" name="meeting" type="text" inputmode="numeric"
+                               autocomplete="off" maxlength="11" placeholder="例如 123-456-789" aria-label="会议号">
+                        <button class="btn primary block" type="submit">加入会议</button>
+                    </form>
+                    <div class="divider">或</div>
+                    <button class="btn ghost block" id="quick-meeting" type="button">⚡ 快速会议</button>
+                    <p class="card-hint" id="quick-hint">创建会议需要登录；加入别人的会议无需登录。</p>
+                </div>
+            </section>
+
+            <section class="recent-panel" aria-labelledby="recent-title">
+                <div class="panel-head">
+                    <h2 id="recent-title">最近会议</h2>
+                    <span class="panel-note">保存在本机浏览器</span>
+                    <button class="text-btn" id="recent-clear" type="button">清空</button>
+                </div>
+                <ul class="recent-list" id="recent-list"></ul>
+            </section>
+
+            <section class="features" aria-label="AUDIV 特性">
+                <article class="feature">
+                    <div class="feature-icon" aria-hidden="true">🎧</div>
+                    <h3>浏览器直连语音</h3>
+                    <p>getUserMedia 采集麦克风，RTCPeerConnection 走 STUN 建立点对点音频；服务器只转发 offer / answer / ICE。</p>
+                </article>
+                <article class="feature">
+                    <div class="feature-icon" aria-hidden="true">💬</div>
+                    <h3>边听边聊</h3>
+                    <p>会议里的文字消息通过 WebSocket 广播。麦克风权限被拒绝时，依然可以加入房间并参与文字讨论。</p>
+                </article>
+                <article class="feature">
+                    <div class="feature-icon" aria-hidden="true">🔒</div>
+                    <h3>会议密码</h3>
+                    <p>发起人可以给会议设置密码，服务端只保存哈希；凭会议号和密码加入，结束后会议号立即失效。</p>
+                </article>
+            </section>
+
+            <footer class="site-foot">
+                <span><b>Vitual XRing 3.1.0</b> · AUDIV 语音会议</span>
+                <span>Contributors：Caldson</span>
+                <span>Copyright © 2026 Vitual XRing</span>
+            </footer>
+        </main>
+    </section>
+
+    <!-- ───────── 会前准备 ───────── -->
+    <section class="view" id="view-lobby" hidden>
+        <header class="topbar">
+            <a class="brand" href="audiv.html" title="AUDIV 语音会议">
+                <span class="brand-mark" aria-hidden="true">🎙️</span>
+                <span class="brand-text">
+                    <strong>AUDIV</strong>
+                    <small>会前准备</small>
+                </span>
+            </a>
+            <span class="topbar-spacer"></span>
+            <div class="top-actions">
+                <a class="top-link" href="manager.html">← 返回账户</a>
+                <span class="version-badge">v3.1.0</span>
+            </div>
+        </header>
+
+        <main class="lobby-main">
+            <div class="lobby-card">
+                <span class="lobby-badge">AUDIV 语音会议</span>
+                <h1 id="lobby-title">正在读取会议信息…</h1>
+                <p class="lobby-host" id="lobby-host">主持人：—</p>
+
+                <div class="lobby-number">
+                    <span>会议号</span>
+                    <strong id="lobby-no">000-000-000</strong>
+                    <button id="lobby-copy" type="button">复制</button>
+                </div>
+
+                <p class="lobby-lock" id="lobby-lock" hidden>🔒 该会议设置了密码，需要输入后才能加入。</p>
+                <p class="form-error" id="lobby-error" role="alert" aria-live="polite"></p>
+
+                <form class="lobby-form" id="lobby-form" novalidate>
+                    <label class="field">
+                        <span>你的名字</span>
+                        <input id="lobby-name" type="text" maxlength="24" autocomplete="nickname"
+                               placeholder="其他成员会在会议里看到">
+                    </label>
+                    <label class="field" id="lobby-password-row" hidden>
+                        <span>会议密码</span>
+                        <input id="lobby-password" type="password" maxlength="32" autocomplete="off"
+                               placeholder="请输入主持人设置的密码">
+                    </label>
+                    <button class="btn primary block" id="lobby-submit" type="submit" disabled>读取中…</button>
+                </form>
+
+                <button class="btn ghost lobby-retry" id="lobby-retry" type="button" hidden>重新获取会议信息</button>
+
+                <p class="lobby-note">
+                    加入会议不需要登录。麦克风权限被拒绝或浏览器不支持 WebRTC 时，仍可进入会议并使用文字聊天。
+                </p>
+                <a class="lobby-back" href="audiv.html">← 返回 AUDIV 首页</a>
+            </div>
+        </main>
+    </section>
+
+    <!-- ───────── 会议房间 ───────── -->
+    <section class="view room" id="view-room" hidden>
+        <header class="room-head">
+            <div class="room-head-main">
+                <span class="live-dot" aria-hidden="true"></span>
+                <div class="room-head-text">
+                    <h1 id="room-title">语音会议</h1>
+                    <div class="room-sub">
+                        <span class="room-no">会议号 <b id="room-no">000-000-000</b>
+                            <button id="room-copy-no" type="button" title="复制会议号">复制</button>
+                        </span>
+                        <span class="count-pill" id="room-count">1 人</span>
+                    </div>
+                </div>
+            </div>
+            <div class="room-head-actions">
+                <button class="btn small ghost" id="room-chat-toggle" type="button" aria-controls="room-chat" aria-expanded="false">💬 聊天</button>
+            </div>
+        </header>
+
+        <div class="room-body">
+            <main class="room-stage">
+                <div class="stage-topline">
+                    <p class="stage-hint" id="room-hint"></p>
+                </div>
+
+                <div class="notice" id="conn-notice" hidden role="status">
+                    <span id="conn-notice-text"></span>
+                    <button id="conn-action" type="button" hidden>重新连接</button>
+                </div>
+
+                <div class="notice warn" id="mic-notice" hidden role="status">
+                    <span id="mic-notice-text"></span>
+                    <button id="mic-retry" type="button">开启麦克风</button>
+                </div>
+
+                <section class="participants" id="participants" aria-label="参会成员"></section>
+                <div class="remote-audio" id="remote-audio" aria-hidden="true"></div>
+            </main>
+
+            <aside class="room-chat" id="room-chat" aria-label="会议聊天">
+                <div class="chat-head">
+                    <h2>会议聊天</h2>
+                    <span class="chat-state" id="chat-state">连接中…</span>
+                    <button class="chat-close" id="chat-close" type="button" aria-label="关闭聊天">×</button>
+                </div>
+                <ol class="chat-list" id="chat-list" aria-live="polite"></ol>
+                <form class="chat-form" id="chat-form">
+                    <input id="chat-input" type="text" maxlength="500" autocomplete="off"
+                           placeholder="发送消息…" aria-label="聊天消息">
+                    <button type="submit" id="chat-send">发送</button>
+                </form>
+            </aside>
+
+            <div class="chat-scrim" id="chat-scrim"></div>
+        </div>
+
+        <footer class="room-controls">
+            <button class="ctrl" id="btn-mic" type="button" aria-pressed="false" title="麦克风">
+                <span class="ctrl-ico" id="btn-mic-ico" aria-hidden="true">🎤</span>
+                <span class="ctrl-label" id="btn-mic-label">静音</span>
+            </button>
+            <button class="ctrl" id="btn-speaker" type="button" aria-pressed="false" title="扬声器">
+                <span class="ctrl-ico" id="btn-speaker-ico" aria-hidden="true">🔊</span>
+                <span class="ctrl-label" id="btn-speaker-label">扬声器</span>
+            </button>
+            <button class="ctrl" id="btn-invite" type="button" title="邀请成员">
+                <span class="ctrl-ico" aria-hidden="true">👥</span>
+                <span class="ctrl-label">邀请</span>
+            </button>
+            <button class="ctrl leave" id="btn-leave" type="button" title="离开会议">
+                <span class="ctrl-ico" aria-hidden="true">📴</span>
+                <span class="ctrl-label">离开</span>
+            </button>
+            <button class="ctrl danger" id="btn-end" type="button" title="结束会议（仅主持人）" hidden>
+                <span class="ctrl-ico" aria-hidden="true">⏹</span>
+                <span class="ctrl-label">结束会议</span>
+            </button>
+            <span class="room-version">Vitual XRing 3.1.0</span>
+        </footer>
+    </section>
+
+    <!-- ───────── 快速会议 ───────── -->
+    <div class="modal" id="quick-modal" hidden>
+        <form class="modal-card" id="quick-form" novalidate>
+            <h2>快速会议</h2>
+            <p class="modal-sub">创建后会得到一个 9 位会议号，自动进入会前准备页。密码留空就表示任何人都能加入。</p>
+            <label class="field">
+                <span>会议标题</span>
+                <input id="quick-title" type="text" maxlength="60" autocomplete="off" placeholder="例如：周会 / 复试练习">
+            </label>
+            <label class="field">
+                <span>会议密码（选填）</span>
+                <input id="quick-password" type="password" maxlength="32" autocomplete="new-password" placeholder="留空则不需要密码">
+            </label>
+            <p class="form-error" id="quick-error" role="alert"></p>
+            <div class="modal-actions">
+                <button class="btn" id="quick-cancel" type="button">取消</button>
+                <button class="btn primary" id="quick-submit" type="submit">创建会议</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ───────── 邀请 ───────── -->
+    <div class="modal" id="invite-modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="invite-title">
+            <h2 id="invite-title">邀请成员</h2>
+            <p class="modal-sub">把会议号或链接发给朋友，点开链接即可加入，不需要登录。也可以直接把邀请文案粘贴到聊天里。</p>
+            <div class="copy-row">
+                <span>会议号</span>
+                <b id="invite-no">000-000-000</b>
+                <button id="invite-copy-no" type="button">复制</button>
+            </div>
+            <div class="copy-row">
+                <span>会议链接</span>
+                <code id="invite-link"></code>
+                <button id="invite-copy-link" type="button">复制</button>
+            </div>
+            <div class="copy-row column">
+                <span>邀请文案</span>
+                <textarea id="invite-text" readonly rows="4" aria-label="邀请文案"></textarea>
+                <button id="invite-copy-text" type="button">复制邀请文案</button>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" id="invite-close" type="button">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ───────── 结束会议确认 ───────── -->
+    <div class="modal" id="end-modal" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="end-title">
+            <h2 id="end-title">结束会议？</h2>
+            <p class="modal-sub">结束后所有成员都会被移出，会议号立即失效，且无法恢复。</p>
+            <p class="form-error" id="end-error" role="alert"></p>
+            <div class="modal-actions">
+                <button class="btn" id="end-cancel" type="button">取消</button>
+                <button class="btn danger" id="end-confirm" type="button">结束会议</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ───────── 会议已结束 ───────── -->
+    <div class="modal" id="ended-modal" hidden>
+        <div class="modal-card ended-card" role="dialog" aria-modal="true" aria-labelledby="ended-title">
+            <div class="ended-icon" aria-hidden="true">🎙️</div>
+            <h2 id="ended-title">会议已结束</h2>
+            <p id="ended-text">主持人结束了这场会议。</p>
+            <button class="btn primary" id="ended-home" type="button">返回 AUDIV 首页</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="vtx-api.js?v=3.1.0"></script>
+    <script src="xring-social.js?v=3.1.0"></script>
+    <script>
+        (function () {
+            "use strict";
+
+            /* ───────── 常量 ───────── */
+
+            const API = window.VTXApi;
+            const SOCIAL = API && API.social ? API.social : null;
+            const RECENT_KEY = "audiv:recent";
+            const NAME_KEY = "audiv:name";
+            const MAX_RECENT = 8;
+            const MAX_PEERS = 16;
+            const MAX_RECONNECT = 3;
+            const ICE_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+            const AVATAR_COLORS = [
+                "linear-gradient(135deg,#3b6fe0,#6c93ff)",
+                "linear-gradient(135deg,#2f9e8f,#63cbb8)",
+                "linear-gradient(135deg,#7c5cd6,#a98bf0)",
+                "linear-gradient(135deg,#d9873b,#f0b36c)",
+                "linear-gradient(135deg,#c75470,#ee8ba0)",
+                "linear-gradient(135deg,#3f87c9,#7db8e8)"
+            ];
+
+            /* ───────── 状态 ───────── */
+
+            let meeting = null;
+            let joinToken = "";
+            let displayName = "";
+            let myPeer = "";
+            let socket = null;
+            let localStream = null;
+            let micMuted = false;
+            let micIssue = "";
+            let speakerMuted = false;
+            let joined = false;
+            let leaving = false;
+            let ended = false;
+            let reconnectAttempt = 0;
+            let reconnectTimer = 0;
+            let toastTimer = 0;
+            let lobbyToken = 0;
+            let audioGestureBound = false;
+            let micPending = false;
+
+            const participants = new Map();
+            const peerLinks = new Map();
+
+            const $ = (id) => document.getElementById(id);
+
+            /* ───────── 小工具 ───────── */
+
+            function normalizeNo(raw) {
+                const digits = String(raw == null ? "" : raw).replace(/[^0-9]/g, "");
+                if (digits.length !== 9) {
+                    return "";
+                }
+                return digits.slice(0, 3) + "-" + digits.slice(3, 6) + "-" + digits.slice(6, 9);
+            }
+
+            function cleanName(value) {
+                const text = String(value == null ? "" : value).replace(/\s+/g, " ").trim().slice(0, 24);
+                return text || "成员";
+            }
+
+            function initialOf(name) {
+                const chars = Array.from(String(name == null ? "" : name).trim());
+                return (chars[0] || "?").toUpperCase();
+            }
+
+            function formatClock(value) {
+                const time = Number(value);
+                const date = new Date(Number.isFinite(time) && time > 0 ? time : Date.now());
+                const pad = (number) => String(number).padStart(2, "0");
+                return pad(date.getHours()) + ":" + pad(date.getMinutes());
+            }
+
+            function toast(message) {
+                const node = $("toast");
+                if (!node) {
+                    return;
+                }
+                node.textContent = String(message == null ? "" : message);
+                node.classList.add("show");
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => node.classList.remove("show"), 2600);
+            }
+
+            function friendly(error, fallback) {
+                const status = Number(error && error.status) || 0;
+                const code = error && error.code ? String(error.code) : "";
+                const message = error && error.message ? String(error.message) : "";
+                if (code === "wrong_password" || status === 403) {
+                    return "会议密码不正确，请重新输入。";
+                }
+                if (code === "ended" || status === 410) {
+                    return "这个会议已经结束了。";
+                }
+                if (code === "not_found" || status === 404) {
+                    return "找不到这个会议，请确认会议号是否正确。";
+                }
+                if (code === "too_many_requests" || status === 429) {
+                    return "操作太频繁了，请稍后再试。";
+                }
+                if (status === 401) {
+                    return "登录状态已失效，请重新登录后再创建会议。";
+                }
+                if (status === 503) {
+                    return "语音会议服务暂时不可用，请稍后再试。";
+                }
+                if (status >= 500) {
+                    return "服务器开小差了，请稍后再试。";
+                }
+                if (!status && message && /[\u4e00-\u9fa5]/.test(message)) {
+                    return message;
+                }
+                if (status && message) {
+                    return message;
+                }
+                return fallback || "请求失败，请稍后再试。";
+            }
+
+            function copyValue(value, message) {
+                const text = String(value == null ? "" : value);
+                const copy = window.XRSocial && typeof window.XRSocial.copyText === "function"
+                    ? window.XRSocial.copyText
+                    : null;
+                if (copy) {
+                    Promise.resolve(copy(text))
+                        .then(() => toast(message || "已复制"))
+                        .catch(() => toast("复制失败，请手动选中复制"));
+                    return;
+                }
+                fallbackCopy(text);
+                toast(message || "已复制");
+            }
+
+            function fallbackCopy(text) {
+                try {
+                    const area = document.createElement("textarea");
+                    area.value = text;
+                    area.style.position = "fixed";
+                    area.style.opacity = "0";
+                    document.body.appendChild(area);
+                    area.select();
+                    document.execCommand("copy");
+                    area.remove();
+                } catch (error) {
+                    /* 忽略 */
+                }
+            }
+
+            function meetingLink(no) {
+                try {
+                    return new URL("audiv.html?meeting=" + encodeURIComponent(no), location.href).href;
+                } catch (error) {
+                    return "audiv.html?meeting=" + encodeURIComponent(no);
+                }
+            }
+
+            function isHost() {
+                if (!meeting || !API || typeof API.hasSession !== "function" || !API.hasSession()) {
+                    return false;
+                }
+                const login = typeof API.currentLogin === "function" ? API.currentLogin() : "";
+                return Boolean(login && meeting.owner && login === meeting.owner);
+            }
+
+            function savedName() {
+                if (API && typeof API.hasSession === "function" && API.hasSession()
+                    && typeof API.currentLogin === "function" && API.currentLogin()) {
+                    return API.currentLogin();
+                }
+                try {
+                    return localStorage.getItem(NAME_KEY) || "";
+                } catch (error) {
+                    return "";
+                }
+            }
+
+            /* ───────── 最近会议 ───────── */
+
+            function readRecent() {
+                let raw = "";
+                try {
+                    raw = localStorage.getItem(RECENT_KEY) || "";
+                } catch (error) {
+                    return [];
+                }
+                if (!raw) {
+                    return [];
+                }
+                let list = null;
+                try {
+                    list = JSON.parse(raw);
+                } catch (error) {
+                    return [];
+                }
+                if (!Array.isArray(list)) {
+                    return [];
+                }
+                const result = [];
+                for (const item of list) {
+                    if (!item || typeof item !== "object") {
+                        continue;
+                    }
+                    const no = normalizeNo(item.no);
+                    if (!no) {
+                        continue;
+                    }
+                    result.push({
+                        no,
+                        title: String(item.title || "语音会议").slice(0, 60),
+                        hostName: String(item.hostName || "").slice(0, 24),
+                        at: Number(item.at) || 0
+                    });
+                    if (result.length >= MAX_RECENT) {
+                        break;
+                    }
+                }
+                return result;
+            }
+
+            function saveRecent(list) {
+                try {
+                    localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, MAX_RECENT)));
+                } catch (error) {
+                    /* 隐私模式忽略 */
+                }
+            }
+
+            function addRecent(info) {
+                if (!info) {
+                    return;
+                }
+                const no = normalizeNo(info.no);
+                if (!no) {
+                    return;
+                }
+                const list = readRecent().filter((item) => item.no !== no);
+                list.unshift({
+                    no,
+                    title: String(info.title || "语音会议").slice(0, 60),
+                    hostName: String(info.hostName || "").slice(0, 24),
+                    at: Date.now()
+                });
+                saveRecent(list);
+                renderRecent();
+            }
+
+            function renderRecent() {
+                const list = $("recent-list");
+                const clear = $("recent-clear");
+                if (!list) {
+                    return;
+                }
+                list.textContent = "";
+                const items = readRecent();
+                if (clear) {
+                    clear.disabled = items.length === 0;
+                }
+                if (items.length === 0) {
+                    const empty = document.createElement("li");
+                    empty.className = "recent-empty";
+                    empty.textContent = "还没有最近会议。加入或创建一场会议后，这里会记住会议号和标题。";
+                    list.appendChild(empty);
+                    return;
+                }
+                for (const item of items) {
+                    const li = document.createElement("li");
+                    li.className = "recent-item";
+
+                    const main = document.createElement("div");
+                    main.className = "recent-main";
+                    const title = document.createElement("div");
+                    title.className = "recent-title";
+                    title.textContent = item.title || "语音会议";
+                    const meta = document.createElement("div");
+                    meta.className = "recent-meta";
+                    meta.textContent = item.no + (item.hostName ? " · 主持人 " + item.hostName : "");
+                    main.append(title, meta);
+
+                    const time = document.createElement("span");
+                    time.className = "recent-time";
+                    time.textContent = window.XRSocial && typeof window.XRSocial.timeAgo === "function"
+                        ? window.XRSocial.timeAgo(item.at)
+                        : formatClock(item.at);
+
+                    const open = document.createElement("button");
+                    open.className = "btn small ghost recent-open";
+                    open.type = "button";
+                    open.textContent = "进入";
+                    open.addEventListener("click", () => {
+                        history.pushState(null, "", "audiv.html?meeting=" + encodeURIComponent(item.no));
+                        enterLobby(item.no);
+                    });
+
+                    li.append(main, time, open);
+                    list.appendChild(li);
+                }
+            }
+
+            /* ───────── 视图 ───────── */
+
+            function showView(name) {
+                ["home", "lobby", "room"].forEach((view) => {
+                    const node = $("view-" + view);
+                    if (node) {
+                        node.hidden = view !== name;
+                    }
+                });
+                document.body.classList.toggle("room-mode", name === "room");
+            }
+
+            function showHome() {
+                if (joined) {
+                    leaveRoom();
+                    return;
+                }
+                history.replaceState(null, "", "audiv.html");
+                document.title = "AUDIV 语音会议 | Vitual XRing";
+                showView("home");
+                renderRecent();
+                refreshLoginUI();
+            }
+
+            function refreshLoginUI() {
+                const login = API && typeof API.hasSession === "function" && API.hasSession()
+                    && typeof API.currentLogin === "function" ? API.currentLogin() : "";
+                const link = $("home-login");
+                const user = $("home-user");
+                const hint = $("quick-hint");
+                if (login) {
+                    if (link) {
+                        link.hidden = true;
+                    }
+                    if (user) {
+                        user.hidden = false;
+                        user.textContent = "已登录：" + login;
+                    }
+                    if (hint) {
+                        hint.textContent = "已登录，可以直接创建快速会议。";
+                    }
+                } else {
+                    if (link) {
+                        link.hidden = false;
+                    }
+                    if (user) {
+                        user.hidden = true;
+                        user.textContent = "";
+                    }
+                    if (hint) {
+                        hint.textContent = "创建会议需要登录；加入别人的会议无需登录。";
+                    }
+                }
+            }
+
+            /* ───────── 会前准备 ───────── */
+
+            function setLobbyError(message) {
+                const node = $("lobby-error");
+                if (node) {
+                    node.textContent = message || "";
+                }
+            }
+
+            function resetLobby(no) {
+                $("lobby-title").textContent = "正在读取会议信息…";
+                $("lobby-host").textContent = "主持人：—";
+                $("lobby-no").textContent = no;
+                $("lobby-lock").hidden = true;
+                $("lobby-password-row").hidden = true;
+                $("lobby-password").value = "";
+                $("lobby-name").value = savedName();
+                $("lobby-submit").disabled = true;
+                $("lobby-submit").textContent = "读取中…";
+                $("lobby-retry").hidden = true;
+                setLobbyError("");
+            }
+
+            async function enterLobby(no) {
+                const normalized = normalizeNo(no);
+                if (!normalized) {
+                    toast("会议号格式不正确，应为 9 位数字，例如 123-456-789。");
+                    showView("home");
+                    return;
+                }
+                meeting = null;
+                document.title = "加入会议 · AUDIV | Vitual XRing";
+                resetLobby(normalized);
+                showView("lobby");
+                const token = ++lobbyToken;
+                try {
+                    if (!SOCIAL) {
+                        throw new Error("页面脚本未加载完整，请刷新后重试。");
+                    }
+                    const data = await SOCIAL.meeting(normalized);
+                    if (token !== lobbyToken) {
+                        return;
+                    }
+                    const info = data && data.meeting;
+                    if (!info) {
+                        throw new Error("服务端没有返回会议信息，请稍后再试。");
+                    }
+                    info.no = info.no || normalized;
+                    meeting = info;
+                    renderLobbyMeeting(info);
+                } catch (error) {
+                    if (token !== lobbyToken) {
+                        return;
+                    }
+                    $("lobby-title").textContent = "无法读取会议";
+                    $("lobby-submit").disabled = true;
+                    $("lobby-submit").textContent = "加入会议";
+                    $("lobby-retry").hidden = false;
+                    setLobbyError(friendly(error, "无法连接会议服务，请检查网络后重试。"));
+                }
+            }
+
+            function renderLobbyMeeting(info) {
+                $("lobby-title").textContent = info.title || "语音会议";
+                $("lobby-host").textContent = "主持人：" + (info.hostName || info.ownerName || "未知");
+                $("lobby-no").textContent = info.no || "000-000-000";
+                $("lobby-lock").hidden = !info.locked;
+                $("lobby-password-row").hidden = !info.locked;
+                $("lobby-retry").hidden = true;
+                if (info.ended) {
+                    $("lobby-submit").disabled = true;
+                    $("lobby-submit").textContent = "会议已结束";
+                    setLobbyError("这个会议已经结束，无法再加入。");
+                    return;
+                }
+                $("lobby-submit").disabled = false;
+                $("lobby-submit").textContent = "加入会议";
+                setLobbyError("");
+            }
+
+            async function onLobbySubmit(event) {
+                event.preventDefault();
+                if (!meeting) {
+                    setLobbyError("会议信息还没有读取完成，请稍后再试。");
+                    return;
+                }
+                if (meeting.ended) {
+                    setLobbyError("这个会议已经结束，无法再加入。");
+                    return;
+                }
+                const name = $("lobby-name").value.replace(/\s+/g, " ").trim().slice(0, 24);
+                if (!name) {
+                    setLobbyError("请输入你的名字（1–24 个字）。");
+                    $("lobby-name").focus();
+                    return;
+                }
+                const password = $("lobby-password").value;
+                if (meeting.locked && !password) {
+                    setLobbyError("这个会议需要密码，请输入后再加入。");
+                    $("lobby-password").focus();
+                    return;
+                }
+                const no = meeting.no || normalizeNo($("lobby-no").textContent);
+                if (!normalizeNo(no)) {
+                    setLobbyError("会议号无效，请返回首页重新输入。");
+                    return;
+                }
+                const button = $("lobby-submit");
+                button.disabled = true;
+                button.textContent = "正在加入…";
+                setLobbyError("");
+                try {
+                    if (!SOCIAL) {
+                        throw new Error("页面脚本未加载完整，请刷新后重试。");
+                    }
+                    const data = await SOCIAL.joinMeeting(no, password);
+                    const info = data && data.meeting;
+                    if (!info) {
+                        throw new Error("服务端没有返回会议信息，请稍后再试。");
+                    }
+                    joinToken = data.joinToken || "";
+                    meeting = Object.assign({}, meeting, info);
+                    displayName = cleanName(name);
+                    try {
+                        localStorage.setItem(NAME_KEY, displayName);
+                    } catch (error) {
+                        /* 忽略 */
+                    }
+                    addRecent(meeting);
+                    await enterRoom();
+                } catch (error) {
+                    setLobbyError(friendly(error, "加入会议失败，请稍后重试。"));
+                    button.disabled = false;
+                    button.textContent = "加入会议";
+                }
+            }
+
+            /* ───────── 快速会议 ───────── */
+
+            function openQuick() {
+                if (!API || typeof API.hasSession !== "function" || !API.hasSession()) {
+                    toast("创建会议需要先登录；加入别人的会议不用登录。");
+                    const login = $("home-login");
+                    if (login) {
+                        login.focus();
+                    }
+                    return;
+                }
+                const login = typeof API.currentLogin === "function" ? API.currentLogin() : "";
+                $("quick-title").value = login ? login + " 的语音会议" : "我的语音会议";
+                $("quick-password").value = "";
+                $("quick-error").textContent = "";
+                $("quick-submit").disabled = false;
+                $("quick-submit").textContent = "创建会议";
+                $("quick-modal").hidden = false;
+                window.setTimeout(() => {
+                    const title = $("quick-title");
+                    title.focus();
+                    title.select();
+                }, 40);
+            }
+
+            function closeQuick() {
+                $("quick-modal").hidden = true;
+            }
+
+            async function onQuickSubmit(event) {
+                event.preventDefault();
+                if (!SOCIAL || !API || typeof API.hasSession !== "function" || !API.hasSession()) {
+                    $("quick-error").textContent = "请先登录后再创建会议。";
+                    return;
+                }
+                const title = $("quick-title").value.trim().slice(0, 60);
+                const password = $("quick-password").value.slice(0, 32);
+                if (!title) {
+                    $("quick-error").textContent = "请给会议起一个标题。";
+                    $("quick-title").focus();
+                    return;
+                }
+                const hostName = cleanName(typeof API.currentLogin === "function" ? API.currentLogin() : "").slice(0, 24);
+                const button = $("quick-submit");
+                button.disabled = true;
+                button.textContent = "创建中…";
+                $("quick-error").textContent = "";
+                try {
+                    const data = await SOCIAL.createMeeting({ title, password, hostName });
+                    const item = data && data.item;
+                    const no = item && item.extra && normalizeNo(item.extra.no);
+                    if (!no) {
+                        throw new Error("服务端没有返回会议号，请稍后再试。");
+                    }
+                    addRecent({
+                        no,
+                        title: item.title || title,
+                        hostName: item.ownerName || hostName
+                    });
+                    closeQuick();
+                    location.assign("audiv.html?meeting=" + encodeURIComponent(no));
+                } catch (error) {
+                    $("quick-error").textContent = friendly(error, "创建会议失败，请稍后重试。");
+                    button.disabled = false;
+                    button.textContent = "创建会议";
+                }
+            }
+
+            /* ───────── 房间界面 ───────── */
+
+            function renderMeetingHead() {
+                const title = (meeting && meeting.title) || "语音会议";
+                $("room-title").textContent = title;
+                $("room-no").textContent = (meeting && meeting.no) || "000-000-000";
+                document.title = title + " · AUDIV | Vitual XRing";
+            }
+
+            function renderRoomHint() {
+                const hint = $("room-hint");
+                if (!hint) {
+                    return;
+                }
+                if (participants.size === 0) {
+                    hint.hidden = false;
+                    hint.textContent = "还没有其他人加入。点击下方“邀请”复制会议链接，最多支持 " + MAX_PEERS + " 人。";
+                } else {
+                    hint.hidden = true;
+                    hint.textContent = "";
+                }
+            }
+
+            function updateCount() {
+                const count = $("room-count");
+                if (count) {
+                    count.textContent = (participants.size + 1) + " 人";
+                }
+                renderRoomHint();
+            }
+
+            function renderParticipants() {
+                const grid = $("participants");
+                if (!grid) {
+                    return;
+                }
+                grid.textContent = "";
+
+                let selfStatus;
+                if (micIssue === "unsupported") {
+                    selfStatus = "浏览器不支持语音";
+                } else if (micIssue) {
+                    selfStatus = "麦克风未开启";
+                } else if (!localStream) {
+                    selfStatus = "等待麦克风";
+                } else if (micMuted) {
+                    selfStatus = "已静音";
+                } else {
+                    selfStatus = "麦克风已开";
+                }
+
+                grid.appendChild(buildTile({
+                    name: displayName || "我",
+                    self: true,
+                    micOn: Boolean(localStream) && !micMuted,
+                    statusText: selfStatus,
+                    connected: Boolean(localStream) && !micMuted,
+                    avatarIndex: 0
+                }));
+
+                let index = 1;
+                for (const [peer, info] of participants) {
+                    const link = peerLinks.get(peer);
+                    let status = "等待语音接通";
+                    let connected = false;
+                    if (link) {
+                        const state = link.pc.connectionState;
+                        if (state === "connected") {
+                            status = "语音已连接";
+                            connected = true;
+                        } else if (state === "failed") {
+                            status = "语音连接失败";
+                        } else if (state === "disconnected") {
+                            status = "语音连接中断";
+                        } else {
+                            status = "正在接通语音…";
+                        }
+                    }
+                    grid.appendChild(buildTile({
+                        name: info.name,
+                        self: false,
+                        micOn: !info.muted,
+                        statusText: status,
+                        connected: connected,
+                        avatarIndex: index % AVATAR_COLORS.length
+                    }));
+                    index += 1;
+                }
+                updateCount();
+            }
+
+            function buildTile(options) {
+                const tile = document.createElement("article");
+                tile.className = "tile" + (options.self ? " self" : "") + (options.connected ? " linked" : "");
+
+                const mic = document.createElement("span");
+                mic.className = "tile-mic" + (options.micOn ? "" : " off");
+                mic.textContent = options.micOn ? "🎤" : "🔇";
+                mic.title = options.micOn ? "麦克风已开" : "麦克风关闭";
+
+                const avatar = document.createElement("span");
+                avatar.className = "avatar";
+                avatar.textContent = initialOf(options.name);
+                avatar.style.background = AVATAR_COLORS[options.avatarIndex % AVATAR_COLORS.length];
+
+                const nameRow = document.createElement("div");
+                nameRow.className = "tile-name";
+                const name = document.createElement("b");
+                name.textContent = options.name || "成员";
+                nameRow.appendChild(name);
+                if (options.self) {
+                    const tag = document.createElement("span");
+                    tag.className = "me-tag";
+                    tag.textContent = "我";
+                    nameRow.appendChild(tag);
+                }
+
+                const status = document.createElement("div");
+                status.className = "tile-status";
+                const dot = document.createElement("i");
+                dot.className = "dot" + (options.connected ? " on" : "");
+                const label = document.createElement("span");
+                label.textContent = options.statusText;
+                status.append(dot, label);
+
+                tile.append(mic, avatar, nameRow, status);
+                return tile;
+            }
+
+            function addParticipant(peer, name, muted) {
+                if (!peer || peer === myPeer) {
+                    return;
+                }
+                const info = participants.get(peer);
+                if (!info) {
+                    participants.set(peer, {
+                        name: cleanName(name),
+                        muted: Boolean(muted),
+                        audioEl: null
+                    });
+                    renderParticipants();
+                    return;
+                }
+                let changed = false;
+                const nextName = cleanName(name);
+                if (name && nextName !== info.name) {
+                    info.name = nextName;
+                    changed = true;
+                }
+                if (typeof muted === "boolean" && muted !== info.muted) {
+                    info.muted = muted;
+                    changed = true;
+                }
+                if (changed) {
+                    renderParticipants();
+                }
+            }
+
+            function updateMute(peer, muted) {
+                if (!peer || peer === myPeer) {
+                    return;
+                }
+                const info = participants.get(peer);
+                if (!info) {
+                    addParticipant(peer, "成员", muted);
+                    return;
+                }
+                if (info.muted === muted) {
+                    return;
+                }
+                info.muted = muted;
+                renderParticipants();
+            }
+
+            function removeParticipant(peer) {
+                if (!peer) {
+                    return;
+                }
+                const info = participants.get(peer);
+                if (info && info.audioEl) {
+                    try {
+                        info.audioEl.pause();
+                    } catch (error) {
+                        /* 忽略 */
+                    }
+                    try {
+                        info.audioEl.srcObject = null;
+                    } catch (error) {
+                        /* 忽略 */
+                    }
+                    info.audioEl.remove();
+                }
+                participants.delete(peer);
+                closeLink(peer);
+                renderParticipants();
+            }
+
+            function ensureAudio(peer) {
+                const info = participants.get(peer);
+                if (!info) {
+                    return null;
+                }
+                if (!info.audioEl) {
+                    const audio = document.createElement("audio");
+                    audio.autoplay = true;
+                    audio.playsInline = true;
+                    audio.setAttribute("playsinline", "");
+                    audio.muted = speakerMuted;
+                    $("remote-audio").appendChild(audio);
+                    info.audioEl = audio;
+                }
+                return info.audioEl;
+            }
+
+            function attachStream(peer, stream) {
+                const audio = ensureAudio(peer);
+                if (!audio) {
+                    return;
+                }
+                audio.srcObject = stream;
+                audio.muted = speakerMuted;
+                const playing = audio.play();
+                if (playing && typeof playing.catch === "function") {
+                    playing.catch(() => {
+                        /* 浏览器自动播放限制，等待用户点击 */
+                    });
+                }
+            }
+
+            function resumeRemoteAudio() {
+                for (const info of participants.values()) {
+                    if (info.audioEl && info.audioEl.srcObject) {
+                        const playing = info.audioEl.play();
+                        if (playing && typeof playing.catch === "function") {
+                            playing.catch(() => {});
+                        }
+                    }
+                }
+            }
+
+            function applySpeaker() {
+                for (const info of participants.values()) {
+                    if (info.audioEl) {
+                        info.audioEl.muted = speakerMuted;
+                    }
+                }
+            }
+
+            /* ───────── 麦克风 ───────── */
+
+            function setMicIssue(issue) {
+                micIssue = issue || "";
+                const notice = $("mic-notice");
+                const text = $("mic-notice-text");
+                const retry = $("mic-retry");
+                if (!notice || !text) {
+                    return;
+                }
+                if (!micIssue) {
+                    notice.hidden = true;
+                    text.textContent = "";
+                } else {
+                    notice.hidden = false;
+                    if (micIssue === "unsupported") {
+                        text.textContent = "当前浏览器不支持 WebRTC 语音，你仍可留在会议里用文字聊天。";
+                        if (retry) {
+                            retry.hidden = true;
+                        }
+                    } else if (micIssue === "missing") {
+                        text.textContent = "没有检测到可用的麦克风。你仍可收听会议、使用文字聊天，接好设备后可以重试。";
+                        if (retry) {
+                            retry.hidden = false;
+                        }
+                    } else if (micIssue === "denied") {
+                        text.textContent = "麦克风未开启：权限被拒绝。你仍可收听和文字聊天，也可以在浏览器地址栏的权限设置里允许后重试。";
+                        if (retry) {
+                            retry.hidden = false;
+                        }
+                    } else {
+                        text.textContent = "麦克风未开启：读取设备失败。你仍可收听和文字聊天，稍后可以重试。";
+                        if (retry) {
+                            retry.hidden = false;
+                        }
+                    }
+                }
+                updateMicUI();
+                if (joined) {
+                    renderParticipants();
+                }
+            }
+
+            function updateMicUI() {
+                const button = $("btn-mic");
+                const icon = $("btn-mic-ico");
+                const label = $("btn-mic-label");
+                if (!button || !icon || !label) {
+                    return;
+                }
+                if (!localStream) {
+                    button.disabled = micIssue === "unsupported";
+                    button.classList.remove("active");
+                    button.setAttribute("aria-pressed", "false");
+                    icon.textContent = micIssue === "unsupported" ? "🎙️" : "🎤";
+                    label.textContent = micIssue === "unsupported" ? "无麦克风" : "开启麦克风";
+                    return;
+                }
+                button.disabled = false;
+                button.classList.toggle("active", micMuted);
+                button.setAttribute("aria-pressed", String(micMuted));
+                icon.textContent = micMuted ? "🔇" : "🎤";
+                label.textContent = micMuted ? "取消静音" : "静音";
+            }
+
+            function stopMic() {
+                if (localStream) {
+                    for (const track of localStream.getTracks()) {
+                        try {
+                            track.stop();
+                        } catch (error) {
+                            /* 忽略 */
+                        }
+                    }
+                    localStream = null;
+                }
+                micMuted = false;
+            }
+
+            async function requestMic() {
+                if (typeof window.RTCPeerConnection !== "function"
+                    || !navigator.mediaDevices
+                    || typeof navigator.mediaDevices.getUserMedia !== "function") {
+                    setMicIssue("unsupported");
+                    return null;
+                }
+                if (localStream) {
+                    return localStream;
+                }
+                if (micPending) {
+                    return null;
+                }
+                micPending = true;
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    if (!joined) {
+                        for (const track of stream.getTracks()) {
+                            try {
+                                track.stop();
+                            } catch (error) {
+                                /* 忽略 */
+                            }
+                        }
+                        return null;
+                    }
+                    localStream = stream;
+                    for (const track of stream.getAudioTracks()) {
+                        track.enabled = !micMuted;
+                    }
+                    setMicIssue("");
+                    for (const link of peerLinks.values()) {
+                        addLocalTracks(link);
+                    }
+                    renegotiateLinks();
+                    renderParticipants();
+                    return stream;
+                } catch (error) {
+                    const name = error && error.name ? String(error.name) : "";
+                    if (name === "NotAllowedError" || name === "SecurityError" || name === "PermissionDeniedError") {
+                        setMicIssue("denied");
+                    } else if (name === "NotFoundError" || name === "DevicesNotFoundError" || name === "OverconstrainedError") {
+                        setMicIssue("missing");
+                    } else {
+                        setMicIssue("error");
+                    }
+                    return null;
+                } finally {
+                    micPending = false;
+                }
+            }
+
+            async function onMicClick() {
+                if (micIssue === "unsupported") {
+                    toast("当前浏览器不支持麦克风采集。");
+                    return;
+                }
+                if (micPending) {
+                    toast("正在等待麦克风授权，请在浏览器提示里选择“允许”。");
+                    return;
+                }
+                if (!localStream) {
+                    toast(micIssue === "denied" ? "正在重新申请麦克风权限…" : "正在开启麦克风…");
+                    const stream = await requestMic();
+                    if (stream) {
+                        toast("麦克风已开启");
+                        sendRaw({ type: "mute", muted: false });
+                    } else {
+                        toast(micIssue === "denied"
+                            ? "麦克风权限被拒绝，可在浏览器地址栏的权限设置里允许后重试。"
+                            : "没有可用的麦克风。");
+                    }
+                    return;
+                }
+                micMuted = !micMuted;
+                for (const track of localStream.getAudioTracks()) {
+                    track.enabled = !micMuted;
+                }
+                sendRaw({ type: "mute", muted: micMuted });
+                updateMicUI();
+                renderParticipants();
+                toast(micMuted ? "已静音" : "已取消静音");
+            }
+
+            function onSpeakerClick() {
+                speakerMuted = !speakerMuted;
+                applySpeaker();
+                const button = $("btn-speaker");
+                button.classList.toggle("active", speakerMuted);
+                button.setAttribute("aria-pressed", String(speakerMuted));
+                $("btn-speaker-ico").textContent = speakerMuted ? "🔈" : "🔊";
+                $("btn-speaker-label").textContent = speakerMuted ? "扬声器关" : "扬声器";
+                toast(speakerMuted ? "已关闭扬声器，只保留文字聊天" : "扬声器已开启");
+            }
+
+            /* ───────── 聊天 ───────── */
+
+            function setChatState(text) {
+                const node = $("chat-state");
+                if (node) {
+                    node.textContent = text;
+                }
+            }
+
+            function appendChatNode(node) {
+                const list = $("chat-list");
+                if (!list) {
+                    return;
+                }
+                list.appendChild(node);
+                while (list.children.length > 200) {
+                    list.removeChild(list.firstElementChild);
+                }
+                list.scrollTop = list.scrollHeight;
+            }
+
+            function appendChat(name, text, at, mine) {
+                const item = document.createElement("li");
+                item.className = "chat-item" + (mine ? " mine" : "");
+                const who = document.createElement("div");
+                who.className = "chat-who";
+                who.textContent = (mine ? "我" : cleanName(name)) + " · " + formatClock(at);
+                const bubble = document.createElement("div");
+                bubble.className = "chat-bubble";
+                bubble.textContent = String(text == null ? "" : text).slice(0, 500);
+                item.append(who, bubble);
+                appendChatNode(item);
+            }
+
+            function addSystemChat(text) {
+                const item = document.createElement("li");
+                item.className = "chat-item system";
+                item.textContent = String(text == null ? "" : text);
+                appendChatNode(item);
+            }
+
+            function onChatSubmit(event) {
+                event.preventDefault();
+                const input = $("chat-input");
+                const text = input.value.trim().slice(0, 500);
+                if (!text) {
+                    return;
+                }
+                if (!socket || socket.readyState !== WebSocket.OPEN) {
+                    toast("聊天服务还没有连接上，请稍后再试。");
+                    return;
+                }
+                if (sendRaw({ type: "chat", text })) {
+                    input.value = "";
+                    input.focus();
+                } else {
+                    toast("消息没有发出去，请检查网络。");
+                }
+            }
+
+            function openChat() {
+                $("room-chat").classList.add("open");
+                $("chat-scrim").classList.add("show");
+                const toggle = $("room-chat-toggle");
+                if (toggle) {
+                    toggle.setAttribute("aria-expanded", "true");
+                }
+                const input = $("chat-input");
+                if (input && window.innerWidth > 980) {
+                    input.focus();
+                }
+            }
+
+            function closeChat() {
+                $("room-chat").classList.remove("open");
+                $("chat-scrim").classList.remove("show");
+                const toggle = $("room-chat-toggle");
+                if (toggle) {
+                    toggle.setAttribute("aria-expanded", "false");
+                }
+            }
+
+            function toggleChat() {
+                if ($("room-chat").classList.contains("open")) {
+                    closeChat();
+                } else {
+                    openChat();
+                }
+            }
+
+            /* ───────── WebRTC ───────── */
+
+            function sendRaw(payload) {
+                if (!socket || socket.readyState !== WebSocket.OPEN) {
+                    return false;
+                }
+                try {
+                    socket.send(JSON.stringify(payload));
+                    return true;
+                } catch (error) {
+                    return false;
+                }
+            }
+
+            function sendSignal(to, data) {
+                if (!to || !data) {
+                    return false;
+                }
+                return sendRaw({ type: "signal", to, data });
+            }
+
+            function addLocalTracks(link) {
+                if (!link || link.closed || !localStream) {
+                    return;
+                }
+                const senders = link.pc.getSenders();
+                for (const track of localStream.getAudioTracks()) {
+                    const exists = senders.some((sender) => sender && sender.track === track);
+                    if (!exists) {
+                        try {
+                            link.pc.addTrack(track, localStream);
+                        } catch (error) {
+                            /* 忽略 */
+                        }
+                    }
+                }
+            }
+
+            function createLink(peer, name) {
+                if (!peer || peer === myPeer) {
+                    return null;
+                }
+                const existing = peerLinks.get(peer);
+                if (existing) {
+                    return existing;
+                }
+                if (typeof window.RTCPeerConnection !== "function") {
+                    setMicIssue("unsupported");
+                    return null;
+                }
+                let pc = null;
+                try {
+                    pc = new RTCPeerConnection(ICE_CONFIG);
+                } catch (error) {
+                    toast("无法建立语音连接，仍可使用文字聊天。");
+                    return null;
+                }
+                const link = {
+                    peer,
+                    name: name || "成员",
+                    pc,
+                    polite: myPeer > peer,
+                    makingOffer: false,
+                    pending: [],
+                    closed: false,
+                    stream: null,
+                    needsRenegotiate: false
+                };
+                if (localStream) {
+                    for (const track of localStream.getAudioTracks()) {
+                        try {
+                            pc.addTrack(track, localStream);
+                        } catch (error) {
+                            /* 忽略 */
+                        }
+                    }
+                } else {
+                    try {
+                        pc.addTransceiver("audio", { direction: "recvonly" });
+                    } catch (error) {
+                        /* 忽略 */
+                    }
+                }
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        sendSignal(peer, { candidate: event.candidate });
+                    }
+                };
+                pc.ontrack = (event) => {
+                    if (event.streams && event.streams[0]) {
+                        link.stream = event.streams[0];
+                    } else {
+                        if (!link.stream) {
+                            try {
+                                link.stream = new MediaStream();
+                            } catch (error) {
+                                link.stream = null;
+                            }
+                        }
+                        if (link.stream) {
+                            try {
+                                link.stream.addTrack(event.track);
+                            } catch (error) {
+                                /* 忽略 */
+                            }
+                        }
+                    }
+                    if (link.stream) {
+                        attachStream(peer, link.stream);
+                    }
+                    renderParticipants();
+                };
+                pc.onconnectionstatechange = () => {
+                    renderParticipants();
+                };
+                pc.onsignalingstatechange = () => {
+                    if (pc.signalingState === "stable") {
+                        maybeRenegotiate(link);
+                    }
+                };
+                peerLinks.set(peer, link);
+                ensureAudio(peer);
+                return link;
+            }
+
+            function closeLink(peer) {
+                const link = peerLinks.get(peer);
+                if (!link) {
+                    return;
+                }
+                link.closed = true;
+                try {
+                    link.pc.onicecandidate = null;
+                    link.pc.ontrack = null;
+                    link.pc.onconnectionstatechange = null;
+                    link.pc.onsignalingstatechange = null;
+                    link.pc.close();
+                } catch (error) {
+                    /* 忽略 */
+                }
+                peerLinks.delete(peer);
+            }
+
+            function teardownLinks() {
+                for (const peer of Array.from(peerLinks.keys())) {
+                    closeLink(peer);
+                }
+                for (const info of participants.values()) {
+                    if (info.audioEl) {
+                        try {
+                            info.audioEl.srcObject = null;
+                        } catch (error) {
+                            /* 忽略 */
+                        }
+                        info.audioEl.remove();
+                        info.audioEl = null;
+                    }
+                }
+            }
+
+            async function sendOffer(link) {
+                if (!link || link.closed || link.makingOffer) {
+                    return;
+                }
+                if (link.pc.signalingState !== "stable") {
+                    return;
+                }
+                if (!socket || socket.readyState !== WebSocket.OPEN) {
+                    return;
+                }
+                link.makingOffer = true;
+                try {
+                    const offer = await link.pc.createOffer();
+                    if (link.closed) {
+                        return;
+                    }
+                    await link.pc.setLocalDescription(offer);
+                    sendSignal(link.peer, { description: link.pc.localDescription });
+                } catch (error) {
+                    /* 连接冲突或已关闭，交给后续信令处理 */
+                } finally {
+                    link.makingOffer = false;
+                }
+            }
+
+            function maybeRenegotiate(link) {
+                if (!link || link.closed || !link.needsRenegotiate) {
+                    return;
+                }
+                if (link.makingOffer || link.pc.signalingState !== "stable") {
+                    return;
+                }
+                if (!socket || socket.readyState !== WebSocket.OPEN) {
+                    return;
+                }
+                link.needsRenegotiate = false;
+                sendOffer(link).catch(() => {});
+            }
+
+            function renegotiateLinks() {
+                for (const link of peerLinks.values()) {
+                    if (!link || link.closed) {
+                        continue;
+                    }
+                    link.needsRenegotiate = true;
+                    maybeRenegotiate(link);
+                }
+            }
+
+            function flushCandidates(link) {
+                const queue = link.pending.splice(0);
+                for (const candidate of queue) {
+                    link.pc.addIceCandidate(candidate).catch(() => {});
+                }
+            }
+
+            function handleCandidate(link, candidate) {
+                if (!candidate) {
+                    return;
+                }
+                if (!link.pc.remoteDescription) {
+                    link.pending.push(candidate);
+                    return;
+                }
+                link.pc.addIceCandidate(candidate).catch(() => {});
+            }
+
+            async function handleDescription(link, description) {
+                if (!description || (description.type !== "offer" && description.type !== "answer")) {
+                    return;
+                }
+                const pc = link.pc;
+                try {
+                    if (description.type === "offer") {
+                        const collision = link.makingOffer || pc.signalingState !== "stable";
+                        if (collision) {
+                            if (!link.polite) {
+                                return;
+                            }
+                            try {
+                                await pc.setLocalDescription({ type: "rollback" });
+                            } catch (error) {
+                                /* 部分浏览器会自动回滚 */
+                            }
+                        }
+                        await pc.setRemoteDescription(description);
+                        flushCandidates(link);
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+                        sendSignal(link.peer, { description: pc.localDescription });
+                    } else if (pc.signalingState === "have-local-offer") {
+                        await pc.setRemoteDescription(description);
+                        flushCandidates(link);
+                    }
+                } catch (error) {
+                    /* 信令冲突、连接已关闭时忽略，等待下一次协商 */
+                }
+            }
+
+            function handleSignal(from, data) {
+                if (!from || from === myPeer || !data || typeof data !== "object") {
+                    return;
+                }
+                let link = peerLinks.get(from);
+                if (!link) {
+                    const info = participants.get(from);
+                    link = createLink(from, info ? info.name : "成员");
+                }
+                if (!link) {
+                    return;
+                }
+                if (data.description) {
+                    handleDescription(link, data.description);
+                } else if (data.candidate) {
+                    handleCandidate(link, data.candidate);
+                }
+            }
+
+            /* ───────── WebSocket 信令 ───────── */
+
+            function openSocket() {
+                if (!SOCIAL || !meeting || typeof SOCIAL.meetingSocketUrl !== "function") {
+                    setConnNotice("语音服务地址不可用，语音和聊天暂不可用。", true);
+                    return;
+                }
+                closeSocket();
+                let ws = null;
+                try {
+                    ws = new WebSocket(SOCIAL.meetingSocketUrl(meeting.no, displayName, myPeer, joinToken));
+                } catch (error) {
+                    setConnNotice("无法连接语音服务，语音和聊天暂不可用。", true);
+                    return;
+                }
+                socket = ws;
+                setChatState("连接中…");
+                ws.addEventListener("open", () => {
+                    if (socket !== ws) {
+                        return;
+                    }
+                    reconnectAttempt = 0;
+                    hideConnNotice();
+                    setChatState("已连接");
+                    sendRaw({ type: "mute", muted: Boolean(localStream) && micMuted });
+                });
+                ws.addEventListener("message", (event) => {
+                    if (socket !== ws) {
+                        return;
+                    }
+                    handleSocketMessage(event.data);
+                });
+                ws.addEventListener("close", () => {
+                    if (socket !== ws) {
+                        return;
+                    }
+                    socket = null;
+                    setChatState("已断开");
+                    onSocketClosed();
+                });
+                ws.addEventListener("error", () => {
+                    /* close 事件随后触发 */
+                });
+            }
+
+            function closeSocket() {
+                const ws = socket;
+                socket = null;
+                if (ws) {
+                    try {
+                        ws.close();
+                    } catch (error) {
+                        /* 忽略 */
+                    }
+                }
+            }
+
+            function handleSocketMessage(raw) {
+                let message = null;
+                try {
+                    message = JSON.parse(String(raw == null ? "" : raw));
+                } catch (error) {
+                    return;
+                }
+                if (!message || typeof message !== "object" || !message.type) {
+                    return;
+                }
+                switch (message.type) {
+                    case "welcome":
+                        handleWelcome(message);
+                        break;
+                    case "state":
+                        handleState(message);
+                        break;
+                    case "peer-join":
+                        handlePeerJoin(message);
+                        break;
+                    case "peer-leave":
+                        removeParticipant(String(message.peer || ""));
+                        break;
+                    case "signal":
+                        handleSignal(String(message.from || ""), message.data);
+                        break;
+                    case "chat":
+                        appendChat(message.name, message.text, message.at, message.from === myPeer);
+                        break;
+                    case "mute":
+                        updateMute(String(message.peer || ""), Boolean(message.muted));
+                        break;
+                    case "end":
+                        handleRemoteEnd(message.by);
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            function handleWelcome(message) {
+                if (message.peer) {
+                    myPeer = String(message.peer);
+                }
+                const list = Array.isArray(message.peers) ? message.peers : [];
+                const present = new Set();
+                for (const raw of list) {
+                    if (!raw || typeof raw !== "object") {
+                        continue;
+                    }
+                    const peer = String(raw.peer || "");
+                    if (!peer || peer === myPeer) {
+                        continue;
+                    }
+                    present.add(peer);
+                    addParticipant(peer, raw.name, raw.muted);
+                    createLink(peer, raw.name);
+                }
+                for (const peer of Array.from(participants.keys())) {
+                    if (!present.has(peer)) {
+                        removeParticipant(peer);
+                    }
+                }
+                hideConnNotice();
+                renderParticipants();
+            }
+
+            function handleState(message) {
+                const list = Array.isArray(message.peers) ? message.peers : null;
+                if (!list) {
+                    return;
+                }
+                const present = new Set();
+                for (const raw of list) {
+                    if (!raw || typeof raw !== "object") {
+                        continue;
+                    }
+                    const peer = String(raw.peer || "");
+                    if (!peer || peer === myPeer) {
+                        continue;
+                    }
+                    present.add(peer);
+                    if (participants.has(peer)) {
+                        updateMute(peer, Boolean(raw.muted));
+                    } else {
+                        addParticipant(peer, raw.name, raw.muted);
+                    }
+                }
+                for (const peer of Array.from(participants.keys())) {
+                    if (!present.has(peer)) {
+                        removeParticipant(peer);
+                    }
+                }
+            }
+
+            function handlePeerJoin(message) {
+                const peer = String(message.peer || "");
+                if (!peer || peer === myPeer) {
+                    return;
+                }
+                addParticipant(peer, message.name, false);
+                const link = createLink(peer, message.name);
+                if (link) {
+                    renderParticipants();
+                    sendOffer(link).catch(() => {});
+                }
+            }
+
+            function onSocketClosed() {
+                if (leaving || ended) {
+                    return;
+                }
+                teardownLinks();
+                if (reconnectAttempt >= MAX_RECONNECT) {
+                    setConnNotice("语音服务连接已断开，语音和聊天暂不可用。", true);
+                    return;
+                }
+                reconnectAttempt += 1;
+                setConnNotice("语音连接已断开，正在重连（" + reconnectAttempt + "/" + MAX_RECONNECT + "）…", false);
+                clearReconnectTimer();
+                reconnectTimer = window.setTimeout(async () => {
+                    if (leaving || ended) {
+                        return;
+                    }
+                    let closed = false;
+                    try {
+                        const data = await SOCIAL.meeting(meeting.no);
+                        if (!data || !data.meeting || data.meeting.ended) {
+                            closed = true;
+                        }
+                    } catch (error) {
+                        if (error && Number(error.status) === 404) {
+                            closed = true;
+                        }
+                    }
+                    if (leaving || ended) {
+                        return;
+                    }
+                    if (closed) {
+                        showEnded("主持人结束了这场会议。");
+                        return;
+                    }
+                    openSocket();
+                }, 1600);
+            }
+
+            function manualReconnect() {
+                if (leaving || ended) {
+                    return;
+                }
+                reconnectAttempt = 0;
+                clearReconnectTimer();
+                teardownLinks();
+                openSocket();
+            }
+
+            function clearReconnectTimer() {
+                if (reconnectTimer) {
+                    clearTimeout(reconnectTimer);
+                    reconnectTimer = 0;
+                }
+            }
+
+            function setConnNotice(text, showAction) {
+                const notice = $("conn-notice");
+                const label = $("conn-notice-text");
+                const action = $("conn-action");
+                if (!notice || !label) {
+                    return;
+                }
+                notice.hidden = false;
+                label.textContent = text;
+                if (action) {
+                    action.hidden = !showAction;
+                }
+            }
+
+            function hideConnNotice() {
+                const notice = $("conn-notice");
+                if (notice) {
+                    notice.hidden = true;
+                }
+                const action = $("conn-action");
+                if (action) {
+                    action.hidden = true;
+                }
+            }
+
+            /* ───────── 加入 / 离开 / 结束 ───────── */
+
+            async function enterRoom() {
+                joined = true;
+                leaving = false;
+                ended = false;
+                micMuted = false;
+                speakerMuted = false;
+                micIssue = "";
+                myPeer = "u" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+                reconnectAttempt = 0;
+                clearReconnectTimer();
+                participants.clear();
+                peerLinks.clear();
+
+                $("chat-list").textContent = "";
+                $("chat-input").value = "";
+                $("participants").textContent = "";
+                $("remote-audio").textContent = "";
+                $("mic-notice").hidden = true;
+                hideConnNotice();
+                $("btn-speaker").classList.remove("active");
+                $("btn-speaker").setAttribute("aria-pressed", "false");
+                $("btn-speaker-ico").textContent = "🔊";
+                $("btn-speaker-label").textContent = "扬声器";
+                closeChat();
+
+                renderMeetingHead();
+                $("btn-end").hidden = !isHost();
+                setChatState("连接中…");
+                showView("room");
+                window.scrollTo(0, 0);
+
+                addSystemChat("正在进入「" + ((meeting && meeting.title) || "语音会议") + "」…");
+                updateMicUI();
+                renderParticipants();
+
+                // 先连信令和聊天，麦克风权限可以稍后授权；拿到音轨后再重新协商。
+                requestMic().catch(() => {});
+                if (!joined) {
+                    return;
+                }
+                addSystemChat("你已加入会议。点击“邀请”把会议号发给朋友，就可以一起聊了。");
+                openSocket();
+
+                if (!audioGestureBound) {
+                    audioGestureBound = true;
+                    document.addEventListener("pointerdown", resumeRemoteAudio, { once: true });
+                }
+            }
+
+            function resetRoomState() {
+                clearReconnectTimer();
+                closeSocket();
+                teardownLinks();
+                participants.clear();
+                stopMic();
+                $("participants").textContent = "";
+                $("remote-audio").textContent = "";
+                $("chat-list").textContent = "";
+                closeChat();
+                $("mic-notice").hidden = true;
+                hideConnNotice();
+                $("btn-end").hidden = true;
+                meeting = null;
+                displayName = "";
+                myPeer = "";
+                micIssue = "";
+                micMuted = false;
+                speakerMuted = false;
+                reconnectAttempt = 0;
+                joined = false;
+                ended = false;
+                document.title = "AUDIV 语音会议 | Vitual XRing";
+                document.body.classList.remove("room-mode");
+            }
+
+            function leaveRoom() {
+                leaving = true;
+                resetRoomState();
+                history.replaceState(null, "", "audiv.html");
+                showView("home");
+                renderRecent();
+                refreshLoginUI();
+                toast("已离开会议");
+            }
+
+            function showEnded(message) {
+                if (ended) {
+                    return;
+                }
+                ended = true;
+                joined = false;
+                clearReconnectTimer();
+                closeSocket();
+                teardownLinks();
+                stopMic();
+                setChatState("已断开");
+                $("btn-end").hidden = true;
+                $("ended-text").textContent = message || "会议已结束。";
+                $("ended-modal").hidden = false;
+                hideConnNotice();
+            }
+
+            function closeEndedToHome() {
+                $("ended-modal").hidden = true;
+                leaving = true;
+                resetRoomState();
+                history.replaceState(null, "", "audiv.html");
+                showView("home");
+                renderRecent();
+                refreshLoginUI();
+            }
+
+            function handleRemoteEnd(by) {
+                const who = by ? String(by) : "主持人";
+                showEnded(who + " 结束了这场会议。");
+            }
+
+            function openEndModal() {
+                if (!isHost()) {
+                    toast("只有会议发起人可以结束会议。");
+                    return;
+                }
+                $("end-error").textContent = "";
+                $("end-confirm").disabled = false;
+                $("end-confirm").textContent = "结束会议";
+                $("end-modal").hidden = false;
+            }
+
+            function closeEndModal() {
+                $("end-modal").hidden = true;
+            }
+
+            async function confirmEndMeeting() {
+                if (!meeting || !isHost()) {
+                    $("end-error").textContent = "只有会议发起人可以结束会议。";
+                    return;
+                }
+                const button = $("end-confirm");
+                button.disabled = true;
+                button.textContent = "正在结束…";
+                $("end-error").textContent = "";
+                try {
+                    await SOCIAL.endMeeting(meeting.no);
+                } catch (error) {
+                    $("end-error").textContent = friendly(error, "结束会议失败，请稍后重试。");
+                    button.disabled = false;
+                    button.textContent = "结束会议";
+                    return;
+                }
+                sendRaw({ type: "end" });
+                $("end-modal").hidden = true;
+                button.disabled = false;
+                button.textContent = "结束会议";
+                showEnded("你结束了这场会议。");
+            }
+
+            /* ───────── 邀请 / 复制 ───────── */
+
+            function openInvite() {
+                if (!meeting) {
+                    return;
+                }
+                const no = meeting.no;
+                const link = meetingLink(no);
+                const text = "「" + (meeting.title || "语音会议") + "」邀请你加入 AUDIV 语音会议\n"
+                    + "会议号：" + no + "\n"
+                    + "链接：" + link + "\n"
+                    + "点开链接即可加入，无需登录。";
+                $("invite-no").textContent = no;
+                $("invite-link").textContent = link;
+                $("invite-text").value = text;
+                $("invite-modal").hidden = false;
+            }
+
+            function closeInvite() {
+                $("invite-modal").hidden = true;
+            }
+
+            function copyRoomNo() {
+                if (!meeting) {
+                    return;
+                }
+                copyValue(meeting.no, "会议号已复制");
+            }
+
+            /* ───────── 事件绑定与初始化 ───────── */
+
+            function init() {
+                refreshLoginUI();
+                renderRecent();
+
+                const joinForm = $("join-form");
+                joinForm.addEventListener("submit", (event) => {
+                    event.preventDefault();
+                    const no = normalizeNo($("join-no").value);
+                    if (!no) {
+                        toast("会议号为 9 位数字，例如 123-456-789。");
+                        $("join-no").focus();
+                        return;
+                    }
+                    $("join-no").value = no;
+                    history.pushState(null, "", "audiv.html?meeting=" + encodeURIComponent(no));
+                    enterLobby(no);
+                });
+
+                $("join-no").addEventListener("blur", () => {
+                    const no = normalizeNo($("join-no").value);
+                    if (no) {
+                        $("join-no").value = no;
+                    }
+                });
+
+                $("quick-meeting").addEventListener("click", openQuick);
+                $("recent-clear").addEventListener("click", () => {
+                    saveRecent([]);
+                    renderRecent();
+                    toast("最近会议已清空");
+                });
+
+                $("lobby-form").addEventListener("submit", onLobbySubmit);
+                $("lobby-copy").addEventListener("click", () => {
+                    if (meeting) {
+                        copyValue(meeting.no, "会议号已复制");
+                    }
+                });
+                $("lobby-retry").addEventListener("click", () => {
+                    const no = normalizeNo($("lobby-no").textContent);
+                    if (no) {
+                        enterLobby(no);
+                    }
+                });
+
+                $("room-copy-no").addEventListener("click", copyRoomNo);
+                $("room-chat-toggle").addEventListener("click", toggleChat);
+                $("chat-close").addEventListener("click", closeChat);
+                $("chat-scrim").addEventListener("click", closeChat);
+                $("chat-form").addEventListener("submit", onChatSubmit);
+
+                $("btn-mic").addEventListener("click", onMicClick);
+                $("btn-speaker").addEventListener("click", onSpeakerClick);
+                $("btn-invite").addEventListener("click", openInvite);
+                $("btn-leave").addEventListener("click", leaveRoom);
+                $("btn-end").addEventListener("click", openEndModal);
+                $("mic-retry").addEventListener("click", onMicClick);
+                $("conn-action").addEventListener("click", manualReconnect);
+
+                $("quick-form").addEventListener("submit", onQuickSubmit);
+                $("quick-cancel").addEventListener("click", closeQuick);
+                $("quick-modal").addEventListener("click", (event) => {
+                    if (event.target === $("quick-modal")) {
+                        closeQuick();
+                    }
+                });
+
+                $("invite-close").addEventListener("click", closeInvite);
+                $("invite-modal").addEventListener("click", (event) => {
+                    if (event.target === $("invite-modal")) {
+                        closeInvite();
+                    }
+                });
+                $("invite-copy-no").addEventListener("click", () => {
+                    if (meeting) {
+                        copyValue(meeting.no, "会议号已复制");
+                    }
+                });
+                $("invite-copy-link").addEventListener("click", () => {
+                    if (meeting) {
+                        copyValue(meetingLink(meeting.no), "会议链接已复制");
+                    }
+                });
+                $("invite-copy-text").addEventListener("click", () => {
+                    copyValue($("invite-text").value, "邀请文案已复制，粘贴到聊天即可");
+                });
+
+                $("end-cancel").addEventListener("click", closeEndModal);
+                $("end-confirm").addEventListener("click", confirmEndMeeting);
+                $("end-modal").addEventListener("click", (event) => {
+                    if (event.target === $("end-modal")) {
+                        closeEndModal();
+                    }
+                });
+
+                $("ended-home").addEventListener("click", closeEndedToHome);
+
+                document.addEventListener("keydown", (event) => {
+                    if (event.key !== "Escape") {
+                        return;
+                    }
+                    if (!$("quick-modal").hidden) {
+                        closeQuick();
+                    }
+                    if (!$("invite-modal").hidden) {
+                        closeInvite();
+                    }
+                    if (!$("end-modal").hidden) {
+                        closeEndModal();
+                    }
+                    if ($("view-room").hidden === false && $("room-chat").classList.contains("open")) {
+                        closeChat();
+                    }
+                });
+
+                window.addEventListener("popstate", () => {
+                    if (!$("view-room").hidden) {
+                        return;
+                    }
+                    const no = normalizeNo(new URLSearchParams(location.search).get("meeting") || "");
+                    if (no) {
+                        enterLobby(no);
+                    } else {
+                        meeting = null;
+                        showView("home");
+                        renderRecent();
+                    }
+                });
+
+                window.addEventListener("beforeunload", () => {
+                    leaving = true;
+                    clearReconnectTimer();
+                    closeSocket();
+                    for (const link of peerLinks.values()) {
+                        try {
+                            link.pc.close();
+                        } catch (error) {
+                            /* 忽略 */
+                        }
+                    }
+                    stopMic();
+                });
+
+                if (!SOCIAL) {
+                    toast("页面脚本未加载完整，请刷新后重试。");
+                }
+
+                const raw = new URLSearchParams(location.search).get("meeting") || "";
+                if (raw) {
+                    const no = normalizeNo(raw);
+                    if (no) {
+                        enterLobby(no);
+                    } else {
+                        toast("会议号格式不正确，应为 9 位数字，例如 123-456-789。");
+                        history.replaceState(null, "", "audiv.html");
+                        showView("home");
+                    }
+                } else {
+                    showView("home");
+                }
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>

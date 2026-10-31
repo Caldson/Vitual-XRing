@@ -1446,7 +1446,7 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="vtx-uno.css?v=2.1.0">
+    <link rel="stylesheet" href="vtx-uno.css?v=3.1.0">
 </head>
 <body>
 <div class="app" id="app" hidden>
@@ -1454,7 +1454,7 @@
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
-            <span class="version-badge">v2.1.0 聊天室</span>
+            <span class="version-badge">v3.1.0 聊天室</span>
         </div>
         <div class="topbar-spacer"></div>
         <button type="button" class="uno-top-btn" id="uno-btn" title="打开 UNO（人机对战 / 普通房间 / 混合对战 / 随机匹配）">UNO</button>
@@ -1522,10 +1522,11 @@
 <div class="menu" id="menu"></div>
 <div class="toast" id="toast"></div>
 
-<script src="vtx-markdown.js?v=2.1.0"></script>
-<script src="vtx-qr.js?v=2.1.0"></script>
-<script src="vtx-api.js?v=2.1.0"></script>
-<script src="vtx-uno.js?v=2.1.0"></script>
+<script src="vtx-markdown.js?v=3.1.0"></script>
+<script src="vtx-qr.js?v=3.1.0"></script>
+<script src="vtx-api.js?v=3.1.0"></script>
+<script src="xring-social.js?v=3.1.0"></script>
+<script src="vtx-uno.js?v=3.1.0"></script>
 <script>
 (function () {
     "use strict";
@@ -1564,8 +1565,8 @@
     };
 
     let api = window.VTXApi;
-    const REQUIRED_API_VERSION = "2.1.0";
-    const PAGE_VERSION = "2.1.0";
+    const REQUIRED_API_VERSION = "3.1.0";
+    const PAGE_VERSION = "3.1.0";
     const SDK_URL = "vtx-api.js";
 
     /* 1.3.0：iPad / iPhone 视口高度修正（issue #2）
@@ -2692,6 +2693,10 @@
         }
         if (message.type === "redpacket" && message.packet) {
             return redPacketCard(message);
+        }
+        /* 3.1.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态分享卡片 */
+        if (message.card && window.XRSocial) {
+            return `${window.XRSocial.cardHtml(message.card, { compact: true })}${message.text ? messageCaptionHtml(message) : ""}`;
         }
         if (message.type === "image" && message.media) {
             if (expired) {

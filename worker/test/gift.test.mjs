@@ -295,9 +295,9 @@ test("2.1.0：商店兑换入口、提示与站主礼品面板已接入", () => 
         /请在XRingCR相关门店获取礼品兑换码，请勿轻易购买非官方的礼品兑换码，可能造成财产损失！/
     );
     assert.match(shop, /VTXApi\.redeem/);
-    assert.match(shop, /vtx-api\.js\?v=2\.1\.0/);
+    assert.match(shop, /vtx-api\.js\?v=3\.1\.0/);
     assert.match(admin, /id="gift-form"/);
     assert.match(admin, /id="gift-type"/);
     assert.match(admin, /adminCreateGift/);
-    assert.match(admin, /vtx-api\.js\?v=2\.1\.0/);
+    assert.match(admin, /vtx-api\.js\?v=3\.1\.0/);
 });

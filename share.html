@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>分享链接 | Vitual XRing</title>
+    <script src="vtx-api.js?v=3.1.0"></script>
+    <script src="xring-social.js?v=3.1.0"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --blue: #2f63d8;
+            --blue-soft: #eef3ff;
+            --ink: #172033;
+            --muted: #68768d;
+            --line: #e4e9f2;
+            --bg: #f4f7fb;
+            --card: #ffffff;
+            --warn: #b1711c;
+            --danger: #d64545;
+            --ok: #2f9e6f;
+        }
+
+        * { box-sizing: border-box; }
+
+        [hidden] { display: none !important; }
+
+        html, body { margin: 0; }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 12% 0%, #e9efff 0, transparent 40%),
+                radial-gradient(circle at 88% 6%, #eaf7f0 0, transparent 34%),
+                var(--bg);
+            color: var(--ink);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        button, input, textarea, select { font: inherit; color: inherit; }
+        button { cursor: pointer; touch-action: manipulation; }
+        a { color: var(--blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 18px;
+            padding-top: calc(10px + env(safe-area-inset-top, 0px));
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; color: inherit; text-decoration: none; }
+        .brand:hover { text-decoration: none; }
+
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            border-radius: 11px;
+            background: linear-gradient(135deg, #2f63d8, #6c8cff);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+        .brand-text strong { font-size: 16px; letter-spacing: 0.01em; }
+        .brand-text strong sup { font-size: 9px; vertical-align: super; }
+        .brand-text small { color: var(--muted); font-size: 11.5px; }
+
+        .nav { display: flex; gap: 4px; flex: 1 1 auto; min-width: 0; }
+        .nav a {
+            padding: 6px 12px;
+            border-radius: 999px;
+            color: var(--muted);
+            font-size: 13.5px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .nav a:hover { background: #f2f5fb; color: var(--ink); text-decoration: none; }
+        .nav a.active { background: var(--blue); color: #fff; }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .who {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .ghost-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: #fff;
+            color: #40506b;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .ghost-btn:hover { border-color: #b9c8f5; background: var(--blue-soft); color: var(--blue); }
+        .ghost-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .primary-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border: 0;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #2f63d8, #5b83ff);
+            color: #fff;
+            font-size: 13.5px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .primary-btn:hover { text-decoration: none; filter: brightness(1.04); }
+        .primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .primary-btn.small { padding: 6px 12px; font-size: 12.5px; border-radius: 8px; }
+
+        .version {
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: var(--blue-soft);
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .back { font-size: 12.5px; color: var(--muted); text-decoration: none; }
+        .back:hover { color: var(--blue); }
+
+        .wrap { max-width: 960px; margin: 0 auto; padding: 20px 18px 40px; }
+
+        .page-intro { margin: 2px 2px 16px; }
+        .page-intro h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: 0.01em; }
+        .page-intro p { margin: 0; max-width: 760px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 280px;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .main-col { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: 0 1px 2px rgba(20, 40, 80, 0.04), 0 8px 24px rgba(40, 80, 150, 0.04);
+        }
+
+        /* ───────── 落地页 ───────── */
+
+        .landing { padding: 18px 20px; }
+        .eyebrow { margin: 0 0 8px; color: #7090c8; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+
+        .landing-head { display: flex; align-items: flex-start; gap: 14px; }
+
+        .share-icon {
+            width: 64px;
+            height: 64px;
+            flex: 0 0 64px;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            border: 1px solid #dbe4f2;
+            border-radius: 16px;
+            background: #eef3ff;
+            font-size: 30px;
+        }
+
+        .share-icon img { width: 100%; height: 100%; object-fit: cover; }
+        .share-icon.small { width: 44px; height: 44px; flex-basis: 44px; border-radius: 12px; font-size: 22px; }
+
+        .landing-title { min-width: 0; flex: 1; }
+        .landing-title h1 { margin: 2px 0 6px; font-size: 21px; line-height: 1.35; word-break: break-word; }
+        .share-desc { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; word-break: break-word; }
+
+        .target { display: flex; flex-direction: column; gap: 6px; margin: 16px 0 0; }
+        .target > div { display: flex; gap: 10px; align-items: baseline; font-size: 12.5px; }
+        .target dt { flex: 0 0 76px; color: #93a0b4; }
+        .target dd { margin: 0; min-width: 0; color: #32435c; word-break: break-all; }
+        .target dd.host { font-weight: 700; color: var(--blue); }
+        .target-url { font-size: 12px; color: #5b6b84; }
+
+        .countdown {
+            margin: 16px 0 0;
+            padding: 9px 12px;
+            border: 1px solid #e7edf7;
+            border-radius: 10px;
+            background: #f9fbff;
+            color: #5b7bb5;
+            font-size: 12.5px;
+        }
+
+        .landing-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+
+        .safety {
+            margin: 16px 0 0;
+            padding-top: 12px;
+            border-top: 1px dashed #e6ecf5;
+            color: #8a6a3a;
+            font-size: 11.5px;
+            line-height: 1.65;
+        }
+
+        .safety b { color: #a5641c; }
+
+        .landing-error { padding: 22px 20px; text-align: center; }
+        .landing-error strong { display: block; margin-bottom: 6px; color: #24344d; font-size: 16px; }
+        .landing-error p { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+        .landing-error .landing-actions { justify-content: center; }
+
+        /* ───────── 创建 ───────── */
+
+        .create { padding: 18px 20px; }
+        .create-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .create-head h2 { margin: 0; font-size: 16px; }
+        .create-badge {
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: var(--blue-soft);
+            color: var(--blue);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .create-note { margin: 0 0 16px; color: var(--muted); font-size: 12.5px; line-height: 1.65; }
+        .create-note code {
+            padding: 1px 5px;
+            border-radius: 5px;
+            background: #f1f5fb;
+            color: #40506b;
+            font-size: 11.5px;
+        }
+
+        .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 13px; }
+        .field > span { display: flex; align-items: center; gap: 6px; color: #32435c; font-weight: 600; }
+        .field i { font-style: normal; color: var(--danger); font-weight: 700; }
+        .field em { font-style: normal; color: #93a0b4; font-size: 11.5px; font-weight: 400; }
+        .field-count { margin-left: auto; font-style: normal; color: #93a0b4; font-size: 11.5px; }
+
+        .field input,
+        .field textarea {
+            width: 100%;
+            padding: 9px 11px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fbfcfe;
+            font-size: 13.5px;
+            line-height: 1.55;
+            outline: none;
+        }
+
+        .field textarea { min-height: 84px; resize: vertical; }
+
+        .field input:focus,
+        .field textarea:focus {
+            border-color: #b9c8f5;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(47, 99, 216, 0.08);
+        }
+
+        .field-hint { font-style: normal; color: #93a0b4; font-size: 11.5px; }
+        .field-hint.ok { color: var(--ok); }
+        .field-hint.bad { color: var(--danger); }
+
+        .icon-row { display: flex; align-items: center; gap: 10px; }
+        .icon-row input { flex: 1; min-width: 0; }
+
+        .create-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+        .login-hint { margin-right: auto; color: var(--muted); font-size: 12px; }
+
+        .result {
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px dashed #e2e9f4;
+        }
+
+        .result h3 { margin: 0 0 10px; font-size: 14.5px; color: var(--ok); }
+
+        .result-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+            padding: 10px;
+            border: 1px solid #dbe4f2;
+            border-radius: 12px;
+            background: linear-gradient(180deg, #fbfdff, #f3f7fe);
+        }
+
+        .result-main { min-width: 0; }
+        .result-main strong { display: block; color: #24344d; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .result-host { display: block; margin-top: 2px; color: #7090c8; font-size: 11.5px; }
+
+        .copy-row { display: flex; gap: 8px; }
+        .copy-row input { flex: 1; min-width: 0; }
+
+        .result-hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+        .result-open { display: inline-block; margin-top: 8px; color: var(--blue); font-size: 12.5px; font-weight: 600; }
+
+        /* ───────── 侧栏 ───────── */
+
+        .side-col { display: flex; flex-direction: column; gap: 14px; }
+        .side-card { padding: 14px 16px; }
+        .side-card h3 { margin: 0 0 8px; font-size: 13.5px; }
+        .side-card p { margin: 0 0 8px; color: var(--muted); font-size: 12.5px; line-height: 1.65; }
+        .side-card p:last-child { margin-bottom: 0; }
+        .side-card ol { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; line-height: 1.85; }
+        .side-card ol b { color: #40506b; }
+
+        .site-foot {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 18px;
+            justify-content: space-between;
+            margin-top: 22px;
+            padding: 14px 4px 0;
+            color: #9aa5b6;
+            font-size: 12px;
+        }
+
+        .site-foot b { color: #6f7c90; letter-spacing: 0.02em; }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 40px;
+            z-index: 9000;
+            max-width: min(90vw, 440px);
+            padding: 9px 16px;
+            border-radius: 11px;
+            background: rgba(24, 35, 54, 0.94);
+            color: #fff;
+            font-size: 13px;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, 14px);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+        @media (max-width: 900px) {
+            .layout { grid-template-columns: minmax(0, 1fr); }
+            .side-col { order: 2; }
+        }
+
+        @media (max-width: 720px) {
+            .wrap { padding: 12px 12px 30px; }
+            .topbar { flex-wrap: wrap; padding: 8px 12px; gap: 8px; }
+            .nav { order: 3; flex: 1 1 100%; }
+            .topbar-actions { margin-left: auto; }
+            .topbar-actions .version,
+            .topbar-actions .back { display: none; }
+            .page-intro h1 { font-size: 19px; }
+            .landing,
+            .create { padding: 14px; }
+            .landing-title h1 { font-size: 18px; }
+            .share-icon { width: 52px; height: 52px; flex-basis: 52px; font-size: 24px; border-radius: 13px; }
+            .target > div { flex-direction: column; gap: 2px; }
+            .target dt { flex: none; }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            input, textarea, select { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="vitxvideo.html" title="Vitx® 视频">
+            <span class="brand-mark">V</span>
+            <span class="brand-text">
+                <strong>Vitx<sup>®</sup></strong>
+                <small>Share</small>
+            </span>
+        </a>
+
+        <nav class="nav" aria-label="主导航">
+            <a href="vitxvideo.html">视频</a>
+            <a href="vitx-dynamic.html">动态</a>
+            <a class="active" href="share.html" aria-current="page">分享</a>
+        </nav>
+
+        <div class="topbar-actions">
+            <span class="who" id="who" hidden></span>
+            <a class="ghost-btn" id="login-link" href="login.html?next=share.html">登录</a>
+            <button class="primary-btn" type="button" id="btn-create-top">创建分享</button>
+            <span class="version">v3.1.0</span>
+            <a class="back" href="manager.html">← 返回账户</a>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <div class="page-intro">
+            <h1>分享链接</h1>
+            <p>把任意 http(s) 链接做成一张 Vitual XRing 分享卡片。别人打开后先看到一张落地页（图标、名称、简介和目标域名），确认安全后再跳转到目标网站。</p>
+        </div>
+
+        <div class="layout">
+            <div class="main-col">
+                <section class="panel landing" id="landing-view" hidden aria-label="分享落地页">
+                    <p class="eyebrow">Vitual XRing 分享卡片</p>
+                    <div class="landing-head">
+                        <span class="share-icon" id="share-icon" aria-hidden="true">🔗</span>
+                        <div class="landing-title">
+                            <h1 id="share-title">正在读取分享…</h1>
+                            <p class="share-desc" id="share-desc" hidden></p>
+                        </div>
+                    </div>
+
+                    <dl class="target">
+                        <div>
+                            <dt>目标站点</dt>
+                            <dd class="host" id="share-host">—</dd>
+                        </div>
+                        <div>
+                            <dt>目标地址</dt>
+                            <dd class="target-url" id="share-target">—</dd>
+                        </div>
+                    </dl>
+
+                    <p class="countdown" id="share-countdown" role="status" aria-live="polite">正在准备跳转…</p>
+
+                    <div class="landing-actions">
+                        <button class="primary-btn" type="button" id="share-open">立即打开</button>
+                        <button class="ghost-btn" type="button" id="share-cancel">取消自动跳转</button>
+                        <button class="ghost-btn" type="button" id="share-back">← 返回</button>
+                    </div>
+
+                    <p class="safety">⚠️ 安全提示：这<b>不是</b> Vitual XRing 官方认证的链接，页面只负责跳转，不会读取你的账户信息。打开前请确认上面的目标站点；不认识的网站请不要输入账号、密码或验证码。</p>
+                </section>
+
+                <section class="panel landing-error" id="landing-error" hidden aria-label="分享不存在">
+                    <strong>分享不存在或已被删除</strong>
+                    <p id="landing-error-text">这个分享 ID 没有对应的卡片，可能是链接不完整。</p>
+                    <div class="landing-actions">
+                        <a class="primary-btn" href="share.html">创建一条新的分享</a>
+                        <button class="ghost-btn" type="button" id="landing-error-back">← 返回上一页</button>
+                    </div>
+                </section>
+
+                <section class="panel create" id="create-panel" aria-label="创建分享卡片">
+                    <div class="create-head">
+                        <h2>创建分享卡片</h2>
+                        <span class="create-badge">需要登录</span>
+                    </div>
+                    <p class="create-note">填好名称和链接就会生成一条 <code>share.html?id=…</code> 链接。把它粘贴到聊天、单聊、Vitx 视频评论或动态里，服务端会自动显示成卡片。</p>
+
+                    <form id="share-form" novalidate>
+                        <label class="field">
+                            <span>名称 <i>*</i><em class="field-count" id="name-count">0 / 40</em></span>
+                            <input id="share-name" maxlength="40" required autocomplete="off" placeholder="例如：XRing 官网">
+                        </label>
+
+                        <label class="field">
+                            <span>图标 <i>（可选）</i><em>emoji 或 https 图片地址</em></span>
+                            <div class="icon-row">
+                                <span class="share-icon small" id="share-icon-preview" aria-hidden="true">🔗</span>
+                                <input id="share-icon-input" maxlength="1000" autocomplete="off" placeholder="🔗 或 https://example.com/icon.png">
+                            </div>
+                        </label>
+
+                        <label class="field">
+                            <span>链接 <i>*</i></span>
+                            <input id="share-link" type="url" inputmode="url" maxlength="1000" required autocomplete="off" placeholder="https://example.com/page">
+                            <em class="field-hint" id="share-link-hint">只支持 http:// 或 https:// 地址</em>
+                        </label>
+
+                        <label class="field">
+                            <span>简介 <i>（可选）</i><em class="field-count" id="desc-count">0 / 500</em></span>
+                            <textarea id="share-desc-input" maxlength="500" placeholder="简单说明这个链接是什么，方便别人判断要不要打开"></textarea>
+                        </label>
+
+                        <div class="create-foot">
+                            <span class="login-hint" id="create-login" hidden>创建分享需要登录，<a id="create-login-link" href="login.html?next=share.html">去登录</a></span>
+                            <button class="primary-btn" type="submit" id="share-submit">生成分享链接</button>
+                        </div>
+                    </form>
+
+                    <div class="result" id="share-result" hidden>
+                        <h3>创建成功</h3>
+                        <div class="result-card">
+                            <span class="share-icon small" id="result-icon" aria-hidden="true">🔗</span>
+                            <div class="result-main">
+                                <strong id="result-title"></strong>
+                                <span class="result-host" id="result-host"></span>
+                            </div>
+                        </div>
+
+                        <label class="field">
+                            <span>分享链接</span>
+                            <div class="copy-row">
+                                <input id="result-url" readonly>
+                                <button class="primary-btn small" type="button" id="result-copy">复制</button>
+                            </div>
+                        </label>
+
+                        <p class="result-hint">把这条链接粘贴到聊天、单聊、Vitx 视频评论或动态里，会自动显示成卡片；卡片点开后先到本页，再跳转到目标网站。链接本身不包含目标网站的登录状态。</p>
+                        <a class="result-open" id="result-open" href="share.html" target="_blank" rel="noopener noreferrer">在新标签页预览落地页 →</a>
+                    </div>
+                </section>
+            </div>
+
+            <aside class="side-col">
+                <section class="panel side-card">
+                    <h3>安全提示</h3>
+                    <p>站外链接不是官方认证内容。打开前请先看清楚目标站点，陌生网站不要输入账户密码。</p>
+                    <p>本页只读取分享卡片上的名称、简介和目标地址，不会把目标网站的内容嵌进来。</p>
+                </section>
+
+                <section class="panel side-card">
+                    <h3>怎么用</h3>
+                    <ol>
+                        <li>登录后填写名称、图标、链接和简介。</li>
+                        <li>点「生成分享链接」，复制结果里的链接。</li>
+                        <li>粘贴到聊天 / 单聊 / 评论 / 动态，自动变成卡片。</li>
+                        <li>别人点卡片先到本页，看到目标域名后再跳转。</li>
+                    </ol>
+                </section>
+            </aside>
+        </div>
+
+        <footer class="site-foot">
+            <span><b>Contributors</b>：Caldson</span>
+            <span>Vitual XRing 3.1.0 · 通用分享落地页</span>
+        </footer>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const API = window.VTXApi || null;
+            const XS = window.XRSocial || null;
+            const COUNTDOWN_SECONDS = 3;
+            const NAME_MAX = 40;
+            const DESCRIPTION_MAX = 500;
+
+            const $ = (id) => document.getElementById(id);
+
+            const state = {
+                login: "",
+                target: "",
+                timer: null,
+                busy: false
+            };
+
+            function messageOf(error, fallback) {
+                return (error && error.message ? String(error.message) : "") || fallback;
+            }
+
+            function isHttp(value) {
+                return /^https?:\/\//i.test(String(value == null ? "" : value).trim());
+            }
+
+            function normalizeLink(value) {
+                const text = String(value == null ? "" : value).trim();
+                if (!text) {
+                    return "";
+                }
+                try {
+                    const url = new URL(text);
+                    if (url.protocol !== "http:" && url.protocol !== "https:") {
+                        return "";
+                    }
+                    return url.href;
+                } catch (error) {
+                    return "";
+                }
+            }
+
+            function hostOf(target) {
+                try {
+                    return new URL(target).host;
+                } catch (error) {
+                    return "";
+                }
+            }
+
+            let toastTimer = null;
+            function toast(message) {
+                const node = $("toast");
+                if (!node) {
+                    return;
+                }
+                node.textContent = String(message || "");
+                node.classList.add("show");
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => node.classList.remove("show"), 2600);
+            }
+
+            function copyText(value, okMessage) {
+                const text = String(value || "");
+                const fallback = () => {
+                    if (XS && typeof XS.copyText === "function") {
+                        return XS.copyText(text);
+                    }
+                    return Promise.resolve();
+                };
+                if (navigator.clipboard && window.isSecureContext && typeof navigator.clipboard.writeText === "function") {
+                    navigator.clipboard.writeText(text)
+                        .then(() => toast(okMessage))
+                        .catch(() => {
+                            fallback();
+                            toast(okMessage);
+                        });
+                    return;
+                }
+                fallback();
+                toast(okMessage);
+            }
+
+            function loginHref() {
+                const page = location.pathname.split("/").pop() || "share.html";
+                return `login.html?next=${encodeURIComponent(page + location.search)}`;
+            }
+
+            function renderIcon(node, icon, fallback) {
+                if (!node) {
+                    return;
+                }
+                const text = String(icon == null ? "" : icon).trim();
+                node.textContent = "";
+                if (isHttp(text)) {
+                    const img = document.createElement("img");
+                    img.src = text;
+                    img.alt = "";
+                    img.loading = "lazy";
+                    img.referrerPolicy = "no-referrer";
+                    node.appendChild(img);
+                    return;
+                }
+                node.textContent = text ? Array.from(text).slice(0, 8).join("") : (fallback || "🔗");
+            }
+
+            function refreshSessionUI() {
+                const logged = Boolean(state.login);
+                $("who").hidden = !logged;
+                $("who").textContent = logged ? `已登录：${state.login}` : "";
+                $("login-link").hidden = logged;
+                $("create-login").hidden = logged;
+            }
+
+            /* ───────── 落地页 ───────── */
+
+            function stopCountdown() {
+                if (state.timer) {
+                    clearInterval(state.timer);
+                    state.timer = null;
+                }
+            }
+
+            function startCountdown(target) {
+                stopCountdown();
+                const node = $("share-countdown");
+                const host = hostOf(target) || "目标网站";
+                let left = COUNTDOWN_SECONDS;
+                $("share-cancel").disabled = false;
+                node.textContent = `${left} 秒后自动打开 ${host}，也可以点「立即打开」。`;
+                state.timer = setInterval(() => {
+                    left -= 1;
+                    if (left <= 0) {
+                        stopCountdown();
+                        node.textContent = "正在打开目标网站…";
+                        window.location.replace(target);
+                        return;
+                    }
+                    node.textContent = `${left} 秒后自动打开 ${host}，也可以点「立即打开」。`;
+                }, 1000);
+            }
+
+            function renderCard(card, target) {
+                renderIcon($("share-icon"), card.icon, "🔗");
+                const title = card.title || "分享链接";
+                const description = card.description || "";
+                $("share-title").textContent = title;
+                $("share-desc").textContent = description;
+                $("share-desc").hidden = !description;
+                $("share-host").textContent = hostOf(target) || "未知";
+                $("share-target").textContent = target;
+                document.title = `${title} · 分享 | Vitual XRing`;
+            }
+
+            function showLandingError(message) {
+                stopCountdown();
+                $("landing-view").hidden = true;
+                $("landing-error").hidden = false;
+                $("landing-error-text").textContent = message;
+            }
+
+            async function loadLanding(id, autoRedirect) {
+                $("landing-view").hidden = false;
+                $("landing-error").hidden = true;
+                $("share-title").textContent = "正在读取分享…";
+                $("share-desc").hidden = true;
+                $("share-host").textContent = "—";
+                $("share-target").textContent = "—";
+                $("share-countdown").textContent = "正在准备跳转…";
+                state.target = "";
+                $("share-cancel").disabled = true;
+                try {
+                    const data = await VTXApi.social.shareGet(id);
+                    const card = data && data.card ? data.card : null;
+                    if (!card) {
+                        throw new Error("分享不存在或已被删除");
+                    }
+                    const target = normalizeLink(card.target);
+                    if (!target) {
+                        throw new Error("这条分享没有有效的 http(s) 目标链接");
+                    }
+                    state.target = target;
+                    renderCard(card, target);
+                    if (autoRedirect === false) {
+                        $("share-countdown").textContent = "已按 ?create=1 停留在本页，点「立即打开」前往目标网站。";
+                    } else {
+                        startCountdown(target);
+                    }
+                } catch (error) {
+                    showLandingError(messageOf(error, "分享不存在或已被删除"));
+                }
+            }
+
+            function goBack() {
+                if (window.history.length > 1) {
+                    window.history.back();
+                    return;
+                }
+                window.location.href = "share.html";
+            }
+
+            /* ───────── 创建 ───────── */
+
+            function updateCounters() {
+                $("name-count").textContent = `${$("share-name").value.length} / ${NAME_MAX}`;
+                $("desc-count").textContent = `${$("share-desc-input").value.length} / ${DESCRIPTION_MAX}`;
+            }
+
+            function updateLinkHint() {
+                const hint = $("share-link-hint");
+                const raw = $("share-link").value.trim();
+                if (!raw) {
+                    hint.textContent = "只支持 http:// 或 https:// 地址";
+                    hint.classList.remove("ok", "bad");
+                    return;
+                }
+                const target = normalizeLink(raw);
+                if (target) {
+                    hint.textContent = `将打开：${hostOf(target)}`;
+                    hint.classList.add("ok");
+                    hint.classList.remove("bad");
+                    return;
+                }
+                hint.textContent = "链接需要以 http:// 或 https:// 开头";
+                hint.classList.add("bad");
+                hint.classList.remove("ok");
+            }
+
+            function showResult(card, target, url) {
+                renderIcon($("result-icon"), card.icon, "🔗");
+                $("result-title").textContent = card.title || "分享链接";
+                $("result-host").textContent = hostOf(target) || "";
+                $("result-url").value = url;
+                $("result-open").href = url;
+                $("share-result").hidden = false;
+                $("share-result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
+
+            async function createShare(event) {
+                event.preventDefault();
+                if (!state.login) {
+                    toast("请先登录再创建分享");
+                    return;
+                }
+                if (state.busy) {
+                    return;
+                }
+                const title = $("share-name").value.trim();
+                const icon = $("share-icon-input").value.trim();
+                const target = normalizeLink($("share-link").value);
+                const description = $("share-desc-input").value.trim();
+
+                if (!title) {
+                    toast("给分享起个名字");
+                    $("share-name").focus();
+                    return;
+                }
+                if (!target) {
+                    toast("链接必须是 http:// 或 https:// 地址");
+                    $("share-link").focus();
+                    return;
+                }
+                if (description.length > DESCRIPTION_MAX) {
+                    toast(`简介最多 ${DESCRIPTION_MAX} 个字`);
+                    return;
+                }
+
+                state.busy = true;
+                const button = $("share-submit");
+                button.disabled = true;
+                button.textContent = "创建中…";
+                try {
+                    const data = await VTXApi.social.share({ title, icon, target, description });
+                    const card = data && data.card ? data.card : null;
+                    if (!card || !card.id) {
+                        throw new Error("服务端没有返回分享卡片");
+                    }
+                    const url = new URL(`share.html?id=${encodeURIComponent(card.id)}`, location.href).href;
+                    state.target = target;
+                    showResult(card, target, url);
+                    toast("分享卡片已创建");
+                } catch (error) {
+                    toast(messageOf(error, "创建分享失败，请稍后再试"));
+                } finally {
+                    state.busy = false;
+                    button.disabled = false;
+                    button.textContent = "生成分享链接";
+                }
+            }
+
+            function focusCreate() {
+                $("create-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+                $("share-name").focus();
+            }
+
+            /* ───────── 事件绑定 ───────── */
+
+            function bindEvents() {
+                $("share-cancel").addEventListener("click", () => {
+                    stopCountdown();
+                    $("share-cancel").disabled = true;
+                    $("share-countdown").textContent = "已取消自动跳转，需要时点「立即打开」。";
+                    toast("已取消自动跳转");
+                });
+
+                $("share-open").addEventListener("click", () => {
+                    if (!state.target) {
+                        toast("分享还没有加载完成");
+                        return;
+                    }
+                    stopCountdown();
+                    window.location.replace(state.target);
+                });
+
+                $("share-back").addEventListener("click", goBack);
+                $("landing-error-back").addEventListener("click", goBack);
+
+                $("share-form").addEventListener("submit", createShare);
+                $("share-name").addEventListener("input", updateCounters);
+                $("share-desc-input").addEventListener("input", updateCounters);
+                $("share-link").addEventListener("input", updateLinkHint);
+                $("share-icon-input").addEventListener("input", () => {
+                    renderIcon($("share-icon-preview"), $("share-icon-input").value, "🔗");
+                });
+
+                $("result-copy").addEventListener("click", () => {
+                    copyText($("result-url").value, "分享链接已复制");
+                });
+
+                $("btn-create-top").addEventListener("click", focusCreate);
+
+                $("create-panel").addEventListener("focusin", () => {
+                    if (state.timer) {
+                        stopCountdown();
+                        $("share-cancel").disabled = true;
+                        $("share-countdown").textContent = "你在填写分享表单，已取消自动跳转。";
+                    }
+                });
+
+                ["login-link", "create-login-link"].forEach((id) => {
+                    const node = $(id);
+                    if (node) {
+                        node.setAttribute("href", loginHref());
+                    }
+                });
+            }
+
+            function boot() {
+                state.login = API && typeof VTXApi.currentLogin === "function" ? VTXApi.currentLogin() : "";
+                refreshSessionUI();
+                bindEvents();
+                updateCounters();
+                updateLinkHint();
+
+                if (!API || !API.social) {
+                    $("share-submit").disabled = true;
+                    toast("SDK 未加载，请刷新页面重试");
+                    if ((new URLSearchParams(location.search)).get("id")) {
+                        showLandingError("没有加载到 Vitual XRing SDK（vtx-api.js），无法读取这条分享。");
+                    }
+                    return;
+                }
+
+                const params = new URLSearchParams(location.search);
+                const id = (params.get("id") || "").trim();
+
+                if (id) {
+                    loadLanding(id, params.get("create") !== "1");
+                } else {
+                    $("landing-view").hidden = true;
+                    $("landing-error").hidden = true;
+                }
+
+                if (params.get("create") === "1") {
+                    focusCreate();
+                } else if (!id) {
+                    $("share-name").focus();
+                }
+            }
+
+            boot();
+        })();
+    </script>
+</body>
+</html>

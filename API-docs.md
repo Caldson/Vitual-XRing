@@ -6,7 +6,7 @@
 - 所有接口均返回 JSON，字符集 UTF-8
 - 实现：Cloudflare Worker（[worker/index.js](./worker/index.js)）
 - 客户端 SDK：[vtx-sdk.js](./vtx-sdk.js)
-- API 版本：`2.1.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**；**1.7.3 解除聊天室 500 字限制（长消息折叠 + 全文弹窗）、聊天室支持 Discord 风格 Markdown（代码块 / 时间块 / 粗体 / 斜体等）与转账，见第 24 节**；**1.8.0 把聊天室图片 / 文件从 20 分钟改为保留 14 天，见第 25 节**；**1.8.0 同时支持聊天室音乐文件直接播放（音频上限 20 MB），见第 26 节**；**1.8.1 新增「关注 UP 主」，见第 27 节**；**1.8.2 新增「举报视频」（理由、照片证据、补充文字与管理员处理），见第 28 节**；**1.9.0 新增聊天室 UNO（人机对战 / 普通房间 / 混合对战 / 随机匹配、组队互看手牌、批量出牌、生效玩家、局内聊天与反转奇偶），见第 29 节**；**1.10.0 支持 UNO 一回合多次抽牌与 +4 / +6 选择（转色不在手里自动 +6），见第 30 节**；**1.10.1 让同点数批量出牌可以带上压不住的抽牌并参与最终颜色选择，见第 31 节**；**1.10.2 修复红 8/黄 4 转绿 8/绿 4、生效玩家改为单选、+4/+6 改由被选中的玩家选择，见第 32 节**；**1.10.3 修复 +4/+6 选择框不显示与「可搭配」牌被误标为不可出，并加入页面版本检查，见第 33 节**；**2.0.0 修复 UNO 牌桌遮挡聊天室灰色提示，见第 34 节**；**2.0.1 规定多色同点数批次只能按最后一张牌转色，见第 35 节**；**2.1.0 新增礼品兑换码（站主创建 VTX / 实物礼品），见第 36 节**）
+- API 版本：`3.1.0`（接口与 5.2.0 一致；6.0 新增商店、管理员仓库修改器与聊天室页面，6.1 更新商店商品数据，6.2 新增商店分类，6.3 新增商品图片显示，见第 9.2 节；7.0 新增登录位置记录，见第 9.3 节；8.0 把账户数据迁入 Workers KV，新增「账号修改」管理接口与聊天室接口骨架，见第 12 节；9.0 上线完整聊天室：单聊、群聊、好友、群公告、撤回、转发、搜索、免打扰、20 分钟媒体与 WebSocket 实时推送；9.1 新增「解散群聊」：群主 / 站主解散后群聊变成只读；9.2 站主可以新增、改名、解散公共频道；9.3 修复前端脚本缓存；1.0.0 新增账号 UID、群号与群二维码、4 / 8 位数字建群邀请码、拼手速红包，见第 14 节；**1.2.0 是安全修复补丁：移除随网站发布的仓库 Token、停用仓库直连备用通道、附件类型白名单、服务端定价与扣库存、保留管理员登录名，见第 15 节**；**1.3.0 修复已知问题（[issue #2](https://github.com/Caldson/Vitual-XRing/issues/2)）：聊天室在 iPad / iOS 上的视口高度与 overflow 排版，见第 16 节**；**1.4.0 恢复登录页自动登录、管理员可查看账户当前密码、取消聊天室与面对面加群的全部限流，见第 17 节**；**1.5.0 新增聊天室 mention（@ 提及）：输入 @ 选人、气泡高亮、未读 @ 提醒，见第 18 节**；**1.6.0 新增视频站 Vitx® 视频（`vitxvideo.html`），见第 19 节**；**1.6.1 视频改成独立观看页 `vitxvideo.html?videoid=xxx`（本机真实播放 + 评论区），投稿支持任何文件格式，见第 20 节**；**1.7.0 把投稿视频改成服务端存储（Workers KV），审核通过后全站可见，见第 21 节**；**1.7.1 放宽到 5 GB / 100 小时（R2 分片上传），并上线投币（1 币 = 5.00 VTX，取消不退），见第 22 节**；**1.7.2 把「没开通 R2」时的投稿文件改存 GitHub Release（单文件 2 GB / 100 小时），见第 23 节**；**1.7.3 解除聊天室 500 字限制（长消息折叠 + 全文弹窗）、聊天室支持 Discord 风格 Markdown（代码块 / 时间块 / 粗体 / 斜体等）与转账，见第 24 节**；**1.8.0 把聊天室图片 / 文件从 20 分钟改为保留 14 天，见第 25 节**；**1.8.0 同时支持聊天室音乐文件直接播放（音频上限 20 MB），见第 26 节**；**1.8.1 新增「关注 UP 主」，见第 27 节**；**1.8.2 新增「举报视频」（理由、照片证据、补充文字与管理员处理），见第 28 节**；**1.9.0 新增聊天室 UNO（人机对战 / 普通房间 / 混合对战 / 随机匹配、组队互看手牌、批量出牌、生效玩家、局内聊天与反转奇偶），见第 29 节**；**1.10.0 支持 UNO 一回合多次抽牌与 +4 / +6 选择（转色不在手里自动 +6），见第 30 节**；**1.10.1 让同点数批量出牌可以带上压不住的抽牌并参与最终颜色选择，见第 31 节**；**1.10.2 修复红 8/黄 4 转绿 8/绿 4、生效玩家改为单选、+4/+6 改由被选中的玩家选择，见第 32 节**；**1.10.3 修复 +4/+6 选择框不显示与「可搭配」牌被误标为不可出，并加入页面版本检查，见第 33 节**；**2.0.0 修复 UNO 牌桌遮挡聊天室灰色提示，见第 34 节**；**2.0.1 规定多色同点数批次只能按最后一张牌转色，见第 35 节**；**2.1.0 新增礼品兑换码（站主创建 VTX / 实物礼品），见第 36 节**；**3.1.0 新增分享生态：Vimidi（MIDI）、VMusic（音乐）、Viratch（Scratch 作品）、AUDIV（语音会议）、ViStyle（CSS 样式包）、VClang（C++ 项目）、Vitx 动态，以及群聊 / 单聊 / 视频评论 / 动态里的自动识别分享卡片，见第 37 节**）
 
 ---
 
@@ -3189,3 +3189,338 @@ Content-Type: application/json
 
 - `worker/test/gift.test.mjs`：站主权限、创建 / 列表、VTX 兑换到账、单次使用、停用 / 启用、过期、删除、普通用户 403、UI 静态检查
 - 版本号全套同步到 `2.1.0`
+
+---
+
+## 37. 3.1.0 新增分享生态（Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态）
+
+### 37.1 总览
+
+| 页面 | 产品名 | 内容类型 `kind` | 说明 |
+| --- | --- | --- | --- |
+| `vimidi.html` | Vimidi | `midi` | MIDI 分享、服务端解析、识曲 |
+| `vmusic.html` | VMusic | `music` | 音乐上传与播客式播放 |
+| `viratch.html` | Viratch | `scratch` | Scratch 作品（站内创作 / 导入 `.sb3`） |
+| `audiv.html` | AUDIV | `meeting` | 语音会议（WebRTC + WebSocket 信令） |
+| `vistyle.html` | ViStyle (Beta) | `style` | CSS 样式包，可定价 |
+| `vclang.html` | VClang | `cpp` | Dev-C++ 项目，可定价 |
+| `vitx-dynamic.html` | Vitx 动态 | `dynamic` | 图文动态、点赞、评论、转发 |
+| `share.html` | 通用分享 | `link` | 自定义名称 / 图标 / 链接 / 简介 |
+
+所有内容挂在 `/api/social/*` 下，数据存放在 Workers KV：
+
+- `social:index:<kind>`：最新 500 条的 id
+- `social:item:<kind>:<id>`：条目 JSON
+- `social:file:<id>`：主文件（`.mid` / 音频 / `.sb3` / `.css`）
+- `social:cppfiles:<id>`：C++ 项目的文本文件数组
+- `social:comments:<id>`：动态评论（最多 300 条）
+- `social:card:<id>`：自定义分享卡片
+- `social:meetingno:<9 位数字>`：会议号 → 条目 id
+
+### 37.2 通用条目 API
+
+#### 列表
+
+`GET /api/social/kinds/{kind}`
+
+查询参数：`q`（标题 / 简介 / 标签 / 作者）、`owner`、`sort=hot`、`before`（时间戳）、`limit`（1~60）。
+未发布条目只有作者 / 站主可见。
+
+```json
+{
+  "ok": true,
+  "kind": "midi",
+  "count": 1,
+  "hasMore": false,
+  "items": [
+    {
+      "id": "midi_xxx",
+      "kind": "midi",
+      "title": "晴天",
+      "description": "…",
+      "tags": ["流行"],
+      "icon": "🎼",
+      "owner": "Alice",
+      "ownerName": "爱丽丝",
+      "price": "0.00",
+      "purchased": false,
+      "locked": false,
+      "mine": false,
+      "published": true,
+      "ready": true,
+      "views": 3,
+      "likes": 2,
+      "liked": false,
+      "comments": 0,
+      "purchases": 0,
+      "file": { "name": "晴天.mid", "type": "audio/midi", "size": 1234 },
+      "extra": {}
+    }
+  ]
+}
+```
+
+#### 创建草稿
+
+`POST /api/social/kinds/{kind}`，需要登录。请求字段按类型：
+
+```jsonc
+// midi
+{ "title": "晴天", "artist": "周杰伦", "description": "…", "tags": ["流行"] }
+
+// music
+{ "title": "晴天", "artist": "周杰伦", "album": "叶惠美", "duration": 269, "midiId": "midi_xxx" }
+
+// scratch（站内作品直接带 project，创建后 ready=true）
+{
+  "title": "小猫散步",
+  "engine": "xr",
+  "project": {
+    "width": 480, "height": 360,
+    "sprites": [{ "name": "小猫", "emoji": "🐱", "x": 0, "y": 0, "scripts": [{ "event": "flag", "blocks": [] }] }]
+  }
+}
+// scratch（导入 .sb3）
+{ "title": "导入作品", "engine": "sb3" }
+
+// style / cpp（可定价）
+{ "title": "深海蓝", "description": "…", "price": 5, "version": "1.0.0" }
+{ "title": "猜数字", "description": "…", "price": 2, "compiler": "Dev-C++" }
+
+// dynamic（创建即发布）
+{ "text": "今天… https://xsmmc.caldson.us.ci/vimidi.html?id=midi_xxx", "images": ["https://…"] }
+```
+
+返回 `{ ok, item }`。`price` 上限 20000 VTX，只对 `style` / `cpp` 生效。
+
+#### 上传主文件
+
+`PUT /api/social/kinds/{kind}/{id}/file`，需要作者 / 站主 token。
+
+请求头：
+
+- `content-type`：文件 MIME
+- `x-file-name`：`encodeURIComponent(文件名)`
+
+请求体为原始二进制。限制：
+
+- `midi`：2 MB，`.mid` / `.midi` / `.rmi`
+- `music`：20 MB，音频
+- `scratch`：24 MB，仅 `.sb3`
+- `style`：512 KB，仅 `.css`
+
+上传成功后 `item.ready = true`。MIDI 会在服务端解析：
+
+```json
+{
+  "extra": {
+    "format": 1,
+    "tracks": 1,
+    "division": 96,
+    "title": "小星星",
+    "artist": "",
+    "bpm": 120,
+    "durationSeconds": 0.5,
+    "noteCount": 1,
+    "uniqueNotes": 1,
+    "signature": "1a2b3c4d",
+    "musicId": "mus_xxx",
+    "musicTitle": "小星星",
+    "recognizedBy": "signature"
+  }
+}
+```
+
+识曲规则：
+
+1. 精确指纹：`signature` 与 VMusic 条目关联的 MIDI 指纹一致；
+2. 近似匹配：24 格音高直方图余弦相似度 ≥ 0.9，并结合时长比例；
+3. VMusic 上传时可通过 `midiId` 手动关联，也会按标题 / 时长自动找 Vimidi；
+4. `PUT /api/social/kinds/midi/{id}` 的 `{ "extra": { "musicId": "mus_xxx" } }` 可手动关联。
+
+#### C++ 项目文件
+
+`PUT /api/social/kinds/cpp/{id}/files`，需要登录：
+
+```json
+{
+  "files": [
+    { "name": "猜数字.dev", "text": "<?xml …><Project>…" },
+    { "name": "main.cpp", "text": "#include <iostream>…" }
+  ]
+}
+```
+
+要求包含 `.dev`（Dev-C++ XML，必须出现 `<Project`）和至少一个 `.cpp` / `.cc` / `.cxx` / `.c` / `.h` / `.hpp`；
+单文件 ≤ 400 KB，总计 ≤ 2 MB，最多 30 个。
+
+`GET /api/social/kinds/cpp/{id}/files` 返回 `{ ok, files:[{name,size,text}] }`；付费项目需要已购买。
+
+#### 详情 / 修改 / 删除 / 发布
+
+- `GET /api/social/kinds/{kind}/{id}`：返回 `{ ok, item }`，并让 `views` +1。
+- `PUT /api/social/kinds/{kind}/{id}`：作者 / 站主；可改 `title`、`description`、`tags`、`icon`、`price`（style / cpp），
+  以及各类型的 `extra`（如 `artist`、`midiId`、`musicId`、`project`、`version`、`compiler`）。
+- `DELETE /api/social/kinds/{kind}/{id}`：作者 / 站主。
+- `POST /api/social/kinds/{kind}/{id}/publish`：`ready` 后发布。
+- `POST /api/social/kinds/{kind}/{id}/like`：登录后点赞 / 取消。
+- `POST /api/social/kinds/{kind}/{id}/view`：手动增加浏览数。
+
+#### 文件读取
+
+`GET /api/social/file/{id}`
+
+- 公开内容无需 token；`style` / `cpp` 定价项目需要作者、站主或已购买账户。
+- 支持 `Range`（`206 Partial Content`），音频可直接拖进度。
+- `?download=1` 强制下载；也可以把 token 放在 `?token=<token>`（供 `<audio>` / `<img>` 使用）。
+
+#### 动态配图
+
+- `POST /api/social/images`（登录）：原始二进制，`content-type` 只能是 `image/png` / `image/jpeg` / `image/gif` / `image/webp`，≤ 4 MB；
+  返回 `{ ok, image: { id, url, type, size } }`。
+- `GET /api/social/images/{id}`：公开读取（长缓存、`nosniff`）。动态页的本地图片上传走这里，避免把聊天媒体的临时 token 写进公开动态。
+
+### 37.3 定价与购买
+
+`POST /api/social/kinds/{kind}/{id}/purchase`
+
+```json
+{ "password": "账户密码" }
+```
+
+- 仅 `style` / `cpp`；不能购买自己的作品；同一作品只能买一次。
+- 验证密码，扣买家余额，给作者加同额 VTX；双方各写一条交易记录。
+- 购买记录写入买家账户 `library` 数组（与余额在同一次 `commitAccounts` 写锁中完成），
+  `GET /api/me` 会返回 `library`；`GET /api/social/me/library` 返回已购作品列表。
+- 成功后详情里的 `purchased` 为 `true`，`locked` 为 `false`。
+
+错误：`400 bad_request`、`400 insufficient_funds`、`400 already_purchased`、`400 invalid_password`、`429 too_many_requests`。
+
+### 37.4 动态 API
+
+- `GET /api/social/kinds/dynamic`：信息流（支持 `before` / `limit`）。
+- `POST /api/social/kinds/dynamic`：创建动态，`text` ≤ 2000，`images` ≤ 9 个 http(s) 地址；
+  正文里的站内链接会自动生成 `extra.card`。
+- `GET /api/social/kinds/dynamic/{id}`：动态详情。
+- `POST /api/social/kinds/dynamic/{id}/like`：点赞 / 取消。
+- `GET /api/social/kinds/dynamic/{id}/comments`：评论列表。
+- `POST /api/social/kinds/dynamic/{id}/comments`：`{ "text": "…" }`，≤ 500 字；评论里的链接同样自动生成卡片。
+- `POST /api/social/kinds/dynamic/{id}/comments/{commentId}/like`：评论点赞 / 取消。
+- `POST /api/social/kinds/dynamic/{id}/repost`：`{ "text": "…" }`，生成一条带原动态卡片的转发。
+- `DELETE /api/social/kinds/dynamic/{id}`：作者 / 站主。
+
+### 37.5 会议 API（AUDIV）
+
+#### 创建
+
+`POST /api/social/meetings`，需要登录。
+
+```json
+{ "title": "周会", "password": "1234", "hostName": "爱丽丝" }
+```
+
+返回 `{ ok, item }`，其中 `item.extra.no` 是 `123-456-789` 形式的会议号；`password` 可省略，
+服务端只保存 SHA-256 哈希，不返回明文。
+
+#### 查询 / 加入 / 结束
+
+- `GET /api/social/meetings/{no}`：公开会议信息（标题、发起人、是否加密、是否结束）。
+- `POST /api/social/meetings/{no}/join`：`{ "password": "…" }`，校验密码；返回 `joinToken`（加密会议的信令连接必须带上）。
+- `POST /api/social/meetings/{no}/end`：发起人或站主，结束会议并注销会议号。
+
+#### 信令 WebSocket
+
+`GET /api/social/meetings/ws?no=123-456-789&name=昵称&peer=<随机 id>&token=<joinToken>`（`Upgrade: websocket`）
+
+会议号存在且未结束时，Worker 把连接交给 `MeetingHub` Durable Object。协议：
+
+- 客户端 → 服务端：`{type:"signal",to,data}`、`{type:"chat",text}`、`{type:"mute",muted}`、`{type:"end"}`、`{type:"ping"}`
+- 服务端 → 客户端：`welcome`（`peers`）、`peer-join`、`peer-leave`、`signal`（`from`,`data`）、
+  `chat`、`mute`、`state`、`end`
+
+音频本身是浏览器之间的 WebRTC mesh（`stun:stun.l.google.com:19302`），服务端只转发 offer / answer / ICE，
+不存储任何音视频。单会议最多 16 人。
+
+### 37.6 自动识别与分享卡片
+
+服务端识别以下站内链接：
+
+| URL | 卡片 |
+| --- | --- |
+| `vimidi.html?id=midi_xxx` | MIDI，含识曲结果 |
+| `vmusic.html?id=mus_xxx` | 音乐，可直接播放 |
+| `viratch.html?id=scr_xxx` | Scratch 作品 |
+| `audiv.html?meeting=123-456-789` / `?id=meet_xxx` | 会议 |
+| `vistyle.html?id=sty_xxx` | CSS 样式包（显示价格） |
+| `vclang.html?id=cpp_xxx` | C++ 项目（显示价格） |
+| `vitx-dynamic.html?id=dyn_xxx` 或 `vitxvideo.html?dynamic=dyn_xxx` | 动态 |
+| `share.html?id=shr_xxx` | 自定义分享卡片 |
+
+`GET /api/social/resolve?url=<链接>` 返回 `{ ok, card }`；卡片快照字段：
+
+```json
+{
+  "id": "midi_xxx",
+  "source": "auto",
+  "kind": "midi",
+  "targetId": "midi_xxx",
+  "title": "晴天",
+  "icon": "🎼",
+  "description": "已识别为《晴天》…",
+  "url": "https://xsmmc.caldson.us.ci/vimidi.html?id=midi_xxx",
+  "actionLabel": "查看 MIDI",
+  "site": "Vimidi",
+  "meta": { "musicId": "mus_xxx", "musicTitle": "晴天" },
+  "at": 1760000000000
+}
+```
+
+- 群聊 / 单聊：`POST /api/chat/conversations/{id}/messages` 时，`text` 里的第一个站内链接会自动生成 `message.card`；
+  转发消息会保留卡片；会话语义不变。
+- Vitx 视频评论：`POST /api/videos/{id}/comments` 自动生成 `comment.card`。
+- Vitx 动态 / 动态评论：创建时自动生成 `extra.card` / `comment.card`。
+- 卡片渲染使用 `xring-social.js` 的 `XRSocial.cardHtml(card)`；音乐卡片带 `<audio controls>`，
+  播放后可以点“在 VMusic 听”；会议卡片可以复制会议号。
+
+#### 自定义分享
+
+`POST /api/social/shares`，需要登录：
+
+```json
+{ "name": "XRing 官网", "icon": "🌐", "url": "https://xsmmc.caldson.us.ci", "description": "分享测试" }
+```
+
+返回 `{ ok, card }`，其中 `card.url` 是 `share.html?id=shr_xxx` 的落地页；把该链接粘贴到聊天 / 评论 / 动态即可自动出现卡片。
+`GET /api/social/shares/{id}` 读取；`GET /api/social/card?id=shr_xxx` 同样可用。
+
+### 37.7 安全与限制
+
+- 所有请求体 / 文件名 / 标签 / 标题都有长度限制；二进制文件按类型限制大小。
+- 卡片和页面内容全部转义；文件响应带 `X-Content-Type-Options: nosniff`。
+- 样式包拒绝 `@import`、`expression(`、`javascript:`、`behavior:`、`</style`、`<script`。
+- 样式包**不会在管理员页面应用**（`admin.html`、`accounts-admin.html`、`manager.html`、`API_LOGIN.html`、
+  `API_VTXPAY.html`、`vitxvideopublish.html` 明确排除），ViStyle 页面本身也不做预览。
+- 会议密码只保存 SHA-256 哈希；WebSocket 只中继信令，不保存音视频。
+- 发布 / 点赞 / 购买 / 建会都有按 IP 的轻量限流。
+
+### 37.8 前端页面
+
+- `vimidi.html`：首页 / 搜索 / 上传 / 详情；识别结果、下载、复制链接、关联 VMusic。
+- `vmusic.html`：QQ 音乐式布局、底部播放器、上传、MIDI 关联展示。
+- `viratch.html`：作品大厅、站内积木创作器（canvas 解释执行）、导入 `.sb3`（TurboWarp 运行）、详情。
+- `audiv.html`：腾讯会议式首页 / 加入 / 会议房间（WebRTC 音频 + 聊天 + 邀请）。
+- `vistyle.html`：Beta 样式包市场、定价、购买、下载、一键应用。
+- `vclang.html`：Dev-C++ 项目分享、文件树、购买后查看源码。
+- `vitx-dynamic.html`：Vitx 动态信息流 / 发布 / 详情 / 评论 / 转发。
+- `share.html`：自定义分享卡片的创建与落地页。
+- `manager.html` 增加“分享生态”入口卡片。
+- `chatroom.html`、`vitxvideo.html` 引入 `xring-social.js` 并渲染卡片。
+
+### 37.9 测试与版本
+
+- `worker/test/social.test.mjs`：健康检查、MIDI 解析 / 发布 / 识别、VMusic 关联、视频评论卡片、
+  样式包购买与权限、动态 / 评论 / 转发、Scratch / 会议 / C++ / 自定义分享、聊天自动卡片与转发。
+- 全套版本号同步到 `3.1.0`：Worker `VERSION` / `CHAT_VERSION` / `VIDEO_VERSION` / `UNO_VERSION`、
+  `vtx-api.js`、`vtx-uno.js`、`vtx-markdown.js`、页面徽标与 `?v=`。
+- 部署新增 `MeetingHub` Durable Object（`wrangler.toml` 的 `MEETINGS` 绑定与 `v3-meetings` migration）。
+- 运行：`cd worker && node test/social.test.mjs`（以及原有全部测试）。

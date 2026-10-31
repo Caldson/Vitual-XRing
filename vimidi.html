@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f5f8fd">
+    <title>Vimidi · MIDI 分享 | Vitual XRing</title>
+    <script src="vtx-api.js?v=3.1.0"></script>
+    <script src="xring-social.js?v=3.1.0"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --blue: #2f63d8;
+            --blue-dark: #1f4ab8;
+            --blue-soft: #eef3ff;
+            --ink: #172033;
+            --muted: #68768d;
+            --line: #e2e8f2;
+            --bg: #f5f8fd;
+            --card: #ffffff;
+            --ok: #2f7d5b;
+            --ok-soft: #e8f6ef;
+            --warn: #a86a17;
+            --warn-soft: #fff5df;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--ink);
+            background: var(--bg);
+        }
+
+        * { box-sizing: border-box; }
+
+        [hidden] { display: none !important; }
+
+        html, body { margin: 0; }
+
+        body {
+            min-height: 100vh;
+            padding-bottom: 40px;
+            background:
+                radial-gradient(circle at 8% 0%, #e6eeff 0, transparent 36%),
+                radial-gradient(circle at 92% 4%, #e9f7f0 0, transparent 30%),
+                var(--bg);
+            color: var(--ink);
+            -webkit-text-size-adjust: 100%;
+        }
+
+        a { color: var(--blue); }
+
+        button, input, textarea, select { font: inherit; color: inherit; }
+
+        button { cursor: pointer; touch-action: manipulation; }
+
+        img { max-width: 100%; }
+
+        /* ───────── 顶栏 ───────── */
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 0 0 auto;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .brand-mark {
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--blue), #6c8cff);
+            color: #fff;
+            font-size: 18px;
+        }
+
+        .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+        .brand-text strong { font-size: 16px; letter-spacing: 0.01em; }
+        .brand-text small { color: var(--muted); font-size: 11.5px; }
+
+        .search {
+            flex: 1 1 240px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 160px;
+            max-width: 430px;
+            padding: 3px 3px 3px 12px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: #f8fafd;
+        }
+
+        .search:focus-within {
+            border-color: #b9c8f5;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(47, 99, 216, 0.08);
+        }
+
+        .search input {
+            flex: 1;
+            min-width: 0;
+            border: 0;
+            outline: none;
+            background: transparent;
+            font-size: 13.5px;
+        }
+
+        .search button {
+            flex: 0 0 auto;
+            width: 30px;
+            height: 30px;
+            border: 0;
+            border-radius: 50%;
+            background: var(--blue);
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-left: auto;
+        }
+
+        .nav-link {
+            padding: 6px 8px;
+            border-radius: 8px;
+            color: var(--muted);
+            font-size: 13.5px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .nav-link:hover { color: var(--blue); background: var(--blue-soft); }
+
+        .version {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: var(--blue-soft);
+            color: var(--blue-dark);
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        .who { font-size: 12.5px; color: var(--muted); }
+        .who b { color: var(--blue-dark); }
+
+        /* ───────── 通用按钮 ───────── */
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 9px 14px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fff;
+            color: var(--ink);
+            font-size: 13.5px;
+            font-weight: 650;
+            line-height: 1.2;
+            text-decoration: none;
+            transition: background 0.15s, border-color 0.15s, transform 0.15s;
+        }
+
+        .btn:hover { border-color: #b9c8f5; background: #f7faff; }
+        .btn:active { transform: translateY(1px); }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        .btn.primary {
+            border-color: transparent;
+            background: linear-gradient(135deg, var(--blue), #4d7ef0);
+            color: #fff;
+            box-shadow: 0 6px 16px rgba(47, 99, 216, 0.22);
+        }
+
+        .btn.primary:hover { background: linear-gradient(135deg, var(--blue-dark), #3f6fe0); }
+        .btn.ghost { background: var(--blue-soft); border-color: #dbe6ff; color: var(--blue-dark); }
+        .btn.small { padding: 6px 11px; border-radius: 9px; font-size: 12.5px; }
+        .btn.tiny { padding: 4px 9px; border-radius: 8px; font-size: 12px; }
+
+        /* ───────── 布局 ───────── */
+
+        .wrap { width: min(100%, 1180px); margin: 0 auto; padding: 20px 20px 0; }
+
+        .hero {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 22px;
+            margin-bottom: 18px;
+            padding: 24px 26px;
+            border: 1px solid #dfe8f8;
+            border-radius: 22px;
+            background: linear-gradient(135deg, #ffffff, #eef4ff 60%, #e9f6f1);
+            box-shadow: 0 14px 36px rgba(31, 52, 92, 0.06);
+        }
+
+        .eyebrow {
+            margin: 0 0 6px;
+            color: var(--blue-dark);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .hero h1 { margin: 0 0 8px; font-size: 26px; line-height: 1.3; }
+
+        .hero-sub {
+            margin: 0 0 12px;
+            max-width: 620px;
+            color: var(--muted);
+            font-size: 13.5px;
+            line-height: 1.7;
+        }
+
+        .hero-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+        .chip {
+            padding: 5px 10px;
+            border: 1px solid #dbe6ff;
+            border-radius: 999px;
+            background: #fff;
+            color: var(--blue-dark);
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        .hero-side {
+            flex: 0 0 220px;
+            padding: 14px 16px;
+            border: 1px solid #e0e9f8;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.82);
+        }
+
+        .hero-side h2 { margin: 0 0 8px; color: var(--blue-dark); font-size: 13px; }
+        .hero-side ol { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; line-height: 1.9; }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 300px;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .panel {
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            background: var(--card);
+            box-shadow: 0 10px 28px rgba(31, 52, 92, 0.04);
+        }
+
+        .side { display: grid; gap: 14px; }
+
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 14px;
+            padding: 4px;
+            border-radius: 12px;
+            background: #f3f6fc;
+        }
+
+        .tabs button {
+            flex: 0 0 auto;
+            padding: 8px 16px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: var(--muted);
+            font-size: 13.5px;
+            font-weight: 650;
+        }
+
+        .tabs button:hover { color: var(--ink); }
+
+        .tabs button.active {
+            background: #fff;
+            color: var(--blue-dark);
+            box-shadow: 0 2px 8px rgba(38, 64, 120, 0.1);
+        }
+
+        .list-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 10px; margin-bottom: 12px; }
+        .list-head h2 { margin: 0; font-size: 18px; }
+        .list-sub { flex: 1 1 160px; margin: 0; color: var(--muted); font-size: 12.5px; }
+        .list-count { color: var(--muted); font-size: 12.5px; }
+        .list-head .btn { margin-left: auto; }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 12px 14px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #f8fafd;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .status.error { border-color: #f6cdd3; background: #fdeef0; color: #a9202f; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+        }
+
+        .midi-card {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: linear-gradient(180deg, #fff, #fbfdff);
+            transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+        }
+
+        .midi-card:hover {
+            border-color: #c6d5f3;
+            box-shadow: 0 10px 24px rgba(38, 64, 120, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .card-top { display: flex; align-items: flex-start; gap: 10px; }
+
+        .card-icon {
+            flex: 0 0 42px;
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            border-radius: 12px;
+            background: var(--blue-soft);
+            font-size: 21px;
+            overflow: hidden;
+            text-decoration: none;
+        }
+
+        .card-icon img, .detail-icon img, .banner-cover img { width: 100%; height: 100%; object-fit: cover; }
+
+        .card-main { flex: 1; min-width: 0; }
+
+        .card-title {
+            display: block;
+            overflow: hidden;
+            color: var(--ink);
+            font-size: 14px;
+            font-weight: 750;
+            line-height: 1.4;
+            text-decoration: none;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .card-title:hover { color: var(--blue); }
+
+        .card-sub {
+            margin: 3px 0 0;
+            overflow: hidden;
+            color: var(--muted);
+            font-size: 12px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .card-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--muted); font-size: 11.5px; }
+        .card-recog { min-height: 22px; }
+
+        .recog-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            max-width: 100%;
+            overflow: hidden;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11.5px;
+            font-weight: 650;
+            text-decoration: none;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .recog-pill.ok { background: var(--ok-soft); color: var(--ok); }
+        .recog-pill.none { background: #f2f4f8; color: #7b8798; }
+
+        .tags { display: flex; flex-wrap: wrap; gap: 5px; }
+
+        .tag {
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #f3f6fc;
+            color: #5b6b85;
+            font-size: 11.5px;
+        }
+
+        .card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
+        .time { color: #8a94a6; font-size: 11.5px; }
+        .card-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .badge.ok { background: var(--ok-soft); color: var(--ok); }
+        .badge.draft { background: #eef1f7; color: #5b6b85; }
+        .badge.warn { background: var(--warn-soft); color: var(--warn); }
+
+        .empty {
+            padding: 34px 18px;
+            border: 1px dashed #d5e0f3;
+            border-radius: 16px;
+            background: #fbfdff;
+            text-align: center;
+        }
+
+        .empty-icon { font-size: 34px; }
+        .empty h3 { margin: 8px 0 6px; font-size: 16px; }
+        .empty p { max-width: 460px; margin: 0 auto 14px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+        .empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+
+        .side-card {
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: var(--card);
+            box-shadow: 0 10px 28px rgba(31, 52, 92, 0.04);
+        }
+
+        .side-card h2 { margin: 0 0 10px; font-size: 14px; }
+
+        .rank { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+        .rank li { display: flex; align-items: center; gap: 8px; }
+
+        .rank-no {
+            flex: 0 0 20px;
+            width: 20px;
+            height: 20px;
+            display: grid;
+            place-items: center;
+            border-radius: 7px;
+            background: var(--blue-soft);
+            color: var(--blue-dark);
+            font-size: 11.5px;
+            font-weight: 800;
+        }
+
+        .rank-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+        .rank-body a {
+            overflow: hidden;
+            color: var(--ink);
+            font-size: 12.5px;
+            font-weight: 650;
+            text-decoration: none;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .rank-body a:hover { color: var(--blue); }
+        .rank-body small { overflow: hidden; color: var(--muted); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+        .rank-views { flex: 0 0 auto; color: var(--muted); font-size: 11px; }
+
+        .tips { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; line-height: 1.85; }
+        .tips li + li { margin-top: 4px; }
+
+        /* ───────── 详情 ───────── */
+
+        .detail-top { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+
+        .link-btn {
+            padding: 4px 0;
+            border: 0;
+            background: transparent;
+            color: var(--blue);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .link-btn:hover { text-decoration: underline; }
+
+        .crumb { color: var(--muted); font-size: 12px; }
+        .detail { padding: 22px; }
+
+        .banner {
+            margin-bottom: 14px;
+            padding: 11px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .banner.warn { border: 1px solid #f3e0b8; background: var(--warn-soft); color: var(--warn); }
+
+        .detail-head { display: flex; align-items: flex-start; gap: 18px; }
+
+        .detail-icon {
+            flex: 0 0 88px;
+            width: 88px;
+            height: 88px;
+            display: grid;
+            place-items: center;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--blue-soft), #e6f6ef);
+            font-size: 40px;
+            overflow: hidden;
+        }
+
+        .detail-main { min-width: 0; }
+        .detail-main h1 { margin: 0 0 6px; font-size: 25px; line-height: 1.3; word-break: break-word; }
+        .detail-sub { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+        .detail-sub.small { font-size: 12px; }
+        .detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 8px;
+            margin: 16px 0;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 10px 12px;
+            border: 1px solid #e6eefc;
+            border-radius: 12px;
+            background: #f7faff;
+        }
+
+        .stat-label { color: var(--muted); font-size: 11.5px; }
+        .stat-value { color: #22365a; font-size: 14px; font-weight: 750; word-break: break-word; }
+
+        .box {
+            margin: 14px 0;
+            padding: 15px 16px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: #fbfdff;
+        }
+
+        .box h2 { margin: 0 0 8px; font-size: 14.5px; }
+        .box p { margin: 0 0 8px; font-size: 13px; line-height: 1.7; }
+
+        .recog-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+        .pre { white-space: pre-wrap; word-break: break-word; }
+        .hint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+        .muted { color: var(--muted); }
+        .detail-tags { margin: 12px 0; }
+
+        .owner { border-color: #dbe6ff; background: linear-gradient(180deg, #fbfdff, #f4f8ff); }
+
+        .field-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+
+        .field-row input[type="search"], .field-row select {
+            flex: 1 1 200px;
+            min-width: 160px;
+            height: 38px;
+            padding: 0 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fff;
+            font-size: 13px;
+        }
+
+        .field-row select { flex: 1 1 240px; }
+
+        .file-btn { position: relative; overflow: hidden; }
+
+        /* ───────── 上传 ───────── */
+
+        .upload-panel { max-width: 780px; margin: 0 auto; }
+
+        .upload-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+        .upload-head h1 { margin: 0; font-size: 21px; }
+        .upload-head .btn { margin-left: auto; }
+
+        .file-drop {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding: 26px 18px;
+            border: 2px dashed #c8d8f2;
+            border-radius: 16px;
+            background: #f8fbff;
+            color: var(--muted);
+            font-size: 13px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .file-drop:hover { border-color: #9db9ee; background: #f2f7ff; }
+        .file-drop .file-icon { font-size: 30px; }
+
+        .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+        .field label { color: #3b4b66; font-size: 12.5px; font-weight: 700; }
+
+        .field input, .field textarea, .field select {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fff;
+            font-size: 13.5px;
+        }
+
+        .field input:focus, .field textarea:focus, .field select:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(47, 99, 216, 0.1);
+        }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+        .upload-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 6px; }
+
+        .steps { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 6px; padding: 0; list-style: none; }
+        .steps li { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; }
+        .steps .dot { width: 10px; height: 10px; border-radius: 50%; background: #cdd7e6; }
+        .steps li.active { color: var(--blue-dark); font-weight: 700; }
+        .steps li.active .dot { background: var(--blue); animation: stepPulse 1s infinite; }
+        .steps li.done { color: var(--ok); }
+        .steps li.done .dot { background: var(--ok); }
+        .steps li.error { color: #a9202f; font-weight: 700; }
+        .steps li.error .dot { background: #d9455f; }
+
+        @keyframes stepPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
+
+        .result-card {
+            margin-top: 16px;
+            padding: 18px;
+            border: 1px solid #d9f0e2;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #f7fdfa, #fff);
+        }
+
+        .result-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+        .result-head h2 { margin: 0; font-size: 17px; }
+        .result-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+        .loading { color: var(--muted); font-size: 13px; }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 46px;
+            z-index: 200;
+            max-width: min(92vw, 460px);
+            padding: 11px 18px;
+            border-radius: 12px;
+            background: rgba(23, 32, 51, 0.94);
+            box-shadow: 0 12px 30px rgba(15, 25, 45, 0.2);
+            color: #fff;
+            font-size: 13px;
+            line-height: 1.5;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, 12px);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+        .site-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px 18px;
+            margin-top: 24px;
+            padding: 16px 4px 6px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .foot-links { display: flex; flex-wrap: wrap; gap: 14px; }
+        .foot-links a { color: var(--muted); text-decoration: none; }
+        .foot-links a:hover { color: var(--blue); }
+
+        @media (max-width: 960px) {
+            .layout { grid-template-columns: minmax(0, 1fr); }
+            .side { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 720px) {
+            .wrap { padding: 14px 12px 0; }
+            .topbar { padding: 9px 12px; gap: 8px; }
+            .search { order: 3; flex-basis: 100%; max-width: none; }
+            .topbar-actions { gap: 6px; }
+            .hero { flex-direction: column; align-items: stretch; padding: 18px; }
+            .hero h1 { font-size: 21px; }
+            .hero-side { flex: 1 1 auto; }
+            .side { grid-template-columns: 1fr; }
+            .grid { grid-template-columns: 1fr; }
+            .form-grid { grid-template-columns: 1fr; }
+            .detail-head { flex-direction: column; }
+            .detail-icon { flex: 0 0 72px; width: 72px; height: 72px; font-size: 32px; }
+            .detail-main h1 { font-size: 20px; }
+            .detail { padding: 16px; }
+            .stat-grid { grid-template-columns: 1fr 1fr; }
+            .toast { bottom: 20px; }
+        }
+    </style>
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="vimidi.html">
+        <span class="brand-mark" aria-hidden="true">🎹</span>
+        <span class="brand-text"><strong>Vimidi</strong><small>MIDI 分享</small></span>
+    </a>
+    <form class="search" id="search-form" role="search">
+        <input id="search-input" type="search" placeholder="搜索 MIDI 标题、作者或标签" autocomplete="off" aria-label="搜索 MIDI">
+        <button type="submit" aria-label="搜索">🔍</button>
+    </form>
+    <div class="topbar-actions">
+        <button class="btn primary small" type="button" id="btn-upload">⬆ 上传 MIDI</button>
+        <a class="nav-link" href="vmusic.html">🎵 VMusic</a>
+        <span class="version">v3.1.0</span>
+        <a class="nav-link" href="manager.html">← 返回账户</a>
+        <span class="who" id="who"></span>
+    </div>
+</header>
+
+<main class="wrap">
+    <section id="home-view">
+        <section class="hero">
+            <div class="hero-main">
+                <p class="eyebrow">Vitual XRing 3.1.0 · 新页面</p>
+                <h1>Vimidi：下载、分享、识别你的 MIDI</h1>
+                <p class="hero-sub">上传 <b>.mid</b> 文件，服务端会解析时长、音符数和 BPM，并尝试把它和 VMusic 里收录的歌曲对上；在聊天里粘贴链接会自动变成可点的 MIDI 卡片。</p>
+                <div class="hero-chips">
+                    <button class="btn primary" type="button" data-action="upload">⬆ 上传 MIDI</button>
+                    <span class="chip">服务端解析 MIDI</span>
+                    <span class="chip">关联 VMusic</span>
+                    <span class="chip">聊天卡片</span>
+                </div>
+            </div>
+            <div class="hero-side">
+                <h2>三步发布</h2>
+                <ol>
+                    <li>选择 .mid / .midi / .rmi 文件</li>
+                    <li>服务端解析并尝试识别</li>
+                    <li>发布到 Vimidi</li>
+                </ol>
+            </div>
+        </section>
+
+        <div class="layout">
+            <section class="main-col panel" aria-label="MIDI 列表">
+                <div class="tabs" id="tabs" role="tablist" aria-label="MIDI 分类">
+                    <button type="button" class="tab active" data-tab="featured" role="tab">精选</button>
+                    <button type="button" class="tab" data-tab="latest" role="tab">最新</button>
+                    <button type="button" class="tab" data-tab="hot" role="tab">热门</button>
+                    <button type="button" class="tab" data-tab="mine" role="tab" hidden>我的</button>
+                </div>
+                <div class="list-head">
+                    <h2 id="list-title">精选</h2>
+                    <p class="list-sub" id="list-sub"></p>
+                    <span class="list-count" id="list-count"></span>
+                    <button class="btn tiny" type="button" id="btn-refresh">刷新</button>
+                </div>
+                <div class="status" id="list-status" hidden></div>
+                <div class="grid" id="grid"></div>
+                <div class="empty" id="empty" hidden></div>
+            </section>
+
+            <aside class="side">
+                <section class="side-card">
+                    <h2>🔥 热门 MIDI</h2>
+                    <div id="side-hot"><p class="hint">正在加载…</p></div>
+                </section>
+                <section class="side-card">
+                    <h2>如何获取</h2>
+                    <ul class="tips">
+                        <li>在详情页点「下载 MIDI」；在卡片上点「复制链接」可以把链接发给别人。</li>
+                        <li>下载的 .mid 可以拖进任何支持 MIDI 的编曲软件；VMusic 只播放音频，不播放 MIDI。</li>
+                        <li>想知道它对应哪首歌？看详情页的「识别到的音乐」，点进去就是 VMusic。</li>
+                        <li>把链接粘贴到聊天室、私聊或 Vitx 动态，会自动显示 MIDI 分享卡片。</li>
+                    </ul>
+                </section>
+            </aside>
+        </div>
+    </section>
+
+    <section id="detail-view" hidden></section>
+
+    <section id="upload-view" hidden>
+        <div class="panel upload-panel">
+            <div class="upload-head">
+                <h1>上传 MIDI</h1>
+                <button class="btn tiny" type="button" data-action="upload-close">← 返回列表</button>
+            </div>
+            <div class="status error" id="login-required" hidden>
+                <span>登录后才能上传 MIDI。</span>
+                <a class="btn tiny primary" href="login.html?next=vimidi.html">去登录</a>
+            </div>
+            <form id="upload-form" autocomplete="off">
+                <label class="file-drop">
+                    <span class="file-icon" aria-hidden="true">🎹</span>
+                    <span id="file-label">点击选择 .mid / .midi / .rmi 文件（最大 2 MB）</span>
+                    <input id="midi-file" type="file" accept=".mid,.midi,.rmi,audio/midi,audio/x-midi" hidden>
+                </label>
+                <div class="field">
+                    <label for="midi-title">标题 *</label>
+                    <input id="midi-title" type="text" maxlength="80" placeholder="例如：小星星（钢琴改编）">
+                </div>
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="midi-artist">作者 / 作曲</label>
+                        <input id="midi-artist" type="text" maxlength="80" placeholder="可留空，上传后从 MIDI 文件里读取">
+                    </div>
+                    <div class="field">
+                        <label for="midi-tags">标签</label>
+                        <input id="midi-tags" type="text" maxlength="140" placeholder="用逗号分隔，最多 8 个">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="midi-desc">简介</label>
+                    <textarea id="midi-desc" maxlength="500" rows="4" placeholder="可选：改编说明、音色、来源等"></textarea>
+                </div>
+                <div class="upload-actions">
+                    <button class="btn primary" type="submit" id="btn-submit-midi">上传并发布</button>
+                    <span class="hint">上传后由服务端解析时长、音符数、BPM，并尝试识别它对应的 VMusic 歌曲。</span>
+                </div>
+            </form>
+            <div id="upload-progress" hidden>
+                <ol class="steps" id="upload-steps">
+                    <li data-step="create"><span class="dot"></span>创建草稿</li>
+                    <li data-step="upload"><span class="dot"></span>上传并解析</li>
+                    <li data-step="publish"><span class="dot"></span>发布</li>
+                </ol>
+                <p class="hint" id="upload-step-text"></p>
+            </div>
+            <div id="upload-errors" class="status error" hidden></div>
+            <div id="upload-result" class="result-card" hidden></div>
+        </div>
+    </section>
+
+    <footer class="site-foot">
+        <span>Vitual XRing 3.1.0 · Vimidi MIDI 分享</span>
+        <span class="foot-links">
+            <a href="vmusic.html">VMusic</a>
+            <a href="vimidi.html">Vimidi 首页</a>
+            <a href="manager.html">返回账户</a>
+        </span>
+    </footer>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<noscript>Vimidi 需要启用 JavaScript 才能加载 MIDI 列表和上传功能。</noscript>
+
+<script>
+(function () {
+    "use strict";
+
+    const $ = (id) => document.getElementById(id);
+    const enc = encodeURIComponent;
+    const MAX_MIDI = 2 * 1024 * 1024;
+
+    const state = {
+        tab: "featured",
+        q: "",
+        items: [],
+        loading: false,
+        detail: null,
+        musicQ: "",
+        musicItems: [],
+        pending: null,
+        uploading: false,
+        activeStep: "",
+        lastUpload: null
+    };
+
+    const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+
+    function esc(value) {
+        return String(value == null ? "" : value).replace(/[&<>"']/g, (ch) => ESCAPES[ch]);
+    }
+
+    function api() {
+        return window.VTXApi && window.VTXApi.social ? window.VTXApi.social : null;
+    }
+
+    function loggedIn() {
+        return Boolean(
+            window.VTXApi
+            && typeof window.VTXApi.hasSession === "function"
+            && window.VTXApi.hasSession()
+            && typeof window.VTXApi.currentLogin === "function"
+            && window.VTXApi.currentLogin()
+        );
+    }
+
+    function loginHref() {
+        return "login.html?next=vimidi.html";
+    }
+
+    function errorText(error) {
+        if (!error) {
+            return "操作失败，请稍后再试";
+        }
+        if (error.workerUnavailable) {
+            return "无法连接 Vitual XRing 服务，请检查网络后重试";
+        }
+        const message = String(error.message || "").trim();
+        return message || "操作失败，请稍后再试";
+    }
+
+    function toast(message) {
+        const node = $("toast");
+        if (!node) {
+            return;
+        }
+        node.textContent = String(message || "");
+        node.classList.add("show");
+        clearTimeout(toast.timer);
+        toast.timer = setTimeout(() => node.classList.remove("show"), 2600);
+    }
+
+    function timeAgo(at) {
+        if (window.XRSocial && typeof window.XRSocial.timeAgo === "function") {
+            return window.XRSocial.timeAgo(at);
+        }
+        const value = Number(at) || 0;
+        if (!value) {
+            return "";
+        }
+        const date = new Date(value);
+        return date.getFullYear() + "/" + (date.getMonth() + 1) + "/" + date.getDate();
+    }
+
+    function durationText(seconds) {
+        const total = Math.max(0, Math.round(Number(seconds) || 0));
+        if (!total) {
+            return "—";
+        }
+        const hours = Math.floor(total / 3600);
+        const minutes = Math.floor((total % 3600) / 60);
+        const secs = total % 60;
+        if (hours) {
+            return hours + ":" + String(minutes).padStart(2, "0") + ":" + String(secs).padStart(2, "0");
+        }
+        return minutes + ":" + String(secs).padStart(2, "0");
+    }
+
+    function sizeText(bytes) {
+        const value = Number(bytes) || 0;
+        if (!value) {
+            return "—";
+        }
+        if (value < 1024) {
+            return value + " B";
+        }
+        if (value < 1024 * 1024) {
+            return (value / 1024).toFixed(1) + " KB";
+        }
+        return (value / 1024 / 1024).toFixed(2) + " MB";
+    }
+
+    function iconHtml(item, fallback) {
+        const raw = String((item && item.icon) || "").trim();
+        const icon = raw || fallback || "🎹";
+        if (/^https?:\/\//i.test(icon)) {
+            return '<img src="' + esc(icon) + '" alt="" loading="lazy" referrerpolicy="no-referrer">';
+        }
+        return esc(Array.from(icon).slice(0, 8).join(""));
+    }
+
+    function fallbackCopy(text) {
+        try {
+            const area = document.createElement("textarea");
+            area.value = text;
+            area.setAttribute("readonly", "");
+            area.style.position = "fixed";
+            area.style.opacity = "0";
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        } catch (error) {
+            /* 忽略 */
+        }
+    }
+
+    function copyLink(id) {
+        const url = new URL("vimidi.html?id=" + enc(id), location.href).href;
+        const done = () => toast("链接已复制，可粘贴到聊天或动态里");
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            navigator.clipboard.writeText(url).then(done).catch(() => {
+                if (window.XRSocial && typeof window.XRSocial.copyText === "function") {
+                    window.XRSocial.copyText(url);
+                } else {
+                    fallbackCopy(url);
+                }
+                done();
+            });
+            return;
+        }
+        if (window.XRSocial && typeof window.XRSocial.copyText === "function") {
+            window.XRSocial.copyText(url);
+        } else {
+            fallbackCopy(url);
+        }
+        done();
+    }
+
+    function debounce(fn, wait) {
+        let timer = null;
+        return function () {
+            const args = arguments;
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(null, args), wait);
+        };
+    }
+
+    function stat(label, value) {
+        return '<div class="stat"><span class="stat-label">' + esc(label) + '</span><span class="stat-value">' + esc(value) + "</span></div>";
+    }
+
+    function parseTags(raw) {
+        const seen = new Set();
+        const tags = [];
+        String(raw || "").split(/[,，、\s]+/).forEach((part) => {
+            const tag = part.trim().slice(0, 16);
+            if (tag && !seen.has(tag) && tags.length < 8) {
+                seen.add(tag);
+                tags.push(tag);
+            }
+        });
+        return tags;
+    }
+
+    function renderWho() {
+        const node = $("who");
+        if (!node) {
+            return;
+        }
+        if (loggedIn()) {
+            node.innerHTML = "已登录：<b>" + esc(window.VTXApi.currentLogin()) + "</b>";
+        } else {
+            node.innerHTML = '<a href="' + loginHref() + '">登录</a>';
+        }
+    }
+
+    /* ───────── 列表与卡片 ───────── */
+
+    function syncTabs() {
+        document.querySelectorAll("[data-tab]").forEach((button) => {
+            const tab = button.getAttribute("data-tab");
+            button.classList.toggle("active", tab === state.tab);
+            button.hidden = tab === "mine" && !loggedIn();
+        });
+    }
+
+    function featuredSort(items) {
+        const score = (item) => {
+            const extra = item.extra || {};
+            let value = 0;
+            if (extra.musicId) {
+                value += 40;
+            }
+            value += Math.min(30, Number(item.likes) || 0);
+            value += Math.min(20, Math.floor((Number(item.views) || 0) / 10));
+            return value;
+        };
+        return items.slice().sort((left, right) => score(right) - score(left) || (Number(right.at) || 0) - (Number(left.at) || 0));
+    }
+
+    function recognitionBadge(item) {
+        const extra = item.extra || {};
+        if (extra.musicId) {
+            return '<a class="recog-pill ok" href="vmusic.html?id=' + enc(extra.musicId) + '">🎵 已识别《' + esc(extra.musicTitle || "未命名歌曲") + "》</a>";
+        }
+        return '<span class="recog-pill none">未识别到已知音乐</span>';
+    }
+
+    function cardHtml(item) {
+        const extra = item.extra || {};
+        const tags = (Array.isArray(item.tags) ? item.tags : []).slice(0, 4)
+            .map((tag) => '<span class="tag">' + esc(tag) + "</span>").join("");
+        const canPublish = item.published === false && item.mine && item.ready;
+        return '<article class="midi-card">'
+            + '<div class="card-top">'
+            + '<a class="card-icon" href="vimidi.html?id=' + enc(item.id) + '" tabindex="-1" aria-hidden="true">' + iconHtml(item, "🎹") + "</a>"
+            + '<div class="card-main">'
+            + '<a class="card-title" href="vimidi.html?id=' + enc(item.id) + '">' + esc(item.title || "未命名 MIDI") + "</a>"
+            + '<p class="card-sub">' + esc(extra.artist || "未知作者") + " · " + esc(item.ownerName || item.owner || "匿名") + "</p>"
+            + "</div>"
+            + (item.published === false ? '<span class="badge draft">草稿</span>' : "")
+            + "</div>"
+            + '<div class="card-meta">'
+            + "<span>⏱ " + durationText(extra.durationSeconds) + "</span>"
+            + "<span>🎼 " + (extra.noteCount ? Number(extra.noteCount) + " 个音" : "—") + "</span>"
+            + "<span>🥁 " + (extra.bpm ? Number(extra.bpm) + " BPM" : "—") + "</span>"
+            + "<span>👀 " + (Number(item.views) || 0) + "</span>"
+            + "</div>"
+            + '<div class="card-recog">' + recognitionBadge(item) + "</div>"
+            + (tags ? '<div class="tags">' + tags + "</div>" : "")
+            + '<div class="card-foot">'
+            + '<span class="time">' + esc(timeAgo(item.at)) + "</span>"
+            + '<div class="card-actions">'
+            + '<a class="btn tiny ghost" href="vimidi.html?id=' + enc(item.id) + '">查看</a>'
+            + '<button class="btn tiny" type="button" data-copy="' + esc(item.id) + '">复制链接</button>'
+            + (canPublish ? '<button class="btn tiny primary" type="button" data-publish="' + esc(item.id) + '">发布</button>' : "")
+            + "</div>"
+            + "</div>"
+            + "</article>";
+    }
+
+    function showListStatus(message) {
+        const node = $("list-status");
+        node.hidden = false;
+        node.className = "status";
+        node.textContent = message;
+        $("grid").innerHTML = "";
+        $("empty").hidden = true;
+    }
+
+    function showListError(error) {
+        const node = $("list-status");
+        node.hidden = false;
+        node.className = "status error";
+        node.innerHTML = "<span>" + esc(errorText(error)) + '</span><button type="button" class="btn tiny" data-action="retry">重试</button>';
+        $("grid").innerHTML = "";
+        $("empty").hidden = true;
+    }
+
+    function emptyHtml() {
+        if (state.q) {
+            return '<div class="empty-icon">🔍</div><h3>没有找到与“' + esc(state.q) + '”相关的 MIDI</h3>'
+                + "<p>换个关键词试试，或者直接上传一支新的 MIDI。</p>"
+                + '<div class="empty-actions"><button type="button" class="btn" data-action="clear-search">清除搜索</button>'
+                + (loggedIn() ? '<button type="button" class="btn primary" data-action="upload">上传 MIDI</button>' : "")
+                + "</div>";
+        }
+        if (state.tab === "mine") {
+            return '<div class="empty-icon">🎹</div><h3>你还没有上传过 MIDI</h3>'
+                + "<p>上传 .mid 文件，服务端会解析时长、音符数和 BPM，并尝试识别它对应的歌曲。</p>"
+                + '<div class="empty-actions"><button type="button" class="btn primary" data-action="upload">上传 MIDI</button></div>';
+        }
+        return '<div class="empty-icon">🎹</div><h3>这里还没有 MIDI</h3>'
+            + "<p>成为第一个分享者：上传一支 MIDI，让它在 VMusic 里被认出来。</p>"
+            + '<div class="empty-actions">'
+            + (loggedIn()
+                ? '<button type="button" class="btn primary" data-action="upload">上传 MIDI</button>'
+                : '<a class="btn primary" href="' + loginHref() + '">登录后上传</a>')
+            + "</div>";
+    }
+
+    function renderList() {
+        const items = state.items || [];
+        const empty = $("empty");
+        $("list-status").hidden = true;
+        $("list-title").textContent = state.q
+            ? "搜索：“" + state.q + "”"
+            : state.tab === "featured" ? "精选"
+                : state.tab === "hot" ? "热门 MIDI"
+                    : state.tab === "mine" ? "我的 MIDI" : "最新 MIDI";
+        $("list-sub").textContent = state.q
+            ? "按关键词搜索标题、作者、简介和标签"
+            : state.tab === "featured" ? "已识别音乐与高赞作品优先"
+                : state.tab === "hot" ? "按播放和点赞排序"
+                    : state.tab === "mine" ? "包含还没发布的草稿" : "按上传时间排序";
+        $("list-count").textContent = items.length ? "共 " + items.length + " 个" : "";
+        if (!items.length) {
+            $("grid").innerHTML = "";
+            empty.hidden = false;
+            empty.innerHTML = emptyHtml();
+            return;
+        }
+        empty.hidden = true;
+        $("grid").innerHTML = items.map(cardHtml).join("");
+    }
+
+    async function loadHome() {
+        if (!api() || state.loading) {
+            return;
+        }
+        state.loading = true;
+        showListStatus("正在加载 MIDI…");
+        try {
+            const options = { limit: 60 };
+            if (state.q) {
+                options.q = state.q;
+            }
+            if (state.tab === "hot") {
+                options.sort = "hot";
+            }
+            if (state.tab === "mine") {
+                options.owner = window.VTXApi.currentLogin();
+            }
+            const result = await api().list("midi", options);
+            let items = Array.isArray(result.items) ? result.items : [];
+            if (state.tab === "featured") {
+                items = featuredSort(items);
+            }
+            state.items = items;
+            renderList();
+        } catch (error) {
+            showListError(error);
+        } finally {
+            state.loading = false;
+        }
+    }
+
+    async function loadSidebar() {
+        const box = $("side-hot");
+        if (!box || !api()) {
+            return;
+        }
+        try {
+            const result = await api().list("midi", { sort: "hot", limit: 5 });
+            const items = Array.isArray(result.items) ? result.items : [];
+            if (!items.length) {
+                box.innerHTML = '<p class="hint">还没有作品，先上传一支吧。</p>';
+                return;
+            }
+            box.innerHTML = '<ol class="rank">' + items.map((item, index) => {
+                const artist = (item.extra && item.extra.artist) || item.ownerName || "";
+                return '<li><span class="rank-no">' + (index + 1) + "</span>"
+                    + '<span class="rank-body"><a href="vimidi.html?id=' + enc(item.id) + '">' + esc(item.title || "未命名 MIDI") + "</a>"
+                    + "<small>" + esc(artist) + "</small></span>"
+                    + '<span class="rank-views">👀 ' + (Number(item.views) || 0) + "</span></li>";
+            }).join("") + "</ol>";
+        } catch (error) {
+            box.innerHTML = '<p class="hint">' + esc(errorText(error)) + "</p>";
+        }
+    }
+
+    /* ───────── 详情 ───────── */
+
+    function recognitionDetail(item) {
+        const extra = item.extra || {};
+        const mine = Boolean(item.mine);
+        if (extra.musicId) {
+            const by = extra.recognizedBy === "manual" ? "作者手动关联"
+                : extra.recognizedBy === "signature" ? "MIDI 指纹完全匹配"
+                    : extra.recognizedBy === "similarity" ? "音高相似度匹配" : "已关联";
+            const confidence = Number(extra.recognitionConfidence) || 0;
+            const confidenceText = extra.recognizedBy !== "manual" && confidence > 0 && confidence < 1
+                ? " · 置信度 " + Math.round(confidence * 100) + "%" : "";
+            return "<h2>识别到的音乐</h2>"
+                + '<p class="recog-line"><span class="badge ok">已识别</span>'
+                + '<a href="vmusic.html?id=' + enc(extra.musicId) + '">《' + esc(extra.musicTitle || "未命名歌曲") + "》</a>"
+                + '<span class="muted">' + esc(by + confidenceText) + "</span></p>"
+                + '<a class="btn small ghost" href="vmusic.html?id=' + enc(extra.musicId) + '">去 VMusic 听这首 →</a>';
+        }
+        return "<h2>识别到的音乐</h2>"
+            + '<p class="recog-line"><span class="badge warn">未识别</span><span class="muted">这首 MIDI 还没有匹配到 VMusic 里收录的歌曲。</span></p>'
+            + '<p class="hint">' + (mine
+                ? "用下面的「作者工具」把 MIDI 关联到 VMusic 歌曲，听歌的人就能从歌曲页跳到这支 MIDI。"
+                : "作者可以在 Vimidi 里手动把 MIDI 关联到 VMusic 歌曲；VMusic 上传音频时也会按标题和时长自动匹配。") + "</p>";
+    }
+
+    function ownerToolsHtml(item) {
+        const extra = item.extra || {};
+        return '<section class="box owner">'
+            + "<h2>作者工具</h2>"
+            + '<p class="hint">把 MIDI 关联到 VMusic 里的一首歌。关联后，那首歌的详情页会显示这支 MIDI 的入口，反过来也可以跳到歌曲。</p>'
+            + '<p class="hint">当前关联：<b>' + (extra.musicId ? "《" + esc(extra.musicTitle || "已关联歌曲") + "》" : "还没有关联") + "</b></p>"
+            + '<div class="field-row">'
+            + '<input id="owner-music-q" type="search" placeholder="搜索 VMusic 歌曲标题或歌手" value="' + esc(state.musicQ) + '" aria-label="搜索 VMusic 歌曲">'
+            + '<select id="owner-music-select" aria-label="选择要关联的 VMusic 歌曲"><option value="">正在加载 VMusic 歌曲…</option></select>'
+            + '<button class="btn primary" type="button" data-action="link-music">关联到这首歌</button>'
+            + "</div>"
+            + '<div class="field-row">'
+            + '<label class="btn file-btn">重新上传 MIDI<input id="owner-file" type="file" accept=".mid,.midi,.rmi,audio/midi,audio/x-midi" hidden></label>'
+            + '<span class="hint" id="owner-status">' + (item.ready ? "" : "文件还没上传完成，请重新上传") + "</span>"
+            + "</div>"
+            + "</section>";
+    }
+
+    function renderDetail() {
+        const item = state.detail;
+        if (!item) {
+            return;
+        }
+        const extra = item.extra || {};
+        const mine = Boolean(item.mine);
+        const draft = item.published === false;
+        const tags = Array.isArray(item.tags) ? item.tags : [];
+        const fileUrl = api().fileUrl(item.id, { download: true });
+        $("detail-view").hidden = false;
+        $("detail-view").innerHTML = '<div class="detail-top">'
+            + '<button class="link-btn" type="button" data-action="back-home">← 返回 Vimidi</button>'
+            + '<span class="crumb">Vimidi / MIDI 详情</span>'
+            + "</div>"
+            + '<article class="detail panel">'
+            + (draft ? '<div class="banner warn">这是草稿，只有你自己能打开。上传完成后点「发布」才会出现在首页。</div>' : "")
+            + '<div class="detail-head">'
+            + '<div class="detail-icon">' + iconHtml(item, "🎹") + "</div>"
+            + '<div class="detail-main">'
+            + "<h1>" + esc(item.title || "未命名 MIDI") + "</h1>"
+            + '<p class="detail-sub">' + esc(extra.artist || "未知作者") + " · 上传者 " + esc(item.ownerName || item.owner || "匿名") + " · " + esc(timeAgo(item.at)) + "</p>"
+            + '<p class="detail-sub small">' + (Number(item.views) || 0) + " 次浏览 · " + (Number(item.likes) || 0) + " 个赞"
+            + (item.file ? " · " + esc(item.file.name) + "（" + sizeText(item.file.size) + "）" : "") + "</p>"
+            + '<div class="detail-actions">'
+            + (item.canDownload || mine
+                ? '<a class="btn primary" href="' + esc(fileUrl) + '" download>⬇ 下载 MIDI</a>'
+                : '<span class="badge warn">文件暂时不可下载</span>')
+            + '<button class="btn" type="button" data-action="copy">🔗 复制链接</button>'
+            + '<button class="btn" type="button" data-action="like">' + (item.liked ? "💙 已点赞" : "🤍 点赞") + " " + (Number(item.likes) || 0) + "</button>"
+            + (mine && draft && item.ready ? '<button class="btn primary" type="button" data-action="publish">发布这支 MIDI</button>' : "")
+            + "</div>"
+            + '<p class="hint">把链接粘贴到聊天室、私聊或 Vitx 动态，会自动显示成 MIDI 分享卡片。</p>'
+            + "</div></div>"
+            + '<div class="stat-grid">'
+            + stat("时长", durationText(extra.durationSeconds))
+            + stat("BPM", extra.bpm ? String(extra.bpm) : "—")
+            + stat("音符数", extra.noteCount ? String(extra.noteCount) : "—")
+            + stat("文件大小", item.file ? sizeText(item.file.size) : "未上传")
+            + stat("浏览", String(Number(item.views) || 0))
+            + stat("点赞", String(Number(item.likes) || 0))
+            + "</div>"
+            + '<section class="box">' + recognitionDetail(item) + "</section>"
+            + (item.description ? '<section class="box"><h2>简介</h2><p class="pre">' + esc(item.description) + "</p></section>" : "")
+            + (tags.length ? '<div class="tags detail-tags">' + tags.map((tag) => '<span class="tag">' + esc(tag) + "</span>").join("") + "</div>" : "")
+            + (mine ? ownerToolsHtml(item) : "")
+            + "</article>";
+
+        if (mine) {
+            loadMusicOptions(state.musicQ);
+            const input = $("owner-music-q");
+            if (input) {
+                input.addEventListener("input", debounce(() => {
+                    state.musicQ = input.value.trim();
+                    loadMusicOptions(state.musicQ);
+                }, 320));
+            }
+            const fileInput = $("owner-file");
+            if (fileInput) {
+                fileInput.addEventListener("change", onOwnerFile);
+            }
+        }
+    }
+
+    async function openDetail(id) {
+        $("home-view").hidden = true;
+        $("upload-view").hidden = true;
+        $("detail-view").hidden = false;
+        $("detail-view").innerHTML = '<div class="panel loading">正在加载 MIDI…</div>';
+        try {
+            const result = await api().get("midi", id);
+            state.detail = result.item;
+            renderDetail();
+        } catch (error) {
+            $("detail-view").innerHTML = '<div class="panel"><h2>打不开这支 MIDI</h2><p class="muted">'
+                + esc(errorText(error)) + '</p><p><a class="btn primary" href="vimidi.html">← 返回 Vimidi 首页</a></p></div>';
+        }
+    }
+
+    async function loadMusicOptions(query) {
+        const select = $("owner-music-select");
+        if (!select) {
+            return;
+        }
+        try {
+            const options = { limit: 60 };
+            if (query) {
+                options.q = query;
+            }
+            const result = await api().list("music", options);
+            const items = Array.isArray(result.items) ? result.items : [];
+            state.musicItems = items;
+            if (!items.length) {
+                select.innerHTML = '<option value="">' + (query ? "没有找到匹配的歌曲" : "VMusic 里还没有歌曲") + "</option>";
+                return;
+            }
+            select.innerHTML = items.map((music) => {
+                const artist = music.extra && music.extra.artist ? " · " + music.extra.artist : "";
+                return '<option value="' + esc(music.id) + '">' + esc("《" + (music.title || "未命名歌曲") + "》" + artist) + "</option>";
+            }).join("");
+            const current = state.detail && state.detail.extra && state.detail.extra.musicId;
+            if (current && items.some((music) => music.id === current)) {
+                select.value = current;
+            }
+        } catch (error) {
+            select.innerHTML = '<option value="">加载失败：' + esc(errorText(error)) + "</option>";
+        }
+    }
+
+    async function linkMusic() {
+        const item = state.detail;
+        const select = $("owner-music-select");
+        if (!item || !select) {
+            return;
+        }
+        const musicId = select.value;
+        if (!musicId) {
+            toast("先在列表里选一首 VMusic 歌曲");
+            return;
+        }
+        try {
+            const result = await api().update("midi", item.id, { extra: { musicId: musicId } });
+            state.detail = result.item;
+            renderDetail();
+            loadSidebar();
+            toast("已关联到 VMusic 歌曲");
+        } catch (error) {
+            toast("关联失败：" + errorText(error));
+        }
+    }
+
+    async function toggleLike() {
+        if (!loggedIn()) {
+            toast("登录后才能点赞");
+            return;
+        }
+        if (!state.detail) {
+            return;
+        }
+        try {
+            const result = await api().like("midi", state.detail.id);
+            state.detail.liked = Boolean(result.liked);
+            state.detail.likes = Number(result.likes) || 0;
+            renderDetail();
+            toast(result.liked ? "已点赞" : "已取消点赞");
+        } catch (error) {
+            toast("点赞失败：" + errorText(error));
+        }
+    }
+
+    async function publishDetail() {
+        if (!state.detail) {
+            return;
+        }
+        try {
+            const result = await api().publish("midi", state.detail.id);
+            state.detail = result.item;
+            renderDetail();
+            loadSidebar();
+            toast("已发布，大家都能看到了");
+        } catch (error) {
+            toast("发布失败：" + errorText(error));
+        }
+    }
+
+    async function publishCard(id) {
+        try {
+            await api().publish("midi", id);
+            toast("已发布");
+            loadHome();
+            loadSidebar();
+        } catch (error) {
+            toast("发布失败：" + errorText(error));
+        }
+    }
+
+    async function onOwnerFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file || !state.detail) {
+            return;
+        }
+        const problem = validateMidiFile(file);
+        if (problem) {
+            toast(problem);
+            event.target.value = "";
+            return;
+        }
+        const status = $("owner-status");
+        if (status) {
+            status.textContent = "正在上传新文件…";
+        }
+        try {
+            const result = await api().upload("midi", state.detail.id, file);
+            state.detail = result.item;
+            renderDetail();
+            toast("MIDI 文件已更新");
+        } catch (error) {
+            toast("上传失败：" + errorText(error));
+            if (status) {
+                status.textContent = "上传失败，请重试";
+            }
+        }
+    }
+
+    /* ───────── 上传 ───────── */
+
+    function validateMidiFile(file) {
+        if (!file) {
+            return "请先选择 MIDI 文件";
+        }
+        if (!/\.(mid|midi|rmi)$/i.test(file.name)) {
+            return "只支持 .mid / .midi / .rmi 文件";
+        }
+        if (!file.size) {
+            return "这个文件是空的";
+        }
+        if (file.size > MAX_MIDI) {
+            return "MIDI 文件不能超过 2 MB";
+        }
+        return "";
+    }
+
+    function openUpload() {
+        $("home-view").hidden = true;
+        $("detail-view").hidden = true;
+        $("upload-view").hidden = false;
+        try {
+            if (location.search !== "?upload=1") {
+                history.replaceState({}, "", "vimidi.html?upload=1");
+            }
+        } catch (error) {
+            /* 忽略 */
+        }
+        const logged = loggedIn();
+        $("login-required").hidden = logged;
+        $("upload-form").hidden = !logged;
+        window.scrollTo(0, 0);
+    }
+
+    function closeUpload() {
+        $("upload-view").hidden = true;
+        $("detail-view").hidden = true;
+        $("home-view").hidden = false;
+        try {
+            history.replaceState({}, "", "vimidi.html");
+        } catch (error) {
+            /* 忽略 */
+        }
+        if (!state.items.length && !state.q) {
+            loadHome();
+        }
+        window.scrollTo(0, 0);
+    }
+
+    function resetSteps() {
+        document.querySelectorAll("#upload-steps li").forEach((node) => {
+            node.className = "";
+        });
+        state.activeStep = "";
+        const text = $("upload-step-text");
+        if (text) {
+            text.textContent = "";
+        }
+    }
+
+    function setStep(name, status) {
+        const node = document.querySelector('#upload-steps li[data-step="' + name + '"]');
+        if (!node) {
+            return;
+        }
+        node.className = status;
+        if (status === "active") {
+            state.activeStep = name;
+        }
+    }
+
+    function markStepError() {
+        if (!state.activeStep) {
+            return;
+        }
+        const node = document.querySelector('#upload-steps li[data-step="' + state.activeStep + '"]');
+        if (node) {
+            node.className = "error";
+        }
+        const text = $("upload-step-text");
+        if (text) {
+            text.textContent = "这一步失败了，可以从失败的位置重试。";
+        }
+    }
+
+    function setUploadBusy(busy) {
+        const button = $("btn-submit-midi");
+        if (!button) {
+            return;
+        }
+        button.disabled = busy;
+        button.textContent = busy ? "正在上传…" : "上传并发布";
+    }
+
+    function showUploadError(error) {
+        const box = $("upload-errors");
+        const pending = state.pending;
+        box.hidden = false;
+        box.innerHTML = "<p><b>上传没有完成：</b>" + esc(errorText(error)) + "</p>"
+            + (pending
+                ? '<p class="hint">草稿已经创建（编号 ' + esc(pending.id) + "），可以从失败的那一步继续。</p>"
+                    + '<button class="btn primary" type="button" data-action="retry-pending">重试</button>'
+                : "");
+    }
+
+    function showUploadResult(item) {
+        state.lastUpload = item;
+        const extra = item.extra || {};
+        const box = $("upload-result");
+        box.hidden = false;
+        box.innerHTML = '<div class="result-head"><h2>上传成功</h2><span class="badge ' + (item.published ? "ok" : "warn") + '">'
+            + (item.published ? "已发布" : "草稿") + "</span></div>"
+            + '<div class="stat-grid">'
+            + stat("标题", item.title || "未命名 MIDI")
+            + stat("时长", durationText(extra.durationSeconds))
+            + stat("BPM", extra.bpm ? String(extra.bpm) : "—")
+            + stat("音符数", extra.noteCount ? String(extra.noteCount) : "—")
+            + stat("文件大小", item.file ? sizeText(item.file.size) : "—")
+            + "</div>"
+            + '<section class="box">' + recognitionDetail(item) + "</section>"
+            + '<div class="result-actions">'
+            + '<a class="btn primary" href="vimidi.html?id=' + enc(item.id) + '">查看详情</a>'
+            + '<button class="btn" type="button" data-action="upload-again">再传一首</button>'
+            + "</div>";
+    }
+
+    function resetUpload() {
+        $("upload-form").reset();
+        $("upload-result").hidden = true;
+        $("upload-progress").hidden = true;
+        $("upload-errors").hidden = true;
+        $("file-label").textContent = "点击选择 .mid / .midi / .rmi 文件（最大 2 MB）";
+        state.pending = null;
+        window.scrollTo(0, 0);
+    }
+
+    async function submitUpload(event) {
+        event.preventDefault();
+        if (!loggedIn()) {
+            toast("请先登录再上传");
+            return;
+        }
+        if (state.uploading || !api()) {
+            return;
+        }
+        const fileInput = $("midi-file");
+        const file = fileInput.files && fileInput.files[0];
+        const problem = validateMidiFile(file);
+        if (problem) {
+            toast(problem);
+            return;
+        }
+        const title = $("midi-title").value.trim();
+        if (!title) {
+            toast("请先填写标题");
+            $("midi-title").focus();
+            return;
+        }
+        const payload = {
+            title: title.slice(0, 80),
+            artist: $("midi-artist").value.trim().slice(0, 80),
+            description: $("midi-desc").value.trim().slice(0, 500),
+            tags: parseTags($("midi-tags").value)
+        };
+
+        state.uploading = true;
+        state.pending = null;
+        setUploadBusy(true);
+        $("upload-result").hidden = true;
+        $("upload-errors").hidden = true;
+        $("upload-progress").hidden = false;
+        resetSteps();
+
+        try {
+            setStep("create", "active");
+            const created = await api().create("midi", payload);
+            const id = created.item.id;
+            state.pending = { id: id, file: file, stage: "upload" };
+            setStep("create", "done");
+            setStep("upload", "active");
+            const uploaded = await api().upload("midi", id, file);
+            state.pending.item = uploaded.item;
+            state.pending.stage = "publish";
+            setStep("upload", "done");
+            setStep("publish", "active");
+            const published = await api().publish("midi", id);
+            setStep("publish", "done");
+            state.pending = null;
+            showUploadResult(published.item || uploaded.item);
+            toast("上传成功，MIDI 已发布");
+            loadSidebar();
+        } catch (error) {
+            markStepError();
+            showUploadError(error);
+            toast("上传失败：" + errorText(error));
+        } finally {
+            state.uploading = false;
+            setUploadBusy(false);
+        }
+    }
+
+    async function retryPending() {
+        const pending = state.pending;
+        if (!pending || state.uploading) {
+            return;
+        }
+        state.uploading = true;
+        setUploadBusy(true);
+        $("upload-errors").hidden = true;
+        try {
+            let item = pending.item || null;
+            if (pending.stage === "upload") {
+                setStep("upload", "active");
+                const uploaded = await api().upload("midi", pending.id, pending.file);
+                item = uploaded.item;
+                pending.item = item;
+                pending.stage = "publish";
+                setStep("upload", "done");
+            }
+            setStep("publish", "active");
+            const published = await api().publish("midi", pending.id);
+            setStep("publish", "done");
+            state.pending = null;
+            showUploadResult(published.item || item);
+            toast("已重新上传并发布");
+            loadSidebar();
+        } catch (error) {
+            markStepError();
+            showUploadError(error);
+            toast("重试失败：" + errorText(error));
+        } finally {
+            state.uploading = false;
+            setUploadBusy(false);
+        }
+    }
+
+    /* ───────── 搜索与交互 ───────── */
+
+    function submitSearch(event) {
+        event.preventDefault();
+        const value = $("search-input").value.trim();
+        state.q = value;
+        if (!$("detail-view").hidden || !$("upload-view").hidden) {
+            location.href = "vimidi.html" + (value ? "?q=" + enc(value) : "");
+            return;
+        }
+        loadHome();
+    }
+
+    function clearSearch() {
+        state.q = "";
+        $("search-input").value = "";
+        try {
+            history.replaceState({}, "", "vimidi.html");
+        } catch (error) {
+            /* 忽略 */
+        }
+        loadHome();
+    }
+
+    function handleActionClick(event) {
+        const actionNode = event.target.closest("[data-action]");
+        if (actionNode) {
+            const action = actionNode.getAttribute("data-action");
+            if (action === "upload") {
+                openUpload();
+                return;
+            }
+            if (action === "upload-close") {
+                closeUpload();
+                return;
+            }
+            if (action === "back-home") {
+                location.href = "vimidi.html";
+                return;
+            }
+            if (action === "copy") {
+                if (state.detail) {
+                    copyLink(state.detail.id);
+                }
+                return;
+            }
+            if (action === "like") {
+                toggleLike();
+                return;
+            }
+            if (action === "publish") {
+                publishDetail();
+                return;
+            }
+            if (action === "link-music") {
+                linkMusic();
+                return;
+            }
+            if (action === "clear-search") {
+                clearSearch();
+                return;
+            }
+            if (action === "retry") {
+                loadHome();
+                return;
+            }
+            if (action === "retry-pending") {
+                retryPending();
+                return;
+            }
+            if (action === "upload-again") {
+                resetUpload();
+                return;
+            }
+        }
+        const copyButton = event.target.closest("[data-copy]");
+        if (copyButton) {
+            copyLink(copyButton.getAttribute("data-copy"));
+            return;
+        }
+        const publishButton = event.target.closest("[data-publish]");
+        if (publishButton) {
+            publishCard(publishButton.getAttribute("data-publish"));
+        }
+    }
+
+    function bind() {
+        $("search-form").addEventListener("submit", submitSearch);
+        document.querySelectorAll("[data-tab]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const tab = button.getAttribute("data-tab");
+                if (tab === "mine" && !loggedIn()) {
+                    toast("登录后才能看到自己的 MIDI");
+                    return;
+                }
+                state.tab = tab;
+                syncTabs();
+                loadHome();
+            });
+        });
+        $("btn-upload").addEventListener("click", openUpload);
+        $("upload-form").addEventListener("submit", submitUpload);
+        $("midi-file").addEventListener("change", () => {
+            const file = $("midi-file").files && $("midi-file").files[0];
+            $("file-label").textContent = file
+                ? file.name + "（" + sizeText(file.size) + "）"
+                : "点击选择 .mid / .midi / .rmi 文件（最大 2 MB）";
+            if (file && !$("midi-title").value.trim()) {
+                $("midi-title").value = file.name.replace(/\.(mid|midi|rmi)$/i, "").slice(0, 80);
+            }
+        });
+        $("btn-refresh").addEventListener("click", () => {
+            loadHome();
+            loadSidebar();
+        });
+        document.addEventListener("click", handleActionClick);
+    }
+
+    function init() {
+        renderWho();
+        bind();
+        syncTabs();
+        if (!api()) {
+            showListStatus("没有加载到 vtx-api.js，请刷新页面后重试");
+            return;
+        }
+        const params = new URLSearchParams(location.search);
+        const id = params.get("id");
+        const query = params.get("q") || "";
+        if (query) {
+            state.q = query;
+            $("search-input").value = query;
+        }
+        if (id) {
+            openDetail(id);
+            return;
+        }
+        loadHome();
+        loadSidebar();
+        if (params.get("upload") === "1") {
+            openUpload();
+        }
+    }
+
+    init();
+})();
+</script>
+</body>
+</html>

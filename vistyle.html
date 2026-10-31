@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f5f8fe">
+    <title>ViStyle Beta · Vitual XRing 样式包市场</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --blue: #2f63d8;
+            --ink: #1b2a44;
+            --muted: #6b7d99;
+            --line: #dbe4f2;
+            --bg: #f5f8fe;
+            --good: #187a4d;
+            --warn: #a2660a;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 8% 0, #e4eeff 0, transparent 32%),
+                radial-gradient(circle at 94% 10%, #e7f6f1 0, transparent 26%),
+                var(--bg);
+            line-height: 1.6;
+        }
+
+        a {
+            color: var(--blue);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        button,
+        input,
+        textarea {
+            font: inherit;
+        }
+
+        code,
+        pre {
+            font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            border-bottom: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(10px);
+        }
+
+        .topbar-inner {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px 14px;
+            width: min(100%, 1120px);
+            margin: 0 auto;
+            padding: 11px 20px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: var(--ink);
+            font-weight: 800;
+        }
+
+        .brand:hover {
+            text-decoration: none;
+        }
+
+        .brand-mark {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #3867e8, #7aa2ff);
+            box-shadow: 0 6px 16px rgba(47, 99, 216, 0.22);
+            font-size: 18px;
+        }
+
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .brand-text small {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .beta {
+            padding: 3px 9px;
+            border: 1px solid #f0d59a;
+            border-radius: 999px;
+            background: #fff3d6;
+            color: #9a6200;
+            font-size: 11.5px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+
+        .version {
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #3158d1;
+            font-size: 11.5px;
+            font-weight: 800;
+        }
+
+        .topbar-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 14px;
+            margin-left: auto;
+            font-size: 13.5px;
+        }
+
+        .topbar-link {
+            color: #46566f;
+            font-weight: 650;
+        }
+
+        .topbar-link:hover {
+            color: var(--blue);
+        }
+
+        .auth {
+            color: var(--muted);
+            font-size: 12.5px;
+            font-weight: 650;
+        }
+
+        .auth a {
+            font-weight: 800;
+        }
+
+        .wrap {
+            width: min(100%, 1120px);
+            margin: 0 auto;
+            padding: 26px 20px 54px;
+        }
+
+        .hero {
+            padding: 26px 26px 24px;
+            border: 1px solid #dfe8f6;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #f4f8ff 58%, #eefaf5 100%);
+            box-shadow: 0 14px 40px rgba(35, 67, 130, 0.07);
+        }
+
+        .eyebrow {
+            margin: 0 0 6px;
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            margin: 0 0 8px;
+            font-size: clamp(23px, 3.4vw, 32px);
+            line-height: 1.28;
+            letter-spacing: -0.01em;
+        }
+
+        .hero-copy {
+            max-width: 820px;
+            margin: 0;
+            color: #5d708f;
+            font-size: 14px;
+            line-height: 1.75;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .search {
+            display: flex;
+            flex: 1 1 320px;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .search input {
+            flex: 1;
+            min-width: 0;
+            height: 42px;
+            padding: 0 13px;
+            border: 1px solid #d3deee;
+            border-radius: 10px;
+            background: #fff;
+            color: var(--ink);
+        }
+
+        .search input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(47, 99, 216, 0.12);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 40px;
+            padding: 8px 15px;
+            border: 1px solid #cfdcf0;
+            border-radius: 10px;
+            background: #fff;
+            color: #3158d1;
+            font-size: 13.5px;
+            font-weight: 750;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, transform 0.15s;
+        }
+
+        .btn:hover {
+            border-color: #b9cdf3;
+            background: #f2f7ff;
+            text-decoration: none;
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn.primary {
+            border-color: #2f63d8;
+            background: linear-gradient(135deg, #2f63d8, #4c82ef);
+            box-shadow: 0 6px 16px rgba(47, 99, 216, 0.22);
+            color: #fff;
+        }
+
+        .btn.primary:hover {
+            background: linear-gradient(135deg, #2858c5, #3f74e0);
+        }
+
+        .btn.ghost {
+            border-color: #dbe4f2;
+            background: transparent;
+            box-shadow: none;
+            color: #5d708f;
+        }
+
+        .btn.ghost:hover {
+            border-color: #c6d5ea;
+            background: #f5f8fe;
+        }
+
+        .section-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 26px 2px 12px;
+        }
+
+        .section-head h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            min-height: 150px;
+            padding: 16px;
+            border: 1px solid #e0e8f4;
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 8px 24px rgba(35, 67, 130, 0.05);
+            color: var(--ink);
+            transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: #b9cdf3;
+            box-shadow: 0 14px 32px rgba(35, 67, 130, 0.1);
+            text-decoration: none;
+        }
+
+        .card-top {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border: 1px solid #dbe7ff;
+            border-radius: 999px;
+            background: #eef4ff;
+            color: #3158d1;
+            font-size: 11.5px;
+            font-weight: 750;
+        }
+
+        .chip.price {
+            border-color: #f1dfb4;
+            background: #fff6df;
+            color: #9a6200;
+        }
+
+        .chip.price.free {
+            border-color: #c8ead8;
+            background: #e9f8f0;
+            color: var(--good);
+        }
+
+        .card h3 {
+            margin: 2px 0 0;
+            font-size: 16px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .card-desc {
+            display: -webkit-box;
+            overflow: hidden;
+            margin: 0;
+            color: #5d708f;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+
+        .card-meta {
+            margin: auto 0 0;
+            color: #8494aa;
+            font-size: 12px;
+        }
+
+        .state {
+            padding: 34px 16px;
+            border: 1px dashed #cfdcef;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.65);
+            color: var(--muted);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .state p {
+            margin: 4px 0;
+        }
+
+        .state.error {
+            border-color: #f0c9cc;
+            background: #fff7f7;
+            color: #a5363f;
+        }
+
+        .state a {
+            font-weight: 750;
+        }
+
+        .panel {
+            margin-top: 22px;
+            padding: 22px;
+            border: 1px solid #dfe8f6;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 12px 32px rgba(35, 67, 130, 0.06);
+        }
+
+        .panel h2 {
+            margin: 0 0 4px;
+            font-size: 19px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            color: #40536f;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .field.wide {
+            grid-column: 1 / -1;
+        }
+
+        .field input,
+        .field textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d3deee;
+            border-radius: 10px;
+            background: #fbfdff;
+            color: var(--ink);
+            font-weight: 500;
+        }
+
+        .field input[type="file"] {
+            padding: 8px;
+            background: #f7faff;
+        }
+
+        .field input:focus,
+        .field textarea:focus {
+            outline: none;
+            border-color: var(--blue);
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(47, 99, 216, 0.12);
+        }
+
+        .field textarea {
+            min-height: 84px;
+            resize: vertical;
+        }
+
+        .hint {
+            margin: 10px 0 0;
+            color: #7b8aa6;
+            font-size: 12.5px;
+            line-height: 1.65;
+        }
+
+        .form-foot {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .form-foot .hint {
+            flex: 1 1 260px;
+            margin: 0;
+        }
+
+        .rules {
+            margin-top: 18px;
+            padding-top: 12px;
+            border-top: 1px solid #edf1f8;
+            color: #5d708f;
+            font-size: 13px;
+        }
+
+        .rules summary {
+            color: #40536f;
+            font-weight: 750;
+            cursor: pointer;
+        }
+
+        .rules ul {
+            margin: 8px 0 0;
+            padding-left: 20px;
+        }
+
+        .detail-top {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin: 2px 0 12px;
+        }
+
+        .back {
+            color: #5d708f;
+            font-size: 13.5px;
+            font-weight: 700;
+        }
+
+        .detail-top .row {
+            margin-left: auto;
+        }
+
+        .badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .detail-panel {
+            padding: 24px;
+            border: 1px solid #dfe8f6;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 14px 40px rgba(35, 67, 130, 0.06);
+        }
+
+        .detail-panel h1 {
+            margin: 4px 0 10px;
+            font-size: clamp(22px, 3.2vw, 30px);
+            line-height: 1.3;
+            overflow-wrap: anywhere;
+        }
+
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 16px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .meta-row span {
+            white-space: nowrap;
+        }
+
+        .desc {
+            margin: 14px 0 0;
+            color: #455a78;
+            font-size: 14px;
+            line-height: 1.75;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+        .price-box {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 10px;
+            margin-top: 16px;
+            padding: 12px 14px;
+            border: 1px solid #f1e3bd;
+            border-radius: 12px;
+            background: #fffcf3;
+        }
+
+        .price-box .price {
+            color: var(--warn);
+            font-size: 22px;
+            font-weight: 850;
+        }
+
+        .detail-columns {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+            gap: 18px;
+            margin-top: 20px;
+        }
+
+        .detail-columns h2 {
+            margin: 0 0 10px;
+            font-size: 16px;
+        }
+
+        .buy-panel {
+            padding: 14px;
+            border: 1px solid #dbe4f2;
+            border-radius: 12px;
+            background: #f8fbff;
+        }
+
+        .buy-panel .field {
+            margin-bottom: 10px;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .snippet {
+            margin-top: 16px;
+            padding: 14px;
+            border: 1px solid #e3eaf5;
+            border-radius: 12px;
+            background: #fbfdff;
+        }
+
+        .snippet h3 {
+            margin: 0 0 6px;
+            font-size: 14px;
+        }
+
+        .snippet ol {
+            margin: 0 0 8px;
+            padding-left: 20px;
+            color: #5d708f;
+            font-size: 13px;
+        }
+
+        .snippet-code {
+            overflow-x: auto;
+            margin: 0;
+            padding: 11px 12px;
+            border: 1px solid #e1e9f6;
+            border-radius: 9px;
+            background: #f2f6fd;
+            color: #25406a;
+            font-size: 12.5px;
+        }
+
+        .side {
+            padding: 16px;
+            border: 1px solid #e3eaf5;
+            border-radius: 14px;
+            background: #fbfdff;
+            color: #5d708f;
+            font-size: 13px;
+        }
+
+        .side h2 {
+            color: var(--ink);
+        }
+
+        .side p {
+            margin: 0 0 9px;
+        }
+
+        .admin-list {
+            margin: 6px 0 10px;
+            padding-left: 18px;
+        }
+
+        .admin-list code {
+            padding: 1px 5px;
+            border: 1px solid #dbe7ff;
+            border-radius: 5px;
+            background: #eef4ff;
+            color: #3158d1;
+            font-size: 11.5px;
+            overflow-wrap: anywhere;
+        }
+
+        .applied {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px dashed #dbe4f2;
+        }
+
+        .applied p {
+            margin: 0 0 8px;
+            font-size: 12px;
+        }
+
+        .footer {
+            width: min(100%, 1120px);
+            margin: 0 auto;
+            padding: 0 20px 36px;
+            color: #8494aa;
+            font-size: 12.5px;
+            line-height: 1.8;
+        }
+
+        .footer p {
+            margin: 5px 0;
+        }
+
+        .footer a {
+            color: #5d708f;
+            font-weight: 650;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 28px;
+            z-index: 90;
+            max-width: min(92vw, 520px);
+            padding: 10px 16px;
+            border-radius: 11px;
+            background: rgba(25, 37, 56, 0.95);
+            box-shadow: 0 12px 30px rgba(15, 28, 48, 0.22);
+            color: #fff;
+            font-size: 13.5px;
+            line-height: 1.5;
+            opacity: 0;
+            transform: translate(-50%, 10px);
+            pointer-events: none;
+            transition: opacity 0.18s, transform 0.18s;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        .toast.error {
+            background: rgba(155, 43, 52, 0.96);
+        }
+
+        .toast.success {
+            background: rgba(22, 105, 69, 0.96);
+        }
+
+        @media (max-width: 720px) {
+            .topbar-actions {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .wrap {
+                padding: 18px 14px 44px;
+            }
+
+            .hero {
+                padding: 20px 17px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .detail-columns {
+                grid-template-columns: 1fr;
+            }
+
+            .detail-panel {
+                padding: 18px 15px;
+            }
+
+            .footer {
+                padding: 0 14px 30px;
+            }
+
+            .card {
+                min-height: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="vistyle.html">
+                <span class="brand-mark" aria-hidden="true">🎨</span>
+                <span class="brand-text">ViStyle<small>CSS 样式包市场</small></span>
+            </a>
+            <span class="beta">Beta</span>
+            <span class="version">v3.1.0</span>
+            <nav class="topbar-actions" aria-label="页面导航">
+                <a class="topbar-link" href="vistyle.html">样式包</a>
+                <a class="topbar-link" id="style-upload-btn" href="vistyle.html#upload">上传样式包</a>
+                <a class="topbar-link" href="vclang.html">VClang</a>
+                <a class="topbar-link" href="manager.html">← 返回账户</a>
+                <span id="style-auth" class="auth"></span>
+            </nav>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <section id="style-home-view">
+            <div class="hero">
+                <p class="eyebrow">ViStyle · Beta</p>
+                <h1>给 Vitual XRing 的公开页面换一套样式</h1>
+                <p class="hero-copy">
+                    ViStyle 是 CSS 样式包市场：作者上传、定价，其他人在购买后下载并应用到本站公开页面。
+                    Beta 阶段不提供任何 CSS 预览，本页也不会注入样式包；管理员页面永远不会加载样式包。
+                </p>
+                <div class="hero-actions">
+                    <form id="style-search-form" class="search" role="search">
+                        <input id="style-search" type="search" placeholder="搜索标题、说明或作者…" maxlength="60" autocomplete="off" aria-label="搜索样式包">
+                        <button id="style-search-btn" class="btn primary" type="submit">搜索</button>
+                    </form>
+                    <a id="style-upload-cta" class="btn" href="vistyle.html#upload">上传样式包</a>
+                </div>
+            </div>
+
+            <div class="section-head">
+                <h2>全部样式包</h2>
+                <p id="style-count" class="muted">正在统计…</p>
+            </div>
+            <div id="style-loading" class="state">正在加载样式包…</div>
+            <div id="style-list" class="grid" aria-live="polite"></div>
+            <div id="style-empty" class="state" hidden>
+                <p id="style-empty-text">还没有上架的样式包。</p>
+                <p id="style-empty-hint" class="muted">成为第一个上传样式包的人吧。</p>
+            </div>
+
+            <section id="style-upload-panel" class="panel" hidden aria-labelledby="style-upload-heading">
+                <h2 id="style-upload-heading">上传样式包</h2>
+                <p class="muted">只接收 .css 文件（不超过 512 KB）。创建草稿、上传 CSS、发布这三步会自动完成，成功后打开详情页。</p>
+                <form id="style-create-form" novalidate>
+                    <div class="form-grid">
+                        <label class="field">
+                            <span>标题 *</span>
+                            <input id="style-title" maxlength="80" placeholder="例如：深海蓝" autocomplete="off" required>
+                        </label>
+                        <label class="field">
+                            <span>版本</span>
+                            <input id="style-version" maxlength="20" value="1.0.0" placeholder="1.0.0" autocomplete="off">
+                        </label>
+                        <label class="field">
+                            <span>价格（VTX）</span>
+                            <input id="style-price" type="number" min="0" max="20000" step="0.01" value="0" inputmode="decimal">
+                        </label>
+                        <label class="field wide">
+                            <span>说明</span>
+                            <textarea id="style-description" maxlength="500" rows="3" placeholder="这套样式适合哪些页面、有哪些注意事项…"></textarea>
+                        </label>
+                        <label class="field wide">
+                            <span>CSS 文件 *</span>
+                            <input id="css-file" type="file" accept=".css,text/css">
+                        </label>
+                    </div>
+                    <p id="style-file-name" class="hint">还没有选择文件。</p>
+                    <div class="form-foot">
+                        <button id="style-submit" class="btn primary" type="submit">上传并发布</button>
+                        <button id="style-retry" class="btn" type="button" hidden>重试发布</button>
+                        <p id="style-create-status" class="hint" role="status"></p>
+                    </div>
+                </form>
+                <details class="rules">
+                    <summary>上传规则与安全说明</summary>
+                    <ul>
+                        <li>CSS 不能包含 <code>@import</code>、<code>expression(</code>、<code>javascript:</code>、<code>vbscript:</code>、<code>behavior:</code>、<code>-moz-binding</code>、<code>&lt;/style</code> 或 <code>&lt;script</code>，否则服务端会拒绝。</li>
+                        <li>样式包只在公开页面生效，不会影响下面列出的管理员页面。</li>
+                        <li>本页没有预览、没有 iframe，也不加载任何上传的 CSS；请自行在本地检查样式。</li>
+                    </ul>
+                </details>
+            </section>
+        </section>
+
+        <section id="style-detail-view" hidden>
+            <div id="style-detail-loading" class="state">正在加载样式包…</div>
+            <div id="style-detail-error" class="state error" hidden>
+                <p id="style-detail-error-text">样式包不存在或尚未发布。</p>
+                <a href="vistyle.html">← 返回样式包列表</a>
+            </div>
+
+            <article id="style-detail" class="detail-panel" hidden>
+                <div class="detail-top">
+                    <a class="back" href="vistyle.html">← 返回样式包列表</a>
+                    <div class="badges" id="style-detail-badges"></div>
+                    <div class="row">
+                        <button id="style-copy-link" class="btn ghost" type="button">复制链接</button>
+                    </div>
+                </div>
+                <h1 id="style-detail-title">样式包</h1>
+                <div class="meta-row">
+                    <span id="style-detail-author"></span>
+                    <span id="style-detail-version"></span>
+                    <span id="style-detail-purchases"></span>
+                    <span id="style-detail-views"></span>
+                </div>
+                <p id="style-detail-description" class="desc"></p>
+                <div class="price-box">
+                    <span id="style-detail-price" class="price">—</span>
+                    <span id="style-detail-price-note" class="muted"></span>
+                </div>
+
+                <div class="detail-columns">
+                    <div>
+                        <h2>获取与安装</h2>
+                        <div id="style-buy-panel" class="buy-panel" hidden>
+                            <p id="style-buy-note" class="muted"></p>
+                            <label class="field">
+                                <span>账户密码</span>
+                                <input id="buy-password" type="password" autocomplete="current-password" maxlength="64" placeholder="购买时验证账户密码">
+                            </label>
+                            <div class="row">
+                                <button id="buy-confirm" class="btn primary" type="button">确认购买</button>
+                                <a class="btn ghost" href="login.html?next=vistyle.html">登录账户</a>
+                            </div>
+                            <p class="hint">密码只用于本次扣款验证，不会保存在这个页面。</p>
+                        </div>
+
+                        <div id="style-download-actions" hidden>
+                            <div class="row">
+                                <a id="download-btn" class="btn primary" href="#" rel="noopener">下载样式包（.css）</a>
+                                <button id="apply-btn" class="btn" type="button">应用到本站</button>
+                            </div>
+                            <p id="style-apply-status" class="hint" role="status"></p>
+                            <p class="hint">“应用到本站”只会在这台设备的 localStorage 记录 <code>{id, title}</code>，不会在本页注入 CSS；打开公开页面并刷新后才会生效。</p>
+                        </div>
+
+                        <div class="snippet">
+                            <h3>手动安装说明</h3>
+                            <ol>
+                                <li>购买后下载 .css 文件。</li>
+                                <li>把文件放到你的网站目录。</li>
+                                <li>在公开页面的 &lt;head&gt; 里引入：</li>
+                            </ol>
+                            <pre id="install-snippet" class="snippet-code">&lt;link rel="stylesheet" href="你的样式包.css"&gt;</pre>
+                        </div>
+                    </div>
+
+                    <aside class="side">
+                        <h2>安全说明</h2>
+                        <p>本页不加载、不预览、不注入任何样式包 CSS，也没有 iframe 预览。</p>
+                        <p>以下管理员页面永不加载样式包，应用后也不会改变它们：</p>
+                        <ul class="admin-list">
+                            <li><code>admin.html</code></li>
+                            <li><code>manager.html</code></li>
+                            <li><code>accounts-admin.html</code></li>
+                            <li><code>API_LOGIN.html</code></li>
+                            <li><code>API_VTXPAY.html</code></li>
+                            <li><code>vitxvideopublish.html</code></li>
+                        </ul>
+                        <p>“应用到本站”只写入公开页面读取的本机记录；如果样式影响了公开页面的可用性，可以在本页清除记录，再刷新公开页面。</p>
+                        <div class="applied">
+                            <p id="style-current-pack" class="muted">正在读取本机记录…</p>
+                            <button id="style-clear-btn" class="btn ghost" type="button">清除本机样式记录</button>
+                        </div>
+                        <p class="hint">样式包由作者提供，请自行判断安全性；站主保留删除不当样式包的权利。</p>
+                    </aside>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>
+            <a href="manager.html">← 返回账户</a> ·
+            <a href="vistyle.html">样式包市场</a> ·
+            <a href="vclang.html">VClang</a>
+        </p>
+        <p>Vitual XRing 3.1.0 · <span class="version">v3.1.0</span> · ViStyle Beta</p>
+        <p>管理员页面（admin.html、manager.html、accounts-admin.html、API_LOGIN.html、API_VTXPAY.html、vitxvideopublish.html）永不加载样式包。</p>
+    </footer>
+
+    <div id="style-toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="vtx-api.js?v=3.1.0"></script>
+    <script src="xring-social.js?v=3.1.0"></script>
+    <script>
+        (function () {
+            "use strict";
+
+            var MAX_PRICE_VTX = 20000;
+            var MAX_CSS_BYTES = 512 * 1024;
+            var BLOCKED_CSS = ["@import", "expression(", "javascript:", "vbscript:", "behavior:", "-moz-binding", "</style", "<script"];
+            var STYLE_KEY = "vtxStylePack";
+
+            var currentItem = null;
+            var currentQuery = "";
+            var pending = null;
+            var homeLoaded = false;
+            var toastTimer = 0;
+
+            function $(id) {
+                return document.getElementById(id);
+            }
+
+            function show(node, visible) {
+                if (node) {
+                    node.hidden = !visible;
+                }
+            }
+
+            function setText(id, value) {
+                var node = $(id);
+                if (node) {
+                    node.textContent = String(value == null ? "" : value);
+                }
+            }
+
+            function errorMessage(error, fallback) {
+                var message = error && error.message ? String(error.message) : "";
+                return message || fallback;
+            }
+
+            function toast(message, tone) {
+                var node = $("style-toast");
+                if (!node) {
+                    return;
+                }
+                node.textContent = String(message == null ? "" : message);
+                node.className = "toast show" + (tone === "error" ? " error" : tone === "success" ? " success" : "");
+                clearTimeout(toastTimer);
+                toastTimer = window.setTimeout(function () {
+                    node.className = "toast";
+                }, 2800);
+            }
+
+            function socialApi() {
+                if (!window.VTXApi || !window.VTXApi.social) {
+                    throw new Error("页面脚本没有加载完成，请刷新后重试");
+                }
+                return window.VTXApi.social;
+            }
+
+            function renderAuth() {
+                var holder = $("style-auth");
+                if (!holder) {
+                    return;
+                }
+                holder.replaceChildren();
+                if (window.VTXApi && window.VTXApi.hasSession()) {
+                    holder.textContent = "已登录：" + (window.VTXApi.currentLogin() || "账户");
+                } else {
+                    var link = document.createElement("a");
+                    link.href = "login.html?next=vistyle.html";
+                    link.textContent = "登录";
+                    holder.append(link);
+                }
+            }
+
+            function formatSize(bytes) {
+                var size = Number(bytes) || 0;
+                if (size < 1024) {
+                    return size + " B";
+                }
+                if (size < 1024 * 1024) {
+                    return (size / 1024).toFixed(1) + " KB";
+                }
+                return (size / 1024 / 1024).toFixed(1) + " MB";
+            }
+
+            function priceLabel(item) {
+                if (item && Number(item.priceCents) > 0) {
+                    return String(item.price || "0.00") + " VTX";
+                }
+                return "免费";
+            }
+
+            function readStoredStyle() {
+                try {
+                    var raw = localStorage.getItem(STYLE_KEY);
+                    if (!raw) {
+                        return null;
+                    }
+                    var value = JSON.parse(raw);
+                    if (!value || !value.id) {
+                        return null;
+                    }
+                    return { id: String(value.id), title: String(value.title || "") };
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            function refreshCurrentPack() {
+                var node = $("style-current-pack");
+                if (!node) {
+                    return;
+                }
+                var pack = readStoredStyle();
+                if (pack) {
+                    node.textContent = "本机记录：" + (pack.title || "未命名样式包") + "（" + pack.id + "）。公开页面刷新后会尝试加载。";
+                } else {
+                    node.textContent = "本机还没有应用任何样式包。";
+                }
+            }
+
+            function buildCard(item) {
+                var card = document.createElement("a");
+                card.className = "card";
+                card.href = "vistyle.html?id=" + encodeURIComponent(item.id);
+
+                var top = document.createElement("div");
+                top.className = "card-top";
+
+                var version = document.createElement("span");
+                version.className = "chip";
+                version.textContent = "v" + ((item.extra && item.extra.version) || "1.0.0");
+                top.append(version);
+
+                var price = document.createElement("span");
+                price.className = "chip price" + (Number(item.priceCents) > 0 ? "" : " free");
+                price.textContent = priceLabel(item);
+                top.append(price);
+
+                if (item.locked) {
+                    var locked = document.createElement("span");
+                    locked.className = "chip";
+                    locked.textContent = "需购买";
+                    top.append(locked);
+                }
+                if (item.purchased) {
+                    var bought = document.createElement("span");
+                    bought.className = "chip";
+                    bought.textContent = "已购买";
+                    top.append(bought);
+                }
+                if (item.mine) {
+                    var mine = document.createElement("span");
+                    mine.className = "chip";
+                    mine.textContent = "我的";
+                    top.append(mine);
+                }
+                if (!item.published) {
+                    var draft = document.createElement("span");
+                    draft.className = "chip";
+                    draft.textContent = "草稿";
+                    top.append(draft);
+                }
+
+                var title = document.createElement("h3");
+                title.textContent = item.title || "未命名样式包";
+
+                var desc = document.createElement("p");
+                desc.className = "card-desc";
+                desc.textContent = item.description || "作者没有填写说明。";
+
+                var meta = document.createElement("p");
+                meta.className = "card-meta";
+                meta.textContent = "作者：" + (item.ownerName || item.owner || "未知")
+                    + " · 购买 " + (Number(item.purchases) || 0) + " 次"
+                    + " · 浏览 " + (Number(item.views) || 0);
+
+                card.append(top, title, desc, meta);
+                return card;
+            }
+
+            function renderList(items) {
+                var list = $("style-list");
+                var empty = $("style-empty");
+                if (!list) {
+                    return;
+                }
+                list.replaceChildren();
+                if (!items.length) {
+                    setText("style-empty-text", currentQuery
+                        ? "没有找到与“" + currentQuery + "”相关的样式包。"
+                        : "还没有上架的样式包。");
+                    show($("style-empty-hint"), true);
+                    show(empty, true);
+                    return;
+                }
+                show(empty, false);
+                var fragment = document.createDocumentFragment();
+                items.forEach(function (item) {
+                    fragment.append(buildCard(item));
+                });
+                list.append(fragment);
+            }
+
+            async function loadHome() {
+                var loading = $("style-loading");
+                var list = $("style-list");
+                show(loading, true);
+                show($("style-empty"), false);
+                if (list) {
+                    list.replaceChildren();
+                }
+                try {
+                    var data = await socialApi().list("style", { q: currentQuery, limit: 60 });
+                    var items = data && Array.isArray(data.items) ? data.items : [];
+                    renderList(items);
+                    setText("style-count", currentQuery
+                        ? "“" + currentQuery + "”找到 " + items.length + " 个样式包"
+                        : "共 " + items.length + " 个样式包" + (data && data.hasMore ? "（仅显示最新 60 个）" : ""));
+                    homeLoaded = true;
+                } catch (error) {
+                    setText("style-count", "加载失败");
+                    setText("style-empty-text", "样式包加载失败，请稍后重试。");
+                    show($("style-empty-hint"), false);
+                    show($("style-empty"), true);
+                    toast(errorMessage(error, "样式包加载失败"), "error");
+                } finally {
+                    show(loading, false);
+                }
+            }
+
+            function openUploadForm() {
+                var panel = $("style-upload-panel");
+                show(panel, true);
+                if (panel && typeof panel.scrollIntoView === "function") {
+                    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+            }
+
+            function handleHash() {
+                if (location.hash !== "#upload") {
+                    return;
+                }
+                show($("style-home-view"), true);
+                show($("style-detail-view"), false);
+                openUploadForm();
+                if (!homeLoaded) {
+                    loadHome();
+                }
+            }
+
+            function describeFile(file) {
+                if (!file) {
+                    setText("style-file-name", "还没有选择文件。");
+                    return;
+                }
+                setText("style-file-name", "已选择：" + file.name + "（" + formatSize(file.size) + "）");
+            }
+
+            function readFileText(file) {
+                if (typeof file.text === "function") {
+                    return file.text();
+                }
+                return new Promise(function (resolve, reject) {
+                    var reader = new FileReader();
+                    reader.onload = function () {
+                        resolve(String(reader.result || ""));
+                    };
+                    reader.onerror = function () {
+                        reject(new Error("读取文件失败：" + file.name));
+                    };
+                    reader.readAsText(file, "utf-8");
+                });
+            }
+
+            async function validateCss(file) {
+                if (!file) {
+                    throw new Error("请选择 .css 文件");
+                }
+                if (!/\.css$/i.test(file.name)) {
+                    throw new Error("ViStyle 只接收 .css 文件");
+                }
+                if (!file.size) {
+                    throw new Error("CSS 不能为空");
+                }
+                if (file.size > MAX_CSS_BYTES) {
+                    throw new Error("CSS 不能超过 512 KB");
+                }
+                var css = await readFileText(file);
+                if (!css.trim()) {
+                    throw new Error("CSS 不能为空");
+                }
+                var lower = css.toLowerCase();
+                for (var index = 0; index < BLOCKED_CSS.length; index += 1) {
+                    var token = BLOCKED_CSS[index];
+                    if (lower.indexOf(token) !== -1) {
+                        throw new Error("CSS 里不允许出现 " + token);
+                    }
+                }
+                return css;
+            }
+
+            function readMeta() {
+                var title = String($("style-title").value || "").trim();
+                var description = String($("style-description").value || "").trim();
+                var version = String($("style-version").value || "").trim() || "1.0.0";
+                var rawPrice = String($("style-price").value || "").trim();
+                if (!title) {
+                    throw new Error("请填写标题");
+                }
+                if (title.length > 80) {
+                    throw new Error("标题最多 80 个字符");
+                }
+                if (description.length > 500) {
+                    throw new Error("说明最多 500 个字符");
+                }
+                if (version.length > 20) {
+                    throw new Error("版本号最多 20 个字符");
+                }
+                var price = rawPrice === "" ? 0 : Number(rawPrice);
+                if (!Number.isFinite(price) || price < 0 || price > MAX_PRICE_VTX) {
+                    throw new Error("价格需要在 0–20000 VTX 之间");
+                }
+                if (Math.abs(price * 100 - Math.round(price * 100)) > 0.000001) {
+                    throw new Error("价格最多保留两位小数");
+                }
+                return { title: title, description: description, price: price, version: version };
+            }
+
+            function setCreateStatus(message) {
+                setText("style-create-status", message);
+            }
+
+            async function runPublish() {
+                if (!pending) {
+                    toast("请先选择文件并填写信息", "error");
+                    return;
+                }
+                if (!window.VTXApi || !window.VTXApi.hasSession()) {
+                    toast("请先登录后再上传样式包", "error");
+                    renderAuth();
+                    return;
+                }
+                var button = $("style-submit");
+                var retry = $("style-retry");
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = "发布中…";
+                }
+                show(retry, false);
+                try {
+                    if (!pending.draftId) {
+                        setCreateStatus("正在创建草稿…");
+                        var created = await socialApi().create("style", pending.meta);
+                        if (!created || !created.item || !created.item.id) {
+                            throw new Error("服务端没有返回草稿编号");
+                        }
+                        pending.draftId = created.item.id;
+                    }
+                    if (!pending.uploaded) {
+                        setCreateStatus("正在上传 CSS…");
+                        await socialApi().upload("style", pending.draftId, pending.file);
+                        pending.uploaded = true;
+                    }
+                    setCreateStatus("正在发布…");
+                    await socialApi().publish("style", pending.draftId);
+                    setCreateStatus("发布成功，正在打开详情…");
+                    var id = pending.draftId;
+                    pending = null;
+                    location.href = "vistyle.html?id=" + encodeURIComponent(id);
+                } catch (error) {
+                    setCreateStatus("发布失败：" + errorMessage(error, "请稍后重试"));
+                    toast(errorMessage(error, "发布失败，请稍后重试"), "error");
+                    show(retry, true);
+                } finally {
+                    if (button) {
+                        button.disabled = false;
+                        button.textContent = "上传并发布";
+                    }
+                }
+            }
+
+            async function submitStyle(event) {
+                event.preventDefault();
+                if (!window.VTXApi || !window.VTXApi.hasSession()) {
+                    toast("请先登录后再上传样式包", "error");
+                    renderAuth();
+                    return;
+                }
+                var file = $("css-file").files && $("css-file").files[0];
+                var meta;
+                try {
+                    meta = readMeta();
+                } catch (error) {
+                    toast(errorMessage(error, "请检查表单"), "error");
+                    return;
+                }
+                try {
+                    await validateCss(file);
+                } catch (error) {
+                    toast(errorMessage(error, "CSS 校验失败"), "error");
+                    return;
+                }
+                pending = { file: file, meta: meta, draftId: "", uploaded: false };
+                await runPublish();
+            }
+
+            function renderBadges(item) {
+                var holder = $("style-detail-badges");
+                if (!holder) {
+                    return;
+                }
+                holder.replaceChildren();
+                var labels = [];
+                if (!item.published) {
+                    labels.push("草稿");
+                }
+                if (item.mine) {
+                    labels.push("我的样式包");
+                }
+                if (item.purchased) {
+                    labels.push("已购买");
+                }
+                if (item.locked) {
+                    labels.push("未购买");
+                }
+                if (item.ready === false) {
+                    labels.push("文件未就绪");
+                }
+                if (!labels.length) {
+                    labels.push("在售");
+                }
+                labels.forEach(function (label) {
+                    var chip = document.createElement("span");
+                    chip.className = "chip";
+                    chip.textContent = label;
+                    holder.append(chip);
+                });
+            }
+
+            function renderDetail(item) {
+                currentItem = item;
+                setText("style-detail-title", item.title || "未命名样式包");
+                var version = (item.extra && item.extra.version) || "1.0.0";
+                setText("style-detail-author", "作者：" + (item.ownerName || item.owner || "未知"));
+                setText("style-detail-version", "版本：" + version);
+                setText("style-detail-purchases", "购买：" + (Number(item.purchases) || 0) + " 次");
+                setText("style-detail-views", "浏览：" + (Number(item.views) || 0) + " 次");
+                setText("style-detail-description", item.description || "作者没有填写说明。");
+                setText("style-detail-price", priceLabel(item));
+                setText("style-detail-price-note", item.mine
+                    ? "这是你上传的样式包。"
+                    : item.purchased
+                        ? "已购买，可以直接下载。"
+                        : item.locked
+                            ? "购买后即可下载并应用。"
+                            : "这个样式包可以免费获取。");
+                renderBadges(item);
+
+                var permitted = Boolean(item.canDownload);
+                var fileReady = Boolean(item.file && item.file.name) && item.ready !== false;
+                show($("style-buy-panel"), !permitted);
+                show($("style-download-actions"), permitted);
+                var applyButton = $("apply-btn");
+
+                if (!permitted) {
+                    setText("style-buy-note", "价格 " + priceLabel(item) + "。购买需要输入账户密码，确认后从余额扣款。");
+                    var password = $("buy-password");
+                    if (password) {
+                        password.value = "";
+                    }
+                    var download = $("download-btn");
+                    if (download) {
+                        download.removeAttribute("href");
+                        download.removeAttribute("download");
+                    }
+                    if (applyButton) {
+                        applyButton.disabled = true;
+                    }
+                } else {
+                    var link = $("download-btn");
+                    if (fileReady) {
+                        var file = item.file.name;
+                        if (link) {
+                            link.href = socialApi().fileUrl(item.id, { download: true });
+                            link.setAttribute("download", file);
+                        }
+                        if (applyButton) {
+                            applyButton.disabled = false;
+                        }
+                        var stored = readStoredStyle();
+                        setText("style-apply-status", stored && stored.id === item.id
+                            ? "本机已记录这个样式包；打开公开页面刷新即可生效。"
+                            : "点击“应用到本站”记录本机样式；公开页面刷新后生效。");
+                    } else {
+                        if (link) {
+                            link.removeAttribute("href");
+                            link.removeAttribute("download");
+                        }
+                        if (applyButton) {
+                            applyButton.disabled = true;
+                        }
+                        setText("style-apply-status", "文件还没有上传完成，暂时不能下载或应用。");
+                    }
+                }
+
+                refreshCurrentPack();
+                show($("style-detail"), true);
+            }
+
+            async function loadDetail(id) {
+                show($("style-home-view"), false);
+                show($("style-detail-view"), true);
+                show($("style-detail-loading"), true);
+                show($("style-detail-error"), false);
+                show($("style-detail"), false);
+                try {
+                    var data = await socialApi().get("style", id);
+                    if (!data || !data.item) {
+                        throw new Error("没有找到这个样式包");
+                    }
+                    renderDetail(data.item);
+                    show($("style-detail-loading"), false);
+                } catch (error) {
+                    show($("style-detail-loading"), false);
+                    setText("style-detail-error-text", errorMessage(error, "样式包加载失败，请稍后重试。"));
+                    show($("style-detail-error"), true);
+                    toast(errorMessage(error, "样式包加载失败"), "error");
+                }
+            }
+
+            function copyStyleLink() {
+                if (!currentItem) {
+                    return;
+                }
+                var url = new URL("vistyle.html?id=" + encodeURIComponent(currentItem.id), location.href).href;
+                Promise.resolve(XRSocial.copyText(url)).then(function () {
+                    toast(currentItem.published ? "链接已复制" : "草稿链接已复制，但其他人打开会看不到", "success");
+                }).catch(function () {
+                    toast("复制失败，请手动复制地址栏", "error");
+                });
+            }
+
+            async function buyCurrent() {
+                if (!currentItem) {
+                    return;
+                }
+                if (!window.VTXApi || !window.VTXApi.hasSession()) {
+                    toast("请先登录后再购买", "error");
+                    renderAuth();
+                    return;
+                }
+                if (Number(currentItem.priceCents) <= 0) {
+                    toast("这个样式包不需要购买", "error");
+                    return;
+                }
+                var passwordInput = $("buy-password");
+                var password = String(passwordInput.value || "");
+                if (!password) {
+                    toast("请输入账户密码确认购买", "error");
+                    passwordInput.focus();
+                    return;
+                }
+                var button = $("buy-confirm");
+                var original = button.textContent;
+                button.disabled = true;
+                button.textContent = "购买中…";
+                try {
+                    await socialApi().purchase("style", currentItem.id, password);
+                    passwordInput.value = "";
+                    toast("购买成功，正在刷新…", "success");
+                    await loadDetail(currentItem.id);
+                } catch (error) {
+                    toast(errorMessage(error, "购买失败，请稍后重试"), "error");
+                    if (error && error.code === "already_purchased") {
+                        passwordInput.value = "";
+                        await loadDetail(currentItem.id);
+                    }
+                } finally {
+                    button.disabled = false;
+                    button.textContent = original;
+                }
+            }
+
+            function applyStyle() {
+                if (!currentItem || !currentItem.canDownload
+                    || currentItem.ready === false || !currentItem.file) {
+                    toast("需要先购买或上传完成这个样式包", "error");
+                    return;
+                }
+                try {
+                    localStorage.setItem(STYLE_KEY, JSON.stringify({
+                        id: currentItem.id,
+                        title: currentItem.title || ""
+                    }));
+                } catch (error) {
+                    toast("浏览器禁止本地存储，无法记录样式包", "error");
+                    return;
+                }
+                setText("style-apply-status", "已记录《" + (currentItem.title || "未命名样式包")
+                    + "》。打开公开页面（例如 vitxvideo.html）并刷新即可应用；本页不会加载样式包，管理员页面永不加载。");
+                toast("已应用到本站，公开页面刷新后生效", "success");
+                refreshCurrentPack();
+            }
+
+            function clearStoredStyle() {
+                try {
+                    localStorage.removeItem(STYLE_KEY);
+                } catch (error) {
+                    toast("浏览器禁止本地存储，无法清除", "error");
+                    return;
+                }
+                setText("style-apply-status", "已清除本机样式记录；已打开的公开页面刷新后会恢复默认样式。");
+                toast("已清除本机样式记录", "success");
+                refreshCurrentPack();
+            }
+
+            function bindEvents() {
+                $("style-search-form").addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    var value = String($("style-search").value || "").trim();
+                    if (value.length > 60) {
+                        toast("搜索词最多 60 个字符", "error");
+                        return;
+                    }
+                    currentQuery = value;
+                    loadHome();
+                });
+
+                $("css-file").addEventListener("change", function () {
+                    var file = this.files && this.files[0];
+                    describeFile(file);
+                });
+
+                $("style-create-form").addEventListener("submit", submitStyle);
+
+                $("style-retry").addEventListener("click", function () {
+                    runPublish();
+                });
+
+                $("buy-confirm").addEventListener("click", buyCurrent);
+
+                $("buy-password").addEventListener("keydown", function (event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        buyCurrent();
+                    }
+                });
+
+                $("apply-btn").addEventListener("click", applyStyle);
+                $("style-clear-btn").addEventListener("click", clearStoredStyle);
+                $("style-copy-link").addEventListener("click", copyStyleLink);
+                window.addEventListener("hashchange", handleHash);
+            }
+
+            function init() {
+                renderAuth();
+                refreshCurrentPack();
+                bindEvents();
+
+                var params = new URLSearchParams(location.search);
+                var id = params.get("id");
+                if (location.hash === "#upload") {
+                    handleHash();
+                    return;
+                }
+                if (id) {
+                    loadDetail(id);
+                } else {
+                    loadHome();
+                }
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>
