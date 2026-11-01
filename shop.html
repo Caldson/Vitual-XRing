@@ -346,6 +346,34 @@
             white-space: pre-wrap;
         }
 
+        .xos-specs {
+            display: grid;
+            gap: 4px;
+            margin: 0;
+            padding: 10px 12px;
+            border: 1px solid #e7ebf2;
+            border-radius: 10px;
+            background: #f8faff;
+            color: #536179;
+            font-size: 12.5px;
+            line-height: 1.6;
+        }
+
+        .xos-specs b { color: #172033; font-weight: 700; }
+
+        .xos-apps {
+            margin: 0;
+            color: #536179;
+            font-size: 12.5px;
+            line-height: 1.7;
+        }
+
+        .xos-apps summary {
+            cursor: pointer;
+            color: #3158d1;
+            font-weight: 650;
+        }
+
         .product-meta {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -583,7 +611,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v3.3.1</span>
+            <span class="version">v5.1.0</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -620,6 +648,7 @@
         <section id="receipt-card" class="receipt-card" aria-labelledby="receipt-title" hidden>
             <h2 id="receipt-title">购买凭证</h2>
             <p id="receipt-text" class="receipt-text"></p>
+            <a id="receipt-xos" class="buy-button" href="xos.html" hidden style="display: inline-block; margin-top: 14px; text-decoration: none; text-align: center; padding: 11px 18px;">打开 XOS 云电脑 →</a>
         </section>
 
         <footer>Vitual XRing · 商店商品由站主维护 · <a href="manager.html">返回账户</a></footer>
@@ -651,7 +680,7 @@
         </form>
     </dialog>
 
-    <script src="vtx-api.js?v=3.3.1"></script>
+    <script src="vtx-api.js?v=5.1.0"></script>
 
 
     <script>
@@ -950,6 +979,29 @@
                 desc.textContent = item.description || "暂无详情描述。";
                 card.appendChild(desc);
 
+                if (item.xosConfig) {
+                    const specs = document.createElement("div");
+                    specs.className = "xos-specs";
+                    const config = item.xosConfig;
+                    specs.innerHTML = `<div><b>分辨率</b> ${config.resolution || "1440x900"}</div>
+                        <div><b>显示器</b> ${config.display || "XOS VScreen V1 2026"}</div>
+                        <div><b>CPU</b> ${config.cpu || "—"} · <b>GPU</b> ${config.gpu || "—"}</div>
+                        <div><b>刷新率</b> ${config.refresh || "—"}</div>`;
+                    card.appendChild(specs);
+                }
+
+                if (Array.isArray(item.xosApps) && item.xosApps.length) {
+                    const apps = document.createElement("details");
+                    apps.className = "xos-apps";
+                    const summary = document.createElement("summary");
+                    summary.textContent = `支持 ${item.xosApps.length} 个应用`;
+                    apps.appendChild(summary);
+                    const list = document.createElement("div");
+                    list.textContent = item.xosApps.join(" · ");
+                    apps.appendChild(list);
+                    card.appendChild(apps);
+                }
+
                 const meta = document.createElement("dl");
                 meta.className = "product-meta";
                 const manufacturer = document.createElement("div");
@@ -963,7 +1015,7 @@
                 const stockLabel = document.createElement("dt");
                 stockLabel.textContent = "库存数量";
                 const stockValue = document.createElement("dd");
-                stockValue.textContent = `${stock} 件`;
+                stockValue.textContent = item.virtual ? "无限" : `${stock} 件`;
                 stockBox.appendChild(stockLabel);
                 stockBox.appendChild(stockValue);
                 meta.appendChild(manufacturer);
@@ -1013,9 +1065,9 @@
             selectedId = item.id;
             clearMessage();
             receiptCard.hidden = true;
-            document.getElementById("checkout-sub").textContent = `${item.name} · 单价 ${item.price} VTX · 库存 ${stockOf(item)} 件`;
+            document.getElementById("checkout-sub").textContent = `${item.name} · 单价 ${item.price} VTX · 库存 ${item.virtual ? "无限（每次 1 份）" : `${stockOf(item)} 件`}`;
             quantityInput.min = "1";
-            quantityInput.max = String(stockOf(item));
+            quantityInput.max = item.virtual ? "1" : String(stockOf(item));
             quantityInput.value = "1";
             passwordInput.value = "";
             renderTotal();
@@ -1167,6 +1219,10 @@
                 renderShop();
                 closeCheckout();
                 document.getElementById("receipt-text").textContent = result.receipt;
+                const xosLink = document.getElementById("receipt-xos");
+                if (xosLink) {
+                    xosLink.hidden = !item.virtual;
+                }
                 receiptCard.hidden = false;
                 receiptCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
                 showMessage(`购买成功：${item.name} ×${quantity}，共 ${result.amount} VTX。`, "success");
@@ -1193,7 +1249,7 @@
 
             if (payment.stock && payment.stock.id === item.id) {
                 item.stock = Math.max(0, Number(payment.stock.remaining) || 0);
-            } else {
+            } else if (!item.virtual) {
                 item.stock = Math.max(0, stockOf(item) - quantity);
             }
 
@@ -1212,6 +1268,11 @@
         async function init() {
             try {
                 await loadShop();
+                const wanted = new URLSearchParams(window.location.search).get("category");
+                if (wanted) {
+                    activeCategory = wanted.trim();
+                    renderShop();
+                }
                 if (accountName && window.VTXApi.hasSession()) {
                     await loadAccount();
                 }

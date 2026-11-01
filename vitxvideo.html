@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#f4f7fb">
     <title>Vitx® 视频 | Vitual XRing</title>
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
-    <script src="vtx-api.js?v=3.3.1"></script>
-<script src="xring-social.js?v=3.3.1"></script>
+    <script src="vtx-api.js?v=5.1.0"></script>
+<script src="xring-social.js?v=5.1.0"></script>
     <style>
         :root {
             color-scheme: light;
@@ -1046,6 +1046,21 @@
         .report-field input[type="file"] { font-size: 12.5px; color: var(--muted); }
         .report-field .report-count { justify-self: end; color: #97a2b4; font-size: 11px; }
 
+        .share-link {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fbfcfe;
+            color: var(--ink);
+            font: inherit;
+            font-size: 12.5px;
+            padding: 9px 11px;
+            outline: none;
+            user-select: all;
+        }
+
+        .share-link:focus { border-color: #b9c8f5; background: #fff; }
+
         .report-evidence {
             display: flex;
             align-items: center;
@@ -1304,7 +1319,7 @@
             </button>
             <a class="primary-btn" href="vitx-dynamic.html" style="text-decoration: none;background:#eef4ff;color:#2c5fd0;">动态</a>
             <a class="primary-btn" href="vitxvideopublish.html" style="text-decoration: none;">投稿</a>
-            <span class="version">v3.3.1</span>
+            <span class="version">v5.1.0</span>
             <a class="back" href="manager.html">← 返回账户</a>
         </div>
     </header>
@@ -1316,11 +1331,11 @@
                 <div>
                     <p class="eyebrow">Vitual XRing 新功能预告</p>
                     <h1>你想要的一切，影视和视频，都在这里</h1>
-                    <p class="hero-sub">Vitual XRing 3.3.1：账户页<b>「登录位置」</b>入口已移到提款与交易记录之间；聊天室「附近」、群公告关闭、视频与聊天记录分享继续保留。</p>
+                    <p class="hero-sub">Vitual XRing 5.1.0：账户页<b>「登录位置」</b>入口已移到提款与交易记录之间；聊天室「附近」、群公告关闭、视频与聊天记录分享继续保留。</p>
                     <div class="versions">
                         <span class="chip">3.3.0</span>
                         <span class="arrow">→</span>
-                        <span class="chip hot">3.3.1</span>
+                        <span class="chip hot">5.1.0</span>
                         <button class="hero-dismiss" type="button" id="hero-dismiss">知道了</button>
                     </div>
                 </div>
@@ -1423,7 +1438,7 @@
                         <button type="button" id="watch-like" data-act="like">👍 <span id="cnt-like">0</span></button>
                         <button type="button" id="watch-coin" data-act="coin">🪙 <span id="cnt-coin">0</span></button>
                         <button type="button" id="watch-fav" data-act="fav">★ <span id="cnt-fav">0</span></button>
-                        <button type="button" id="watch-share">🔗 复制链接</button>
+                        <button type="button" id="watch-share">↗ 转发</button>
                         <button type="button" id="watch-report">🚩 举报</button>
                         <span class="spacer"></span>
                         <a href="vitxvideo.html" id="watch-home">← 回首页</a>
@@ -1530,6 +1545,27 @@
                     <button type="button" class="primary" id="report-submit">提交举报</button>
                 </div>
                 <p class="report-note">请如实填写；恶意举报会被记录。证据照片只保留 30 天，仅管理员可查看。</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="report-modal" id="share-modal" hidden>
+        <div class="report-dialog" role="dialog" aria-modal="true" aria-labelledby="share-heading">
+            <div class="report-head">
+                <h3 id="share-heading">转发视频</h3>
+                <button class="report-close" type="button" id="share-close" aria-label="关闭">×</button>
+            </div>
+            <div class="report-body">
+                <p class="report-video" id="share-video"></p>
+                <label class="report-field">
+                    <span>视频链接</span>
+                    <input class="share-link" id="share-link-input" type="text" readonly>
+                </label>
+                <div class="report-actions">
+                    <button type="button" id="share-copy">复制链接</button>
+                    <button type="button" class="primary" id="share-native">系统分享</button>
+                </div>
+                <p class="report-note">粘贴到聊天室、Vitx 动态或评论，会自动生成视频卡片。</p>
             </div>
         </div>
     </div>
@@ -2183,6 +2219,53 @@
                 }
                 renderReportEvidence();
                 reportSubmitState();
+            }
+
+            function currentShareLink() {
+                return new URL(videoUrl(currentVideoId() || ""), window.location.href).href;
+            }
+
+            function openShareModal() {
+                const video = state.watch;
+                if (!video) {
+                    toast("视频还没有加载完成");
+                    return;
+                }
+                const link = currentShareLink();
+                el("share-video").textContent = `《${video.title}》 · UP 主 ${video.ownerName || video.owner || "—"}`;
+                el("share-link-input").value = link;
+                el("share-native").hidden = !(navigator.share);
+                el("share-modal").hidden = false;
+            }
+
+            function closeShareModal() {
+                el("share-modal").hidden = true;
+            }
+
+            function copyShareLink() {
+                const link = el("share-link-input").value || currentShareLink();
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(link).then(
+                        () => toast("播放地址已复制，粘贴到聊天或动态会自动生成视频卡片"),
+                        () => toast(link)
+                    );
+                    return;
+                }
+                toast(link);
+            }
+
+            function nativeShareVideo() {
+                const video = state.watch;
+                const link = currentShareLink();
+                if (!navigator.share) {
+                    copyShareLink();
+                    return;
+                }
+                navigator.share({
+                    title: video ? video.title : "Vitx 视频",
+                    text: video ? `《${video.title}》 · Vitual XRing Vitx 视频` : "Vitual XRing Vitx 视频",
+                    url: link
+                }).catch(() => {});
             }
 
             function openReportModal() {
@@ -2863,16 +2946,14 @@
                 document.querySelectorAll(".watch-bar [data-act]").forEach((button) => {
                     button.addEventListener("click", () => toggleMark(button.dataset.act));
                 });
-                el("watch-share").addEventListener("click", () => {
-                    const link = new URL(videoUrl(currentVideoId() || ""), window.location.href).href;
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(link).then(
-                            () => toast("播放地址已复制，粘贴到聊天或动态会自动生成视频卡片"),
-                            () => toast(link)
-                        );
-                        return;
+                el("watch-share").addEventListener("click", openShareModal);
+                el("share-close").addEventListener("click", closeShareModal);
+                el("share-copy").addEventListener("click", copyShareLink);
+                el("share-native").addEventListener("click", nativeShareVideo);
+                el("share-modal").addEventListener("click", (event) => {
+                    if (event.target === el("share-modal")) {
+                        closeShareModal();
                     }
-                    toast(link);
                 });
                 el("watch-follow").addEventListener("click", toggleFollow);
                 el("watch-report").addEventListener("click", openReportModal);
@@ -2975,6 +3056,9 @@
                         el("notify-panel").hidden = true;
                         if (!el("report-modal").hidden) {
                             closeReportModal();
+                        }
+                        if (!el("share-modal").hidden) {
+                            closeShareModal();
                         }
                     }
                 });
