@@ -53,6 +53,11 @@
  *   - 分享聊天记录：把选中的消息做成只读快照，生成 chat-record.html?id=rec_xxx
  *     链接，可在聊天 / 私聊 / Vitx 评论 / 动态里自动识别；作者可删除。
  *
+ * 3.3.0：
+ *   - 登录位置从 manager.html 拆到 loginplaces.html（API 不变）；
+ *   - 群公告可以关闭，关闭状态按当前公告文本保存；
+ *   - 聊天室新增「附近」：用户主动定位后，可发现 10km 内最近 30 分钟共享位置的账户。
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -80,7 +85,7 @@ import { createUno, UNO_VERSION } from "./uno.js";
 import { MeetingHub } from "./meeting.js";
 import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 
-const VERSION = "3.2.0";
+const VERSION = "3.3.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -104,7 +109,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "3.2.0";
+const CHAT_VERSION = "3.3.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -153,6 +158,13 @@ const CHAT_RECORD_PREFIX = "chat:record:";
 const CHAT_RECORD_ID_PATTERN = /^rec_[A-Za-z0-9_-]{4,32}$/;
 const CHAT_RECORD_MAX_MESSAGES = 50;
 const CHAT_RECORD_TITLE_MAX = 40;
+/* 3.3.0：周边的人（只保存 30 分钟、约 100 米精度的位置） */
+const CHAT_LOCATION_PREFIX = "chat:location:";
+const CHAT_LOCATION_TTL_SECONDS = 30 * 60;
+const CHAT_NEARBY_RADIUS_KM = 10;
+const CHAT_NEARBY_MAX_ACCOUNTS = 500;
+const CHAT_NEARBY_MAX_RESULTS = 100;
+const nearbyAttempts = new Map();
 const LOGIN_WINDOW_MS = 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
 const WRITE_WINDOW_MS = 60 * 1000;
@@ -3203,6 +3215,20 @@ function chatRecordKey(id) {
     return `${CHAT_RECORD_PREFIX}${id}`;
 }
 
+function chatLocationKey(login) {
+    return `${CHAT_LOCATION_PREFIX}${login}`;
+}
+
+function distanceKm(lat1, lng1, lat2, lng2) {
+    const toRadians = (value) => (Number(value) * Math.PI) / 180;
+    const earth = 6371;
+    const dLat = toRadians(lat2 - lat1);
+    const dLng = toRadians(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2
+        + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) ** 2;
+    return earth * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function chatMediaKey(id) {
     return `chat:media:${id}`;
 }
@@ -3585,6 +3611,14 @@ function conversationView(env, conv, entry, messages, login, accounts) {
     const name = conv.type === "direct"
         ? chatDisplayName(accounts, peerLogin || login)
         : String(conv.name || "群聊");
+    const announcementText = conv.announcement && conv.announcement.text
+        ? String(conv.announcement.text)
+        : "";
+    const announcementHidden = Boolean(
+        announcementText
+        && entry
+        && String(entry.announcementHiddenText || "") === announcementText
+    );
 
     return {
         id: conv.id,
@@ -3599,6 +3633,7 @@ function conversationView(env, conv, entry, messages, login, accounts) {
         owner: conv.owner || "",
         admins: conv.admins || [],
         announcement: conv.announcement || null,
+        announcementHidden,
         createdAt: conv.createdAt || "",
         dissolved: Boolean(conv.dissolved),
         dissolvedAt: conv.dissolvedAt || "",
@@ -4452,6 +4487,9 @@ async function handleChatSettings(request, env, cors, id) {
         if (body.hidden !== undefined) {
             entry.hidden = Boolean(body.hidden);
         }
+        if (body.announcementHiddenText !== undefined) {
+            entry.announcementHiddenText = String(body.announcementHiddenText || "").slice(0, 1000);
+        }
         await saveChatUser(env, login, record);
         return { entry };
     });
@@ -4465,7 +4503,92 @@ async function handleChatSettings(request, env, cors, id) {
         conversation: id,
         pinned: Boolean(result.entry.pinned),
         muted: Boolean(result.entry.muted),
-        hidden: Boolean(result.entry.hidden)
+        hidden: Boolean(result.entry.hidden),
+        announcementHiddenText: String(result.entry.announcementHiddenText || "")
+    }, 200, cors);
+}
+
+async function handleChatNearby(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+    if (throttled(nearbyAttempts, clientIp(request), 60 * 1000, 20)) {
+        return jsonResponse({ error: "too_many_requests", message: "定位太频繁了，请稍后再试" }, 429, cors);
+    }
+    const login = session.payload.sub;
+    const body = plainObject(await readJsonBody(request));
+    const latitude = Number(body.latitude ?? body.lat);
+    const longitude = Number(body.longitude ?? body.lng);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)
+        || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+        return jsonResponse({ error: "bad_request", message: "经纬度不合法" }, 400, cors);
+    }
+
+    /* 只存约 100 米精度，并让 KV 在 30 分钟后自动删除；不保存原始 GPS。 */
+    const rounded = {
+        lat: Math.round(latitude * 1000) / 1000,
+        lng: Math.round(longitude * 1000) / 1000,
+        at: Date.now()
+    };
+    await env.ACCOUNTS_KV.put(chatLocationKey(login), JSON.stringify(rounded), {
+        expirationTtl: CHAT_LOCATION_TTL_SECONDS
+    });
+
+    const accounts = await loadAccounts(env);
+    const me = await readChatUser(env, login);
+    const listed = await env.ACCOUNTS_KV.list({
+        prefix: CHAT_LOCATION_PREFIX,
+        limit: CHAT_NEARBY_MAX_ACCOUNTS
+    });
+    const items = [];
+
+    for (const key of listed.keys || []) {
+        const otherLogin = String(key.name || "").slice(CHAT_LOCATION_PREFIX.length);
+        if (!otherLogin || otherLogin === login || !accounts[otherLogin]) {
+            continue;
+        }
+        const location = plainObject(await env.ACCOUNTS_KV.get(key.name, "json"));
+        const otherLat = Number(location.lat);
+        const otherLng = Number(location.lng);
+        const at = Number(location.at) || 0;
+        if (!Number.isFinite(otherLat) || !Number.isFinite(otherLng)
+            || Math.abs(otherLat) > 90 || Math.abs(otherLng) > 180) {
+            continue;
+        }
+        if (at && Date.now() - at > CHAT_LOCATION_TTL_SECONDS * 1000) {
+            continue;
+        }
+        const km = distanceKm(rounded.lat, rounded.lng, otherLat, otherLng);
+        if (km > CHAT_NEARBY_RADIUS_KM) {
+            continue;
+        }
+        const other = await readChatUser(env, otherLogin);
+        if (me.blocked.includes(otherLogin) || other.blocked.includes(login)) {
+            continue;
+        }
+        const account = accounts[otherLogin] || {};
+        items.push({
+            login: otherLogin,
+            uid: Number(account.uid) || 0,
+            username: String(account.username || otherLogin),
+            distanceKm: Math.max(0.1, Math.round(km * 10) / 10),
+            friend: me.friends.some((item) => item && item.login === otherLogin),
+            at
+        });
+    }
+
+    items.sort((left, right) => left.distanceKm - right.distanceKm || left.uid - right.uid);
+    return jsonResponse({
+        ok: true,
+        radiusKm: CHAT_NEARBY_RADIUS_KM,
+        count: Math.min(items.length, CHAT_NEARBY_MAX_RESULTS),
+        items: items.slice(0, CHAT_NEARBY_MAX_RESULTS),
+        updatedAt: rounded.at
     }, 200, cors);
 }
 
@@ -7892,7 +8015,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "3.2.0";
+const VIDEO_VERSION = "3.3.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -10239,6 +10362,10 @@ async function routeChat(request, env, cors) {
         if (method === "POST") {
             return await handleChatMediaUpload(request, env, cors);
         }
+    }
+
+    if (path === "/api/chat/nearby" && method === "POST") {
+        return await handleChatNearby(request, env, cors);
     }
 
     if (path === "/api/chat/messages") {

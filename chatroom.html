@@ -277,6 +277,63 @@
             letter-spacing: 0.04em;
         }
 
+        /* 3.3.0：周边的人 */
+        .nearby-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 14px 16px 8px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .nearby-note {
+            margin: 0 16px 10px;
+            color: #8b98ab;
+            font-size: 11.5px;
+            line-height: 1.6;
+        }
+
+        .nearby-status,
+        .nearby-error {
+            margin: 6px 16px;
+            padding: 13px 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fbfcfe;
+            color: var(--muted);
+            font-size: 12.5px;
+            line-height: 1.65;
+        }
+
+        .nearby-error {
+            border-color: #f6cdd3;
+            background: #fdeef0;
+            color: #a9202f;
+        }
+
+        .nearby-error .btn { margin-top: 8px; }
+
+        .nearby-list { padding: 0 8px; }
+
+        .nearby-item {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 9px 8px;
+            border-bottom: 1px solid #f1f4fa;
+        }
+
+        .nearby-item:last-child { border-bottom: 0; }
+        .nearby-item .avatar { width: 34px; height: 34px; border-radius: 10px; font-size: 13px; }
+        .nearby-main { flex: 1; min-width: 0; }
+        .nearby-name { font-size: 13.5px; font-weight: 650; color: #35445c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .nearby-meta { margin-top: 2px; color: #8b98ab; font-size: 11.5px; }
+        .nearby-friend { color: #2f9e6f; font-size: 12px; font-weight: 650; white-space: nowrap; }
+        .nearby-updated { padding: 8px 16px 16px; color: #a9b3c3; font-size: 11px; }
+
         .list-item {
             display: flex;
             gap: 10px;
@@ -471,6 +528,17 @@
         .announce-bar.pinned { border-color: #f0c97a; background: #fff5dc; }
         .announce-bar strong { flex: 0 0 auto; }
         .announce-bar .announce-text { flex: 1; white-space: pre-wrap; word-break: break-word; }
+        .announce-close {
+            flex: 0 0 auto;
+            border: 0;
+            background: transparent;
+            color: #a38349;
+            font-size: 18px;
+            line-height: 1;
+            padding: 0 2px;
+            cursor: pointer;
+        }
+        .announce-close:hover { color: #6d5324; }
 
         /* 1.0.0：红包 */
         .rp-card {
@@ -1275,7 +1343,7 @@
         .check-row .avatar { width: 30px; height: 30px; border-radius: 9px; font-size: 12px; }
         .check-row .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        /* 3.2.0：聊天记录分享 */
+        /* 3.3.0：聊天记录分享 */
         .record-tools {
             display: flex;
             align-items: center;
@@ -1525,7 +1593,7 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="vtx-uno.css?v=3.2.0">
+    <link rel="stylesheet" href="vtx-uno.css?v=3.3.0">
 </head>
 <body>
 <div class="app" id="app" hidden>
@@ -1533,7 +1601,7 @@
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
-            <span class="version-badge">v3.2.0 聊天室</span>
+            <span class="version-badge">v3.3.0 聊天室</span>
         </div>
         <div class="topbar-spacer"></div>
         <button type="button" class="uno-top-btn" id="uno-btn" title="打开 UNO（人机对战 / 普通房间 / 混合对战 / 随机匹配）">UNO</button>
@@ -1549,6 +1617,9 @@
             <button type="button" data-tab="contacts" title="通讯录">
                 <span class="glyph">👥</span><span>通讯录</span>
                 <span class="badge" id="rail-requests" hidden></span>
+            </button>
+            <button type="button" data-tab="nearby" title="周边的人（10km 内）">
+                <span class="glyph">📍</span><span>附近</span>
             </button>
             <button type="button" data-tab="admin" id="tab-admin" hidden title="站主管理">
                 <span class="glyph">🛠</span><span>管理</span>
@@ -1601,11 +1672,11 @@
 <div class="menu" id="menu"></div>
 <div class="toast" id="toast"></div>
 
-<script src="vtx-markdown.js?v=3.2.0"></script>
-<script src="vtx-qr.js?v=3.2.0"></script>
-<script src="vtx-api.js?v=3.2.0"></script>
-<script src="xring-social.js?v=3.2.0"></script>
-<script src="vtx-uno.js?v=3.2.0"></script>
+<script src="vtx-markdown.js?v=3.3.0"></script>
+<script src="vtx-qr.js?v=3.3.0"></script>
+<script src="vtx-api.js?v=3.3.0"></script>
+<script src="xring-social.js?v=3.3.0"></script>
+<script src="vtx-uno.js?v=3.3.0"></script>
 <script>
 (function () {
     "use strict";
@@ -1618,6 +1689,7 @@
         tab: "chats",
         conversations: [],
         contacts: { friends: [], blocked: [], incoming: [], outgoing: [] },
+        nearby: { loading: false, error: "", items: [], updatedAt: 0 },
         current: null,
         members: [],
         messages: [],
@@ -1644,8 +1716,8 @@
     };
 
     let api = window.VTXApi;
-    const REQUIRED_API_VERSION = "3.2.0";
-    const PAGE_VERSION = "3.2.0";
+    const REQUIRED_API_VERSION = "3.3.0";
+    const PAGE_VERSION = "3.3.0";
     const SDK_URL = "vtx-api.js";
 
     /* 1.3.0：iPad / iPhone 视口高度修正（issue #2）
@@ -2145,6 +2217,10 @@
             refreshContacts();
             renderSidebar();
             el("chat-pane").classList.add("hide-mobile");
+        } else if (tab === "nearby") {
+            renderSidebar();
+            el("chat-pane").classList.add("hide-mobile");
+            loadNearby();
         } else if (tab === "admin") {
             loadAdmin();
         } else {
@@ -2211,6 +2287,10 @@
         }
         if (state.tab === "contacts") {
             renderContacts();
+            return;
+        }
+        if (state.tab === "nearby") {
+            renderNearby();
             return;
         }
         if (state.tab === "admin") {
@@ -2310,6 +2390,128 @@
     function previewText(text, limit) {
         const value = String(text || "");
         return value.length > limit ? `${value.slice(0, limit)}…` : value;
+    }
+
+    /* 3.3.0：周边的人。只有用户主动点「附近」并允许定位时才会上报，
+       服务端只保存约 100 米精度并保留 30 分钟，返回 10km 内的账户。 */
+    function nearbyErrorText(error) {
+        const code = error && error.code ? Number(error.code) : 0;
+        if (code === 1) {
+            return "你拒绝了定位权限。允许浏览器获取位置后，才能查找 10km 内的人。";
+        }
+        if (code === 2) {
+            return "暂时无法获取位置，请到信号更好的地方再试。";
+        }
+        if (code === 3) {
+            return "获取位置超时了，请重试。";
+        }
+        return (error && error.message) || "周边的人读取失败，请稍后重试。";
+    }
+
+    function loadNearby() {
+        const box = state.nearby;
+        if (box.loading) {
+            return;
+        }
+        if (!navigator.geolocation) {
+            box.loading = false;
+            box.error = "当前浏览器不支持定位，无法查找周边的人。";
+            renderSidebar();
+            return;
+        }
+        box.loading = true;
+        box.error = "";
+        renderSidebar();
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            try {
+                const data = await api.chat.nearby(position.coords.latitude, position.coords.longitude);
+                box.items = Array.isArray(data.items) ? data.items : [];
+                box.updatedAt = Number(data.updatedAt) || Date.now();
+            } catch (error) {
+                box.error = error && error.message ? error.message : "周边的人读取失败，请稍后重试。";
+                box.items = [];
+            } finally {
+                box.loading = false;
+                renderSidebar();
+            }
+        }, (error) => {
+            box.loading = false;
+            box.error = nearbyErrorText(error);
+            box.items = [];
+            renderSidebar();
+        }, {
+            enableHighAccuracy: false,
+            timeout: 12000,
+            maximumAge: 5 * 60 * 1000
+        });
+    }
+
+    function renderNearby() {
+        const body = el("sidebar-body");
+        const box = state.nearby;
+        const updated = box.updatedAt
+            ? new Date(box.updatedAt).toLocaleTimeString("zh-CN", { hour12: false })
+            : "";
+        let content = `<div class="nearby-head">
+                <span>10km 内 · ${box.items.length} 人</span>
+                <button type="button" class="btn small" id="nearby-refresh">更新位置</button>
+            </div>
+            <p class="nearby-note">位置只用于这次查找：保存约 100 米精度，30 分钟后自动删除；不会显示精确坐标。</p>`;
+
+        if (box.loading) {
+            content += '<div class="nearby-status">正在获取你的位置…</div>';
+        } else if (box.error) {
+            content += `<div class="nearby-error">${escapeHtml(box.error)}<br><button type="button" class="btn small" id="nearby-retry">重试</button></div>`;
+        } else if (!box.items.length) {
+            content += '<div class="nearby-status">附近暂时没有人。可以让朋友也打开「附近」看看。</div>';
+        } else {
+            content += `<div class="nearby-list">${box.items.map((item) => {
+                const name = item.username || item.login || "附近的人";
+                const action = item.friend
+                    ? '<span class="nearby-friend">已是好友</span>'
+                    : `<button type="button" class="btn small primary" data-nearby-add="${escapeHtml(item.login)}">加好友</button>`;
+                return `<div class="nearby-item">
+                    <div class="avatar">${escapeHtml(initial(name))}</div>
+                    <div class="nearby-main">
+                        <div class="nearby-name">${escapeHtml(name)}</div>
+                        <div class="nearby-meta">UID ${Number(item.uid) || "—"} · 距离约 ${Number(item.distanceKm) || 0} km</div>
+                    </div>
+                    ${action}
+                </div>`;
+            }).join("")}</div>`;
+        }
+
+        if (updated) {
+            content += `<div class="nearby-updated">上次定位：${escapeHtml(updated)}</div>`;
+        }
+
+        body.innerHTML = content;
+
+        const refresh = el("nearby-refresh");
+        if (refresh) {
+            refresh.addEventListener("click", () => loadNearby());
+        }
+        const retry = el("nearby-retry");
+        if (retry) {
+            retry.addEventListener("click", () => loadNearby());
+        }
+        body.querySelectorAll("[data-nearby-add]").forEach((button) => {
+            button.addEventListener("click", async () => {
+                const target = button.dataset.nearbyAdd;
+                if (!target) {
+                    return;
+                }
+                button.disabled = true;
+                try {
+                    await api.chat.requestFriend(target);
+                    button.textContent = "已申请";
+                    toast("好友申请已发送");
+                } catch (error) {
+                    button.disabled = false;
+                    report(error);
+                }
+            });
+        });
     }
 
     function renderContacts() {
@@ -2589,10 +2791,12 @@
             : `${conv.public ? "公共频道" : (dissolved ? "群聊（已解散）" : "群聊")} · ${conv.memberCount} 人`;
 
         const pinned = conv.announcement && conv.announcement.pinned;
-        const announce = conv.announcement
+        const announceHidden = Boolean(conv.announcement && conv.announcementHidden);
+        const announce = conv.announcement && !announceHidden
             ? `<div class="announce-bar${pinned ? " pinned" : ""}">
                     <strong>${pinned ? "📌 群公告" : "群公告"}</strong>
                     <span class="announce-text">${escapeHtml(conv.announcement.text)}</span>
+                    <button type="button" class="announce-close" id="announce-close" title="关闭公告">×</button>
                </div>`
             : "";
 
@@ -2607,6 +2811,7 @@
                         <h2>${escapeHtml(conv.name)}${conv.muted ? '<span class="tag muted">免打扰</span>' : ""}${dissolved ? '<span class="tag">已解散</span>' : ""}</h2>
                         <p>${subtitle}</p>
                     </div>
+                    ${announceHidden ? '<button class="icon-btn" id="announce-show-btn" title="显示群公告">📌</button>' : ""}
                     <button class="icon-btn" id="chat-menu-btn" title="会话设置">⋯</button>
                     <button class="icon-btn" id="chat-info-btn" title="查看资料">☰</button>
                 </div>
@@ -2774,7 +2979,7 @@
         if (message.type === "redpacket" && message.packet) {
             return redPacketCard(message);
         }
-        /* 3.2.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态分享卡片 */
+        /* 3.3.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态分享卡片 */
         if (message.card && window.XRSocial) {
             return `${window.XRSocial.cardHtml(message.card, { compact: true })}${message.text ? messageCaptionHtml(message) : ""}`;
         }
@@ -3032,6 +3237,14 @@
         if (transferBtn) {
             transferBtn.addEventListener("click", openTransferDialog);
         }
+        const announceClose = el("announce-close");
+        if (announceClose) {
+            announceClose.addEventListener("click", () => setAnnouncementHidden(true));
+        }
+        const announceShow = el("announce-show-btn");
+        if (announceShow) {
+            announceShow.addEventListener("click", () => setAnnouncementHidden(false));
+        }
         const recordBtn = el("record-btn");
         if (recordBtn) {
             recordBtn.addEventListener("click", openChatRecordDialog);
@@ -3261,7 +3474,24 @@
         });
     }
 
-    /* 3.2.0：把选中的聊天消息做成只读快照，生成可分享的聊天记录页。 */
+    /* 3.3.0：群公告可以关闭；关闭的是当前这一条公告，公告更新后会重新显示。 */
+    async function setAnnouncementHidden(hidden) {
+        const conv = state.current;
+        if (!conv || !conv.announcement) {
+            return;
+        }
+        try {
+            await api.chat.settings(conv.id, {
+                announcementHiddenText: hidden ? String(conv.announcement.text || "") : ""
+            });
+            conv.announcementHidden = Boolean(hidden);
+            renderChatPane();
+        } catch (error) {
+            report(error);
+        }
+    }
+
+    /* 3.3.0：把选中的聊天消息做成只读快照，生成可分享的聊天记录页。 */
     function chatRecordSummary(message) {
         if (message.card) {
             return `[${message.card.site || "分享"}] ${message.card.title || ""}`.trim();
