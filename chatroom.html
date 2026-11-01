@@ -3360,6 +3360,10 @@
                     toast("请至少选择一条消息", "error");
                     return false;
                 }
+                if (ids.length > 50) {
+                    toast("一次最多选择 50 条消息", "error");
+                    return false;
+                }
                 const title = bodyRef && el("record-title") ? el("record-title").value.trim() : "";
                 try {
                     const result = await api.chat.createRecord(state.current.id, {
