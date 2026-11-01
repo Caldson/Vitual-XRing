@@ -392,6 +392,44 @@
             font-size: 18px;
         }
 
+        .account-shortcut {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            margin-top: 22px;
+            padding: 15px 20px;
+            border: 1px solid #e7ebf2;
+            border-radius: 16px;
+            background: linear-gradient(90deg, #f7faff, #fff);
+            box-shadow: 0 6px 18px rgba(30, 50, 90, 0.035);
+        }
+
+        .account-shortcut-text {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+        }
+
+        .account-shortcut-text strong {
+            font-size: 14.5px;
+        }
+
+        .account-shortcut-text span {
+            color: #8994a7;
+            font-size: 12.5px;
+            line-height: 1.55;
+        }
+
+        .account-shortcut-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            text-decoration: none;
+        }
+
         .receipt {
             margin-top: 20px;
             padding: 22px 24px;
@@ -416,6 +454,17 @@
         @media (max-width: 520px) {
             .withdraw-card {
                 padding: 22px 20px;
+            }
+
+            .account-shortcut {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 10px;
+                padding: 15px 16px;
+            }
+
+            .account-shortcut-link {
+                width: 100%;
             }
 
             .receipt-text {
@@ -689,11 +738,10 @@
             <a class="topbar-link" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="vitxvideo.html">视频</a>
-            <a class="topbar-link" href="loginplaces.html">登录位置</a>
             <a class="topbar-link" href="API_VTXPAY.html?type=code">收款码</a>
             <a id="admin-button" class="admin-link" href="admin.html" hidden>管理员仓库修改器</a>
             <a id="accounts-admin-button" class="admin-link" href="accounts-admin.html" hidden>账号修改</a>
-            <span class="version">v3.3.0</span>
+            <span class="version">v3.3.1</span>
             <button id="logout-button" class="logout-button" type="button">退出登录</button>
         </div>
     </header>
@@ -841,6 +889,14 @@
             <p id="withdraw-message" class="status" role="status" aria-live="polite" hidden></p>
         </section>
 
+        <section class="account-shortcut" aria-label="登录位置">
+            <div class="account-shortcut-text">
+                <strong>登录位置</strong>
+                <span>查看最近的登录 IP、大致位置与地图记录</span>
+            </div>
+            <a class="secondary-button account-shortcut-link" href="loginplaces.html">查看登录位置</a>
+        </section>
+
         <section class="records-card" aria-labelledby="records-title">
             <div class="records-header">
                 <h2 id="records-title">交易记录</h2>
@@ -855,7 +911,7 @@
 
     <footer>Vitual XRing · 账户余额以账户数据为准</footer>
 
-    <script src="vtx-api.js?v=3.3.0"></script>
+    <script src="vtx-api.js?v=3.3.1"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";

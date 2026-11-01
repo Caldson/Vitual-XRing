@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 3.3.0：分享生态的存储层。
+ * Vitual XRing 3.3.1：分享生态的存储层。
  *
  * 七种内容（MIDI / 音乐 / Scratch 作品 / 会议 / CSS 样式包 / C++ 作品 / 动态）
  * 共用一套前缀很浅的 KV 结构，方便互相引用、互相识别：
@@ -18,7 +18,7 @@
 
 import { analyzeMidi, isMidiName, pitchSimilarity } from "./social-midi.js";
 
-export const SOCIAL_VERSION = "3.3.0";
+export const SOCIAL_VERSION = "3.3.1";
 export const SOCIAL_KINDS = ["midi", "music", "scratch", "meeting", "style", "cpp", "dynamic"];
 export const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
 
