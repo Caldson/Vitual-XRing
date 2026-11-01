@@ -132,8 +132,8 @@ test("3.1.0：健康检查与 Vimidi 上传、解析、发布、链接识别", a
     const { env, tokens } = await prepare();
 
     const health = await api(env, "GET", "/api/health");
-    assert.equal(health.data.version, "3.1.0");
-    assert.equal(health.data.social.version, "3.1.0");
+    assert.equal(health.data.version, "3.2.0");
+    assert.equal(health.data.social.version, "3.2.0");
 
     const id = await createMidi(env, tokens.Alice, "小星星");
     const detail = await api(env, "GET", `/api/social/kinds/midi/${id}`, { token: tokens.Bob });
@@ -224,6 +224,13 @@ test("3.1.0：视频评论里的站内链接自动变成分享卡片", async () 
 
     const stored = await env.ACCOUNTS_KV.get("video:comments:v_test01", "json");
     assert.equal(stored[0].card.kind, "midi");
+
+    /* 3.2.0：视频链接本身也能被识别成卡片 */
+    const videoCard = await api(env, "GET", `/api/social/resolve?url=${encodeURIComponent("https://api.test/vitxvideo.html?videoid=v_test01")}`);
+    assert.equal(videoCard.status, 200, JSON.stringify(videoCard.data));
+    assert.equal(videoCard.data.card.kind, "video");
+    assert.equal(videoCard.data.card.title, "测试视频");
+    assert.equal(videoCard.data.card.url, "https://api.test/vitxvideo.html?videoid=v_test01");
 });
 
 test("3.1.0：ViStyle 定价、购买、下载权限与作者收入", async () => {
@@ -464,4 +471,90 @@ test("3.1.0：聊天消息里的站内链接自动带卡片并可被转发", asy
     });
     assert.equal(forwarded.status, 201, JSON.stringify(forwarded.data));
     assert.equal(forwarded.data.messages[0].message.card.kind, "midi");
+});
+
+test("3.2.0：分享聊天记录生成只读快照与聊天记录卡片", async () => {
+    const { env, tokens } = await prepare();
+    const midiId = await createMidi(env, tokens.Alice, "聊天记录里的 MIDI");
+
+    await env.ACCOUNTS_KV.put("chat:user:Alice", JSON.stringify({
+        login: "Alice",
+        conversations: [],
+        friends: [{ login: "Bob", name: "鲍勃", at: Date.now() }],
+        blocked: [],
+        settings: {}
+    }));
+    await env.ACCOUNTS_KV.put("chat:user:Bob", JSON.stringify({
+        login: "Bob",
+        conversations: [],
+        friends: [{ login: "Alice", name: "爱丽丝", at: Date.now() }],
+        blocked: [],
+        settings: {}
+    }));
+
+    const direct = await api(env, "POST", "/api/chat/conversations/direct", {
+        token: tokens.Alice,
+        body: { login: "Bob" }
+    });
+    assert.equal(direct.status, 200, JSON.stringify(direct.data));
+    const conversation = direct.data.conversation.id;
+
+    const first = await api(env, "POST", `/api/chat/conversations/${conversation}/messages`, {
+        token: tokens.Alice,
+        body: { text: "第一条消息" }
+    });
+    const second = await api(env, "POST", `/api/chat/conversations/${conversation}/messages`, {
+        token: tokens.Bob,
+        body: { text: `第二条带卡片 https://api.test/vimidi.html?id=${midiId}` }
+    });
+    const third = await api(env, "POST", `/api/chat/conversations/${conversation}/messages`, {
+        token: tokens.Alice,
+        body: { text: "第三条消息" }
+    });
+    assert.equal(first.status, 201);
+    assert.equal(second.status, 201);
+    assert.equal(third.status, 201);
+
+    const created = await api(env, "POST", `/api/chat/conversations/${conversation}/records`, {
+        token: tokens.Alice,
+        body: {
+            messageIds: [first.data.message.id, second.data.message.id, third.data.message.id],
+            title: "测试聊天记录"
+        }
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    assert.equal(created.data.record.title, "测试聊天记录");
+    assert.equal(created.data.record.count, 3);
+    assert.equal(created.data.record.mine, true);
+    assert.match(created.data.url, /\/chat-record\.html\?id=rec_/);
+    const recordId = created.data.record.id;
+
+    const publicView = await api(env, "GET", `/api/chat/records/${recordId}`);
+    assert.equal(publicView.status, 200, JSON.stringify(publicView.data));
+    assert.equal(publicView.data.record.count, 3);
+    assert.equal(publicView.data.record.mine, false);
+    assert.equal(publicView.data.record.owner, undefined);
+    assert.equal(publicView.data.record.messages.length, 3);
+    assert.equal(publicView.data.record.messages[1].card.kind, "midi");
+    assert.equal(publicView.data.record.messages[0].sender, undefined);
+
+    const card = await api(env, "GET", `/api/social/resolve?url=${encodeURIComponent(created.data.url)}`);
+    assert.equal(card.status, 200, JSON.stringify(card.data));
+    assert.equal(card.data.card.kind, "chatlog");
+    assert.equal(card.data.card.meta.recordId, recordId);
+    assert.match(card.data.card.description, /3 条消息/);
+
+    const sent = await api(env, "POST", `/api/chat/conversations/${conversation}/messages`, {
+        token: tokens.Alice,
+        body: { text: created.data.url }
+    });
+    assert.equal(sent.status, 201, JSON.stringify(sent.data));
+    assert.equal(sent.data.message.card.kind, "chatlog");
+
+    const denied = await api(env, "DELETE", `/api/chat/records/${recordId}`, { token: tokens.Bob });
+    assert.equal(denied.status, 403);
+    const removed = await api(env, "DELETE", `/api/chat/records/${recordId}`, { token: tokens.Alice });
+    assert.equal(removed.status, 200);
+    const gone = await api(env, "GET", `/api/chat/records/${recordId}`);
+    assert.equal(gone.status, 404);
 });

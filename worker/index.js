@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Vitual XRing 账户 API
  *
  * 8.0 起账户数据默认存放在 Workers KV（ACCOUNTS_KV）里，不再依赖公开的 account.json：
@@ -48,6 +48,11 @@
  *   - AUDIV 使用 MeetingHub Durable Object 转发 WebRTC 信令（不保存音视频）；
  *   - 样式包 / C++ 作品支持作者定价，购买记录写入账户 library（与余额同一次写锁）。
  *
+ * 3.2.0：
+ *   - 分享视频：Vitx 视频链接（vitxvideo.html?videoid=）自动生成播放卡片；
+ *   - 分享聊天记录：把选中的消息做成只读快照，生成 chat-record.html?id=rec_xxx
+ *     链接，可在聊天 / 私聊 / Vitx 评论 / 动态里自动识别；作者可删除。
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -75,7 +80,7 @@ import { createUno, UNO_VERSION } from "./uno.js";
 import { MeetingHub } from "./meeting.js";
 import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 
-const VERSION = "3.1.0";
+const VERSION = "3.2.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -99,7 +104,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "3.1.0";
+const CHAT_VERSION = "3.2.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -143,6 +148,11 @@ const CHAT_REDPACKET_TTL_MS = 24 * 60 * 60 * 1000;
 const CHAT_TRANSFER_TTL_MS = 24 * 60 * 60 * 1000;
 const CHAT_TRANSFER_NOTE_MAX = 100;
 const CHAT_INDEX_KEY = "chat:index";
+/* 3.2.0：聊天记录分享 */
+const CHAT_RECORD_PREFIX = "chat:record:";
+const CHAT_RECORD_ID_PATTERN = /^rec_[A-Za-z0-9_-]{4,32}$/;
+const CHAT_RECORD_MAX_MESSAGES = 50;
+const CHAT_RECORD_TITLE_MAX = 40;
 const LOGIN_WINDOW_MS = 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
 const WRITE_WINDOW_MS = 60 * 1000;
@@ -3189,6 +3199,10 @@ function chatMessagesKey(id) {
     return `chat:messages:${id}`;
 }
 
+function chatRecordKey(id) {
+    return `${CHAT_RECORD_PREFIX}${id}`;
+}
+
 function chatMediaKey(id) {
     return `chat:media:${id}`;
 }
@@ -5327,6 +5341,156 @@ async function handleChatForward(request, env, cors, messageId) {
         count: result.delivered.length,
         messages: result.delivered.map((item) => ({ conversation: item.conversation, message: messageView(item.message) }))
     }, 201, cors);
+}
+
+/* ───────── 3.2.0：聊天记录分享 ─────────
+   把选中的消息（最多 50 条）做成只读快照，生成 chat-record.html?id=rec_xxx。
+   链接是公开的（拿到链接即可查看），所以页面会提示谨慎分享；作者可以删除。 */
+
+function chatRecordSnapshot(message) {
+    return {
+        id: message.id,
+        senderName: message.senderName || message.sender || "",
+        type: message.type || "text",
+        text: message.type === "text" ? String(message.text || "") : "",
+        summary: messagePreview(message).slice(0, 200),
+        card: message.card || null,
+        media: message.media
+            ? {
+                name: String(message.media.name || ""),
+                type: String(message.media.type || ""),
+                size: Number(message.media.size) || 0
+            }
+            : null,
+        at: Number(message.at) || 0,
+        time: message.time || ""
+    };
+}
+
+function chatRecordView(record, login) {
+    const view = {
+        id: record.id,
+        title: record.title,
+        ownerName: record.ownerName,
+        conversationName: record.conversationName,
+        conversationType: record.conversationType,
+        count: record.count,
+        messages: Array.isArray(record.messages) ? record.messages : [],
+        at: record.at,
+        time: record.time,
+        mine: Boolean(login && record.owner === login)
+    };
+    return view;
+}
+
+async function handleChatRecordCreate(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const guard = chatGuard(env, cors);
+    if (guard) {
+        return guard;
+    }
+    const login = session.payload.sub;
+    const body = plainObject(await readJsonBody(request));
+    const messageIds = Array.isArray(body.messageIds)
+        ? Array.from(new Set(body.messageIds.map((item) => String(item || "").trim()).filter((item) => CHAT_MESSAGE_ID_PATTERN.test(item)))).slice(0, CHAT_RECORD_MAX_MESSAGES)
+        : [];
+    const title = String(body.title || "").trim().slice(0, CHAT_RECORD_TITLE_MAX);
+
+    if (!messageIds.length) {
+        return jsonResponse({ error: "bad_request", message: "请至少选择一条消息" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const loaded = await loadConversationFor(env, id, login, cors);
+        if (loaded.error) {
+            return { error: loaded.error };
+        }
+        const conv = loaded.conv;
+        const accounts = await loadAccounts(env);
+        const me = await loadChatUser(env, login);
+        const messages = visibleChatMessages(await readChatMessages(env, conv.id), chatEntry(me, conv.id));
+        const byId = new Map(messages.map((message) => [message.id, message]));
+        const selected = [];
+        for (const messageId of messageIds) {
+            const message = byId.get(messageId);
+            if (message && !message.recalled && !message.system) {
+                selected.push(message);
+            }
+        }
+        if (!selected.length) {
+            return { error: jsonResponse({ error: "not_found", message: "选中的消息已经不存在" }, 404, cors) };
+        }
+        selected.sort((left, right) => (Number(left.at) || 0) - (Number(right.at) || 0));
+        const peer = conv.type === "direct"
+            ? (conv.members || []).find((item) => item !== login) || ""
+            : "";
+        const conversationName = conv.type === "direct"
+            ? (peer ? chatDisplayName(accounts, peer) : "单聊")
+            : String(conv.name || "群聊");
+        const ownerName = chatDisplayName(accounts, login);
+        const at = Date.now();
+        const recordId = `rec_${randomCode(9).replace(/[^A-Za-z0-9_-]/g, "")}`;
+        const record = {
+            id: recordId,
+            title: title || `${conversationName}的聊天记录`,
+            owner: login,
+            ownerName,
+            conversation: conv.id,
+            conversationName,
+            conversationType: conv.type,
+            count: selected.length,
+            messages: selected.map(chatRecordSnapshot),
+            at,
+            time: shanghaiTimestamp(at)
+        };
+        await env.ACCOUNTS_KV.put(chatRecordKey(recordId), JSON.stringify(record));
+        return { record };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+    const url = `${socialBase(env, new URL(request.url).origin)}/chat-record.html?id=${encodeURIComponent(result.record.id)}`;
+    return jsonResponse({
+        ok: true,
+        record: chatRecordView(result.record, login),
+        url
+    }, 201, cors);
+}
+
+async function handleChatRecordGet(request, env, cors, id) {
+    if (!CHAT_RECORD_ID_PATTERN.test(id)) {
+        return jsonResponse({ error: "bad_request", message: "聊天记录 id 不合法" }, 400, cors);
+    }
+    const record = plainObject(await env.ACCOUNTS_KV.get(chatRecordKey(id), "json"));
+    if (!record.id) {
+        return jsonResponse({ error: "not_found", message: "聊天记录不存在或已被删除" }, 404, cors);
+    }
+    const login = await optionalLogin(request, env);
+    return jsonResponse({ ok: true, record: chatRecordView(record, login) }, 200, cors);
+}
+
+async function handleChatRecordDelete(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!CHAT_RECORD_ID_PATTERN.test(id)) {
+        return jsonResponse({ error: "bad_request", message: "聊天记录 id 不合法" }, 400, cors);
+    }
+    const login = session.payload.sub;
+    const record = plainObject(await env.ACCOUNTS_KV.get(chatRecordKey(id), "json"));
+    if (!record.id) {
+        return jsonResponse({ error: "not_found", message: "聊天记录不存在或已被删除" }, 404, cors);
+    }
+    if (record.owner !== login && !isPlatformAdmin(env, login)) {
+        return jsonResponse({ error: "forbidden", message: "只有分享者或站主可以删除这条聊天记录" }, 403, cors);
+    }
+    await env.ACCOUNTS_KV.delete(chatRecordKey(id));
+    return jsonResponse({ ok: true, removed: id }, 200, cors);
 }
 
 async function handleChatDeleteMessage(request, env, cors, messageId, adminOnly) {
@@ -7728,7 +7892,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "3.1.0";
+const VIDEO_VERSION = "3.2.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -10117,6 +10281,26 @@ async function routeChat(request, env, cors) {
             return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
         }
         return await handleChatUnoInvite(request, env, cors, id);
+    }
+
+    match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/records$/);
+    if (match && method === "POST") {
+        const id = chatConversationId(decodeURIComponent(match[1]));
+        if (!id) {
+            return jsonResponse({ error: "bad_request", message: "会话 id 不合法" }, 400, cors);
+        }
+        return await handleChatRecordCreate(request, env, cors, id);
+    }
+
+    match = path.match(/^\/api\/chat\/records\/([^/]+)$/);
+    if (match) {
+        const recordId = decodeURIComponent(match[1]);
+        if (method === "GET") {
+            return await handleChatRecordGet(request, env, cors, recordId);
+        }
+        if (method === "DELETE") {
+            return await handleChatRecordDelete(request, env, cors, recordId);
+        }
     }
 
     match = path.match(/^\/api\/chat\/conversations\/([^/]+)\/messages$/);

@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 3.1.0：分享生态的存储层。
+ * Vitual XRing 3.2.0：分享生态的存储层。
  *
  * 七种内容（MIDI / 音乐 / Scratch 作品 / 会议 / CSS 样式包 / C++ 作品 / 动态）
  * 共用一套前缀很浅的 KV 结构，方便互相引用、互相识别：
@@ -18,7 +18,7 @@
 
 import { analyzeMidi, isMidiName, pitchSimilarity } from "./social-midi.js";
 
-export const SOCIAL_VERSION = "3.1.0";
+export const SOCIAL_VERSION = "3.2.0";
 export const SOCIAL_KINDS = ["midi", "music", "scratch", "meeting", "style", "cpp", "dynamic"];
 export const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
 
@@ -40,6 +40,8 @@ const CPP_TOTAL_MAX = 2 * 1024 * 1024;
 const CPP_FILE_MAX = 400 * 1024;
 const CPP_FILE_COUNT = 30;
 const ITEM_ID_PATTERN = /^(midi|mus|scr|meet|sty|cpp|dyn|shr)_[A-Za-z0-9_-]{4,40}$/;
+const VIDEO_ID_PATTERN = /^v_[A-Za-z0-9_-]{4,32}$/;
+const CHAT_RECORD_ID_PATTERN = /^rec_[A-Za-z0-9_-]{4,32}$/;
 const MEETING_NO_PATTERN = /^\d{9}$/;
 const CARD_KIND_META = {
     midi: { icon: "🎼", label: "Vimidi", action: "查看 MIDI", page: "vimidi.html" },
@@ -49,6 +51,8 @@ const CARD_KIND_META = {
     style: { icon: "🎨", label: "ViStyle", action: "查看样式包", page: "vistyle.html" },
     cpp: { icon: "💻", label: "VClang", action: "查看 C++ 作品", page: "vclang.html" },
     dynamic: { icon: "📝", label: "Vitx 动态", action: "查看动态", page: "vitx-dynamic.html" },
+    video: { icon: "▶️", label: "Vitx 视频", action: "观看视频", page: "vitxvideo.html" },
+    chatlog: { icon: "💬", label: "聊天记录", action: "查看聊天记录", page: "chat-record.html" },
     link: { icon: "🔗", label: "分享链接", action: "打开链接", page: "" }
 };
 const PREFIX = {
@@ -613,7 +617,7 @@ export async function createCustomCard(env, base, payload, owner) {
 
 /* ───────── 链接识别 ───────── */
 
-const SHARE_PAGE_PATTERN = /(?:https?:\/\/[^\s<>"'）)】]+|(?:\.{0,2}\/)?(?:vimidi|vmusic|viratch|audiv|vistyle|vclang|vitx-dynamic|vitxvideo|share)\.html(?:\?[^\s<>"'）)】]*)?)/i;
+const SHARE_PAGE_PATTERN = /(?:https?:\/\/[^\s<>"'）)】]+|(?:\.{0,2}\/)?(?:vimidi|vmusic|viratch|audiv|vistyle|vclang|vitx-dynamic|vitxvideo|chat-record|share)\.html(?:\?[^\s<>"'）)】]*)?)/i;
 
 export function extractShareUrl(text) {
     const match = SHARE_PAGE_PATTERN.exec(String(text || ""));
@@ -663,6 +667,90 @@ export async function findMeetingByNo(env, no) {
     return await readItem(env, "meeting", String(id));
 }
 
+/* 3.2.0：Vitx 视频卡片。视频仍然存在原来的 video:meta:* 里，不复制到分享 KV。 */
+export async function readVideoForCard(env, id) {
+    if (!env.ACCOUNTS_KV || !VIDEO_ID_PATTERN.test(String(id || ""))) {
+        return null;
+    }
+    const meta = await env.ACCOUNTS_KV.get(`video:meta:${id}`, "json");
+    return meta && typeof meta === "object" && !Array.isArray(meta) ? meta : null;
+}
+
+export function cardForVideo(meta, base) {
+    if (!meta || !meta.id) {
+        return null;
+    }
+    if (meta.status !== "published" && meta.seed !== true) {
+        return null;
+    }
+    const ownerName = meta.ownerName || meta.owner || "";
+    const details = [];
+    if (ownerName) {
+        details.push(`UP 主 ${ownerName}`);
+    }
+    if (meta.dur) {
+        details.push(String(meta.dur));
+    }
+    if (Number(meta.views) > 0) {
+        details.push(`${Number(meta.views)} 次播放`);
+    }
+    return {
+        id: meta.id,
+        source: "auto",
+        kind: "video",
+        targetId: meta.id,
+        title: String(meta.title || "未命名视频").slice(0, 80),
+        icon: "▶️",
+        description: details.join(" · ").slice(0, 160),
+        url: `${base}/vitxvideo.html?videoid=${encodeURIComponent(meta.id)}`,
+        actionLabel: "观看视频",
+        site: "Vitx 视频",
+        meta: {
+            videoId: meta.id,
+            owner: meta.owner || "",
+            ownerName,
+            duration: meta.dur || "",
+            views: Number(meta.views) || 0
+        },
+        at: Number(meta.at) || 0
+    };
+}
+
+/* 3.2.0：聊天记录分享（公开链接，id 不可猜测；作者可删除）。 */
+export async function readChatRecord(env, id) {
+    if (!env.ACCOUNTS_KV || !CHAT_RECORD_ID_PATTERN.test(String(id || ""))) {
+        return null;
+    }
+    const record = await env.ACCOUNTS_KV.get(`chat:record:${id}`, "json");
+    return record && typeof record === "object" && !Array.isArray(record) ? record : null;
+}
+
+export function cardForChatRecord(record, base) {
+    if (!record || !record.id) {
+        return null;
+    }
+    const count = Number(record.count) || (Array.isArray(record.messages) ? record.messages.length : 0);
+    return {
+        id: record.id,
+        source: "auto",
+        kind: "chatlog",
+        targetId: record.id,
+        title: String(record.title || "聊天记录").slice(0, 80),
+        icon: "💬",
+        description: `${count} 条消息${record.ownerName ? ` · 来自 ${record.ownerName}` : ""}`.slice(0, 160),
+        url: `${base}/chat-record.html?id=${encodeURIComponent(record.id)}`,
+        actionLabel: "查看聊天记录",
+        site: "聊天记录",
+        meta: {
+            recordId: record.id,
+            count,
+            owner: record.owner || "",
+            ownerName: record.ownerName || ""
+        },
+        at: Number(record.at) || 0
+    };
+}
+
 export async function resolveShareUrl(env, raw, base = DEFAULT_SITE_ORIGIN) {
     const url = absoluteTarget(raw, base);
     if (!url) {
@@ -674,6 +762,11 @@ export async function resolveShareUrl(env, raw, base = DEFAULT_SITE_ORIGIN) {
     if (file === "share.html") {
         const card = await readCard(env, params.get("id") || "");
         return cardView(card, base);
+    }
+
+    if (file === "chat-record.html") {
+        const record = await readChatRecord(env, params.get("id") || "");
+        return record ? cardForChatRecord(record, base) : null;
     }
 
     let kind = "";
@@ -697,8 +790,15 @@ export async function resolveShareUrl(env, raw, base = DEFAULT_SITE_ORIGIN) {
         kind = "dynamic";
         id = params.get("id") || params.get("dynamic") || "";
     } else if (file === "vitxvideo.html") {
-        kind = "dynamic";
-        id = params.get("dynamic") || "";
+        const dynamicId = params.get("dynamic") || "";
+        if (dynamicId) {
+            kind = "dynamic";
+            id = dynamicId;
+        } else {
+            const videoId = params.get("videoid") || params.get("id") || params.get("v") || "";
+            const meta = await readVideoForCard(env, videoId);
+            return meta ? cardForVideo(meta, base) : null;
+        }
     } else if (file === "audiv.html") {
         kind = "meeting";
         const meeting = params.get("meeting") || params.get("no") || "";

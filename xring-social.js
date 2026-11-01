@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 3.1.0：分享卡片的公共渲染器。
+ * Vitual XRing 3.2.0：分享卡片的公共渲染器。
  *
  * 聊天室、私聊、Vitx 评论、Vitx 动态、以及七个新页面都 include 这个文件，
  * 保证同一条链接在哪里看起来都一样。卡片内容全部来自服务端快照，
@@ -8,7 +8,7 @@
 (function () {
     "use strict";
 
-    const VERSION = "3.1.0";
+    const VERSION = "3.2.0";
     const STYLE_ID = "xr-social-style";
     const SITE_LABEL = {
         midi: "Vimidi",
@@ -18,6 +18,8 @@
         style: "ViStyle",
         cpp: "VClang",
         dynamic: "Vitx 动态",
+        video: "Vitx 视频",
+        chatlog: "聊天记录",
         link: "分享链接"
     };
 

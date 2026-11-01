@@ -1275,6 +1275,85 @@
         .check-row .avatar { width: 30px; height: 30px; border-radius: 9px; font-size: 12px; }
         .check-row .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+        /* 3.2.0：聊天记录分享 */
+        .record-tools {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 4px 0 8px;
+        }
+
+        .record-selected {
+            margin-left: auto;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .record-list {
+            max-height: 46vh;
+            overflow-y: auto;
+            padding: 0 8px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fbfcfe;
+        }
+
+        .record-row {
+            align-items: flex-start;
+            gap: 8px;
+            padding: 9px 2px;
+        }
+
+        .record-row input[type="checkbox"] {
+            margin-top: 3px;
+            flex: 0 0 auto;
+        }
+
+        .record-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .record-main b {
+            color: #40506b;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .record-main span {
+            color: #64728a;
+            font-size: 12.5px;
+            line-height: 1.45;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .record-time {
+            flex: 0 0 auto;
+            color: #9aa5b6;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .record-share-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .record-hint {
+            margin: 12px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
         .btn {
             border: 1px solid var(--line);
             border-radius: 10px;
@@ -1446,7 +1525,7 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="vtx-uno.css?v=3.1.0">
+    <link rel="stylesheet" href="vtx-uno.css?v=3.2.0">
 </head>
 <body>
 <div class="app" id="app" hidden>
@@ -1454,7 +1533,7 @@
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
-            <span class="version-badge">v3.1.0 聊天室</span>
+            <span class="version-badge">v3.2.0 聊天室</span>
         </div>
         <div class="topbar-spacer"></div>
         <button type="button" class="uno-top-btn" id="uno-btn" title="打开 UNO（人机对战 / 普通房间 / 混合对战 / 随机匹配）">UNO</button>
@@ -1522,11 +1601,11 @@
 <div class="menu" id="menu"></div>
 <div class="toast" id="toast"></div>
 
-<script src="vtx-markdown.js?v=3.1.0"></script>
-<script src="vtx-qr.js?v=3.1.0"></script>
-<script src="vtx-api.js?v=3.1.0"></script>
-<script src="xring-social.js?v=3.1.0"></script>
-<script src="vtx-uno.js?v=3.1.0"></script>
+<script src="vtx-markdown.js?v=3.2.0"></script>
+<script src="vtx-qr.js?v=3.2.0"></script>
+<script src="vtx-api.js?v=3.2.0"></script>
+<script src="xring-social.js?v=3.2.0"></script>
+<script src="vtx-uno.js?v=3.2.0"></script>
 <script>
 (function () {
     "use strict";
@@ -1565,8 +1644,8 @@
     };
 
     let api = window.VTXApi;
-    const REQUIRED_API_VERSION = "3.1.0";
-    const PAGE_VERSION = "3.1.0";
+    const REQUIRED_API_VERSION = "3.2.0";
+    const PAGE_VERSION = "3.2.0";
     const SDK_URL = "vtx-api.js";
 
     /* 1.3.0：iPad / iPhone 视口高度修正（issue #2）
@@ -2546,6 +2625,7 @@
                             <button type="button" class="attach-btn" id="attach-btn" title="发送图片、文件或音乐（音乐可直接播放，保留 14 天）"${dissolved ? " disabled" : ""}>图片/文件</button>
                             ${conv.type === "group" ? `<button type="button" class="attach-btn" id="redpacket-btn" title="发拼手速红包"${dissolved ? " disabled" : ""}>红包</button>` : ""}
                             <button type="button" class="attach-btn" id="transfer-btn" title="给会话成员转账（需要密码）"${dissolved ? " disabled" : ""}>转账</button>
+                            <button type="button" class="attach-btn" id="record-btn" title="选择聊天记录生成分享链接">聊天记录</button>
                             <button type="button" class="attach-btn" id="uno-invite-btn" title="邀请好友玩 UNO"${dissolved ? " disabled" : ""}>UNO</button>
                         </div>
                         <div class="composer-input">
@@ -2694,7 +2774,7 @@
         if (message.type === "redpacket" && message.packet) {
             return redPacketCard(message);
         }
-        /* 3.1.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态分享卡片 */
+        /* 3.2.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态分享卡片 */
         if (message.card && window.XRSocial) {
             return `${window.XRSocial.cardHtml(message.card, { compact: true })}${message.text ? messageCaptionHtml(message) : ""}`;
         }
@@ -2952,6 +3032,10 @@
         if (transferBtn) {
             transferBtn.addEventListener("click", openTransferDialog);
         }
+        const recordBtn = el("record-btn");
+        if (recordBtn) {
+            recordBtn.addEventListener("click", openChatRecordDialog);
+        }
         const unoInviteBtn = el("uno-invite-btn");
         if (unoInviteBtn) {
             unoInviteBtn.addEventListener("click", () => {
@@ -3177,6 +3261,168 @@
         });
     }
 
+    /* 3.2.0：把选中的聊天消息做成只读快照，生成可分享的聊天记录页。 */
+    function chatRecordSummary(message) {
+        if (message.card) {
+            return `[${message.card.site || "分享"}] ${message.card.title || ""}`.trim();
+        }
+        if (message.type === "image") {
+            return "[图片]";
+        }
+        if (message.type === "file" && !isAudioMedia(message.media || {})) {
+            return `[文件] ${(message.media && message.media.name) || ""}`.trim();
+        }
+        return messagePreviewText(message).slice(0, 80);
+    }
+
+    function openChatRecordDialog() {
+        if (!state.current) {
+            return;
+        }
+        const messages = state.messages
+            .filter((message) => message && !message.system && !message.recalled)
+            .slice(-100);
+        if (!messages.length) {
+            toast("当前会话还没有可以分享的消息", "error");
+            return;
+        }
+        const defaultTitle = `${state.current.name || "聊天"}的聊天记录`;
+        const rows = messages.map((message) => {
+            const name = message.senderName || message.sender || "";
+            return `<label class="check-row record-row">
+                <input type="checkbox" data-record-message value="${escapeHtml(message.id)}">
+                <span class="record-main">
+                    <b>${escapeHtml(name)}</b>
+                    <span>${escapeHtml(chatRecordSummary(message))}</span>
+                </span>
+                <span class="record-time">${escapeHtml(timePart(message))}</span>
+            </label>`;
+        }).join("");
+        let bodyRef = null;
+        openModal("分享聊天记录", `
+            <div class="notice">聊天记录链接是公开的：任何拿到链接的人都能查看选中的消息快照。请勿分享密码、验证码等敏感内容。</div>
+            <div class="field">
+                <label>标题</label>
+                <input type="text" id="record-title" maxlength="40" value="${escapeHtml(defaultTitle)}">
+            </div>
+            <div class="record-tools">
+                <button type="button" class="btn small" id="record-select-all">全选最近 30 条</button>
+                <button type="button" class="btn small" id="record-select-none">取消全选</button>
+                <span class="record-selected" id="record-selected">已选 0 条</span>
+            </div>
+            <div class="record-list">${rows}</div>
+        `, {
+            wide: true,
+            actions: [
+                { label: "取消", act: "cancel" },
+                { label: "生成分享链接", act: "create", primary: true }
+            ],
+            onMount(body) {
+                bodyRef = body;
+                const boxes = () => Array.from(body.querySelectorAll("input[data-record-message]"));
+                const refresh = () => {
+                    const count = boxes().filter((box) => box.checked).length;
+                    const label = el("record-selected");
+                    if (label) {
+                        label.textContent = `已选 ${count} 条`;
+                    }
+                };
+                body.querySelectorAll("input[data-record-message]").forEach((box) => {
+                    box.addEventListener("change", refresh);
+                });
+                const all = el("record-select-all");
+                if (all) {
+                    all.addEventListener("click", () => {
+                        boxes().slice(-30).forEach((box) => { box.checked = true; });
+                        refresh();
+                    });
+                }
+                const none = el("record-select-none");
+                if (none) {
+                    none.addEventListener("click", () => {
+                        boxes().forEach((box) => { box.checked = false; });
+                        refresh();
+                    });
+                }
+            },
+            onAction: async (act) => {
+                if (act !== "create") {
+                    return true;
+                }
+                const ids = bodyRef
+                    ? Array.from(bodyRef.querySelectorAll("input[data-record-message]:checked")).map((box) => box.value)
+                    : [];
+                if (!ids.length) {
+                    toast("请至少选择一条消息", "error");
+                    return false;
+                }
+                const title = bodyRef && el("record-title") ? el("record-title").value.trim() : "";
+                try {
+                    const result = await api.chat.createRecord(state.current.id, {
+                        messageIds: ids,
+                        title
+                    });
+                    closeModal();
+                    showChatRecordShare(result);
+                    return false;
+                } catch (error) {
+                    report(error);
+                    return false;
+                }
+            }
+        });
+    }
+
+    function showChatRecordShare(result) {
+        const record = result && result.record ? result.record : null;
+        const url = result && result.url ? result.url : "";
+        if (!record || !url) {
+            toast("聊天记录生成失败", "error");
+            return;
+        }
+        const canSend = state.current && !state.current.dissolved;
+        openModal("聊天记录已生成", `
+            <div class="notice">“${escapeHtml(record.title)}”包含 ${Number(record.count) || 0} 条消息。链接公开，请谨慎分享。</div>
+            <div class="field">
+                <label>分享链接</label>
+                <input type="text" id="record-share-url" readonly value="${escapeHtml(url)}">
+            </div>
+            <div class="record-share-actions">
+                <button type="button" class="btn primary" id="record-copy-link">复制链接</button>
+                ${canSend ? '<button type="button" class="btn" id="record-send-current">发送到当前会话</button>' : ""}
+            </div>
+            <p class="record-hint">也可以把链接粘贴到群聊、单聊、Vitx 评论或动态里，会自动显示成聊天记录卡片。</p>
+        `, {
+            actions: [{ label: "关闭", act: "cancel", primary: true }],
+            onMount(body) {
+                const copy = el("record-copy-link");
+                if (copy) {
+                    copy.addEventListener("click", () => {
+                        copyText(url);
+                    });
+                }
+                const send = el("record-send-current");
+                if (send) {
+                    send.addEventListener("click", async () => {
+                        send.disabled = true;
+                        send.textContent = "发送中…";
+                        try {
+                            await api.chat.send(state.current.id, { text: url });
+                            closeModal();
+                            await loadMessages(state.current.id);
+                            await refreshConversations(true);
+                            toast("已发送，链接会显示成聊天记录卡片");
+                        } catch (error) {
+                            report(error);
+                            send.disabled = false;
+                            send.textContent = "发送到当前会话";
+                        }
+                    });
+                }
+            }
+        });
+    }
+
     function showConversationMenu(conv, x, y) {
         if (!conv) {
             return;
@@ -3186,6 +3432,7 @@
         menu.innerHTML = `
             <button data-act="pin">${conv.pinned ? "取消置顶" : "置顶会话"}</button>
             <button data-act="mute">${conv.muted ? "取消免打扰" : "消息免打扰"}</button>
+            <button data-act="record">分享聊天记录</button>
             <button data-act="clear">清空聊天记录</button>
             ${conv.type === "group" && !conv.public && !dissolved ? '<hr><button data-act="leave" class="danger">退出群聊</button>' : ""}
             ${conv.type === "direct" ? '<hr><button data-act="delete" class="danger">删除会话</button>' : ""}
@@ -3204,6 +3451,10 @@
                 menu.classList.remove("open");
                 const action = button.dataset.act;
                 try {
+                    if (action === "record") {
+                        openChatRecordDialog();
+                        return;
+                    }
                     if (action === "pin") {
                         await api.chat.settings(conv.id, { pinned: !conv.pinned });
                     } else if (action === "mute") {
