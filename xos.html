@@ -1116,9 +1116,10 @@
                     if (!file) return;
                     if (file.size > 8 * 1024 * 1024) { toast("演示版单文件最多 8 MB"); return; }
                     const reader = new FileReader();
+                    const isImage = file.type.startsWith("image/");
                     reader.onload = () => {
                         const pathName = path + "/" + file.name;
-                        if (file.type.startsWith("image/")) {
+                        if (isImage) {
                             fsMkdir(path);
                             state.fs.push({ path: pathName, type: "file", content: String(reader.result), updated: Date.now() });
                             saveFs();
@@ -1128,7 +1129,8 @@
                         render();
                         toast("已上传 " + file.name);
                     };
-                    reader.readAsDataURL(file);
+                    if (isImage) reader.readAsDataURL(file);
+                    else reader.readAsText(file);
                     fileInput.value = "";
                 });
                 render();
