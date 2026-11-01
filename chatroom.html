@@ -3279,6 +3279,10 @@
         if (!state.current) {
             return;
         }
+        if (!state.me) {
+            toast("请先登录再分享聊天记录", "error");
+            return;
+        }
         const messages = state.messages
             .filter((message) => message && !message.system && !message.recalled)
             .slice(-100);
