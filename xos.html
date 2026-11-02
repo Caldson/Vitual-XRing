@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=5.1.0"></script>
+    <script src="vtx-api.js?v=5.1.1"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -331,7 +331,9 @@
         }
 
         .xos-window.active { border-color: rgba(108, 165, 255, 0.62); }
-        .xos-window.maximized { left: 0 !important; top: 0 !important; width: 100% !important; height: calc(100% - 52px) !important; border-radius: 0; }
+        /* 最大化时停在 XOS 顶栏下方，否则窗口标题栏会被 z-index 更高的顶栏盖住，最小化 / 还原 / 关闭都点不到。 */
+        .xos-window.maximized { left: 0 !important; top: 38px !important; width: 100% !important; height: calc(100% - 90px) !important; border-radius: 0; }
+        .xos-window.maximized .xos-window-resize { display: none; }
 
         .xos-window-head {
             height: 34px;
@@ -581,7 +583,7 @@
                     <select id="xos-refresh" title="显示刷新率"></select>
                     <span class="top-item" id="xos-user-label">—</span>
                     <a class="top-item xos-link" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91" title="XOS 商店">商店</a>
-                    <span class="top-item">v5.1.0</span>
+                    <span class="top-item">v5.1.1</span>
                     <button class="xos-btn small" type="button" id="xos-lock-btn">锁定</button>
                 </header>
 
@@ -737,6 +739,12 @@
                     state.fs.push({ path: dir, type: "dir" });
                     saveFs();
                 }
+            }
+
+            function joinPath(dir, name) {
+                const left = String(dir || "").replace(/\/+$/, "");
+                const right = String(name || "").replace(/^\/+/, "");
+                return left ? `${left}/${right}` : right;
             }
 
             function fsWrite(path, content) {
@@ -1034,7 +1042,8 @@
                     <input type="file" data-file-input hidden>`;
                 const list = body.querySelector("[data-file-list]");
                 const render = () => {
-                    body.querySelector("[data-file-path]").textContent = "/" + path;
+                    body.querySelector("[data-file-path]").textContent = path ? `/${path}` : "/";
+                    body.querySelector("[data-file-up]").disabled = !path;
                     list.textContent = "";
                     const entries = fsList(path);
                     for (const entry of entries) {
@@ -1098,17 +1107,17 @@
                     }
                 };
                 body.querySelector("[data-file-up]").addEventListener("click", () => {
-                    if (!path.includes("/")) return;
-                    path = path.split("/").slice(0, -1).join("/");
+                    if (!path) return;
+                    path = path.includes("/") ? path.split("/").slice(0, -1).join("/") : "";
                     render();
                 });
                 body.querySelector("[data-file-newdir]").addEventListener("click", () => {
                     const name = prompt("文件夹名称");
-                    if (name) { fsMkdir(path + "/" + name.replace(/[\\/:*?"<>|]/g, "")); render(); }
+                    if (name) { fsMkdir(joinPath(path, name.replace(/[\\/:*?"<>|]/g, ""))); render(); }
                 });
                 body.querySelector("[data-file-newfile]").addEventListener("click", () => {
                     const name = prompt("文件名（.txt / .md）", "新建.txt");
-                    if (name) { fsWrite(path + "/" + name.replace(/[\\/:*?"<>|]/g, ""), ""); render(); }
+                    if (name) { fsWrite(joinPath(path, name.replace(/[\\/:*?"<>|]/g, "")), ""); render(); }
                 });
                 const fileInput = body.querySelector("[data-file-input]");
                 body.querySelector("[data-file-upload]").addEventListener("click", () => fileInput.click());
@@ -1119,7 +1128,7 @@
                     const reader = new FileReader();
                     const isImage = file.type.startsWith("image/");
                     reader.onload = () => {
-                        const pathName = path + "/" + file.name;
+                        const pathName = joinPath(path, file.name);
                         if (isImage) {
                             fsMkdir(path);
                             state.fs.push({ path: pathName, type: "file", content: String(reader.result), updated: Date.now() });

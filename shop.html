@@ -126,6 +126,30 @@
             line-height: 1.7;
         }
 
+        .xos-entry {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 20px 0 0;
+            padding: 18px 20px;
+            border: 1px solid #cbd9f5;
+            border-radius: 18px;
+            background:
+                radial-gradient(circle at 92% 20%, rgba(96, 224, 196, .18), transparent 32%),
+                linear-gradient(135deg, #0b1224, #142346 68%, #0d1a33);
+            color: #eaf0ff;
+            text-decoration: none;
+            box-shadow: 0 14px 34px rgba(20, 35, 70, 0.16);
+        }
+
+        .xos-entry:hover { border-color: #8db8ff; transform: translateY(-1px); }
+        .xos-entry { transition: transform 160ms, border-color 160ms; }
+        .xos-entry .mark { width: 46px; height: 46px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 13px; background: linear-gradient(135deg, #4c8dff, #60e0c4); color: #071019; font-size: 20px; font-weight: 900; }
+        .xos-entry .copy { flex: 1; min-width: 0; }
+        .xos-entry b { display: block; margin-bottom: 4px; font-size: 16px; }
+        .xos-entry span { color: #aebedb; font-size: 12.5px; line-height: 1.6; }
+        .xos-entry .go { flex: 0 0 auto; padding: 9px 13px; border: 1px solid rgba(150, 190, 255, .4); border-radius: 9px; color: #dce8ff; font-size: 12px; font-weight: 700; }
+
         .redeem-card {
             margin: 22px 0 26px;
             padding: 20px 22px;
@@ -600,6 +624,16 @@
             .product-meta {
                 grid-template-columns: 1fr;
             }
+
+            .xos-entry {
+                align-items: flex-start;
+                flex-wrap: wrap;
+            }
+
+            .xos-entry .go {
+                width: 100%;
+                text-align: center;
+            }
         }
     </style>
 </head>
@@ -611,7 +645,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v5.1.0</span>
+            <span class="version">v5.1.1</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -624,6 +658,15 @@
             <h1>商品列表</h1>
             <p class="hero-copy">使用 VTX 购买商品，可按分类筛选。下单后请把凭证截图发到 XRingCR 群，次日线下领取。</p>
         </section>
+
+        <a class="xos-entry" href="xos.html">
+            <span class="mark">X</span>
+            <span class="copy">
+                <b>XOS 虚拟云电脑 26H1</b>
+                <span>1440×900 虚拟桌面 · Home / Personal / Professional / CE · 1000 VTX 起</span>
+            </span>
+            <span class="go">打开 XOS →</span>
+        </a>
 
         <section class="redeem-card" aria-labelledby="redeem-title">
             <div class="redeem-head">
@@ -680,7 +723,7 @@
         </form>
     </dialog>
 
-    <script src="vtx-api.js?v=5.1.0"></script>
+    <script src="vtx-api.js?v=5.1.1"></script>
 
 
     <script>
