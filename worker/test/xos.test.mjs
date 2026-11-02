@@ -171,6 +171,18 @@ test("5.2.0：购买 XOS 授权写入账户，并只允许购买一份", async (
     assert.equal(me.data.account.xos.apps.includes("VSCode 移植版"), true);
 });
 
+test("5.2.0：没有 XOS1 时按完整 V2 价格购买", async () => {
+    const { env, token } = await prepare();
+    const v2 = await api(env, "POST", "/api/me/purchase", {
+        token,
+        body: { id: "xos-pc-home-26h2", quantity: 1, password: "password1" }
+    });
+    assert.equal(v2.status, 200, JSON.stringify(v2.data));
+    assert.equal(v2.data.item.unitPrice, "1025.00");
+    assert.equal(v2.data.account.xos.generation, 2);
+    assert.equal(v2.data.account.money, "3975.00");
+});
+
 test("5.2.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
     const { env, token } = await prepare();
     const v1 = await api(env, "POST", "/api/me/purchase", {
