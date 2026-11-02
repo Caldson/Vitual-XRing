@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 import worker from "../index.js";
 
-/* 5.3.0：XOS 虚拟云电脑商店授权与桌面入口 */
+/* 5.4.0：XOS 虚拟云电脑商店授权与桌面入口 */
 
 class MockKV {
     constructor() {
@@ -134,7 +134,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("5.3.0：购买 XOS 授权写入账户，并只允许购买一份", async () => {
+test("5.4.0：购买 XOS 授权写入账户，并只允许购买一份", async () => {
     const { env, token } = await prepare();
 
     const shop = await api(env, "GET", "/api/shop");
@@ -164,14 +164,16 @@ test("5.3.0：购买 XOS 授权写入账户，并只允许购买一份", async (
     assert.equal(personal.status, 200, JSON.stringify(personal.data));
     assert.equal(personal.data.account.xos.edition, "personal");
     assert.equal(personal.data.account.xos.rank, 1);
+    assert.equal(personal.data.account.xosDevices.length, 2);
 
     const me = await api(env, "GET", "/api/me", { token });
     assert.equal(me.status, 200);
     assert.equal(me.data.account.xos.edition, "personal");
     assert.equal(me.data.account.xos.apps.includes("VSCode 移植版"), true);
+    assert.equal(me.data.account.xosDevices.length, 2);
 });
 
-test("5.3.0：没有 XOS1 时按完整 V2 价格购买", async () => {
+test("5.4.0：没有 XOS1 时按完整 V2 价格购买", async () => {
     const { env, token } = await prepare();
     const v2 = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -180,10 +182,11 @@ test("5.3.0：没有 XOS1 时按完整 V2 价格购买", async () => {
     assert.equal(v2.status, 200, JSON.stringify(v2.data));
     assert.equal(v2.data.item.unitPrice, "1025.00");
     assert.equal(v2.data.account.xos.generation, 2);
+    assert.equal(v2.data.account.xosDevices.length, 1);
     assert.equal(v2.data.account.money, "3975.00");
 });
 
-test("5.3.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
+test("5.4.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
     const { env, token } = await prepare();
     const v1 = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -201,16 +204,36 @@ test("5.3.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
     assert.equal(upgrade.data.item.unitPrice, "25.00");
     assert.match(upgrade.data.receipt, /升级/);
     assert.equal(upgrade.data.account.money, "3975.00");
+    assert.equal(upgrade.data.account.xosDevices.length, 1);
 
     const again = await api(env, "POST", "/api/me/purchase", {
         token,
         body: { id: "xos-pc-home-26h2", quantity: 1, password: "password1" }
     });
-    assert.equal(again.status, 400);
-    assert.equal(again.data.error, "already_owned");
+    assert.equal(again.status, 200, JSON.stringify(again.data));
+    assert.equal(again.data.item.unitPrice, "1025.00");
+    assert.equal(again.data.account.xosDevices.length, 2);
+    assert.equal(again.data.account.money, "2950.00");
 });
 
-test("5.3.0：低版本不能覆盖已购买的高版本授权", async () => {
+test("5.4.0：同一版本也可以购买多台", async () => {
+    const { env, token } = await prepare();
+    const first = await api(env, "POST", "/api/me/purchase", {
+        token,
+        body: { id: "xos-pc-home-26h1", quantity: 1, password: "password1" }
+    });
+    assert.equal(first.status, 200);
+    const second = await api(env, "POST", "/api/me/purchase", {
+        token,
+        body: { id: "xos-pc-home-26h1", quantity: 1, password: "password1" }
+    });
+    assert.equal(second.status, 200, JSON.stringify(second.data));
+    assert.equal(second.data.account.xosDevices.length, 2);
+    assert.equal(second.data.account.money, "3000.00");
+    assert.notEqual(second.data.account.xosDevices[0].id, second.data.account.xosDevices[1].id);
+});
+
+test("5.4.0：可以购买多台不同版本的 XOS", async () => {
     const { env, token } = await prepare();
     const pro = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -222,14 +245,17 @@ test("5.3.0：低版本不能覆盖已购买的高版本授权", async () => {
         token,
         body: { id: "xos-pc-home-26h1", quantity: 1, password: "password1" }
     });
-    assert.equal(home.status, 400);
-    assert.equal(home.data.error, "already_owned");
+    assert.equal(home.status, 200, JSON.stringify(home.data));
+    assert.equal(home.data.account.xos.edition, "home");
+    assert.equal(home.data.account.xosDevices.length, 2);
+    assert.equal(home.data.account.money, "2500.00");
 
     const me = await api(env, "GET", "/api/me", { token });
-    assert.equal(me.data.account.xos.edition, "professional");
+    assert.equal(me.data.account.xos.edition, "home");
+    assert.equal(me.data.account.xosDevices.length, 2);
 });
 
-test("5.3.0：XOS 页面、商店分类和版本号齐全", () => {
+test("5.4.0：XOS 页面、商店分类和版本号齐全", () => {
     const page = fs.readFileSync(new URL("../../xos.html", import.meta.url), "utf8");
     const shop = fs.readFileSync(new URL("../../shop.json", import.meta.url), "utf8");
     const shopPage = fs.readFileSync(new URL("../../shop.html", import.meta.url), "utf8");
@@ -261,14 +287,14 @@ test("5.3.0：XOS 页面、商店分类和版本号齐全", () => {
     assert.match(shop, /"price": "1525.00"/);
     assert.match(shop, /"price": "1775.00"/);
     assert.match(shop, /Community Edition/);
-    assert.match(page, /vtx-api\.js\?v=5\.3\.0/);
+    assert.match(page, /vtx-api\.js\?v=5\.4\.0/);
     assert.match(page, /API\.me\(\)/);
     assert.match(shop, /"XOS虚拟云电脑"/);
     assert.match(shop, /"xos-pc-ce-26h1"/);
     assert.match(shopPage, /get\("category"\)/);
     assert.match(shopPage, /class="xos-entry"/);
     assert.match(home, /href="xos\.html"/);
-    assert.match(home, /v5\.3\.0/);
+    assert.match(home, /v5\.4\.0/);
     assert.match(manager, /href="xos\.html"/);
     assert.match(page, /\.xos-window\.maximized \{ left: 0 !important; top: 38px !important;/);
     assert.match(page, /function joinPath/);

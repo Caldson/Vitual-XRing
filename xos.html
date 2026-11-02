@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=5.3.0"></script>
+    <script src="vtx-api.js?v=5.4.0"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -149,6 +149,12 @@
             color: #dce8ff;
             font-size: 11px;
             outline: none;
+        }
+
+        .xos-topbar .xos-device-select {
+            max-width: 190px;
+            border-color: rgba(108, 165, 255, 0.45);
+            color: #cfe0ff;
         }
 
         .xos-desktop {
@@ -608,6 +614,7 @@
                 <header class="xos-topbar">
                     <div class="brand"><span class="xos-mark">X</span> XOS</div>
                     <span class="edition" id="xos-edition-label">PC</span>
+                    <select id="xos-device-select" class="xos-device-select" title="切换云电脑" hidden></select>
                     <span class="top-item" id="xos-config-label">1440 × 900</span>
                     <span class="spacer"></span>
                     <span class="top-item">刷新率</span>
@@ -615,7 +622,7 @@
                     <span class="top-item" id="xos-user-label">—</span>
                     <a class="top-item xos-link" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91" title="XOS 商店">商店</a>
                     <button class="top-item xos-cloud-link" type="button" id="xos-cloud-status" title="点击立即从云端刷新文件">云同步</button>
-                    <span class="top-item">v5.3.0</span>
+                    <span class="top-item">v5.4.0</span>
                     <button class="xos-btn small" type="button" id="xos-lock-btn">锁定</button>
                 </header>
 
@@ -680,6 +687,8 @@
             const state = {
                 login: "",
                 license: null,
+                devices: [],
+                deviceId: "",
                 edition: "home",
                 generation: 1,
                 refresh: 15,
@@ -813,7 +822,7 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 5.3.0：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 5.4.0：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");
@@ -2209,28 +2218,70 @@
                 $("xos-gate-note").textContent = note || "购买后刷新此页面即可启动。";
             }
 
-            function applyLicense(account) {
-                state.license = account && account.xos ? account.xos : null;
-                if (!state.license) { renderGate("当前账户还没有 XOS 授权。"); return false; }
-                const edition = EDITIONS[state.license.edition] ? state.license.edition : "home";
-                const generation = Number(state.license.generation) === 2 ? 2 : 1;
+            function deviceListOf(account) {
+                const raw = Array.isArray(account.xosDevices) && account.xosDevices.length
+                    ? account.xosDevices
+                    : (account.xos ? [account.xos] : []);
+                return raw.filter((item) => item && typeof item === "object").map((item, index) => ({
+                    ...item,
+                    id: String(item.id || `xd_${item.edition || "home"}_${item.generation || 1}_${index}`),
+                    generation: Number(item.generation) === 2 ? 2 : 1,
+                    rank: Number(item.rank) || 0
+                }));
+            }
+
+            function configureDevice(device) {
+                const edition = EDITIONS[device.edition] ? device.edition : "home";
+                const generation = Number(device.generation) === 2 ? 2 : 1;
+                state.license = device;
+                state.deviceId = device.id;
                 state.edition = edition;
                 state.generation = generation;
-                const config = state.license.config || {};
-                const rates = Array.isArray(state.license.refreshRates) && state.license.refreshRates.length
-                    ? state.license.refreshRates.map(Number).filter(Boolean)
+                const config = device.config || {};
+                const rates = Array.isArray(device.refreshRates) && device.refreshRates.length
+                    ? device.refreshRates.map(Number).filter(Boolean)
                     : EDITIONS[edition].refresh;
-                state.refresh = rates.includes(Number(readStore("refresh", rates[0]))) ? Number(readStore("refresh", rates[0])) : rates[0];
+                const savedRate = Number(readStore(`refresh:${device.id}`, readStore("refresh", rates[0])));
+                state.refresh = rates.includes(savedRate) ? savedRate : rates[0];
                 $("xos-edition-label").textContent = editionShort(edition, generation);
                 $("xos-config-label").textContent = `${config.resolution || "1440 × 900"} · ${config.cpu || EDITIONS[edition].cpu} · ${config.gpu || EDITIONS[edition].gpu}`;
-                $("xos-user-label").textContent = account.username || state.login;
-                const select = $("xos-refresh");
-                select.innerHTML = rates.map((rate) => `<option value="${rate}" ${rate === state.refresh ? "selected" : ""}>${rate}fps</option>`).join("");
-                select.addEventListener("change", () => {
-                    state.refresh = Number(select.value) || 15;
+                const refresh = $("xos-refresh");
+                refresh.innerHTML = rates.map((rate) => `<option value="${rate}" ${rate === state.refresh ? "selected" : ""}>${rate}fps</option>`).join("");
+                refresh.onchange = () => {
+                    state.refresh = Number(refresh.value) || 15;
+                    writeStore(`refresh:${state.deviceId}`, state.refresh);
                     writeStore("refresh", state.refresh);
                     toast("显示刷新率已切换到 " + state.refresh + "fps");
-                });
+                };
+            }
+
+            function applyLicense(account) {
+                const devices = deviceListOf(account);
+                if (!devices.length) { renderGate("当前账户还没有 XOS 授权。"); return false; }
+                state.devices = devices;
+                const remembered = String(readStore("activeDevice", ""));
+                const active = devices.find((device) => device.id === remembered)
+                    || devices.find((device) => account.xos && device.productId === account.xos.productId
+                        && Number(device.at) === Number(account.xos.at))
+                    || devices[0];
+                configureDevice(active);
+                $("xos-user-label").textContent = account.username || state.login;
+
+                const picker = $("xos-device-select");
+                picker.innerHTML = devices.map((device) => `<option value="${esc(device.id)}">${esc(device.name || editionName(device.edition, device.generation))}</option>`).join("");
+                picker.value = active.id;
+                picker.hidden = devices.length <= 1;
+                picker.onchange = () => {
+                    const next = devices.find((device) => device.id === picker.value);
+                    if (!next) return;
+                    writeStore("activeDevice", next.id);
+                    closeAll();
+                    configureDevice(next);
+                    renderDesktop();
+                    renderStart();
+                    renderTaskbar();
+                    toast("已切换到 " + (next.name || editionName(next.edition, next.generation)));
+                };
                 return true;
             }
 

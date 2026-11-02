@@ -75,6 +75,10 @@
  *   - XOS 文件保存到 Workers KV（xos:file / xos:files），支持跨设备同步；
  *   - 单文件 8 MB、账户 100 MB、最多 500 个文件，仅 XOS 授权账户可用。
  *
+ * 5.4.0：
+ *   - 同一账户可购买多台 XOS（xosDevices），保留当前激活设备 xos；
+ *   - XOS 顶栏设备选择器；同版本 V1→V2 仍只扣 25 VTX。
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -102,7 +106,7 @@ import { createUno, UNO_VERSION } from "./uno.js";
 import { MeetingHub } from "./meeting.js";
 import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 
-const VERSION = "5.3.0";
+const VERSION = "5.4.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -126,7 +130,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "5.3.0";
+const CHAT_VERSION = "5.4.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -563,14 +567,57 @@ function loginHistoryOf(account) {
 }
 
 // 本人可见：额外带登录位置记录、已购买的分享作品
+function xosDevicesOf(account) {
+    const list = Array.isArray(account && account.xosDevices)
+        ? account.xosDevices.filter((item) => item && typeof item === "object" && !Array.isArray(item))
+        : [];
+    const devices = list.map((item, index) => ({
+        ...item,
+        id: String(item.id || `xd_legacy_${index}_${Number(item.generation) || 1}`),
+        generation: Number(item.generation) === 2 ? 2 : 1,
+        rank: Number(item.rank) || 0
+    }));
+    if (!devices.length && account && account.xos && typeof account.xos === "object" && !Array.isArray(account.xos)) {
+        devices.push({
+            ...account.xos,
+            id: String(account.xos.id || "xd_legacy_active"),
+            generation: Number(account.xos.generation) === 2 ? 2 : 1,
+            rank: Number(account.xos.rank) || 0
+        });
+    }
+    return devices;
+}
+
+function xosLicenseFromProduct(product, time, id, upgradedFrom) {
+    return {
+        id: String(id || `xd_${randomCode(9)}`),
+        edition: product.xosEdition,
+        name: product.name,
+        rank: product.xosRank,
+        generation: Number(product.xosGeneration) || 1,
+        productId: product.id,
+        config: product.xosConfig,
+        apps: product.xosApps,
+        refreshRates: product.refreshRates,
+        upgradedFrom: upgradedFrom || "",
+        at: time
+    };
+}
+
 function selfAccount(account) {
+    const devices = xosDevicesOf(account);
+    const active = devices.find((device) => account && device.id === account.xosDeviceId)
+        || devices.find((device) => account && account.xos
+            && device.productId === account.xos.productId
+            && Number(device.at) === Number(account.xos.at))
+        || devices[0]
+        || null;
     return {
         ...publicAccount(account),
         loginHistory: loginHistoryOf(account),
         library: Array.isArray(account && account.library) ? account.library : [],
-        xos: account && account.xos && typeof account.xos === "object" && !Array.isArray(account.xos)
-            ? account.xos
-            : null
+        xos: active,
+        xosDevices: devices
     };
 }
 
@@ -2480,29 +2527,24 @@ async function handlePurchase(request, env, cors) {
     const time = shanghaiTimestamp();
     let trade = null;
     let remaining = null;
+    let xosUpgraded = false;
 
     const accounts = await commitAccounts(env, async (data) => {
         const account = requireOwnAccount(data, login);
 
         await checkPassword(account, password);
 
-        let xosUpgrade = false;
+        let xosUpgradeIndex = -1;
         if (product.virtual && product.xosEdition) {
-            const owned = account.xos && typeof account.xos === "object" ? account.xos : null;
-            const ownedGen = Number(owned && owned.generation) || 1;
-            const ownedRank = Number(owned && owned.rank) || 0;
-            const productGen = Number(product.xosGeneration) || 1;
-            const sameEdition = Boolean(owned && owned.edition === product.xosEdition);
-
-            if (owned && (ownedGen > productGen || ownedRank > product.xosRank
-                || (ownedGen === productGen && ownedRank === product.xosRank))) {
-                throw new HttpError(400, "already_owned", `当前账户已经拥有 ${owned.name || "同等级"} 或更高版本的 XOS，无需重复购买`);
-            }
-
-            if (productGen === 2 && ownedGen === 1 && sameEdition) {
-                xosUpgrade = true;
-                amountCents = toCents(product.xosUpgradePrice) || 2500;
-                amount = fromCents(amountCents);
+            const devices = xosDevicesOf(account);
+            if (Number(product.xosGeneration) === 2) {
+                xosUpgradeIndex = devices.findIndex((device) => Number(device.generation) === 1
+                    && device.edition === product.xosEdition);
+                if (xosUpgradeIndex >= 0) {
+                    xosUpgraded = true;
+                    amountCents = toCents(product.xosUpgradePrice) || 2500;
+                    amount = fromCents(amountCents);
+                }
             }
         }
 
@@ -2538,18 +2580,19 @@ async function handlePurchase(request, env, cors) {
         });
 
         if (product.virtual && product.xosEdition) {
-            account.xos = {
-                edition: product.xosEdition,
-                name: product.name,
-                rank: product.xosRank,
-                generation: Number(product.xosGeneration) || 1,
-                productId: product.id,
-                config: product.xosConfig,
-                apps: product.xosApps,
-                refreshRates: product.refreshRates,
-                upgradedFrom: xosUpgrade ? (account.xos && account.xos.productId) || "" : "",
-                at: time
-            };
+            const devices = xosDevicesOf(account);
+            const license = xosLicenseFromProduct(product, time);
+            if (xosUpgradeIndex >= 0 && devices[xosUpgradeIndex]) {
+                const old = devices[xosUpgradeIndex];
+                license.id = old.id;
+                license.upgradedFrom = old.productId || "";
+                devices[xosUpgradeIndex] = license;
+            } else {
+                devices.push(license);
+            }
+            account.xosDevices = devices;
+            account.xos = license;
+            account.xosDeviceId = license.id;
         }
 
         return `购买商品：${account.username || login} 购买 ${product.name} ×${quantity}`;
@@ -2562,7 +2605,7 @@ async function handlePurchase(request, env, cors) {
         item: { id: product.id, name: product.name, unitPrice: fromCents(amountCents), quantity },
         stock: remaining === null ? null : { id: product.id, remaining },
         receipt: product.virtual
-            ? `购买成功：${product.name}${Number(product.xosGeneration) === 2 && amountCents === 2500 ? "（XOS1 → XOS2 升级）" : ""}，共 ${amount} VTX。XOS 云电脑授权已开通，打开 xos.html 即可使用。购买时间：${time}`
+            ? `购买成功：${product.name}${xosUpgraded ? "（XOS1 → XOS2 升级）" : "（新增一台云电脑）"}，共 ${amount} VTX。打开 xos.html 即可使用。购买时间：${time}`
             : `购买成功：${product.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
         account: selfAccount(accounts[login])
     }, 200, cors);
@@ -8294,7 +8337,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "5.3.0";
+const VIDEO_VERSION = "5.4.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
