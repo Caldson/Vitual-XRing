@@ -398,6 +398,18 @@
             font-weight: 650;
         }
 
+        .xos-upgrade {
+            margin: 0;
+            padding: 8px 10px;
+            border: 1px solid #cfe7d9;
+            border-radius: 9px;
+            background: #f0faf4;
+            color: #237a4b;
+            font-size: 12px;
+            font-weight: 650;
+            line-height: 1.55;
+        }
+
         .product-meta {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -645,7 +657,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v5.1.1</span>
+            <span class="version">v5.2.0</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -662,8 +674,8 @@
         <a class="xos-entry" href="xos.html">
             <span class="mark">X</span>
             <span class="copy">
-                <b>XOS 虚拟云电脑 26H1</b>
-                <span>1440×900 虚拟桌面 · Home / Personal / Professional / CE · 1000 VTX 起</span>
+                <b>XOS 虚拟云电脑 26H2</b>
+                <span>1440×900 虚拟桌面 · Home / Personal / Professional / CE (Community Edition) · 1000 VTX 起</span>
             </span>
             <span class="go">打开 XOS →</span>
         </a>
@@ -723,7 +735,7 @@
         </form>
     </dialog>
 
-    <script src="vtx-api.js?v=5.1.1"></script>
+    <script src="vtx-api.js?v=5.2.0"></script>
 
 
     <script>
@@ -791,6 +803,27 @@
         function stockOf(item) {
             const stock = Number(item.stock);
             return Number.isFinite(stock) ? Math.max(0, Math.floor(stock)) : 0;
+        }
+
+        function ownedXos() {
+            const account = accountsData && accountName ? accountsData[accountName] : null;
+            return account && account.xos && typeof account.xos === "object" ? account.xos : null;
+        }
+
+        function isXosUpgrade(item) {
+            const owned = ownedXos();
+            return Boolean(item && item.virtual
+                && Number(item.xosGeneration) === 2
+                && owned
+                && (Number(owned.generation) || 1) === 1
+                && owned.edition === item.xosEdition);
+        }
+
+        function displayPrice(item) {
+            if (isXosUpgrade(item)) {
+                return String(item.xosUpgradePrice || "25.00");
+            }
+            return String(item.price || "");
         }
 
         function imageSource(value) {
@@ -1045,6 +1078,13 @@
                     card.appendChild(apps);
                 }
 
+                if (isXosUpgrade(item)) {
+                    const upgrade = document.createElement("p");
+                    upgrade.className = "xos-upgrade";
+                    upgrade.textContent = `已拥有 ${item.name.replace(/ 26H2$/, " 26H1")}？可直接升级，仅需 25 VTX。`;
+                    card.appendChild(upgrade);
+                }
+
                 const meta = document.createElement("dl");
                 meta.className = "product-meta";
                 const manufacturer = document.createElement("div");
@@ -1069,11 +1109,11 @@
                 foot.className = "product-foot";
                 const price = document.createElement("p");
                 price.className = "price";
-                price.textContent = fromCents(toCents(item.price)) === "NaN"
-                    ? String(item.price || "—")
-                    : `${fromCents(toCents(item.price))} VTX`;
+                price.textContent = fromCents(toCents(displayPrice(item))) === "NaN"
+                    ? String(displayPrice(item) || "—")
+                    : `${fromCents(toCents(displayPrice(item)))} VTX`;
                 const unit = document.createElement("small");
-                unit.textContent = " / 件";
+                unit.textContent = isXosUpgrade(item) ? " / 升级" : " / 件";
                 price.appendChild(unit);
                 foot.appendChild(price);
 
@@ -1096,7 +1136,7 @@
                 return NaN;
             }
             const quantity = Math.max(1, Math.floor(Number(quantityInput.value) || 1));
-            return toCents(entry.item.price) * quantity;
+            return toCents(displayPrice(entry.item)) * quantity;
         }
 
         function renderTotal() {
@@ -1108,7 +1148,7 @@
             selectedId = item.id;
             clearMessage();
             receiptCard.hidden = true;
-            document.getElementById("checkout-sub").textContent = `${item.name} · 单价 ${item.price} VTX · 库存 ${item.virtual ? "无限（每次 1 份）" : `${stockOf(item)} 件`}`;
+            document.getElementById("checkout-sub").textContent = `${item.name} · ${isXosUpgrade(item) ? "升级价" : "单价"} ${displayPrice(item)} VTX · 库存 ${item.virtual ? "无限（每次 1 份）" : `${stockOf(item)} 件`}`;
             quantityInput.min = "1";
             quantityInput.max = item.virtual ? "1" : String(stockOf(item));
             quantityInput.value = "1";
@@ -1181,10 +1221,15 @@
         async function loadAccount() {
             try {
                 accountsData = await window.VTXApi.accounts();
+                const me = await window.VTXApi.me();
+                if (me) {
+                    accountsData = { ...(accountsData || {}), [accountName]: me };
+                }
             } catch (error) {
                 return;
             }
             renderBalance();
+            renderShop();
         }
 
         async function redeemGift(event) {
@@ -1245,7 +1290,7 @@
                 return;
             }
 
-            const unitCents = toCents(item.price);
+            const unitCents = toCents(displayPrice(item));
             if (!Number.isFinite(unitCents) || unitCents <= 0) {
                 showMessage("商品价格无效，请联系站主。", "error");
                 return;
@@ -1296,7 +1341,7 @@
                 item.stock = Math.max(0, stockOf(item) - quantity);
             }
 
-            const unitCents = toCents(payment.item ? payment.item.unitPrice : item.price);
+            const unitCents = toCents(payment.item ? payment.item.unitPrice : displayPrice(item));
             const amount = Number.isFinite(unitCents) ? fromCents(unitCents * quantity) : "—";
             const accounts = { ...(accountsData || {}), [accountName]: payment.account };
 

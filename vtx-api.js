@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "5.1.1";
+    const API_VERSION = "5.2.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -1090,7 +1090,7 @@
         )
     };
 
-    /* ───────── 5.1.1：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态 ───────── */
+    /* ───────── 5.2.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态 ───────── */
 
     function socialRequest(path, options = {}) {
         return apiRequest(`/social${path}`, options);
@@ -1524,7 +1524,7 @@
         )
     };
 
-    /* ───────── 5.1.1：ViStyle 一键应用 ─────────
+    /* ───────── 5.2.0：ViStyle 一键应用 ─────────
        只在一键应用后写入 localStorage，再由这里在每个公开页面注入 <style>。
        管理员 / 站主 / 投稿页面永不应用样式包，避免把后台改坏（页面要求明确禁止）。 */
     const STYLE_PACK_KEY = "vtxStylePack";

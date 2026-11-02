@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 import worker from "../index.js";
 
-/* 5.1.1：XOS 虚拟云电脑商店授权与桌面入口 */
+/* 5.2.0：XOS 虚拟云电脑商店授权与桌面入口 */
 
 class MockKV {
     constructor() {
@@ -71,6 +71,21 @@ const CATALOG = {
             xosRank: 2,
             refreshRates: [15, 20, 24, 30, 60],
             xosApps: ["任务管理器", "Blender"]
+        },
+        {
+            id: "xos-pc-home-26h2",
+            name: "XOS PC Home 26H2",
+            price: "1025.00",
+            description: "家庭版 V2",
+            virtual: true,
+            type: "xos",
+            xosEdition: "home",
+            xosRank: 0,
+            xosGeneration: 2,
+            xosUpgradePrice: "25.00",
+            xosConfig: { resolution: "1440x900", cpu: "XOS CPU V1 2025" },
+            refreshRates: [15],
+            xosApps: ["任务管理器", "番茄钟", "3D 画图"]
         }
     ]
 };
@@ -119,7 +134,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("5.1.1：购买 XOS 授权写入账户，并只允许购买一份", async () => {
+test("5.2.0：购买 XOS 授权写入账户，并只允许购买一份", async () => {
     const { env, token } = await prepare();
 
     const shop = await api(env, "GET", "/api/shop");
@@ -156,7 +171,34 @@ test("5.1.1：购买 XOS 授权写入账户，并只允许购买一份", async (
     assert.equal(me.data.account.xos.apps.includes("VSCode 移植版"), true);
 });
 
-test("5.1.1：低版本不能覆盖已购买的高版本授权", async () => {
+test("5.2.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
+    const { env, token } = await prepare();
+    const v1 = await api(env, "POST", "/api/me/purchase", {
+        token,
+        body: { id: "xos-pc-home-26h1", quantity: 1, password: "password1" }
+    });
+    assert.equal(v1.status, 200);
+    assert.equal(v1.data.account.xos.generation, 1);
+
+    const upgrade = await api(env, "POST", "/api/me/purchase", {
+        token,
+        body: { id: "xos-pc-home-26h2", quantity: 1, password: "password1" }
+    });
+    assert.equal(upgrade.status, 200, JSON.stringify(upgrade.data));
+    assert.equal(upgrade.data.account.xos.generation, 2);
+    assert.equal(upgrade.data.item.unitPrice, "25.00");
+    assert.match(upgrade.data.receipt, /升级/);
+    assert.equal(upgrade.data.account.money, "3975.00");
+
+    const again = await api(env, "POST", "/api/me/purchase", {
+        token,
+        body: { id: "xos-pc-home-26h2", quantity: 1, password: "password1" }
+    });
+    assert.equal(again.status, 400);
+    assert.equal(again.data.error, "already_owned");
+});
+
+test("5.2.0：低版本不能覆盖已购买的高版本授权", async () => {
     const { env, token } = await prepare();
     const pro = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -175,27 +217,40 @@ test("5.1.1：低版本不能覆盖已购买的高版本授权", async () => {
     assert.equal(me.data.account.xos.edition, "professional");
 });
 
-test("5.1.1：XOS 页面、商店分类和版本号齐全", () => {
+test("5.2.0：XOS 页面、商店分类和版本号齐全", () => {
     const page = fs.readFileSync(new URL("../../xos.html", import.meta.url), "utf8");
     const shop = fs.readFileSync(new URL("../../shop.json", import.meta.url), "utf8");
     const shopPage = fs.readFileSync(new URL("../../shop.html", import.meta.url), "utf8");
     const home = fs.readFileSync(new URL("../../index.html", import.meta.url), "utf8");
     const manager = fs.readFileSync(new URL("../../manager.html", import.meta.url), "utf8");
-    assert.match(page, /XOS PC Home 26H1/);
-    assert.match(page, /XOS PC Personal 26H1/);
-    assert.match(page, /XOS PC Professional 26H1/);
-    assert.match(page, /XOS PC CE 26H1/);
-    for (const app of ["任务管理器", "文件资源管理器", "VBrowser", "共享文件", "画图", "TXTPro", "计算器", "天气", "Microsoft Todo", "Outlook", "屏幕截图", "Visual Studio Code", "3D 画图", "Blender", "Musescore 4", "GitHub Desktop", "Git", "Blockbench", "MIDI 播放器", "计时器"]) {
+    assert.match(page, /Home 26H1/);
+    assert.match(page, /Personal 26H1/);
+    assert.match(page, /Professional 26H1/);
+    assert.match(page, /CE \(Community Edition\) 26H2/);
+    assert.doesNotMatch(page, /Commiluty/i);
+    for (const app of ["任务管理器", "文件资源管理器", "VBrowser", "共享文件", "画图", "TXTPro", "计算器", "天气", "Microsoft Todo", "Outlook", "屏幕截图", "Visual Studio Code", "3D 画图", "Blender", "Musescore 4", "GitHub Desktop", "Git", "Blockbench", "MIDI 播放器", "计时器", "番茄钟", "库乐队", "Development Kit", "Development Kit CE"]) {
         assert.match(page, new RegExp(app.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `缺少 ${app}`);
     }
-    assert.match(page, /vtx-api\.js\?v=5\.1\.1/);
+    assert.match(page, /data-file-quick/);
+    assert.match(page, /data-file-path-input/);
+    assert.match(page, /Pictures/);
+    assert.match(page, /browser-app/);
+    assert.match(page, /flex: 1 1 auto/);
+    assert.match(page, /Home 26H2/);
+    assert.match(page, /Personal 26H2/);
+    assert.match(shop, /"xos-pc-home-26h2"/);
+    assert.match(shop, /"xos-pc-ce-26h2"/);
+    assert.match(shop, /"price": "1525.00"/);
+    assert.match(shop, /"price": "1775.00"/);
+    assert.match(shop, /Community Edition/);
+    assert.match(page, /vtx-api\.js\?v=5\.2\.0/);
     assert.match(page, /API\.me\(\)/);
     assert.match(shop, /"XOS虚拟云电脑"/);
     assert.match(shop, /"xos-pc-ce-26h1"/);
     assert.match(shopPage, /get\("category"\)/);
     assert.match(shopPage, /class="xos-entry"/);
     assert.match(home, /href="xos\.html"/);
-    assert.match(home, /v5\.1\.1/);
+    assert.match(home, /v5\.2\.0/);
     assert.match(manager, /href="xos\.html"/);
     assert.match(page, /\.xos-window\.maximized \{ left: 0 !important; top: 38px !important;/);
     assert.match(page, /function joinPath/);

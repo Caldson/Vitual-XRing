@@ -66,6 +66,11 @@
  *   - 购买 XOS 后把授权写入账户 xos 字段，按版本解锁应用与刷新率；
  *   - XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。
  *
+ * 5.2.0：
+ *   - XOS PC 26H2 四版本（Home / Personal / Professional / CE Community Edition）；
+ *   - XOS1 同版本升级 XOS2 只扣 25 VTX；
+ *   - 文件资源管理器路径导航、VBrowser 高度与 CE 全称修复。
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -93,7 +98,7 @@ import { createUno, UNO_VERSION } from "./uno.js";
 import { MeetingHub } from "./meeting.js";
 import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 
-const VERSION = "5.1.1";
+const VERSION = "5.2.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -117,7 +122,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "5.1.1";
+const CHAT_VERSION = "5.2.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -1103,6 +1108,8 @@ function flattenShopCatalog(catalog) {
             virtual,
             xosEdition: String(entry.xosEdition || "").trim(),
             xosRank: Number(entry.xosRank) || 0,
+            xosGeneration: Math.max(1, Number(entry.xosGeneration) || 1),
+            xosUpgradePrice: String(entry.xosUpgradePrice || "25.00"),
             xosConfig: plainObject(entry.xosConfig),
             xosApps: Array.isArray(entry.xosApps) ? entry.xosApps.map((item) => String(item || "")).filter(Boolean) : [],
             refreshRates: Array.isArray(entry.refreshRates) ? entry.refreshRates.map((item) => Number(item) || 0).filter(Boolean) : []
@@ -2452,12 +2459,12 @@ async function handlePurchase(request, env, cors) {
         return jsonResponse({ error: "bad_request", message: "XOS 云电脑授权一次只能购买 1 份" }, 400, cors);
     }
 
-    const amountCents = product.cents * quantity;
+    let amountCents = product.cents * quantity;
     if (!Number.isFinite(amountCents) || amountCents <= 0 || amountCents > MAX_TRADE_CENTS) {
         return jsonResponse({ error: "bad_request", message: "订单金额不合法" }, 400, cors);
     }
 
-    const amount = fromCents(amountCents);
+    let amount = fromCents(amountCents);
     const time = shanghaiTimestamp();
     let trade = null;
     let remaining = null;
@@ -2467,9 +2474,24 @@ async function handlePurchase(request, env, cors) {
 
         await checkPassword(account, password);
 
-        if (product.virtual && product.xosEdition
-            && Number(account.xos && account.xos.rank) >= product.xosRank) {
-            throw new HttpError(400, "already_owned", `当前账户已经拥有 ${account.xos.name || "同等级"} 或更高版本的 XOS，无需重复购买`);
+        let xosUpgrade = false;
+        if (product.virtual && product.xosEdition) {
+            const owned = account.xos && typeof account.xos === "object" ? account.xos : null;
+            const ownedGen = Number(owned && owned.generation) || 1;
+            const ownedRank = Number(owned && owned.rank) || 0;
+            const productGen = Number(product.xosGeneration) || 1;
+            const sameEdition = Boolean(owned && owned.edition === product.xosEdition);
+
+            if (owned && (ownedGen > productGen || ownedRank > product.xosRank
+                || (ownedGen === productGen && ownedRank === product.xosRank))) {
+                throw new HttpError(400, "already_owned", `当前账户已经拥有 ${owned.name || "同等级"} 或更高版本的 XOS，无需重复购买`);
+            }
+
+            if (productGen === 2 && ownedGen === 1 && sameEdition) {
+                xosUpgrade = true;
+                amountCents = toCents(product.xosUpgradePrice) || 2500;
+                amount = fromCents(amountCents);
+            }
         }
 
         const balance = toCents(account.money) ?? 0;
@@ -2504,19 +2526,18 @@ async function handlePurchase(request, env, cors) {
         });
 
         if (product.virtual && product.xosEdition) {
-            const currentRank = Number(account.xos && account.xos.rank) || -1;
-            if (product.xosRank > currentRank) {
-                account.xos = {
-                    edition: product.xosEdition,
-                    name: product.name,
-                    rank: product.xosRank,
-                    productId: product.id,
-                    config: product.xosConfig,
-                    apps: product.xosApps,
-                    refreshRates: product.refreshRates,
-                    at: time
-                };
-            }
+            account.xos = {
+                edition: product.xosEdition,
+                name: product.name,
+                rank: product.xosRank,
+                generation: Number(product.xosGeneration) || 1,
+                productId: product.id,
+                config: product.xosConfig,
+                apps: product.xosApps,
+                refreshRates: product.refreshRates,
+                upgradedFrom: xosUpgrade ? (account.xos && account.xos.productId) || "" : "",
+                at: time
+            };
         }
 
         return `购买商品：${account.username || login} 购买 ${product.name} ×${quantity}`;
@@ -2526,10 +2547,10 @@ async function handlePurchase(request, env, cors) {
         ok: true,
         login,
         trade,
-        item: { id: product.id, name: product.name, unitPrice: fromCents(product.cents), quantity },
+        item: { id: product.id, name: product.name, unitPrice: fromCents(amountCents), quantity },
         stock: remaining === null ? null : { id: product.id, remaining },
         receipt: product.virtual
-            ? `购买成功：${product.name}，共 ${amount} VTX。XOS 云电脑授权已开通，打开 xos.html 即可使用。购买时间：${time}`
+            ? `购买成功：${product.name}${Number(product.xosGeneration) === 2 && amountCents === 2500 ? "（XOS1 → XOS2 升级）" : ""}，共 ${amount} VTX。XOS 云电脑授权已开通，打开 xos.html 即可使用。购买时间：${time}`
             : `购买成功：${product.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
         account: selfAccount(accounts[login])
     }, 200, cors);
@@ -8062,7 +8083,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "5.1.1";
+const VIDEO_VERSION = "5.2.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;

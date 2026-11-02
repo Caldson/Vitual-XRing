@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=5.1.1"></script>
+    <script src="vtx-api.js?v=5.2.0"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -466,6 +466,25 @@
         .xos-table th { color: var(--xos-muted); font-weight: 600; }
         .xos-table tr:hover td { background: rgba(76, 141, 255, 0.06); }
 
+        /* VBrowser 必须占满窗口主体，否则 iframe 按内容高度只显示约 1/3。 */
+        .xos-app.browser-app {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px;
+            overflow: hidden;
+        }
+
+        .browser-app .browser-toolbar { flex: 0 0 auto; margin-bottom: 0; }
+        .browser-app [data-home] { flex: 1 1 auto; overflow: auto; }
+        .browser-app iframe {
+            flex: 1 1 auto;
+            width: 100%;
+            min-height: 0;
+            height: auto;
+        }
+
         .xos-status { padding: 5px 8px; border-top: 1px solid var(--xos-line); color: var(--xos-muted); font-size: 10.5px; }
         .xos-canvas { display: block; width: 100%; border: 1px solid rgba(147, 180, 238, 0.18); border-radius: 8px; background: #fff; max-height: 470px; }
         .xos-canvas.dark { background: #0a1120; }
@@ -583,7 +602,7 @@
                     <select id="xos-refresh" title="显示刷新率"></select>
                     <span class="top-item" id="xos-user-label">—</span>
                     <a class="top-item xos-link" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91" title="XOS 商店">商店</a>
-                    <span class="top-item">v5.1.1</span>
+                    <span class="top-item">v5.2.0</span>
                     <button class="xos-btn small" type="button" id="xos-lock-btn">锁定</button>
                 </header>
 
@@ -623,21 +642,33 @@
             const SCREEN_W = 1440;
             const SCREEN_H = 900;
             const EDITIONS = {
-                home: { rank: 0, name: "XOS PC Home 26H1", short: "Home 26H1", cpu: "XOS CPU V1 2025", gpu: "XOS GPU V1 2026", refresh: [15] },
-                personal: { rank: 1, name: "XOS PC Personal 26H1", short: "Personal 26H1", cpu: "XOS Core V1 2025", gpu: "XOS Graphic Pro 2026", refresh: [15, 20, 24, 30] },
-                professional: { rank: 2, name: "XOS PC Professional 26H1", short: "Professional 26H1", cpu: "XOS Core V3 2026", gpu: "XOS Graphic ULTRA 2026", refresh: [15, 20, 24, 30, 60] },
-                ce: { rank: 3, name: "XOS PC CE 26H1", short: "CE 26H1", cpu: "XOS Core V3 2026", gpu: "XOS Graphic ULTRA 2026", refresh: [15, 20, 24, 30, 60] }
+                home: { rank: 0, short: "Home", cpu: "XOS CPU V1 2025", gpu: "XOS GPU V1 2026", refresh: [15] },
+                personal: { rank: 1, short: "Personal", cpu: "XOS Core V1 2025", gpu: "XOS Graphic Pro 2026", refresh: [15, 20, 24, 30] },
+                professional: { rank: 2, short: "Professional", cpu: "XOS Core V3 2026", gpu: "XOS Graphic ULTRA 2026", refresh: [15, 20, 24, 30, 60] },
+                ce: { rank: 3, short: "CE (Community Edition)", cpu: "XOS Core V3 2026", gpu: "XOS Graphic ULTRA 2026", refresh: [15, 20, 24, 30, 60] }
             };
+            const VERSIONS = [
+                { edition: "home", generation: 1, label: "Home 26H1", price: 1000 },
+                { edition: "personal", generation: 1, label: "Personal 26H1", price: 1250 },
+                { edition: "professional", generation: 1, label: "Professional 26H1", price: 1500 },
+                { edition: "ce", generation: 1, label: "CE (Community Edition) 26H1", price: 1750 },
+                { edition: "home", generation: 2, label: "Home 26H2", price: 1025 },
+                { edition: "personal", generation: 2, label: "Personal 26H2", price: 1275 },
+                { edition: "professional", generation: 2, label: "Professional 26H2", price: 1525 },
+                { edition: "ce", generation: 2, label: "CE (Community Edition) 26H2", price: 1775 }
+            ];
             const APP_ORDER = [
                 "taskmgr", "files", "browser", "shared", "paint", "txtpro", "calc", "weather",
                 "todo", "mail", "screenshot", "vscode", "paint3d", "blender", "musescore",
-                "github", "git", "blockbench", "midi", "timer"
+                "github", "git", "blockbench", "midi", "timer", "pomodoro", "garageband",
+                "devkit", "devkitce"
             ];
             const APPS = {};
             const state = {
                 login: "",
                 license: null,
                 edition: "home",
+                generation: 1,
                 refresh: 15,
                 windows: new Map(),
                 z: 30,
@@ -791,9 +822,33 @@
 
             /* ───────── 窗口管理 ───────── */
 
+            function editionName(edition, generation) {
+                return `XOS PC ${EDITIONS[edition].short} ${Number(generation) === 2 ? "26H2" : "26H1"}`;
+            }
+
+            function editionShort(edition, generation) {
+                const short = EDITIONS[edition].short;
+                return `${short === "CE (Community Edition)" ? "Community Edition" : short} ${Number(generation) === 2 ? "26H2" : "26H1"}`;
+            }
+
             function appAvailable(id) {
                 const app = APPS[id];
-                return Boolean(app && EDITIONS[state.edition].rank >= (app.minRank || 0));
+                if (!app) return false;
+                if (typeof app.available === "function") {
+                    return app.available(state.edition, Number(state.generation) || 1);
+                }
+                return EDITIONS[state.edition].rank >= (app.minRank || 0)
+                    && (app.minGen || 1) <= (Number(state.generation) || 1);
+            }
+
+            function appCount(edition, generation) {
+                return APP_ORDER.filter((id) => {
+                    const app = APPS[id];
+                    if (!app) return false;
+                    if (typeof app.available === "function") return app.available(edition, generation);
+                    return EDITIONS[edition].rank >= (app.minRank || 0)
+                        && (app.minGen || 1) <= generation;
+                }).length;
             }
 
             function openApp(id, args) {
@@ -980,8 +1035,8 @@
                     });
                     grid.appendChild(button);
                 });
-                $("xos-start-sub").textContent = `${EDITIONS[state.edition].name} · ${APP_ORDER.filter(appAvailable).length} 个应用`;
-                $("xos-start-edition").textContent = EDITIONS[state.edition].name;
+                $("xos-start-sub").textContent = `${editionName(state.edition, state.generation)} · ${APP_ORDER.filter(appAvailable).length} 个应用`;
+                $("xos-start-edition").textContent = editionName(state.edition, state.generation);
             }
 
             function showModal(html) {
@@ -1038,10 +1093,32 @@
                         <button class="xos-btn small" data-file-newfile>＋ 文本</button>
                         <button class="xos-btn small" data-file-upload>上传</button>
                         <span class="tiny" data-file-path></span>
-                    </div><div class="xos-folder" data-file-list></div>
+                    </div>
+                    <div class="row" style="margin-bottom: 8px;">
+                        <select class="xos-input" data-file-quick title="快速打开文件夹"></select>
+                        <input class="xos-input grow" data-file-path-input placeholder="输入路径，例如 Pictures 或 /Documents" autocomplete="off">
+                        <button class="xos-btn small" data-file-go>前往</button>
+                    </div>
+                    <div class="xos-folder" data-file-list></div>
                     <input type="file" data-file-input hidden>`;
                 const list = body.querySelector("[data-file-list]");
+                const quick = body.querySelector("[data-file-quick]");
+                const pathInput = body.querySelector("[data-file-path-input]");
+                const normalizePath = (raw) => String(raw || "").trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+                const navigate = (raw) => {
+                    const next = normalizePath(raw);
+                    if (next && (!fsEntry(next) || fsEntry(next).type !== "dir")) {
+                        toast("文件夹不存在：" + next);
+                        return;
+                    }
+                    path = next;
+                    render();
+                };
                 const render = () => {
+                    const roots = state.fs.filter((entry) => entry.type === "dir" && !entry.path.includes("/"));
+                    quick.innerHTML = '<option value="">根目录 /</option>' + roots.map((entry) => `<option value="${esc(entry.path)}">${esc(entry.path.split("/").pop())} /${esc(entry.path)}</option>`).join("");
+                    quick.value = roots.some((entry) => entry.path === path) ? path : "";
+                    pathInput.value = path;
                     body.querySelector("[data-file-path]").textContent = path ? `/${path}` : "/";
                     body.querySelector("[data-file-up]").disabled = !path;
                     list.textContent = "";
@@ -1061,8 +1138,12 @@
                             }
                         });
                         card.addEventListener("click", () => {
-                            if (entry.type === "file") body.dataset.selected = entry.path;
-                            else body.dataset.selected = "";
+                            if (entry.type === "dir") {
+                                path = entry.path;
+                                render();
+                                return;
+                            }
+                            body.dataset.selected = entry.path;
                         });
                         card.addEventListener("contextmenu", (event) => {
                             event.preventDefault();
@@ -1110,6 +1191,14 @@
                     if (!path) return;
                     path = path.includes("/") ? path.split("/").slice(0, -1).join("/") : "";
                     render();
+                });
+                quick.addEventListener("change", () => navigate(quick.value));
+                body.querySelector("[data-file-go]").addEventListener("click", () => navigate(pathInput.value));
+                pathInput.addEventListener("keydown", (event) => {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        navigate(pathInput.value);
+                    }
                 });
                 body.querySelector("[data-file-newdir]").addEventListener("click", () => {
                     const name = prompt("文件夹名称");
@@ -1253,7 +1342,9 @@
             APPS.browser = {
                 name: "VBrowser", icon: "🌐", minRank: 0, width: 940, height: 640,
                 mount(body) {
-                    body.innerHTML = `<div class="row" style="margin-bottom:8px;"><input class="xos-input grow" data-url placeholder="输入网址，例如 https://example.com"><button class="xos-btn primary" data-go>打开</button><button class="xos-btn" data-ext>新窗口</button></div>
+                    body.classList.add("browser-app");
+                    body.closest(".xos-window-body").style.overflow = "hidden";
+                    body.innerHTML = `<div class="row browser-toolbar"><input class="xos-input grow" data-url placeholder="输入网址，例如 https://example.com"><button class="xos-btn primary" data-go>打开</button><button class="xos-btn" data-ext>新窗口</button></div>
                         <div class="xos-panel" data-home>
                             <h3>VBrowser 起始页</h3>
                             <p class="tiny">部分网站禁止 iframe 嵌入；打不开时请点「新窗口」。</p>
@@ -1264,7 +1355,7 @@
                                 <button class="xos-btn" data-site="https://xsmmc.caldson.us.ci/viratch.html">Viratch</button>
                             </div>
                         </div>
-                        <iframe data-frame title="VBrowser" referrerpolicy="no-referrer" style="display:none;width:100%;height:calc(100% - 46px);border:1px solid rgba(147,180,238,.2);border-radius:8px;background:#fff"></iframe>`;
+                        <iframe data-frame title="VBrowser" referrerpolicy="no-referrer" style="display:none;border:1px solid rgba(147,180,238,.2);border-radius:8px;background:#fff"></iframe>`;
                     const frame = body.querySelector("[data-frame]");
                     const home = body.querySelector("[data-home]");
                     const input = body.querySelector("[data-url]");
@@ -1526,9 +1617,9 @@
                 render();
             }
 
-            APPS.paint3d = { name: "3D 画图", icon: "🧊", minRank: 1, width: 920, height: 600, mount(body) { mount3D(body, "paint3d"); } };
+            APPS.paint3d = { name: "3D 画图", icon: "🧊", minRank: 1, minGen: 1, width: 920, height: 600, available(edition, generation) { return generation >= 2 || EDITIONS[edition].rank >= 1; }, mount(body) { mount3D(body, "paint3d"); } };
             APPS.blender = { name: "Blender", icon: "🌀", minRank: 1, width: 940, height: 640, mount(body) { mount3D(body, "blender"); body.querySelector("h2")?.remove(); } };
-            APPS.blockbench = { name: "Blockbench", icon: "🧱", minRank: 2, width: 860, height: 580, mount(body) { mount3D(body, "blockbench"); } };
+            APPS.blockbench = { name: "Blockbench", icon: "🧱", minRank: 2, minGen: 1, width: 860, height: 580, available(edition, generation) { const rank = EDITIONS[edition].rank; return generation >= 2 ? rank >= 1 : rank >= 2; }, mount(body) { mount3D(body, "blockbench"); } };
 
             /* ───────── 应用：Musescore ───────── */
 
@@ -1769,18 +1860,168 @@
                 }
             };
 
+            /* ───────── 应用：番茄钟 / 库乐队 / Development Kit（XOS2） ───────── */
+
+            APPS.pomodoro = {
+                name: "番茄钟", icon: "🍅", minRank: 0, minGen: 2, width: 560, height: 480,
+                available(edition, generation) { return generation >= 2; },
+                mount(body, handle) {
+                    let mode = "work", running = false, remaining = 25 * 60, timer = null, sessions = 0;
+                    body.innerHTML = `<div class="row" style="justify-content:center"><button class="xos-btn small primary" data-mode="work">专注 25 分钟</button><button class="xos-btn small" data-mode="break">休息 5 分钟</button></div><div style="text-align:center;margin:26px 0 8px;font-size:64px;font-weight:800;font-variant-numeric:tabular-nums" data-display>25:00</div><div class="row" style="justify-content:center"><button class="xos-btn primary" data-start>开始</button><button class="xos-btn" data-reset>重置</button></div><p class="tiny" style="text-align:center;margin-top:16px" data-note>完成一个番茄钟后休息 5 分钟。</p>`;
+                    const display = body.querySelector("[data-display]");
+                    const note = body.querySelector("[data-note]");
+                    const render = () => {
+                        const minutes = Math.floor(remaining / 60), seconds = remaining % 60;
+                        display.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+                        note.textContent = running ? (mode === "work" ? "专注中，别切走太远。" : "休息一下，活动活动。") : `已完成 ${sessions} 个番茄钟。`;
+                    };
+                    const beep = () => {
+                        try {
+                            const audio = new (window.AudioContext || window.webkitAudioContext)();
+                            const osc = audio.createOscillator(), gain = audio.createGain();
+                            osc.frequency.value = 880; osc.connect(gain); gain.connect(audio.destination);
+                            gain.gain.setValueAtTime(0.12, audio.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.35);
+                            osc.start(); osc.stop(audio.currentTime + 0.36);
+                        } catch (error) { /* ignore */ }
+                    };
+                    const tick = () => {
+                        if (!running) return;
+                        remaining -= 1;
+                        if (remaining <= 0) {
+                            running = false; clearInterval(timer); beep();
+                            if (mode === "work") { sessions += 1; toast("番茄钟完成，休息一下"); }
+                            else toast("休息结束，继续专注");
+                        }
+                        render();
+                    };
+                    body.querySelector("[data-start]").addEventListener("click", () => {
+                        if (running) { running = false; clearInterval(timer); body.querySelector("[data-start]").textContent = "继续"; return; }
+                        running = true; timer = setInterval(tick, 1000); body.querySelector("[data-start]").textContent = "暂停";
+                    });
+                    body.querySelector("[data-reset]").addEventListener("click", () => {
+                        running = false; clearInterval(timer);
+                        remaining = mode === "work" ? 25 * 60 : 5 * 60;
+                        body.querySelector("[data-start]").textContent = "开始"; render();
+                    });
+                    body.querySelectorAll("[data-mode]").forEach((button) => button.addEventListener("click", () => {
+                        running = false; clearInterval(timer); mode = button.dataset.mode;
+                        remaining = mode === "work" ? 25 * 60 : 5 * 60;
+                        body.querySelector("[data-start]").textContent = "开始";
+                        render();
+                    }));
+                    handle.onClose = () => clearInterval(timer);
+                    render();
+                }
+            };
+
+            APPS.garageband = {
+                name: "库乐队", icon: "🎸", minRank: 1, minGen: 2, width: 820, height: 560,
+                available(edition, generation) { return generation >= 2 && EDITIONS[edition].rank >= 1; },
+                mount(body, handle) {
+                    const notes = [
+                        { name: "C", freq: 261.63 }, { name: "D", freq: 293.66 }, { name: "E", freq: 329.63 },
+                        { name: "F", freq: 349.23 }, { name: "G", freq: 392.00 }, { name: "A", freq: 440.00 },
+                        { name: "B", freq: 493.88 }, { name: "C5", freq: 523.25 }
+                    ];
+                    body.innerHTML = `<div class="row"><select class="xos-input" data-instrument><option value="sine">合成器</option><option value="triangle">电钢琴</option><option value="square">8-bit</option><option value="sawtooth">弦乐</option></select><button class="xos-btn primary" data-chord>播放和弦</button><button class="xos-btn" data-loop>循环</button><span class="tiny" data-status>点击琴键或按 1–8 演奏</span></div><div data-pads style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0"></div><div class="xos-panel"><h3>音轨</h3><div class="xos-list" data-tracks></div></div>`;
+                    const pads = body.querySelector("[data-pads]");
+                    const tracks = body.querySelector("[data-tracks]");
+                    let audio = null;
+                    let loopTimer = null;
+                    let loopOn = false;
+                    const play = (freq, duration) => {
+                        if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = audio.createOscillator(), gain = audio.createGain();
+                        osc.type = body.querySelector("[data-instrument]").value;
+                        osc.frequency.value = freq;
+                        osc.connect(gain); gain.connect(audio.destination);
+                        const at = audio.currentTime;
+                        gain.gain.setValueAtTime(0.0001, at);
+                        gain.gain.exponentialRampToValueAtTime(0.16, at + 0.01);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, at + (duration || 0.5));
+                        osc.start(at); osc.stop(at + (duration || 0.5) + 0.02);
+                        const row = document.createElement("div");
+                        row.className = "xos-panel";
+                        row.style.padding = "6px 8px";
+                        row.textContent = `音轨 · ${Math.round(freq)} Hz · ${body.querySelector("[data-instrument]").value}`;
+                        tracks.prepend(row);
+                        while (tracks.children.length > 8) tracks.lastChild.remove();
+                    };
+                    notes.forEach((note, index) => {
+                        const button = document.createElement("button");
+                        button.type = "button";
+                        button.className = "xos-btn";
+                        button.style.height = "64px";
+                        button.innerHTML = `<b>${note.name}</b><span class="tiny">${index + 1}</span>`;
+                        button.addEventListener("click", () => play(note.freq));
+                        pads.appendChild(button);
+                    });
+                    body.querySelector("[data-chord]").addEventListener("click", () => {
+                        [0, 2, 4].forEach((index, offset) => setTimeout(() => play(notes[index].freq, 0.8), offset * 90));
+                    });
+                    body.querySelector("[data-loop]").addEventListener("click", () => {
+                        loopOn = !loopOn;
+                        if (loopOn) {
+                            let index = 0;
+                            loopTimer = setInterval(() => { play(notes[index % notes.length].freq, 0.2); index += 1; }, 280);
+                            body.querySelector("[data-loop]").textContent = "停止循环";
+                        } else {
+                            clearInterval(loopTimer); loopTimer = null;
+                            body.querySelector("[data-loop]").textContent = "循环";
+                        }
+                    });
+                    body.addEventListener("keydown", (event) => {
+                        const index = Number(event.key) - 1;
+                        if (index >= 0 && index < notes.length) play(notes[index].freq);
+                    });
+                    body.tabIndex = 0;
+                    body.addEventListener("click", () => body.focus());
+                    handle.onClose = () => clearInterval(loopTimer);
+                }
+            };
+
+            function mountDevkit(body, handle, ce) {
+                body.innerHTML = `<div class="row" style="margin-bottom:8px"><b>${ce ? "Development Kit CE" : "Development Kit"}</b><button class="xos-btn small primary" data-run>▶ 运行</button><button class="xos-btn small" data-save>保存到 XOS</button><span class="tiny" data-dev-status>HTML / CSS / JS</span></div><div class="xos-grid2" style="grid-template-columns:1fr 1fr"><div class="xos-panel"><h3>代码</h3><textarea class="xos-input" data-code style="width:100%;height:330px;font-family:Consolas,monospace;font-size:11.5px;resize:vertical"></textarea></div><div class="xos-panel"><h3>预览</h3><iframe data-preview sandbox="allow-scripts" style="width:100%;height:330px;border:1px solid rgba(147,180,238,.2);border-radius:8px;background:#fff"></iframe></div></div>`;
+                const code = body.querySelector("[data-code]");
+                code.value = `<style>\n  body { font-family: sans-serif; padding: 24px; }\n  h1 { color: #3158d1; }\n</style>\n<h1>Hello XOS 26H2</h1>\n<button onclick="document.body.dataset.clicked='1'">点我</button>\n<script>\n  console.log("Development Kit ready");\n` + "</" + "script>";
+                body.querySelector("[data-run]").addEventListener("click", () => {
+                    body.querySelector("[data-preview]").srcdoc = code.value;
+                    body.querySelector("[data-dev-status]").textContent = "已运行 · " + new Date().toLocaleTimeString("zh-CN");
+                });
+                body.querySelector("[data-save]").addEventListener("click", () => {
+                    fsWrite("Documents/devkit-" + Date.now() + ".html", code.value);
+                    toast("已保存到 Documents");
+                });
+                handle.onClose = null;
+            }
+
+            APPS.devkit = {
+                name: "Development Kit", icon: "🛠", minRank: 2, minGen: 2, width: 980, height: 640,
+                available(edition, generation) { return generation >= 2 && EDITIONS[edition].rank === 2; },
+                mount(body, handle) { mountDevkit(body, handle, false); }
+            };
+
+            APPS.devkitce = {
+                name: "Development Kit CE", icon: "🛠", minRank: 3, minGen: 2, width: 980, height: 640,
+                available(edition, generation) { return generation >= 2 && EDITIONS[edition].rank >= 3; },
+                mount(body, handle) { mountDevkit(body, handle, true); }
+            };
+
             /* ───────── 启动 / 授权 ───────── */
 
             function renderGate(note) {
                 $("xos-shell").hidden = true;
                 $("xos-gate").hidden = false;
                 const grid = $("xos-gate-grid");
-                grid.innerHTML = Object.entries(EDITIONS).map(([key, edition]) => `<article class="xos-gate-card">
-                    <h3>${esc(edition.name)}</h3>
-                    <div class="price">${[1000, 1250, 1500, 1750][edition.rank]} VTX</div>
-                    <ul><li>${esc(edition.cpu)} · ${esc(edition.gpu)}</li><li>1440 × 900 · ${edition.refresh.join(" / ")} fps</li><li>${APP_ORDER.filter((id) => APPS[id].minRank <= edition.rank).length} 个应用</li></ul>
-                    <a class="xos-btn" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">查看商品</a>
-                </article>`).join("");
+                grid.innerHTML = VERSIONS.map((version) => {
+                    const edition = EDITIONS[version.edition];
+                    return `<article class="xos-gate-card">
+                        <h3>${esc(editionName(version.edition, version.generation))}</h3>
+                        <div class="price">${version.price} VTX</div>
+                        <ul><li>${esc(edition.cpu)} · ${esc(edition.gpu)}</li><li>1440 × 900 · ${edition.refresh.join(" / ")} fps</li><li>${appCount(version.edition, version.generation)} 个应用</li></ul>
+                        <a class="xos-btn" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">查看商品</a>
+                    </article>`;
+                }).join("");
                 $("xos-gate-note").textContent = note || "购买后刷新此页面即可启动。";
             }
 
@@ -1788,13 +2029,15 @@
                 state.license = account && account.xos ? account.xos : null;
                 if (!state.license) { renderGate("当前账户还没有 XOS 授权。"); return false; }
                 const edition = EDITIONS[state.license.edition] ? state.license.edition : "home";
+                const generation = Number(state.license.generation) === 2 ? 2 : 1;
                 state.edition = edition;
+                state.generation = generation;
                 const config = state.license.config || {};
                 const rates = Array.isArray(state.license.refreshRates) && state.license.refreshRates.length
                     ? state.license.refreshRates.map(Number).filter(Boolean)
                     : EDITIONS[edition].refresh;
                 state.refresh = rates.includes(Number(readStore("refresh", rates[0]))) ? Number(readStore("refresh", rates[0])) : rates[0];
-                $("xos-edition-label").textContent = EDITIONS[edition].short;
+                $("xos-edition-label").textContent = editionShort(edition, generation);
                 $("xos-config-label").textContent = `${config.resolution || "1440 × 900"} · ${config.cpu || EDITIONS[edition].cpu} · ${config.gpu || EDITIONS[edition].gpu}`;
                 $("xos-user-label").textContent = account.username || state.login;
                 const select = $("xos-refresh");
@@ -1810,14 +2053,14 @@
             function boot() {
                 $("xos-gate").hidden = true;
                 $("xos-boot").hidden = false;
-                $("xos-boot-edition").textContent = EDITIONS[state.edition].name;
+                $("xos-boot-edition").textContent = editionName(state.edition, state.generation);
                 setTimeout(() => {
                     $("xos-boot").hidden = true;
                     $("xos-shell").hidden = false;
                     renderDesktop(); renderTaskbar(); renderStart(); refreshClock();
                     setInterval(refreshClock, 1000);
                     fitScreen();
-                    toast("欢迎使用 " + EDITIONS[state.edition].name);
+                    toast("欢迎使用 " + editionName(state.edition, state.generation));
                 }, 1100);
             }
 
