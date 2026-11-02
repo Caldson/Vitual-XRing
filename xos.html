@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=5.2.0"></script>
+    <script src="vtx-api.js?v=5.3.0"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -128,6 +128,18 @@
 
         .xos-topbar .spacer { flex: 1; }
         .xos-topbar .top-item { color: var(--xos-muted); }
+        .xos-cloud-link {
+            border: 1px solid var(--xos-line);
+            border-radius: 999px;
+            padding: 3px 9px;
+            background: transparent;
+            color: var(--xos-muted);
+            font-size: 11px;
+        }
+        .xos-cloud-link:hover { color: #dce8ff; border-color: rgba(108, 165, 255, .55); }
+        .xos-cloud-link.syncing { color: #ffd27a; }
+        .xos-cloud-link.synced { color: #78e0b5; }
+        .xos-cloud-link.local { color: #ff9f9f; }
 
         .xos-topbar select {
             border: 1px solid var(--xos-line);
@@ -602,7 +614,8 @@
                     <select id="xos-refresh" title="显示刷新率"></select>
                     <span class="top-item" id="xos-user-label">—</span>
                     <a class="top-item xos-link" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91" title="XOS 商店">商店</a>
-                    <span class="top-item">v5.2.0</span>
+                    <button class="top-item xos-cloud-link" type="button" id="xos-cloud-status" title="点击立即从云端刷新文件">云同步</button>
+                    <span class="top-item">v5.3.0</span>
                     <button class="xos-btn small" type="button" id="xos-lock-btn">锁定</button>
                 </header>
 
@@ -675,7 +688,11 @@
                 fs: [],
                 activeId: "",
                 scale: 1,
-                timerHandles: new Set()
+                timerHandles: new Set(),
+                remoteFiles: new Map(),
+                cloudState: "local",
+                syncing: false,
+                syncTimers: new Map()
             };
 
             function esc(value) {
@@ -787,11 +804,183 @@
                     state.fs.push({ path, type: "file", content: String(content), updated: Date.now() });
                 }
                 saveFs();
+                queueCloudSave(path);
             }
 
             function fsRemove(path) {
                 state.fs = state.fs.filter((entry) => entry.path !== path && !entry.path.startsWith(path + "/"));
                 saveFs();
+                removeCloudPath(path);
+            }
+
+            /* ───────── 5.3.0：XOS 文件云端同步（Workers KV） ───────── */
+
+            function setCloudStatus(kind, text) {
+                const node = $("xos-cloud-status");
+                if (!node) return;
+                state.cloudState = kind;
+                node.className = "top-item xos-cloud-link " + kind;
+                node.textContent = text || (kind === "syncing" ? "同步中…" : kind === "synced" ? "云同步" : "仅本机");
+                node.title = kind === "synced"
+                    ? "文件已保存到 Cloudflare Workers，点击立即刷新"
+                    : kind === "syncing" ? "正在与 Cloudflare Workers 同步"
+                        : "云端不可用，文件暂存在本机";
+            }
+
+            function cloudFileType(path) {
+                return /\.(png|jpe?g|gif|webp|svg)$/i.test(String(path)) ? "image/*" : "text/plain";
+            }
+
+            function knownCloudPaths() {
+                return new Set(readStore("cloudPaths", []));
+            }
+
+            function saveKnownCloudPaths(paths) {
+                writeStore("cloudPaths", Array.from(paths));
+            }
+
+            async function uploadCloudFile(path) {
+                if (!API || !API.xos) return false;
+                const entry = fsEntry(path);
+                if (!entry || entry.type !== "file") return false;
+                const content = String(entry.content == null ? "" : entry.content);
+                if (new TextEncoder().encode(content).length > 8 * 1024 * 1024) {
+                    toast("文件超过 8 MB，无法同步到云端：" + path.split("/").pop());
+                    return false;
+                }
+                const meta = state.remoteFiles.get(path);
+                const result = meta
+                    ? await API.xos.updateFile(meta.id, content, cloudFileType(path))
+                    : await API.xos.saveFile(path, cloudFileType(path), content);
+                if (result && result.file) {
+                    state.remoteFiles.set(path, result.file);
+                    const known = knownCloudPaths();
+                    known.add(path);
+                    saveKnownCloudPaths(known);
+                }
+                return true;
+            }
+
+            function queueCloudSave(path) {
+                if (!API || !API.xos || state.syncing) return;
+                const old = state.syncTimers.get(path);
+                if (old) clearTimeout(old);
+                const timer = setTimeout(async () => {
+                    state.syncTimers.delete(path);
+                    setCloudStatus("syncing", "同步中…");
+                    try {
+                        await uploadCloudFile(path);
+                        setCloudStatus("synced", "云同步");
+                    } catch (error) {
+                        setCloudStatus("local", "仅本机");
+                        toast("云端保存失败：" + (error && error.message ? error.message : "网络错误"));
+                    }
+                }, 350);
+                state.syncTimers.set(path, timer);
+            }
+
+            async function removeCloudPath(path) {
+                if (!API || !API.xos) return;
+                const targets = [];
+                state.remoteFiles.forEach((meta, key) => {
+                    if (key === path || key.startsWith(path + "/")) targets.push(meta);
+                });
+                for (const meta of targets) {
+                    try {
+                        await API.xos.removeFile(meta.id);
+                        state.remoteFiles.delete(meta.path);
+                    } catch (error) {
+                        toast("云端删除失败：" + meta.path);
+                    }
+                }
+                if (targets.length) {
+                    const known = knownCloudPaths();
+                    known.delete(path);
+                    Array.from(known).forEach((item) => {
+                        if (item.startsWith(path + "/")) known.delete(item);
+                    });
+                    saveKnownCloudPaths(known);
+                }
+            }
+
+            function addParentDirs(set, path) {
+                const parts = String(path || "").split("/");
+                parts.pop();
+                let current = "";
+                for (const part of parts) {
+                    current = current ? `${current}/${part}` : part;
+                    if (current) set.add(current);
+                }
+            }
+
+            async function syncCloudFiles(options) {
+                if (!API || !API.xos) {
+                    setCloudStatus("local", "仅本机");
+                    return false;
+                }
+                if (state.syncing) return false;
+                state.syncing = true;
+                setCloudStatus("syncing", "同步中…");
+                try {
+                    const data = await API.xos.listFiles();
+                    const remoteList = Array.isArray(data && data.files) ? data.files : [];
+                    const remotePaths = new Set(remoteList.map((item) => item.path));
+                    const dirs = new Set(["Desktop", "Documents", "Pictures", "Shared"]);
+                    const remoteEntries = [];
+                    state.remoteFiles.clear();
+
+                    for (const meta of remoteList) {
+                        try {
+                            const got = await API.xos.getFile(meta.id);
+                            remoteEntries.push({
+                                path: meta.path,
+                                type: "file",
+                                content: String(got && got.content != null ? got.content : ""),
+                                updated: Number(meta.updated) || Date.now()
+                            });
+                            state.remoteFiles.set(meta.path, meta);
+                            addParentDirs(dirs, meta.path);
+                        } catch (error) {
+                            /* 单个文件读取失败不影响其它文件 */
+                        }
+                    }
+
+                    const known = knownCloudPaths();
+                    const localOnly = state.fs.filter((entry) => entry.type === "file"
+                        && !remotePaths.has(entry.path)
+                        && !known.has(entry.path));
+                    for (const entry of localOnly) addParentDirs(dirs, entry.path);
+                    state.fs = Array.from(dirs).sort().map((path) => ({ path, type: "dir" }))
+                        .concat(remoteEntries)
+                        .concat(localOnly);
+                    saveFs();
+
+                    const nextKnown = new Set(remotePaths);
+                    for (const entry of localOnly) {
+                        try {
+                            await uploadCloudFile(entry.path);
+                            nextKnown.add(entry.path);
+                        } catch (error) {
+                            toast("本地文件上传失败：" + entry.path.split("/").pop());
+                        }
+                    }
+                    saveKnownCloudPaths(nextKnown);
+
+                    state.syncing = false;
+                    setCloudStatus("synced", "云同步");
+                    if (!options || !options.silent) {
+                        toast("云同步完成 · " + state.fs.filter((entry) => entry.type === "file").length + " 个文件");
+                    }
+                    renderDesktop();
+                    return true;
+                } catch (error) {
+                    state.syncing = false;
+                    setCloudStatus("local", "仅本机");
+                    if (!options || !options.silent) {
+                        toast("云同步失败，文件仍保存在本机");
+                    }
+                    return false;
+                }
             }
 
             function fileGlyph(name) {
@@ -1218,13 +1407,8 @@
                     const isImage = file.type.startsWith("image/");
                     reader.onload = () => {
                         const pathName = joinPath(path, file.name);
-                        if (isImage) {
-                            fsMkdir(path);
-                            state.fs.push({ path: pathName, type: "file", content: String(reader.result), updated: Date.now() });
-                            saveFs();
-                        } else {
-                            fsWrite(pathName, String(reader.result));
-                        }
+                        fsMkdir(path);
+                        fsWrite(pathName, String(reader.result));
                         render();
                         toast("已上传 " + file.name);
                     };
@@ -1411,8 +1595,8 @@
                     body.querySelector("[data-clear]").addEventListener("click", () => { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); });
                     body.querySelector("[data-download]").addEventListener("click", () => canvas.toBlob((blob) => downloadBlob("XOS-Paint.png", blob), "image/png"));
                     body.querySelector("[data-save]").addEventListener("click", () => {
-                        state.fs.push({ path: "Pictures/XOS-Paint-" + Date.now() + ".png", type: "file", content: canvas.toDataURL("image/png"), updated: Date.now() });
-                        saveFs(); toast("已保存到 Pictures");
+                        fsWrite("Pictures/XOS-Paint-" + Date.now() + ".png", canvas.toDataURL("image/png"));
+                        toast("已保存到 Pictures，正在同步云端");
                     });
                 }
             };
@@ -2068,6 +2252,10 @@
                 fitScreen();
                 window.addEventListener("resize", fitScreen);
                 $("xos-start-btn").addEventListener("click", () => { $("xos-start").hidden = !$("xos-start").hidden; });
+                $("xos-cloud-status").addEventListener("click", async () => {
+                    if (state.syncing) return;
+                    await syncCloudFiles();
+                });
                 $("xos-lock-btn").addEventListener("click", () => { closeAll(); showModal('<h2 style="margin-top:0">XOS 已锁定</h2><p class="tiny">这是一个网页虚拟桌面，刷新页面即可重新进入。</p><div style="text-align:right"><button class="xos-btn" data-modal-close>解锁</button></div>'); });
                 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("xos-start").hidden = true; } });
                 if (!API || !API.hasSession) { renderGate("加载 vtx-api.js 失败，请刷新。"); return; }
@@ -2076,8 +2264,14 @@
                     const account = await API.me();
                     state.login = account.login || sessionStorage.getItem("vtxAccount") || "user";
                     loadFs();
-                    if (applyLicense(account)) boot();
-                    else $("xos-gate-note").innerHTML = '当前账户还没有 XOS 授权，<a class="xos-link" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">去商店购买</a>。';
+                    if (applyLicense(account)) {
+                        $("xos-boot").hidden = false;
+                        $("xos-boot-edition").textContent = "正在同步云端文件…";
+                        await syncCloudFiles({ silent: true });
+                        boot();
+                    } else {
+                        $("xos-gate-note").innerHTML = '当前账户还没有 XOS 授权，<a class="xos-link" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">去商店购买</a>。';
+                    }
                 } catch (error) {
                     renderGate(error && error.message ? error.message : "读取账户失败，请稍后刷新。");
                 }

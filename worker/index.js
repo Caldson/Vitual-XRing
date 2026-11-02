@@ -71,6 +71,10 @@
  *   - XOS1 同版本升级 XOS2 只扣 25 VTX；
  *   - 文件资源管理器路径导航、VBrowser 高度与 CE 全称修复。
  *
+ * 5.3.0：
+ *   - XOS 文件保存到 Workers KV（xos:file / xos:files），支持跨设备同步；
+ *   - 单文件 8 MB、账户 100 MB、最多 500 个文件，仅 XOS 授权账户可用。
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -98,7 +102,7 @@ import { createUno, UNO_VERSION } from "./uno.js";
 import { MeetingHub } from "./meeting.js";
 import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 
-const VERSION = "5.2.0";
+const VERSION = "5.3.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -122,7 +126,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "5.2.0";
+const CHAT_VERSION = "5.3.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -178,6 +182,14 @@ const CHAT_NEARBY_RADIUS_KM = 10;
 const CHAT_NEARBY_MAX_ACCOUNTS = 500;
 const CHAT_NEARBY_MAX_RESULTS = 100;
 const nearbyAttempts = new Map();
+/* 5.3.0：XOS 文件同步（Workers KV，按账户隔离） */
+const XOS_FILE_PREFIX = "xos:file:";
+const XOS_INDEX_PREFIX = "xos:files:";
+const XOS_FILE_MAX_BYTES = 8 * 1024 * 1024;
+const XOS_FILE_QUOTA_BYTES = 100 * 1024 * 1024;
+const XOS_FILE_MAX_COUNT = 500;
+const XOS_FILE_ID_PATTERN = /^f_[A-Za-z0-9_-]{4,32}$/;
+const XOS_FILE_PATH_MAX = 240;
 const LOGIN_WINDOW_MS = 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
 const WRITE_WINDOW_MS = 60 * 1000;
@@ -2554,6 +2566,205 @@ async function handlePurchase(request, env, cors) {
             : `购买成功：${product.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
         account: selfAccount(accounts[login])
     }, 200, cors);
+}
+
+/* ───────── 5.3.0：XOS 云端文件（Workers KV，跨设备同步） ───────── */
+
+function xosIndexKey(login) {
+    return `${XOS_INDEX_PREFIX}${login}`;
+}
+
+function xosFileKey(login, id) {
+    return `${XOS_FILE_PREFIX}${login}:${id}`;
+}
+
+function normalizeXosFilePath(raw) {
+    const path = String(raw || "").trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    if (!path || path.length > XOS_FILE_PATH_MAX || path.includes("..") || /[\u0000-\u001f]/.test(path)) {
+        return "";
+    }
+    return path;
+}
+
+function xosFileView(meta) {
+    return {
+        id: String(meta.id || ""),
+        path: String(meta.path || ""),
+        name: String(meta.name || ""),
+        type: String(meta.type || "text/plain"),
+        size: Number(meta.size) || 0,
+        updated: Number(meta.updated) || 0
+    };
+}
+
+function xosContentSize(content) {
+    return new TextEncoder().encode(String(content || "")).length;
+}
+
+async function readXosIndex(env, login) {
+    const value = await env.ACCOUNTS_KV.get(xosIndexKey(login), "json");
+    return Array.isArray(value) ? value.filter((item) => item && XOS_FILE_ID_PATTERN.test(String(item.id || ""))) : [];
+}
+
+async function requireXosAccount(env, login, cors) {
+    const accounts = await loadAccounts(env);
+    const account = accounts[login];
+    if (!account) {
+        return { error: jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors) };
+    }
+    if (!account.xos) {
+        return { error: jsonResponse({ error: "xos_license_required", message: "需要先购买 XOS 云电脑" }, 403, cors) };
+    }
+    return { account };
+}
+
+async function handleXosFiles(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    const login = session.payload.sub;
+    const licensed = await requireXosAccount(env, login, cors);
+    if (licensed.error) {
+        return licensed.error;
+    }
+
+    if (request.method === "GET") {
+        const index = await readXosIndex(env, login);
+        const used = index.reduce((total, item) => total + (Number(item.size) || 0), 0);
+        return jsonResponse({
+            ok: true,
+            files: index.map(xosFileView),
+            quota: {
+                usedBytes: used,
+                quotaBytes: XOS_FILE_QUOTA_BYTES,
+                maxFileBytes: XOS_FILE_MAX_BYTES,
+                maxCount: XOS_FILE_MAX_COUNT
+            }
+        }, 200, cors);
+    }
+
+    if (request.method !== "POST") {
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const path = normalizeXosFilePath(body.path);
+    if (!path) {
+        return jsonResponse({ error: "bad_request", message: "文件路径不合法" }, 400, cors);
+    }
+    const content = String(body.content == null ? "" : body.content);
+    const size = xosContentSize(content);
+    if (size > XOS_FILE_MAX_BYTES) {
+        return jsonResponse({ error: "payload_too_large", message: `单个文件不能超过 ${Math.round(XOS_FILE_MAX_BYTES / 1024 / 1024)} MB` }, 413, cors);
+    }
+    const type = String(body.type || "text/plain").split(";")[0].trim().slice(0, 80) || "text/plain";
+
+    const result = await withStoreLock(async () => {
+        const index = await readXosIndex(env, login);
+        const existing = index.find((item) => item.path === path) || null;
+        const oldSize = existing ? Number(existing.size) || 0 : 0;
+        const used = index.reduce((total, item) => total + (Number(item.size) || 0), 0);
+        if (used - oldSize + size > XOS_FILE_QUOTA_BYTES) {
+            return { error: jsonResponse({ error: "quota_exceeded", message: "XOS 云盘空间已满（100 MB）" }, 413, cors) };
+        }
+        if (!existing && index.length >= XOS_FILE_MAX_COUNT) {
+            return { error: jsonResponse({ error: "too_many_files", message: `XOS 文件数量不能超过 ${XOS_FILE_MAX_COUNT} 个` }, 413, cors) };
+        }
+        const id = existing ? existing.id : `f_${randomCode(9)}`;
+        const meta = {
+            id,
+            path,
+            name: path.split("/").pop() || path,
+            type,
+            size,
+            updated: Date.now()
+        };
+        await env.ACCOUNTS_KV.put(xosFileKey(login, id), content);
+        if (existing) {
+            Object.assign(existing, meta);
+        } else {
+            index.push(meta);
+        }
+        await env.ACCOUNTS_KV.put(xosIndexKey(login), JSON.stringify(index));
+        return { file: meta };
+    });
+
+    if (result.error) {
+        return result.error;
+    }
+    return jsonResponse({ ok: true, file: xosFileView(result.file) }, 201, cors);
+}
+
+async function handleXosFile(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+    if (!XOS_FILE_ID_PATTERN.test(id)) {
+        return jsonResponse({ error: "bad_request", message: "文件 id 不合法" }, 400, cors);
+    }
+    const login = session.payload.sub;
+    const licensed = await requireXosAccount(env, login, cors);
+    if (licensed.error) {
+        return licensed.error;
+    }
+    const index = await readXosIndex(env, login);
+    const meta = index.find((item) => item.id === id);
+    if (!meta) {
+        return jsonResponse({ error: "not_found", message: "文件不存在" }, 404, cors);
+    }
+
+    if (request.method === "GET") {
+        const content = await env.ACCOUNTS_KV.get(xosFileKey(login, id));
+        if (content === null || content === undefined) {
+            return jsonResponse({ error: "not_found", message: "文件内容不存在" }, 404, cors);
+        }
+        return jsonResponse({ ok: true, file: xosFileView(meta), content: String(content) }, 200, cors);
+    }
+
+    if (request.method === "PUT") {
+        const body = plainObject(await readJsonBody(request));
+        const content = String(body.content == null ? meta.content || "" : body.content);
+        const size = xosContentSize(content);
+        if (size > XOS_FILE_MAX_BYTES) {
+            return jsonResponse({ error: "payload_too_large", message: `单个文件不能超过 ${Math.round(XOS_FILE_MAX_BYTES / 1024 / 1024)} MB` }, 413, cors);
+        }
+        const result = await withStoreLock(async () => {
+            const latest = await readXosIndex(env, login);
+            const current = latest.find((item) => item.id === id);
+            if (!current) {
+                return { error: jsonResponse({ error: "not_found", message: "文件不存在" }, 404, cors) };
+            }
+            const used = latest.reduce((total, item) => total + (Number(item.size) || 0), 0);
+            if (used - (Number(current.size) || 0) + size > XOS_FILE_QUOTA_BYTES) {
+                return { error: jsonResponse({ error: "quota_exceeded", message: "XOS 云盘空间已满（100 MB）" }, 413, cors) };
+            }
+            current.size = size;
+            current.updated = Date.now();
+            if (body.type) {
+                current.type = String(body.type).split(";")[0].trim().slice(0, 80) || current.type;
+            }
+            await env.ACCOUNTS_KV.put(xosFileKey(login, id), content);
+            await env.ACCOUNTS_KV.put(xosIndexKey(login), JSON.stringify(latest));
+            return { file: current };
+        });
+        if (result.error) {
+            return result.error;
+        }
+        return jsonResponse({ ok: true, file: xosFileView(result.file) }, 200, cors);
+    }
+
+    if (request.method === "DELETE") {
+        await env.ACCOUNTS_KV.delete(xosFileKey(login, id));
+        await withStoreLock(async () => {
+            const latest = await readXosIndex(env, login);
+            await env.ACCOUNTS_KV.put(xosIndexKey(login), JSON.stringify(latest.filter((item) => item.id !== id)));
+        });
+        return jsonResponse({ ok: true, removed: id }, 200, cors);
+    }
+
+    return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
 }
 
 /* 1.2.0：公开的商品库存（KV 里没有记录时回落到 shop.json 的库存） */
@@ -8083,7 +8294,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "5.2.0";
+const VIDEO_VERSION = "5.3.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -10963,6 +11174,19 @@ export default {
                         virtualDesktop: true
                     }
                 }, 200, cors);
+            }
+
+            if (url.pathname === "/api/xos/files") {
+                if (request.method === "GET" || request.method === "POST") {
+                    return await handleXosFiles(request, env, cors);
+                }
+            }
+
+            {
+                const xosFileMatch = url.pathname.match(/^\/api\/xos\/files\/([^/]+)$/);
+                if (xosFileMatch) {
+                    return await handleXosFile(request, env, cors, decodeURIComponent(xosFileMatch[1]));
+                }
             }
 
             if (url.pathname === "/api/shop" && request.method === "GET") {

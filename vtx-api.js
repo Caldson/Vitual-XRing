@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "5.2.0";
+    const API_VERSION = "5.3.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -1090,7 +1090,7 @@
         )
     };
 
-    /* ───────── 5.2.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态 ───────── */
+    /* ───────── 5.3.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态 ───────── */
 
     function socialRequest(path, options = {}) {
         return apiRequest(`/social${path}`, options);
@@ -1477,6 +1477,20 @@
         return `${videoBase()}/videos/${encodeId(id)}/file${query}`;
     }
 
+    const xos = {
+        listFiles: () => apiRequest("/xos/files"),
+        getFile: (id) => apiRequest(`/xos/files/${encodeId(id)}`),
+        saveFile: (path, type, content) => apiRequest("/xos/files", {
+            method: "POST",
+            body: { path, type: type || "text/plain", content: String(content == null ? "" : content) }
+        }),
+        updateFile: (id, content, type) => apiRequest(`/xos/files/${encodeId(id)}`, {
+            method: "PUT",
+            body: { content: String(content == null ? "" : content), type: type || undefined }
+        }),
+        removeFile: (id) => apiRequest(`/xos/files/${encodeId(id)}`, { method: "DELETE" })
+    };
+
     const video = {
         status: () => videoRequest("/status", { auth: false }),
         list: (options = {}) => {
@@ -1524,7 +1538,7 @@
         )
     };
 
-    /* ───────── 5.2.0：ViStyle 一键应用 ─────────
+    /* ───────── 5.3.0：ViStyle 一键应用 ─────────
        只在一键应用后写入 localStorage，再由这里在每个公开页面注入 <style>。
        管理员 / 站主 / 投稿页面永不应用样式包，避免把后台改坏（页面要求明确禁止）。 */
     const STYLE_PACK_KEY = "vtxStylePack";
@@ -1675,6 +1689,7 @@
         chatSocketUrl: chatSocketUrl,
         chatMediaUrl: chatMediaUrl,
         video,
+        xos,
         commit,
         readAll,
         loadConfig,
