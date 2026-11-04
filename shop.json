@@ -596,10 +596,10 @@
             "type": "bundle",
             "bundle": true,
             "bundleItems": [
-                "xos-pc-home-26h2",
-                "xos-pc-personal-26h2"
+                "xos-pc-ce-26h2",
+                "xos-pc-gamemax-26h2"
             ],
-            "image": "images/xos-pc-home.svg"
+            "image": "images/xos-pc-26h2-ce-gamemax-bundle.svg"
         }
     ]
 }
