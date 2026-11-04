@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 import worker from "../index.js";
 
-/* 5.5.0：XOS 虚拟云电脑商店授权与桌面入口 */
+/* 5.6.0：XOS 虚拟云电脑商店授权与桌面入口 */
 
 class MockKV {
     constructor() {
@@ -86,6 +86,22 @@ const CATALOG = {
             xosConfig: { resolution: "1440x900", cpu: "XOS CPU V1 2025" },
             refreshRates: [15],
             xosApps: ["任务管理器", "番茄钟", "3D 画图"]
+        },
+        {
+            id: "xos-pc-gamemax-26h2",
+            name: "XOS PC GameMAX 26H2 [高性能] [需要使用强劲的电脑]",
+            price: "3000.00",
+            description: "高性能游戏版",
+            virtual: true,
+            type: "xos",
+            xosEdition: "gamemax",
+            xosRank: 3,
+            xosGeneration: 2,
+            xosFpsWarning: 1500,
+            xosFpsWarningMax: 30000,
+            xosConfig: { resolution: "1440x900", cpu: "XOS ULTRA V4 2026", gpu: "XOS Graphic ULTRA 2026", memory: "10TB" },
+            refreshRates: [15, 240, 1500, 30000],
+            xosApps: ["任务管理器"]
         }
     ]
 };
@@ -134,7 +150,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("5.5.0：购买 XOS 授权写入账户，并只允许购买一份", async () => {
+test("5.6.0：购买 XOS 授权写入账户，并只允许购买一份", async () => {
     const { env, token } = await prepare();
 
     const shop = await api(env, "GET", "/api/shop");
@@ -173,7 +189,7 @@ test("5.5.0：购买 XOS 授权写入账户，并只允许购买一份", async (
     assert.equal(me.data.account.xosDevices.length, 2);
 });
 
-test("5.5.0：没有 XOS1 时按完整 V2 价格购买", async () => {
+test("5.6.0：没有 XOS1 时按完整 V2 价格购买", async () => {
     const { env, token } = await prepare();
     const v2 = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -186,7 +202,22 @@ test("5.5.0：没有 XOS1 时按完整 V2 价格购买", async () => {
     assert.equal(v2.data.account.money, "3975.00");
 });
 
-test("5.5.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
+test("5.6.0：购买 GameMAX 写入高性能配置和极端帧率提示", async () => {
+    const { env, token } = await prepare();
+    const game = await api(env, "POST", "/api/me/purchase", {
+        token,
+        body: { id: "xos-pc-gamemax-26h2", quantity: 1, password: "password1" }
+    });
+    assert.equal(game.status, 200, JSON.stringify(game.data));
+    assert.equal(game.data.item.unitPrice, "3000.00");
+    assert.equal(game.data.account.money, "2000.00");
+    assert.equal(game.data.account.xos.edition, "gamemax");
+    assert.equal(game.data.account.xos.config.memory, "10TB");
+    assert.equal(game.data.account.xos.fpsWarning, 1500);
+    assert.equal(game.data.account.xos.fpsWarningMax, 30000);
+});
+
+test("5.6.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
     const { env, token } = await prepare();
     const v1 = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -216,7 +247,7 @@ test("5.5.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
     assert.equal(again.data.account.money, "2950.00");
 });
 
-test("5.5.0：同一版本也可以购买多台", async () => {
+test("5.6.0：同一版本也可以购买多台", async () => {
     const { env, token } = await prepare();
     const first = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -233,7 +264,7 @@ test("5.5.0：同一版本也可以购买多台", async () => {
     assert.notEqual(second.data.account.xosDevices[0].id, second.data.account.xosDevices[1].id);
 });
 
-test("5.5.0：可以购买多台不同版本的 XOS", async () => {
+test("5.6.0：可以购买多台不同版本的 XOS", async () => {
     const { env, token } = await prepare();
     const pro = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -255,7 +286,7 @@ test("5.5.0：可以购买多台不同版本的 XOS", async () => {
     assert.equal(me.data.account.xosDevices.length, 2);
 });
 
-test("5.5.0：XOS 页面、商店分类和版本号齐全", () => {
+test("5.6.0：XOS 页面、商店分类和版本号齐全", () => {
     const page = fs.readFileSync(new URL("../../xos.html", import.meta.url), "utf8");
     const shop = fs.readFileSync(new URL("../../shop.json", import.meta.url), "utf8");
     const shopPage = fs.readFileSync(new URL("../../shop.html", import.meta.url), "utf8");
@@ -284,7 +315,17 @@ test("5.5.0：XOS 页面、商店分类和版本号齐全", () => {
     assert.match(sdk, /listFiles: \(\) => apiRequest\("\/xos\/files"\)/);
     assert.match(page, /Home 26H2/);
     assert.match(page, /Personal 26H2/);
+    assert.match(page, /GameVersion/);
+    assert.match(page, /GameULTRA/);
+    assert.match(page, /GameMAX/);
+    assert.match(page, /此帧率过于极端，可能会导致电脑卡顿\/蓝屏\/黑屏\/变砖，真的要打开吗？/);
     assert.match(shop, /"xos-pc-home-26h2"/);
+    assert.match(shop, /"xos-pc-game-26h2"/);
+    assert.match(shop, /"xos-pc-gameultra-26h2"/);
+    assert.match(shop, /"xos-pc-gamemax-26h2"/);
+    assert.match(shop, /"price": "2000.00"/);
+    assert.match(shop, /"price": "2750.00"/);
+    assert.match(shop, /"price": "3000.00"/);
     assert.match(shop, /"xos-pc-ce-26h2"/);
     assert.match(shop, /"price": "1525.00"/);
     assert.match(shop, /"price": "1775.00"/);
@@ -292,19 +333,22 @@ test("5.5.0：XOS 页面、商店分类和版本号齐全", () => {
     const xosItems = catalog["XOS虚拟云电脑"];
     assert.equal(xosItems[0].id, "xos-pc-home-26h2");
     assert.equal(xosItems[3].id, "xos-pc-ce-26h2");
-    assert.equal(xosItems[4].id, "xos-pc-home-26h1");
-    assert.equal(xosItems.every((item, index) => index < 4
+    assert.equal(xosItems[4].id, "xos-pc-game-26h2");
+    assert.equal(xosItems[5].id, "xos-pc-gameultra-26h2");
+    assert.equal(xosItems[6].id, "xos-pc-gamemax-26h2");
+    assert.equal(xosItems[7].id, "xos-pc-home-26h1");
+    assert.equal(xosItems.every((item, index) => index < 7
         ? Number(item.xosGeneration) === 2
         : Number(item.xosGeneration) !== 2), true);
     assert.match(shop, /Community Edition/);
-    assert.match(page, /vtx-api\.js\?v=5\.5\.0/);
+    assert.match(page, /vtx-api\.js\?v=5\.6\.0/);
     assert.match(page, /API\.me\(\)/);
     assert.match(shop, /"XOS虚拟云电脑"/);
     assert.match(shop, /"xos-pc-ce-26h1"/);
     assert.match(shopPage, /get\("category"\)/);
     assert.match(shopPage, /class="xos-entry"/);
     assert.match(home, /href="xos\.html"/);
-    assert.match(home, /v5\.5\.0/);
+    assert.match(home, /v5\.6\.0/);
     assert.match(manager, /href="xos\.html"/);
     assert.match(page, /\.xos-window\.maximized \{ left: 0 !important; top: 38px !important;/);
     assert.match(page, /function joinPath/);

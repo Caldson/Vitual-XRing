@@ -85,6 +85,10 @@
  * 5.5.0：
  *   - XOS 顶栏和开始菜单增加「返回主页」入口。
  *
+ * 5.6.0：
+ *   - 新增 GameVersion / GameULTRA / GameMAX 三台高性能 XOS；
+ *   - GameMAX 1500–30000fps 极端刷新率提示。
+ *
  * 环境变量（wrangler.toml 的 [vars]）：
  *   REPO / BRANCH / PATH        迁移数据源（旧的 account.json）
  *   ALLOWED_ORIGINS             允许跨域的站点，逗号分隔，"*" 为任意
@@ -112,7 +116,7 @@ import { createUno, UNO_VERSION } from "./uno.js";
 import { MeetingHub } from "./meeting.js";
 import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 
-const VERSION = "5.5.0";
+const VERSION = "5.6.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -136,7 +140,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "5.5.0";
+const CHAT_VERSION = "5.6.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -605,6 +609,8 @@ function xosLicenseFromProduct(product, time, id, upgradedFrom) {
         config: product.xosConfig,
         apps: product.xosApps,
         refreshRates: product.refreshRates,
+        fpsWarning: Number(product.xosFpsWarning) || 0,
+        fpsWarningMax: Number(product.xosFpsWarningMax) || 0,
         upgradedFrom: upgradedFrom || "",
         at: time
     };
@@ -1175,6 +1181,8 @@ function flattenShopCatalog(catalog) {
             xosRank: Number(entry.xosRank) || 0,
             xosGeneration: Math.max(1, Number(entry.xosGeneration) || 1),
             xosUpgradePrice: String(entry.xosUpgradePrice || "25.00"),
+            xosFpsWarning: Number(entry.xosFpsWarning) || 0,
+            xosFpsWarningMax: Number(entry.xosFpsWarningMax) || 0,
             xosConfig: plainObject(entry.xosConfig),
             xosApps: Array.isArray(entry.xosApps) ? entry.xosApps.map((item) => String(item || "")).filter(Boolean) : [],
             refreshRates: Array.isArray(entry.refreshRates) ? entry.refreshRates.map((item) => Number(item) || 0).filter(Boolean) : []
@@ -8343,7 +8351,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "5.5.0";
+const VIDEO_VERSION = "5.6.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;

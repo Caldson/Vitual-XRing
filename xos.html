@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=5.5.0"></script>
+    <script src="vtx-api.js?v=5.6.0"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -623,7 +623,7 @@
                     <span class="top-item" id="xos-user-label">—</span>
                     <a class="top-item xos-link" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91" title="XOS 商店">商店</a>
                     <button class="top-item xos-cloud-link" type="button" id="xos-cloud-status" title="点击立即从云端刷新文件">云同步</button>
-                    <span class="top-item">v5.5.0</span>
+                    <span class="top-item">v5.6.0</span>
                     <a class="xos-btn small" href="index.html" title="返回 Vitual XRing 主页">返回主页</a>
                     <button class="xos-btn small" type="button" id="xos-lock-btn">锁定</button>
                 </header>
@@ -667,7 +667,10 @@
                 home: { rank: 0, short: "Home", cpu: "XOS CPU V1 2025", gpu: "XOS GPU V1 2026", refresh: [15] },
                 personal: { rank: 1, short: "Personal", cpu: "XOS Core V1 2025", gpu: "XOS Graphic Pro 2026", refresh: [15, 20, 24, 30] },
                 professional: { rank: 2, short: "Professional", cpu: "XOS Core V3 2026", gpu: "XOS Graphic ULTRA 2026", refresh: [15, 20, 24, 30, 60] },
-                ce: { rank: 3, short: "CE (Community Edition)", cpu: "XOS Core V3 2026", gpu: "XOS Graphic ULTRA 2026", refresh: [15, 20, 24, 30, 60] }
+                ce: { rank: 3, short: "CE (Community Edition)", cpu: "XOS Core V3 2026", gpu: "XOS Graphic ULTRA 2026", refresh: [15, 20, 24, 30, 60] },
+                game: { rank: 3, short: "GameVersion", cpu: "XOS RECOMMEND V4 2026", gpu: "XOS Graphic ULTRA 2026", refresh: [15, 20, 24, 30, 60, 120, 200, 240], refreshLabel: "15–240fps" },
+                gameultra: { rank: 3, short: "GameULTRA", cpu: "XOS ULTRA V4 2026", gpu: "XOS Graphic ULTRA 2026", refresh: [15, 20, 24, 30, 60, 120, 200, 240, 300, 600, 700, 720, 724, 1500, 1520, 1524, 2000, 2040], refreshLabel: "15–2040fps" },
+                gamemax: { rank: 3, short: "GameMAX", cpu: "XOS ULTRA V4 2026", gpu: "XOS Graphic ULTRA 2026", refresh: [15, 20, 24, 30, 60, 120, 200, 240, 300, 600, 700, 720, 724, 1500, 1520, 1524, 2000, 2040, 3000, 3500, 12400, 15000, 24000, 30000], refreshLabel: "15–30000fps" }
             };
             const VERSIONS = [
                 { edition: "home", generation: 1, label: "Home 26H1", price: 1000 },
@@ -677,7 +680,10 @@
                 { edition: "home", generation: 2, label: "Home 26H2", price: 1025 },
                 { edition: "personal", generation: 2, label: "Personal 26H2", price: 1275 },
                 { edition: "professional", generation: 2, label: "Professional 26H2", price: 1525 },
-                { edition: "ce", generation: 2, label: "CE (Community Edition) 26H2", price: 1775 }
+                { edition: "ce", generation: 2, label: "CE (Community Edition) 26H2", price: 1775 },
+                { edition: "game", generation: 2, label: "GameVersion 26H2", price: 2000 },
+                { edition: "gameultra", generation: 2, label: "GameULTRA 26H2", price: 2750 },
+                { edition: "gamemax", generation: 2, label: "GameMAX 26H2", price: 3000 }
             ];
             const APP_ORDER = [
                 "taskmgr", "files", "browser", "shared", "paint", "txtpro", "calc", "weather",
@@ -694,6 +700,8 @@
                 edition: "home",
                 generation: 1,
                 refresh: 15,
+                fpsWarning: 0,
+                fpsWarningMax: 0,
                 windows: new Map(),
                 z: 30,
                 fs: [],
@@ -824,7 +832,7 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 5.5.0：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 5.6.0：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");
@@ -2213,7 +2221,7 @@
                     return `<article class="xos-gate-card">
                         <h3>${esc(editionName(version.edition, version.generation))}</h3>
                         <div class="price">${version.price} VTX</div>
-                        <ul><li>${esc(edition.cpu)} · ${esc(edition.gpu)}</li><li>1440 × 900 · ${edition.refresh.join(" / ")} fps</li><li>${appCount(version.edition, version.generation)} 个应用</li></ul>
+                        <ul><li>${esc(edition.cpu)} · ${esc(edition.gpu)}</li><li>1440 × 900 · ${esc(edition.refreshLabel || edition.refresh.join(" / ") + " fps")}</li><li>${appCount(version.edition, version.generation)} 个应用</li></ul>
                         <a class="xos-btn" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">查看商品</a>
                     </article>`;
                 }).join("");
@@ -2245,12 +2253,27 @@
                     : EDITIONS[edition].refresh;
                 const savedRate = Number(readStore(`refresh:${device.id}`, readStore("refresh", rates[0])));
                 state.refresh = rates.includes(savedRate) ? savedRate : rates[0];
+                state.fpsWarning = Number(device.fpsWarning) || 0;
+                state.fpsWarningMax = Number(device.fpsWarningMax) || 0;
                 $("xos-edition-label").textContent = editionShort(edition, generation);
-                $("xos-config-label").textContent = `${config.resolution || "1440 × 900"} · ${config.cpu || EDITIONS[edition].cpu} · ${config.gpu || EDITIONS[edition].gpu}`;
+                const specs = [config.resolution || "1440 × 900"];
+                if (config.display) specs.push(config.display);
+                specs.push(config.cpu || EDITIONS[edition].cpu, config.gpu || EDITIONS[edition].gpu);
+                if (config.memory) specs.push(`${config.memory} 内存`);
+                $("xos-config-label").textContent = specs.join(" · ");
                 const refresh = $("xos-refresh");
                 refresh.innerHTML = rates.map((rate) => `<option value="${rate}" ${rate === state.refresh ? "selected" : ""}>${rate}fps</option>`).join("");
                 refresh.onchange = () => {
-                    state.refresh = Number(refresh.value) || 15;
+                    const next = Number(refresh.value) || 15;
+                    if (state.fpsWarning && next >= state.fpsWarning
+                        && (!state.fpsWarningMax || next <= state.fpsWarningMax)) {
+                        const accepted = window.confirm("此帧率过于极端，可能会导致电脑卡顿/蓝屏/黑屏/变砖，真的要打开吗？");
+                        if (!accepted) {
+                            refresh.value = String(state.refresh);
+                            return;
+                        }
+                    }
+                    state.refresh = next;
                     writeStore(`refresh:${state.deviceId}`, state.refresh);
                     writeStore("refresh", state.refresh);
                     toast("显示刷新率已切换到 " + state.refresh + "fps");
