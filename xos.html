@@ -9,7 +9,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=5.6.1"></script>
+    <script src="vtx-api.js?v=5.7.1"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -578,6 +578,421 @@
             .xos-gate-inner { width: calc(100% - 22px); }
             .xos-gate-grid { grid-template-columns: 1fr; }
         }
+
+        /* ───────── 5.7.1：Aurora Glass 外壳 ───────── */
+
+        :root {
+            --xos-accent: #6ea8ff;
+            --xos-accent-2: #5ee0c0;
+            --xos-shell-line: rgba(151, 183, 240, 0.18);
+            --xos-shell-panel: rgba(11, 19, 37, 0.78);
+            --xos-shell-panel-strong: rgba(12, 22, 43, 0.95);
+            --xos-shell-top: 78px;
+            --xos-shell-bottom: 88px;
+        }
+
+        .xos-screen[data-edition="home"] { --xos-accent: #6ea8ff; --xos-accent-2: #5ee0c0; }
+        .xos-screen[data-edition="personal"] { --xos-accent: #57dfc2; --xos-accent-2: #7db7ff; }
+        .xos-screen[data-edition="professional"] { --xos-accent: #b38cff; --xos-accent-2: #6ea8ff; }
+        .xos-screen[data-edition="ce"] { --xos-accent: #ffc66d; --xos-accent-2: #ff8e6e; }
+        .xos-screen[data-edition="game"] { --xos-accent: #63f2c6; --xos-accent-2: #49b8ff; }
+        .xos-screen[data-edition="gameultra"] { --xos-accent: #e58cff; --xos-accent-2: #7aa8ff; }
+        .xos-screen[data-edition="gamemax"] { --xos-accent: #ff8a6b; --xos-accent-2: #ffd36e; }
+
+        .xos-screen {
+            background: #08101f;
+            box-shadow: 0 0 0 1px rgba(160, 190, 255, 0.16), 0 40px 120px rgba(0, 0, 0, 0.68);
+        }
+
+        .xos-wallpaper {
+            background:
+                radial-gradient(circle at 15% 8%, color-mix(in srgb, var(--xos-accent) 34%, transparent), transparent 36%),
+                radial-gradient(circle at 86% 18%, color-mix(in srgb, var(--xos-accent-2) 20%, transparent), transparent 32%),
+                radial-gradient(circle at 58% 100%, rgba(126, 84, 230, 0.22), transparent 46%),
+                linear-gradient(145deg, #08101f 0%, #0d1931 48%, #071321 100%);
+        }
+
+        .xos-wallpaper::after {
+            opacity: 0.55;
+            background-size: 64px 64px;
+            mask-image: linear-gradient(to bottom, black, transparent 72%);
+        }
+
+        /* 顶栏：单行、浮动、不换行 */
+        .xos-topbar {
+            top: 14px;
+            left: 16px;
+            right: 16px;
+            height: 50px;
+            padding: 0 12px 0 14px;
+            gap: 10px;
+            border: 1px solid var(--xos-shell-line);
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(18, 31, 57, 0.86), rgba(8, 16, 32, 0.82));
+            box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(22px) saturate(1.2);
+            font-size: 12px;
+            overflow: visible;
+            white-space: nowrap;
+        }
+
+        .xos-topbar .brand { gap: 9px; flex: 0 0 auto; }
+        .xos-mark {
+            width: 28px;
+            height: 28px;
+            border-radius: 9px;
+            background: linear-gradient(135deg, var(--xos-accent), var(--xos-accent-2));
+            box-shadow: 0 5px 16px color-mix(in srgb, var(--xos-accent) 35%, transparent);
+            font-size: 12px;
+        }
+        .xos-brand-copy { display: flex; flex-direction: column; line-height: 1.05; }
+        .xos-brand-copy b { font-size: 13px; letter-spacing: 0.08em; color: #fff; }
+        .xos-brand-copy small { margin-top: 2px; color: #7f91af; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+        .xos-device-pill {
+            min-width: 0;
+            max-width: 250px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 9px 0 7px;
+            border: 1px solid rgba(151, 183, 240, 0.18);
+            border-radius: 11px;
+            background: rgba(255, 255, 255, 0.045);
+            color: #eaf2ff;
+            text-align: left;
+            transition: border-color 160ms, background 160ms;
+        }
+        .xos-device-pill:hover,
+        .xos-device-pill[aria-expanded="true"] { border-color: color-mix(in srgb, var(--xos-accent) 55%, transparent); background: rgba(255, 255, 255, 0.075); }
+        .xos-device-pill:disabled { cursor: default; opacity: 1; }
+        .xos-device-orb {
+            width: 24px;
+            height: 24px;
+            flex: 0 0 auto;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--xos-accent) 20%, transparent);
+            color: var(--xos-accent);
+            font-size: 11px;
+            font-weight: 850;
+        }
+        .xos-device-text { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+        .xos-device-text b { max-width: 176px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; font-weight: 700; }
+        .xos-device-text small { margin-top: 3px; color: #8c9bb6; font-size: 9.5px; }
+        .xos-device-caret { margin-left: 2px; color: #8294b3; font-size: 11px; }
+        .xos-device-pill:disabled .xos-device-caret { display: none; }
+
+        .xos-chip {
+            flex: 0 1 auto;
+            min-width: 0;
+            max-width: 235px;
+            padding: 5px 9px;
+            border: 1px solid rgba(151, 183, 240, 0.14);
+            border-radius: 999px;
+            color: #91a2bf;
+            background: rgba(255, 255, 255, 0.03);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 10.5px;
+        }
+
+        .xos-topbar .spacer { flex: 1 1 auto; min-width: 8px; }
+        .xos-top-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; min-width: 0; }
+        .xos-refresh-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            height: 32px;
+            padding: 0 2px 0 8px;
+            border-left: 1px solid rgba(151, 183, 240, 0.14);
+            color: #8495b2;
+            font-size: 10px;
+        }
+        .xos-refresh-wrap select {
+            height: 28px;
+            max-width: 108px;
+            padding: 0 6px;
+            border: 1px solid rgba(151, 183, 240, 0.16);
+            border-radius: 8px;
+            background: rgba(8, 16, 32, 0.7);
+            color: #cfe0ff;
+            font-size: 10.5px;
+        }
+
+        .xos-top-action {
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 9px;
+            border: 1px solid transparent;
+            border-radius: 9px;
+            background: transparent;
+            color: #a9b9d5;
+            font-size: 10.5px;
+            text-decoration: none;
+            transition: background 150ms, color 150ms, border-color 150ms;
+        }
+        .xos-top-action:hover { color: #fff; background: rgba(255, 255, 255, 0.065); border-color: rgba(151, 183, 240, 0.15); }
+        .xos-top-action .xos-action-icon { color: #c8d8f2; font-size: 14px; line-height: 1; }
+        .xos-top-action.syncing { color: #ffd27a; }
+        .xos-top-action.synced { color: #78e0b5; }
+        .xos-top-action.local { color: #ff9f9f; }
+        .xos-status-dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: #7a8aa4; }
+        .xos-top-action.syncing .xos-status-dot { background: #ffd27a; box-shadow: 0 0 8px rgba(255, 210, 122, 0.7); }
+        .xos-top-action.synced .xos-status-dot { background: #5ee0b1; box-shadow: 0 0 8px rgba(94, 224, 177, 0.55); }
+        .xos-top-action.local .xos-status-dot { background: #ff8c8c; }
+
+        .xos-user-wrap { position: relative; flex: 0 0 auto; }
+        .xos-user-chip {
+            height: 34px;
+            max-width: 154px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 0 8px 0 5px;
+            border: 1px solid rgba(151, 183, 240, 0.16);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.035);
+            color: #d8e5fb;
+            font-size: 10.5px;
+        }
+        .xos-user-chip:hover, .xos-user-chip[aria-expanded="true"] { background: rgba(255, 255, 255, 0.075); }
+        .xos-user-chip > span:nth-child(2) { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .xos-avatar {
+            width: 24px;
+            height: 24px;
+            flex: 0 0 auto;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--xos-accent), var(--xos-accent-2));
+            color: #06111f;
+            font-size: 10px;
+            font-weight: 900;
+        }
+        .xos-avatar.large { width: 36px; height: 36px; font-size: 14px; }
+        .xos-caret { color: #8495b2; font-size: 10px; }
+
+        .xos-popover {
+            position: absolute;
+            z-index: 9600;
+            padding: 10px;
+            border: 1px solid rgba(151, 183, 240, 0.2);
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(17, 29, 53, 0.97), rgba(8, 16, 32, 0.97));
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(24px);
+            color: #dce8ff;
+            font-size: 11px;
+        }
+        .xos-device-menu { top: 72px; left: 212px; width: 390px; max-height: 520px; overflow: auto; }
+        .xos-user-menu { top: 46px; right: 0; width: 224px; }
+        .xos-popover-head { display: flex; align-items: center; gap: 9px; padding: 6px 7px 10px; border-bottom: 1px solid rgba(151, 183, 240, 0.12); }
+        .xos-popover-head > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .xos-popover-head b { font-size: 12px; }
+        .xos-popover-head small { color: #8294b2; font-size: 9.5px; }
+        .xos-device-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px;
+            margin-top: 4px;
+            border: 1px solid transparent;
+            border-radius: 11px;
+            background: transparent;
+            color: #dce8ff;
+            text-align: left;
+        }
+        .xos-device-item:hover { background: rgba(255, 255, 255, 0.055); }
+        .xos-device-item.active { border-color: color-mix(in srgb, var(--xos-accent) 45%, transparent); background: color-mix(in srgb, var(--xos-accent) 12%, transparent); }
+        .xos-device-item .xos-device-orb { width: 30px; height: 30px; border-radius: 9px; font-size: 13px; }
+        .xos-device-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .xos-device-item-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
+        .xos-device-item-main small { color: #8294b2; font-size: 9.5px; }
+        .xos-device-check { color: var(--xos-accent); font-size: 14px; }
+        .xos-menu-item { display: block; padding: 9px 8px; border-radius: 8px; color: #c7d7f0; text-decoration: none; }
+        .xos-menu-item:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+        .xos-menu-meta { margin-top: 6px; padding: 9px 8px 3px; border-top: 1px solid rgba(151, 183, 240, 0.12); color: #70819d; font-size: 9.5px; }
+
+        /* 桌面图标 */
+        .xos-desktop {
+            top: var(--xos-shell-top);
+            bottom: var(--xos-shell-bottom);
+            padding: 24px 28px;
+            grid-template-columns: repeat(auto-fill, 96px);
+            grid-auto-rows: 104px;
+            gap: 12px 8px;
+        }
+        .xos-icon {
+            width: 96px;
+            padding: 7px 5px;
+            gap: 7px;
+            border-radius: 13px;
+            transition: background 150ms, transform 150ms;
+        }
+        .xos-icon:hover, .xos-icon:focus-visible {
+            background: rgba(255, 255, 255, 0.075);
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--xos-accent) 30%, transparent);
+        }
+        .xos-icon:active { transform: scale(0.97); }
+        .xos-icon .glyph {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(145deg, rgba(25, 42, 75, 0.94), rgba(11, 22, 43, 0.94));
+            border: 1px solid rgba(167, 199, 255, 0.18);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+            font-size: 26px;
+        }
+        .xos-icon:hover .glyph { border-color: color-mix(in srgb, var(--xos-accent) 40%, transparent); }
+        .xos-icon span:last-child {
+            max-width: 90px;
+            font-size: 11px;
+            line-height: 1.3;
+            text-shadow: 0 1px 5px rgba(0, 0, 0, 0.8);
+        }
+
+        /* 浮动 Dock */
+        .xos-taskbar {
+            left: 50%;
+            right: auto;
+            bottom: 14px;
+            width: min(920px, calc(100% - 48px));
+            height: 58px;
+            transform: translateX(-50%);
+            gap: 9px;
+            padding: 0 10px;
+            border: 1px solid rgba(151, 183, 240, 0.2);
+            border-radius: 20px;
+            background: linear-gradient(180deg, rgba(18, 30, 54, 0.9), rgba(8, 16, 31, 0.9));
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(24px) saturate(1.2);
+        }
+        .xos-start-btn {
+            width: auto;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 12px 0 6px;
+            border: 1px solid color-mix(in srgb, var(--xos-accent) 26%, transparent);
+            border-radius: 12px;
+            background: linear-gradient(135deg, color-mix(in srgb, var(--xos-accent) 20%, transparent), rgba(255, 255, 255, 0.035));
+            color: #f0f6ff;
+            font-size: 11px;
+            font-weight: 750;
+        }
+        .xos-start-btn:hover { background: linear-gradient(135deg, color-mix(in srgb, var(--xos-accent) 28%, transparent), rgba(255, 255, 255, 0.06)); }
+        .xos-start-mark {
+            width: 28px;
+            height: 28px;
+            display: grid;
+            place-items: center;
+            border-radius: 9px;
+            background: linear-gradient(135deg, var(--xos-accent), var(--xos-accent-2));
+            color: #06111f;
+            font-size: 12px;
+            font-weight: 950;
+        }
+        .xos-task-list { gap: 5px; }
+        .xos-task {
+            height: 38px;
+            padding: 0 11px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.045);
+            border: 1px solid transparent;
+            font-size: 11px;
+        }
+        .xos-task:hover { background: rgba(255, 255, 255, 0.075); }
+        .xos-task.active {
+            border-color: color-mix(in srgb, var(--xos-accent) 45%, transparent);
+            background: color-mix(in srgb, var(--xos-accent) 15%, transparent);
+        }
+        .xos-tray { gap: 10px; color: #9fb0ca; font-size: 10px; }
+        .xos-tray-cloud { display: inline-flex; align-items: center; gap: 5px; }
+        .xos-clock-wrap { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; padding-left: 10px; border-left: 1px solid rgba(151, 183, 240, 0.14); }
+        .xos-clock-wrap #xos-clock { color: #e4eeff; font-size: 11px; font-weight: 700; }
+        .xos-clock-wrap #xos-clock-date { color: #7f91ad; font-size: 8.5px; }
+
+        /* 开始菜单 */
+        .xos-start {
+            left: 50%;
+            bottom: 86px;
+            width: 760px;
+            max-height: 620px;
+            padding: 16px;
+            transform: translateX(-50%);
+            border: 1px solid rgba(151, 183, 240, 0.2);
+            border-radius: 22px;
+            background: linear-gradient(180deg, rgba(17, 29, 53, 0.97), rgba(8, 16, 32, 0.97));
+            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(28px);
+            z-index: 9850;
+        }
+        .xos-start-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 2px 2px 12px; border-bottom: 1px solid rgba(151, 183, 240, 0.12); }
+        .xos-start-head h3 { margin: 1px 0 3px; font-size: 21px; letter-spacing: 0.02em; }
+        .xos-eyebrow { margin: 0; color: var(--xos-accent); font-size: 8.5px; font-weight: 800; letter-spacing: 0.16em; }
+        .xos-icon-btn { width: 30px; height: 30px; border: 1px solid rgba(151, 183, 240, 0.16); border-radius: 9px; background: rgba(255, 255, 255, 0.035); color: #aebdd5; font-size: 16px; }
+        .xos-icon-btn:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+        .xos-start-body { display: grid; grid-template-columns: minmax(0, 1fr) 214px; gap: 16px; padding: 14px 1px 12px; min-height: 0; }
+        .xos-start-main { min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+        .xos-search { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 11px; border: 1px solid rgba(151, 183, 240, 0.17); border-radius: 11px; background: rgba(255, 255, 255, 0.035); color: #8294b0; }
+        .xos-search:focus-within { border-color: color-mix(in srgb, var(--xos-accent) 50%, transparent); background: rgba(255, 255, 255, 0.055); }
+        .xos-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: #e6efff; font-size: 11.5px; }
+        .xos-search input::placeholder { color: #71829d; }
+        .xos-start-empty { padding: 34px 10px; color: #8294b0; text-align: center; font-size: 11.5px; }
+        .xos-start-grid { grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 10px 0 0; overflow: auto; padding-right: 3px; }
+        .xos-start-app { padding: 9px 5px; border-radius: 11px; background: transparent; font-size: 10px; gap: 7px; }
+        .xos-start-app:hover { background: rgba(255, 255, 255, 0.065); }
+        .xos-start-app .glyph { font-size: 22px; }
+        .xos-start-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+        .xos-side-card { padding: 12px; border: 1px solid rgba(151, 183, 240, 0.14); border-radius: 13px; background: rgba(255, 255, 255, 0.03); }
+        .xos-side-label { display: block; margin-bottom: 6px; color: var(--xos-accent); font-size: 8.5px; font-weight: 800; letter-spacing: 0.12em; }
+        .xos-side-card b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
+        .xos-side-card p { margin: 5px 0 0; color: #8294b0; font-size: 9.5px; line-height: 1.55; }
+        .xos-side-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .xos-side-stats span { padding: 8px; border: 1px solid rgba(151, 183, 240, 0.12); border-radius: 9px; color: #8294b0; font-size: 9px; }
+        .xos-side-stats b { display: block; margin-top: 3px; color: #dce8ff; font-size: 11px; }
+        .xos-side-links { display: flex; flex-direction: column; gap: 1px; }
+        .xos-side-links .xos-link { padding: 7px 2px; color: #9db9e4; font-size: 10px; }
+        .xos-start-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 2px 1px; border-top: 1px solid rgba(151, 183, 240, 0.12); color: #70819d; font-size: 9.5px; }
+
+        /* 窗口 */
+        .xos-window {
+            border-radius: 14px;
+            border-color: rgba(151, 183, 240, 0.22);
+            background: #0c1629;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+        }
+        .xos-window.active { border-color: color-mix(in srgb, var(--xos-accent) 58%, transparent); box-shadow: 0 32px 90px rgba(0, 0, 0, 0.6), 0 0 0 1px color-mix(in srgb, var(--xos-accent) 15%, transparent); }
+        .xos-window-head {
+            height: 40px;
+            padding: 0 8px 0 10px;
+            background: linear-gradient(180deg, rgba(26, 42, 72, 0.96), rgba(15, 27, 49, 0.96));
+        }
+        .xos-window-icon { width: 23px; height: 23px; display: grid; place-items: center; border-radius: 7px; background: rgba(255, 255, 255, 0.06); font-size: 13px; }
+        .xos-window-title { font-size: 11.5px; }
+        .xos-win-btn { width: 26px; height: 24px; border-radius: 7px; }
+        .xos-window.maximized {
+            left: 14px !important;
+            right: 14px !important;
+            top: var(--xos-shell-top) !important;
+            width: auto !important;
+            height: calc(100% - 166px) !important;
+            border-radius: 14px;
+        }
+        .xos-notify-wrap { right: 18px; bottom: 92px; }
+        .xos-modal { border-radius: 18px; background: #101d35; box-shadow: 0 30px 90px rgba(0, 0, 0, 0.62); }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+        }
     </style>
 </head>
 <body>
@@ -616,40 +1031,117 @@
             <div class="xos-screen" id="xos-screen">
                 <div class="xos-wallpaper"></div>
                 <header class="xos-topbar">
-                    <div class="brand"><span class="xos-mark">X</span> XOS</div>
-                    <span class="edition" id="xos-edition-label">PC</span>
-                    <select id="xos-device-select" class="xos-device-select" title="切换云电脑" hidden></select>
-                    <span class="top-item" id="xos-config-label">1440 × 900</span>
+                    <div class="brand">
+                        <span class="xos-mark">X</span>
+                        <span class="xos-brand-copy"><b>XOS</b><small>Cloud PC</small></span>
+                    </div>
+                    <button class="xos-device-pill" type="button" id="xos-device-btn" aria-haspopup="menu" aria-expanded="false" title="切换云电脑">
+                        <span class="xos-device-orb" id="xos-device-orb">X</span>
+                        <span class="xos-device-text">
+                            <b id="xos-device-label">XOS PC</b>
+                            <small id="xos-edition-label">PC</small>
+                        </span>
+                        <span class="xos-device-caret">⌄</span>
+                    </button>
+                    <span class="xos-chip" id="xos-config-label">1440 × 900</span>
                     <span class="spacer"></span>
-                    <span class="top-item">刷新率</span>
-                    <select id="xos-refresh" title="显示刷新率"></select>
-                    <span class="top-item" id="xos-user-label">—</span>
-                    <a class="top-item xos-link" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91" title="XOS 商店">商店</a>
-                    <button class="top-item xos-cloud-link" type="button" id="xos-cloud-status" title="点击立即从云端刷新文件">云同步</button>
-                    <span class="top-item">v5.6.1</span>
-                    <a class="xos-btn small" href="index.html" title="返回 Vitual XRing 主页">返回主页</a>
-                    <button class="xos-btn small" type="button" id="xos-lock-btn">锁定</button>
+                    <div class="xos-top-actions">
+                        <label class="xos-refresh-wrap" title="显示刷新率">
+                            <span>刷新率</span>
+                            <select id="xos-refresh"></select>
+                        </label>
+                        <button class="xos-top-action" type="button" id="xos-cloud-status" title="点击立即从云端刷新文件">
+                            <span class="xos-status-dot"></span><span>云同步</span>
+                        </button>
+                        <a class="xos-top-action" href="index.html" title="返回 Vitual XRing 主页">
+                            <span class="xos-action-icon">⌂</span><span class="xos-action-label">返回主页</span>
+                        </a>
+                        <button class="xos-top-action" type="button" id="xos-lock-btn" title="锁定 XOS">
+                            <span class="xos-action-icon">◌</span><span class="xos-action-label">锁定</span>
+                        </button>
+                        <div class="xos-user-wrap">
+                            <button class="xos-user-chip" type="button" id="xos-user-btn" aria-haspopup="menu" aria-expanded="false" title="账户菜单">
+                                <span class="xos-avatar" id="xos-user-avatar">—</span>
+                                <span id="xos-user-label">—</span>
+                                <span class="xos-caret">⌄</span>
+                            </button>
+                            <div class="xos-popover xos-user-menu" id="xos-user-menu" role="menu" hidden>
+                                <div class="xos-popover-head">
+                                    <span class="xos-avatar large" id="xos-user-avatar-menu">—</span>
+                                    <span><b id="xos-user-name-menu">—</b><small>已登录账户</small></span>
+                                </div>
+                                <a class="xos-menu-item" role="menuitem" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">XOS 商店</a>
+                                <a class="xos-menu-item" role="menuitem" href="manager.html">账户中心</a>
+                                <a class="xos-menu-item" role="menuitem" href="index.html">返回主页</a>
+                                <div class="xos-menu-meta">XOS v5.7.1 · 网页虚拟桌面</div>
+                            </div>
+                        </div>
+                    </div>
                 </header>
+
+                <div class="xos-popover xos-device-menu" id="xos-device-menu" role="menu" hidden>
+                    <div class="xos-popover-head">
+                        <span><b>我的云电脑</b><small id="xos-device-count">0 台设备</small></span>
+                    </div>
+                    <div id="xos-device-list"></div>
+                </div>
 
                 <div class="xos-desktop" id="xos-desktop"></div>
                 <div class="xos-windows" id="xos-windows"></div>
 
                 <div class="xos-start" id="xos-start" hidden>
-                    <h3>XOS 开始菜单</h3>
-                    <p class="muted" id="xos-start-sub">选择应用开始工作。</p>
-                    <div class="xos-start-grid" id="xos-start-grid"></div>
+                    <div class="xos-start-head">
+                        <div>
+                            <p class="xos-eyebrow">XOS LAUNCHER</p>
+                            <h3>开始</h3>
+                            <p class="muted" id="xos-start-sub">选择应用开始工作。</p>
+                        </div>
+                        <button class="xos-icon-btn" type="button" id="xos-start-close" aria-label="关闭开始菜单">×</button>
+                    </div>
+                    <div class="xos-start-body">
+                        <div class="xos-start-main">
+                            <label class="xos-search">
+                                <span aria-hidden="true">⌕</span>
+                                <input id="xos-start-search" type="search" placeholder="搜索应用…" autocomplete="off" aria-label="搜索应用">
+                            </label>
+                            <div class="xos-start-empty" id="xos-start-empty" hidden>没有找到匹配的应用。</div>
+                            <div class="xos-start-grid" id="xos-start-grid"></div>
+                        </div>
+                        <aside class="xos-start-side">
+                            <div class="xos-side-card">
+                                <span class="xos-side-label">当前设备</span>
+                                <b id="xos-start-device">XOS</b>
+                                <p id="xos-start-spec">1440 × 900</p>
+                            </div>
+                            <div class="xos-side-stats">
+                                <span>应用 <b id="xos-start-apps">0</b></span>
+                                <span>刷新 <b id="xos-start-refresh">—</b></span>
+                                <span>文件 <b id="xos-start-cloud">—</b></span>
+                            </div>
+                            <nav class="xos-side-links">
+                                <a class="xos-link" href="shop.html">XOS 商店</a>
+                                <a class="xos-link" href="manager.html">账户中心</a>
+                                <a class="xos-link" href="index.html">返回主页</a>
+                            </nav>
+                        </aside>
+                    </div>
                     <div class="xos-start-footer">
                         <span id="xos-start-edition">XOS</span>
-                        <span><a class="xos-link" href="index.html">返回主页</a> · <a class="xos-link" href="shop.html">商店</a> · <a class="xos-link" href="manager.html">账户</a></span>
+                        <span>v5.7.1 · 浏览器虚拟桌面</span>
                     </div>
                 </div>
 
                 <div class="xos-taskbar">
-                    <button class="xos-start-btn" type="button" id="xos-start-btn" title="开始">X</button>
+                    <button class="xos-start-btn" type="button" id="xos-start-btn" title="开始" aria-expanded="false">
+                        <span class="xos-start-mark">X</span><span class="xos-start-text">开始</span>
+                    </button>
                     <div class="xos-task-list" id="xos-task-list"></div>
                     <div class="xos-tray">
-                        <span><span class="dot"></span> XOS Online</span>
-                        <span id="xos-clock">--:--</span>
+                        <span class="xos-tray-cloud"><span class="dot"></span><span id="xos-tray-cloud-label">云同步</span></span>
+                        <span class="xos-clock-wrap">
+                            <span id="xos-clock">--:--</span>
+                            <span id="xos-clock-date">--</span>
+                        </span>
                     </div>
                 </div>
 
@@ -663,7 +1155,7 @@
             "use strict";
 
             const API = window.VTXApi;
-            const PAGE_VERSION = "5.6.1";
+            const PAGE_VERSION = "5.7.1";
             const $ = (id) => document.getElementById(id);
             const SCREEN_W = 1440;
             const SCREEN_H = 900;
@@ -704,6 +1196,9 @@
                 edition: "home",
                 generation: 1,
                 refresh: 15,
+                userName: "",
+                specsFull: "",
+                startQuery: "",
                 fpsWarning: 0,
                 fpsWarningMax: 0,
                 windows: new Map(),
@@ -836,18 +1331,25 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 5.6.1：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 5.7.1：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");
                 if (!node) return;
                 state.cloudState = kind;
-                node.className = "top-item xos-cloud-link " + kind;
-                node.textContent = text || (kind === "syncing" ? "同步中…" : kind === "synced" ? "云同步" : "仅本机");
+                node.classList.remove("syncing", "synced", "local");
+                node.classList.add(kind);
+                const label = text || (kind === "syncing" ? "同步中…" : kind === "synced" ? "云同步" : "仅本机");
+                const labelNode = node.querySelector("span:last-child");
+                if (labelNode) labelNode.textContent = label;
                 node.title = kind === "synced"
                     ? "文件已保存到 Cloudflare Workers，点击立即刷新"
                     : kind === "syncing" ? "正在与 Cloudflare Workers 同步"
                         : "云端不可用，文件暂存在本机";
+                const trayLabel = $("xos-tray-cloud-label");
+                if (trayLabel) trayLabel.textContent = kind === "synced" ? "已同步" : kind === "syncing" ? "同步中" : "仅本机";
+                const startLabel = $("xos-start-cloud");
+                if (startLabel) startLabel.textContent = kind === "synced" ? "已同步" : kind === "syncing" ? "同步中" : "仅本机";
             }
 
             function cloudFileType(path) {
@@ -1083,11 +1585,11 @@
                 const height = app.height || 500;
                 const offset = state.windows.size % 7;
                 win.style.left = `${90 + offset * 34}px`;
-                win.style.top = `${62 + offset * 26}px`;
+                win.style.top = `${82 + offset * 24}px`;
                 win.style.width = `${width}px`;
                 win.style.height = `${height}px`;
                 win.innerHTML = `<div class="xos-window-head">
-                    <span>${app.icon}</span>
+                    <span class="xos-window-icon">${app.icon}</span>
                     <span class="xos-window-title">${esc(app.name)}</span>
                     <span class="xos-window-actions">
                         <button class="xos-win-btn" type="button" data-win="min" title="最小化">—</button>
@@ -1123,8 +1625,8 @@
                     const move = (moveEvent) => {
                         const dx = (moveEvent.clientX - startX) / (state.scale || 1);
                         const dy = (moveEvent.clientY - startY) / (state.scale || 1);
-                        node.style.left = `${Math.max(0, Math.min(SCREEN_W - 80, startLeft + dx))}px`;
-                        node.style.top = `${Math.max(0, Math.min(SCREEN_H - 100, startTop + dy))}px`;
+                        node.style.left = `${Math.max(14, Math.min(SCREEN_W - 80, startLeft + dx))}px`;
+                        node.style.top = `${Math.max(72, Math.min(SCREEN_H - 130, startTop + dy))}px`;
                     };
                     const up = () => {
                         window.removeEventListener("mousemove", move);
@@ -1234,21 +1736,56 @@
 
             function renderStart() {
                 const grid = $("xos-start-grid");
+                const all = APP_ORDER.filter(appAvailable);
+                const query = String(state.startQuery || "").trim().toLowerCase();
+                const visible = query ? all.filter((id) => APPS[id].name.toLowerCase().includes(query)) : all;
                 grid.textContent = "";
-                APP_ORDER.filter(appAvailable).forEach((id) => {
+                visible.forEach((id) => {
                     const app = APPS[id];
                     const button = document.createElement("button");
                     button.type = "button";
                     button.className = "xos-start-app";
                     button.innerHTML = `<span class="glyph">${app.icon}</span><span>${esc(app.name)}</span>`;
                     button.addEventListener("click", () => {
-                        $("xos-start").hidden = true;
+                        closeStart();
                         openApp(id);
                     });
                     grid.appendChild(button);
                 });
-                $("xos-start-sub").textContent = `${editionName(state.edition, state.generation)} · ${APP_ORDER.filter(appAvailable).length} 个应用`;
+                grid.hidden = visible.length === 0;
+                $("xos-start-empty").hidden = visible.length > 0;
+                $("xos-start-sub").textContent = `${editionName(state.edition, state.generation)} · ${all.length} 个应用`;
                 $("xos-start-edition").textContent = editionName(state.edition, state.generation);
+                $("xos-start-device").textContent = state.license && state.license.name
+                    ? String(state.license.name).replace(/\s*\[[^\]]*\]/g, "")
+                    : editionName(state.edition, state.generation);
+                $("xos-start-spec").textContent = state.specsFull || "1440 × 900";
+                $("xos-start-apps").textContent = String(all.length);
+                $("xos-start-refresh").textContent = `${state.refresh}fps`;
+                $("xos-start-cloud").textContent = state.cloudState === "synced" ? "已同步" : state.cloudState === "syncing" ? "同步中" : "仅本机";
+            }
+
+            function openStart() {
+                closeDeviceMenu();
+                closeUserMenu();
+                $("xos-start").hidden = false;
+                $("xos-start-btn").setAttribute("aria-expanded", "true");
+                renderStart();
+                const search = $("xos-start-search");
+                if (search) setTimeout(() => search.focus(), 30);
+            }
+
+            function closeStart() {
+                $("xos-start").hidden = true;
+                $("xos-start-btn").setAttribute("aria-expanded", "false");
+                state.startQuery = "";
+                const search = $("xos-start-search");
+                if (search) search.value = "";
+            }
+
+            function toggleStart() {
+                if ($("xos-start").hidden) openStart();
+                else closeStart();
             }
 
             function showModal(html) {
@@ -1268,6 +1805,7 @@
             function refreshClock() {
                 const now = new Date();
                 $("xos-clock").textContent = now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+                $("xos-clock-date").textContent = now.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit", weekday: "short" });
             }
 
             /* ───────── 应用：任务管理器 ───────── */
@@ -2253,6 +2791,11 @@
                 return "home";
             }
 
+            function cleanDeviceName(device) {
+                return String(device && device.name ? device.name : editionName(device.edition, device.generation))
+                    .replace(/\s*\[[^\]]*\]/g, "").trim();
+            }
+
             function configureDevice(device) {
                 const edition = editionForDevice(device);
                 const generation = Number(device.generation) === 2 ? 2 : 1;
@@ -2268,12 +2811,30 @@
                 state.refresh = rates.includes(savedRate) ? savedRate : rates[0];
                 state.fpsWarning = Number(device.fpsWarning) || 0;
                 state.fpsWarningMax = Number(device.fpsWarningMax) || 0;
-                $("xos-edition-label").textContent = editionShort(edition, generation);
+
+                const screen = $("xos-screen");
+                if (screen) screen.dataset.edition = edition;
+                const displayName = cleanDeviceName(device) || editionName(edition, generation);
+                const short = editionShort(edition, generation);
+                $("xos-device-label").textContent = short;
+                $("xos-device-label").title = displayName;
+                $("xos-edition-label").textContent = "XOS PC";
+                const orb = short.replace(/[^A-Za-z]/g, "").charAt(0).toUpperCase() || "X";
+                $("xos-device-orb").textContent = orb;
+
                 const specs = [config.resolution || "1440 × 900"];
                 if (config.display) specs.push(config.display);
                 specs.push(config.cpu || EDITIONS[edition].cpu, config.gpu || EDITIONS[edition].gpu);
                 if (config.memory) specs.push(`${config.memory} 内存`);
-                $("xos-config-label").textContent = specs.join(" · ");
+                state.specsFull = specs.join(" · ");
+                const compact = [];
+                if (config.display) compact.push(config.display);
+                if (config.memory) compact.push(`${config.memory} 内存`);
+                $("xos-config-label").textContent = compact.length ? compact.join(" · ") : (config.resolution || "1440 × 900");
+                $("xos-config-label").title = state.specsFull;
+                $("xos-start-spec").textContent = state.specsFull;
+                $("xos-start-refresh").textContent = `${state.refresh}fps`;
+
                 const refresh = $("xos-refresh");
                 refresh.innerHTML = rates.map((rate) => `<option value="${rate}" ${rate === state.refresh ? "selected" : ""}>${rate}fps</option>`).join("");
                 refresh.onchange = () => {
@@ -2289,8 +2850,85 @@
                     state.refresh = next;
                     writeStore(`refresh:${state.deviceId}`, state.refresh);
                     writeStore("refresh", state.refresh);
+                    $("xos-start-refresh").textContent = `${state.refresh}fps`;
                     toast("显示刷新率已切换到 " + state.refresh + "fps");
                 };
+                closeDeviceMenu();
+            }
+
+            function renderDeviceMenu() {
+                const list = $("xos-device-list");
+                if (!list) return;
+                list.textContent = "";
+                $("xos-device-count").textContent = `${state.devices.length} 台设备`;
+                state.devices.forEach((device) => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "xos-device-item" + (device.id === state.deviceId ? " active" : "");
+                    button.dataset.deviceId = device.id;
+                    const name = cleanDeviceName(device);
+                    const edition = editionForDevice(device);
+                    const generation = Number(device.generation) === 2 ? 2 : 1;
+                    const apps = APP_ORDER.filter((id) => {
+                        const app = APPS[id];
+                        if (typeof app.available === "function") return app.available(edition, generation);
+                        return EDITIONS[edition].rank >= (app.minRank || 0) && (app.minGen || 1) <= generation;
+                    }).length;
+                    button.innerHTML = `<span class="xos-device-orb">${esc(editionShort(edition, generation).replace(/[^A-Za-z]/g, "").charAt(0).toUpperCase() || "X")}</span>
+                        <span class="xos-device-item-main"><b>${esc(name)}</b><small>${esc(editionShort(edition, generation))} · ${apps} 个应用</small></span>
+                        <span class="xos-device-check">${device.id === state.deviceId ? "✓" : ""}</span>`;
+                    button.addEventListener("click", () => selectDevice(device));
+                    list.appendChild(button);
+                });
+            }
+
+            function openDeviceMenu() {
+                if (state.devices.length <= 1) return;
+                closeStart();
+                closeUserMenu();
+                renderDeviceMenu();
+                $("xos-device-menu").hidden = false;
+                $("xos-device-btn").setAttribute("aria-expanded", "true");
+            }
+
+            function closeDeviceMenu() {
+                $("xos-device-menu").hidden = true;
+                $("xos-device-btn").setAttribute("aria-expanded", "false");
+            }
+
+            function toggleDeviceMenu() {
+                if ($("xos-device-menu").hidden) openDeviceMenu();
+                else closeDeviceMenu();
+            }
+
+            function selectDevice(device) {
+                if (!device || device.id === state.deviceId) {
+                    closeDeviceMenu();
+                    return;
+                }
+                writeStore("activeDevice", device.id);
+                closeAll();
+                configureDevice(device);
+                renderDeviceMenu();
+                renderDesktop();
+                renderStart();
+                renderTaskbar();
+                toast("已切换到 " + cleanDeviceName(device));
+            }
+
+            function toggleUserMenu() {
+                const menu = $("xos-user-menu");
+                if (menu.hidden) {
+                    closeStart();
+                    closeDeviceMenu();
+                }
+                menu.hidden = !menu.hidden;
+                $("xos-user-btn").setAttribute("aria-expanded", menu.hidden ? "false" : "true");
+            }
+
+            function closeUserMenu() {
+                $("xos-user-menu").hidden = true;
+                $("xos-user-btn").setAttribute("aria-expanded", "false");
             }
 
             function applyLicense(account) {
@@ -2303,23 +2941,18 @@
                         && Number(device.at) === Number(account.xos.at))
                     || devices[0];
                 configureDevice(active);
-                $("xos-user-label").textContent = account.username || state.login;
 
-                const picker = $("xos-device-select");
-                picker.innerHTML = devices.map((device) => `<option value="${esc(device.id)}">${esc(device.name || editionName(device.edition, device.generation))}</option>`).join("");
-                picker.value = active.id;
-                picker.hidden = devices.length <= 1;
-                picker.onchange = () => {
-                    const next = devices.find((device) => device.id === picker.value);
-                    if (!next) return;
-                    writeStore("activeDevice", next.id);
-                    closeAll();
-                    configureDevice(next);
-                    renderDesktop();
-                    renderStart();
-                    renderTaskbar();
-                    toast("已切换到 " + (next.name || editionName(next.edition, next.generation)));
-                };
+                const userName = account.username || state.login;
+                state.userName = userName;
+                const initial = String(userName).trim().charAt(0).toUpperCase() || "X";
+                $("xos-user-label").textContent = userName;
+                $("xos-user-label").title = userName;
+                $("xos-user-avatar").textContent = initial;
+                $("xos-user-avatar-menu").textContent = initial;
+                $("xos-user-name-menu").textContent = userName;
+                $("xos-device-btn").disabled = devices.length <= 1;
+                $("xos-device-btn").title = devices.length <= 1 ? "当前只有一台云电脑" : "切换云电脑";
+                renderDeviceMenu();
                 return true;
             }
 
@@ -2340,13 +2973,49 @@
             async function init() {
                 fitScreen();
                 window.addEventListener("resize", fitScreen);
-                $("xos-start-btn").addEventListener("click", () => { $("xos-start").hidden = !$("xos-start").hidden; });
+                $("xos-start-btn").addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    toggleStart();
+                });
+                $("xos-start-close").addEventListener("click", () => closeStart());
+                $("xos-start-search").addEventListener("input", (event) => {
+                    state.startQuery = event.target.value;
+                    renderStart();
+                });
+                $("xos-device-btn").addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    toggleDeviceMenu();
+                });
+                $("xos-user-btn").addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    toggleUserMenu();
+                });
                 $("xos-cloud-status").addEventListener("click", async () => {
                     if (state.syncing) return;
                     await syncCloudFiles();
                 });
-                $("xos-lock-btn").addEventListener("click", () => { closeAll(); showModal('<h2 style="margin-top:0">XOS 已锁定</h2><p class="tiny">这是一个网页虚拟桌面，刷新页面即可重新进入。</p><div style="text-align:right"><button class="xos-btn" data-modal-close>解锁</button></div>'); });
-                document.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("xos-start").hidden = true; } });
+                $("xos-lock-btn").addEventListener("click", () => {
+                    closeStart();
+                    closeDeviceMenu();
+                    closeUserMenu();
+                    closeAll();
+                    showModal('<h2 style="margin-top:0">XOS 已锁定</h2><p class="tiny">这是一个网页虚拟桌面，刷新页面即可重新进入。</p><div style="text-align:right"><button class="xos-btn" data-modal-close>解锁</button></div>');
+                });
+                document.addEventListener("keydown", (event) => {
+                    if (event.key !== "Escape") return;
+                    closeStart();
+                    closeDeviceMenu();
+                    closeUserMenu();
+                });
+                document.addEventListener("click", (event) => {
+                    const target = event.target;
+                    const start = $("xos-start");
+                    if (!start.hidden && !start.contains(target) && !$("xos-start-btn").contains(target)) closeStart();
+                    const deviceMenu = $("xos-device-menu");
+                    if (!deviceMenu.hidden && !deviceMenu.contains(target) && !$("xos-device-btn").contains(target)) closeDeviceMenu();
+                    const userMenu = $("xos-user-menu");
+                    if (!userMenu.hidden && !userMenu.contains(target) && !$("xos-user-btn").contains(target)) closeUserMenu();
+                });
                 if (!API || !API.hasSession) { renderGate("加载 vtx-api.js 失败，请刷新。"); return; }
                 if (API.version && API.version !== PAGE_VERSION) {
                     try {
