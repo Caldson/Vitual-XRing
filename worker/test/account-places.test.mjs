@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 import worker from "../index.js";
 
-/* 5.6.0：登录位置独立页、群公告关闭、周边的人（10km） */
+/* 5.6.1：登录位置独立页、群公告关闭、周边的人（10km） */
 
 class MockKV {
     constructor() {
@@ -110,7 +110,7 @@ function seedChatUsers(env, options = {}) {
     ]);
 }
 
-test("5.6.0：登录位置已从账户页拆到 loginplaces.html", () => {
+test("5.6.1：登录位置已从账户页拆到 loginplaces.html", () => {
     const manager = fs.readFileSync(new URL("../../manager.html", import.meta.url), "utf8");
     const page = fs.readFileSync(new URL("../../loginplaces.html", import.meta.url), "utf8");
     assert.match(manager, /href="loginplaces\.html"/);
@@ -122,12 +122,12 @@ test("5.6.0：登录位置已从账户页拆到 loginplaces.html", () => {
     assert.match(page, /const API = window\.VTXApi/);
     assert.match(page, /API\.me\(\)/);
     assert.match(page, /loginHistory/);
-    assert.match(page, /vtx-geo\.js\?v=5\.6\.0/);
-    assert.match(page, /v5\.6\.0/);
+    assert.match(page, /vtx-geo\.js\?v=5\.6\.1/);
+    assert.match(page, /v5\.6\.1/);
     assert.match(page, /location/);
 });
 
-test("5.6.0：群公告可以按当前公告文本关闭，公告更新后重新显示", async () => {
+test("5.6.1：群公告可以按当前公告文本关闭，公告更新后重新显示", async () => {
     const { env, tokens } = await prepare();
     await seedChatUsers(env);
 
@@ -172,7 +172,7 @@ test("5.6.0：群公告可以按当前公告文本关闭，公告更新后重新
     assert.equal(shown.status, 200);
 });
 
-test("5.6.0：周边的人只返回 10km 内、最近 30 分钟且未被拉黑的账户", async () => {
+test("5.6.1：周边的人只返回 10km 内、最近 30 分钟且未被拉黑的账户", async () => {
     const { env, tokens } = await prepare();
     await seedChatUsers(env);
 
@@ -220,7 +220,7 @@ test("5.6.0：周边的人只返回 10km 内、最近 30 分钟且未被拉黑�
     assert.equal(blocked.data.items.length, 0);
 });
 
-test("5.6.0：聊天室有「附近」入口、公告关闭按钮，SDK 有 nearby", () => {
+test("5.6.1：聊天室有「附近」入口、公告关闭按钮，SDK 有 nearby", () => {
     const chat = fs.readFileSync(new URL("../../chatroom.html", import.meta.url), "utf8");
     assert.match(chat, /data-tab="nearby"/);
     assert.match(chat, /function loadNearby/);

@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=5.6.0"></script>
+    <script src="vtx-api.js?v=5.6.1"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -623,7 +626,7 @@
                     <span class="top-item" id="xos-user-label">—</span>
                     <a class="top-item xos-link" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91" title="XOS 商店">商店</a>
                     <button class="top-item xos-cloud-link" type="button" id="xos-cloud-status" title="点击立即从云端刷新文件">云同步</button>
-                    <span class="top-item">v5.6.0</span>
+                    <span class="top-item">v5.6.1</span>
                     <a class="xos-btn small" href="index.html" title="返回 Vitual XRing 主页">返回主页</a>
                     <button class="xos-btn small" type="button" id="xos-lock-btn">锁定</button>
                 </header>
@@ -660,6 +663,7 @@
             "use strict";
 
             const API = window.VTXApi;
+            const PAGE_VERSION = "5.6.1";
             const $ = (id) => document.getElementById(id);
             const SCREEN_W = 1440;
             const SCREEN_H = 900;
@@ -832,7 +836,7 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 5.6.0：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 5.6.1：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");
@@ -2240,8 +2244,17 @@
                 }));
             }
 
+            function editionForDevice(device) {
+                if (device.edition && EDITIONS[device.edition]) return device.edition;
+                const rank = Number(device.rank) || 0;
+                if (rank >= 3) return "ce";
+                if (rank === 2) return "professional";
+                if (rank === 1) return "personal";
+                return "home";
+            }
+
             function configureDevice(device) {
-                const edition = EDITIONS[device.edition] ? device.edition : "home";
+                const edition = editionForDevice(device);
                 const generation = Number(device.generation) === 2 ? 2 : 1;
                 state.license = device;
                 state.deviceId = device.id;
@@ -2335,6 +2348,21 @@
                 $("xos-lock-btn").addEventListener("click", () => { closeAll(); showModal('<h2 style="margin-top:0">XOS 已锁定</h2><p class="tiny">这是一个网页虚拟桌面，刷新页面即可重新进入。</p><div style="text-align:right"><button class="xos-btn" data-modal-close>解锁</button></div>'); });
                 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { $("xos-start").hidden = true; } });
                 if (!API || !API.hasSession) { renderGate("加载 vtx-api.js 失败，请刷新。"); return; }
+                if (API.version && API.version !== PAGE_VERSION) {
+                    try {
+                        const key = `xos:versionReload:${API.version}:${PAGE_VERSION}`;
+                        if (sessionStorage.getItem(key) !== "1") {
+                            sessionStorage.setItem(key, "1");
+                            const url = new URL(location.href);
+                            url.searchParams.set("v", API.version);
+                            url.searchParams.set("t", Date.now());
+                            location.replace(url.toString());
+                            return;
+                        }
+                    } catch (error) {
+                        /* 忽略缓存刷新失败，继续使用当前页面 */
+                    }
+                }
                 if (!API.hasSession()) { renderGate("请先登录账户。"); return; }
                 try {
                     const account = await API.me();
