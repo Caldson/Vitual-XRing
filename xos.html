@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=5.4.0"></script>
+    <script src="vtx-api.js?v=5.4.1"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -622,7 +622,7 @@
                     <span class="top-item" id="xos-user-label">—</span>
                     <a class="top-item xos-link" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91" title="XOS 商店">商店</a>
                     <button class="top-item xos-cloud-link" type="button" id="xos-cloud-status" title="点击立即从云端刷新文件">云同步</button>
-                    <span class="top-item">v5.4.0</span>
+                    <span class="top-item">v5.4.1</span>
                     <button class="xos-btn small" type="button" id="xos-lock-btn">锁定</button>
                 </header>
 
@@ -822,7 +822,7 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 5.4.0：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 5.4.1：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");

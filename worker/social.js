@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 5.4.0：分享生态 API（视频卡片 / 聊天记录分享）。
+ * Vitual XRing 5.4.1：分享生态 API（视频卡片 / 聊天记录分享）。
  *
  * 挂载点：/api/social/*
  * 页面：Vimidi、VMusic、Viratch、AUDIV、ViStyle、VClang、Vitx 动态、share.html

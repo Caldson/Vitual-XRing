@@ -689,7 +689,7 @@ test("1.9.0：UNO 状态开放，暴露模式与牌局能力", async () => {
     const { env } = await prepare();
     const status = await api(env, "GET", "/api/uno/status");
     assert.equal(status.status, 200);
-    assert.equal(status.data.version, "5.4.0");
+    assert.equal(status.data.version, "5.4.1");
     assert.equal(status.data.enabled, true);
     assert.deepEqual(status.data.modes, ["ai", "normal", "mixed", "match"]);
     assert.equal(status.data.maxPlayers, 10);
