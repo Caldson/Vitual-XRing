@@ -85,11 +85,11 @@
  * 5.5.0：
  *   - XOS 顶栏和开始菜单增加「返回主页」入口。
  *
- * 5.7.2：
+ * 6.0.0：
  *   - 新增 GameVersion / GameULTRA / GameMAX 三台高性能 XOS；
  *   - GameMAX 1500–30000fps 极端刷新率提示。
  *
- * 5.7.2：
+ * 6.0.0：
  *   - 修复旧缓存页面把 GameMAX 识别成 Home；未知版本按 rank 回退 CE；
  *   - XOS 页面增加版本守卫与 no-cache meta。
  *
@@ -120,7 +120,7 @@ import { createUno, UNO_VERSION } from "./uno.js";
 import { MeetingHub } from "./meeting.js";
 import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 
-const VERSION = "5.7.2";
+const VERSION = "6.0.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -144,7 +144,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "5.7.2";
+const CHAT_VERSION = "6.0.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -234,6 +234,12 @@ const MAX_TRADE_NAME_LENGTH = 20;
 const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
 const SHOP_CACHE_TTL_MS = 30 * 1000;
 const SHOP_MAX_QUANTITY = 999;
+/* 6.0.0：同捆包与商铺申请 */
+const SHOP_APPLICATIONS_KEY = "shop:applications";
+const SHOPS_KEY = "shops";
+const SHOP_APPLICATION_MAX = 500;
+const SHOP_APPLICATION_NAME_MAX = 40;
+const SHOP_APPLICATION_DESCRIPTION_MAX = 500;
 /* 1.4.0：面对面加群（4 / 8 位邀请码与群号）不再按 IP 限流，删除了原来的 INVITE_* 节流 */
 /* 1.2.0：聊天附件只允许这些类型内联显示，其余一律按下载处理 */
 const CHAT_MEDIA_INLINE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
@@ -1171,7 +1177,11 @@ function flattenShopCatalog(catalog) {
         if (!id || !name || cents === null || cents <= 0 || items.has(id)) {
             return;
         }
-        const virtual = entry.virtual === true || entry.type === "xos";
+        const bundle = entry.bundle === true || entry.type === "bundle";
+        const virtual = entry.virtual === true || entry.type === "xos" || bundle;
+        const bundleItems = Array.isArray(entry.bundleItems)
+            ? entry.bundleItems.map((item) => String(item || "").trim()).filter(Boolean)
+            : [];
         const stock = Number(entry.stock);
         items.set(id, {
             id,
@@ -1181,6 +1191,8 @@ function flattenShopCatalog(catalog) {
                 ? 9999
                 : (Number.isFinite(stock) ? Math.max(0, Math.floor(stock)) : 0),
             virtual,
+            bundle,
+            bundleItems,
             xosEdition: String(entry.xosEdition || "").trim(),
             xosRank: Number(entry.xosRank) || 0,
             xosGeneration: Math.max(1, Number(entry.xosGeneration) || 1),
@@ -2533,7 +2545,22 @@ async function handlePurchase(request, env, cors) {
     }
 
     if (product.virtual && quantity !== 1) {
-        return jsonResponse({ error: "bad_request", message: "XOS 云电脑授权一次只能购买 1 份" }, 400, cors);
+        return jsonResponse({ error: "bad_request", message: "XOS 云电脑授权和同捆包一次只能购买 1 份" }, 400, cors);
+    }
+
+    let bundleProducts = [];
+    if (product.bundle) {
+        const ids = [...new Set(product.bundleItems || [])];
+        if (ids.length < 2 || ids.includes(product.id)) {
+            return jsonResponse({ error: "unsupported_bundle", message: "同捆包至少需要包含两个不同的商品" }, 400, cors);
+        }
+        bundleProducts = ids.map((id) => findShopItem(catalog, id)).filter(Boolean);
+        if (bundleProducts.length !== ids.length) {
+            return jsonResponse({ error: "unsupported_bundle", message: "同捆包中有商品已下架" }, 400, cors);
+        }
+        if (bundleProducts.some((item) => item.bundle)) {
+            return jsonResponse({ error: "unsupported_bundle", message: "同捆包不能嵌套另一个同捆包" }, 400, cors);
+        }
     }
 
     let amountCents = product.cents * quantity;
@@ -2571,7 +2598,21 @@ async function handlePurchase(request, env, cors) {
             throw new HttpError(400, "insufficient_funds", `余额不足，当前余额 ${fromCents(balance)} VTX`);
         }
 
-        if (!product.virtual && hasKv(env)) {
+        if (product.bundle) {
+            for (const bundled of bundleProducts) {
+                if (bundled.virtual || !hasKv(env)) continue;
+                const stockKey = shopStockKey(bundled.id);
+                const stored = await env.ACCOUNTS_KV.get(stockKey);
+                const parsed = Number(stored);
+                const current = stored === null || stored === undefined || !Number.isFinite(parsed)
+                    ? bundled.stock
+                    : Math.max(0, Math.floor(parsed));
+                if (current < 1) {
+                    throw new HttpError(400, "out_of_stock", `同捆包中的「${bundled.name}」库存不足`);
+                }
+                await env.ACCOUNTS_KV.put(stockKey, String(current - 1));
+            }
+        } else if (!product.virtual && hasKv(env)) {
             const stockKey = shopStockKey(product.id);
             const stored = await env.ACCOUNTS_KV.get(stockKey);
             const parsed = Number(stored);
@@ -2597,7 +2638,17 @@ async function handlePurchase(request, env, cors) {
             to: "XRingCR"
         });
 
-        if (product.virtual && product.xosEdition) {
+        if (product.bundle) {
+            const devices = xosDevicesOf(account);
+            for (const bundled of bundleProducts) {
+                devices.push(xosLicenseFromProduct(bundled, time));
+            }
+            if (devices.length) {
+                account.xosDevices = devices;
+                account.xos = devices[devices.length - 1];
+                account.xosDeviceId = account.xos.id;
+            }
+        } else if (product.virtual && product.xosEdition) {
             const devices = xosDevicesOf(account);
             const license = xosLicenseFromProduct(product, time);
             if (xosUpgradeIndex >= 0 && devices[xosUpgradeIndex]) {
@@ -2622,9 +2673,11 @@ async function handlePurchase(request, env, cors) {
         trade,
         item: { id: product.id, name: product.name, unitPrice: fromCents(amountCents), quantity },
         stock: remaining === null ? null : { id: product.id, remaining },
-        receipt: product.virtual
-            ? `购买成功：${product.name}${xosUpgraded ? "（XOS1 → XOS2 升级）" : "（新增一台云电脑）"}，共 ${amount} VTX。打开 xos.html 即可使用。购买时间：${time}`
-            : `购买成功：${product.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
+        receipt: product.bundle
+            ? `购买成功：${product.name}，共 ${amount} VTX。包含：${bundleProducts.map((item) => item.name).join("、")}。打开 xos.html 即可在设备列表中看到这些云电脑。购买时间：${time}`
+            : product.virtual
+                ? `购买成功：${product.name}${xosUpgraded ? "（XOS1 → XOS2 升级）" : "（新增一台云电脑）"}，共 ${amount} VTX。打开 xos.html 即可使用。购买时间：${time}`
+                : `购买成功：${product.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
         account: selfAccount(accounts[login])
     }, 200, cors);
 }
@@ -2848,6 +2901,188 @@ async function handleShopStock(request, env, cors) {
     }
 
     return jsonResponse({ ok: true, version: VERSION, stock }, 200, cors);
+}
+
+/* ───────── 6.0.0：成为商铺 Beta ───────── */
+
+function shopApplicationView(application, includeLogin) {
+    const view = {
+        id: application.id,
+        name: application.name,
+        description: application.description,
+        status: application.status,
+        createdAt: application.createdAt,
+        reviewedAt: application.reviewedAt || 0,
+        reviewedBy: application.reviewedBy || "",
+        reviewNote: application.reviewNote || ""
+    };
+    if (includeLogin) view.login = application.login;
+    return view;
+}
+
+async function readShopApplicationList(env) {
+    const value = await env.ACCOUNTS_KV.get(SHOP_APPLICATIONS_KEY, "json");
+    return Array.isArray(value) ? value.filter((item) => item && item.id && item.login) : [];
+}
+
+async function readApprovedShopList(env) {
+    const value = await env.ACCOUNTS_KV.get(SHOPS_KEY, "json");
+    return Array.isArray(value) ? value.filter((item) => item && item.id && item.name) : [];
+}
+
+async function handleShopApplication(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) return session.error;
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "unavailable", message: "商铺服务暂不可用" }, 503, cors);
+    }
+    const login = session.payload.sub;
+
+    if (request.method === "GET") {
+        const applications = await readShopApplicationList(env);
+        const shops = await readApprovedShopList(env);
+        const mine = applications
+            .filter((item) => item.login === login)
+            .sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0))[0] || null;
+        const shop = shops.find((item) => item.ownerLogin === login) || null;
+        return jsonResponse({
+            ok: true,
+            application: mine ? shopApplicationView(mine, false) : null,
+            shop: shop ? { id: shop.id, name: shop.name, description: shop.description, createdAt: shop.createdAt } : null
+        }, 200, cors);
+    }
+
+    if (request.method !== "POST") {
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const name = String(body.name || "").trim();
+    const description = String(body.description || "").trim();
+    if (name.length < 2 || name.length > SHOP_APPLICATION_NAME_MAX || /[\u0000-\u001f]/.test(name)) {
+        return jsonResponse({ error: "bad_request", message: `商铺名称需要 2–${SHOP_APPLICATION_NAME_MAX} 个字符` }, 400, cors);
+    }
+    if (description.length < 5 || description.length > SHOP_APPLICATION_DESCRIPTION_MAX) {
+        return jsonResponse({ error: "bad_request", message: `商铺简介需要 5–${SHOP_APPLICATION_DESCRIPTION_MAX} 个字符` }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const applications = await readShopApplicationList(env);
+        const mine = applications.filter((item) => item.login === login);
+        if (mine.some((item) => item.status === "pending")) {
+            return { error: jsonResponse({ error: "already_pending", message: "你已经有一份待审核的商铺申请" }, 409, cors) };
+        }
+        if (mine.some((item) => item.status === "approved")) {
+            return { error: jsonResponse({ error: "already_shop", message: "你已经是认证商铺，无需重复申请" }, 409, cors) };
+        }
+        if (applications.length >= SHOP_APPLICATION_MAX) {
+            return { error: jsonResponse({ error: "too_many_applications", message: "商铺申请数量已满" }, 413, cors) };
+        }
+        const application = {
+            id: `sa_${randomCode(10)}`,
+            login,
+            name,
+            description,
+            status: "pending",
+            createdAt: Date.now(),
+            reviewedAt: 0,
+            reviewedBy: "",
+            reviewNote: ""
+        };
+        applications.push(application);
+        await env.ACCOUNTS_KV.put(SHOP_APPLICATIONS_KEY, JSON.stringify(applications));
+        return { application };
+    });
+
+    if (result.error) return result.error;
+    return jsonResponse({ ok: true, application: shopApplicationView(result.application, false) }, 201, cors);
+}
+
+async function handlePublicShops(request, env, cors) {
+    if (!hasKv(env)) {
+        return jsonResponse({ ok: true, shops: [] }, 200, cors);
+    }
+    const shops = await readApprovedShopList(env);
+    return jsonResponse({
+        ok: true,
+        shops: shops.slice(0, 100).map((shop) => ({
+            id: shop.id,
+            name: shop.name,
+            description: shop.description,
+            createdAt: shop.createdAt
+        }))
+    }, 200, cors);
+}
+
+async function handleAdminShopApplications(request, env, cors) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) return session.error;
+    if (!hasKv(env)) {
+        return jsonResponse({ ok: true, applications: [] }, 200, cors);
+    }
+    const applications = await readShopApplicationList(env);
+    applications.sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+    return jsonResponse({
+        ok: true,
+        applications: applications.map((item) => shopApplicationView(item, true))
+    }, 200, cors);
+}
+
+async function handleAdminShopReview(request, env, cors, id) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) return session.error;
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "unavailable", message: "商铺服务暂不可用" }, 503, cors);
+    }
+    const body = plainObject(await readJsonBody(request));
+    const action = String(body.action || "").trim();
+    const note = String(body.note || "").trim().slice(0, 300);
+    if (action !== "approve" && action !== "reject") {
+        return jsonResponse({ error: "bad_request", message: "action 必须是 approve 或 reject" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const applications = await readShopApplicationList(env);
+        const shops = await readApprovedShopList(env);
+        const application = applications.find((item) => item.id === id);
+        if (!application) {
+            return { error: jsonResponse({ error: "not_found", message: "商铺申请不存在" }, 404, cors) };
+        }
+        if (application.status !== "pending") {
+            return { error: jsonResponse({ error: "already_reviewed", message: "该申请已经审核过" }, 409, cors) };
+        }
+
+        application.reviewedAt = Date.now();
+        application.reviewedBy = adminLogin(env);
+        application.reviewNote = note;
+
+        if (action === "approve") {
+            const duplicate = shops.some((shop) => shop.name.toLowerCase() === application.name.toLowerCase());
+            if (duplicate) {
+                return { error: jsonResponse({ error: "shop_name_taken", message: "商铺名称已被使用，请拒绝后让对方换名" }, 409, cors) };
+            }
+            const shop = {
+                id: `shop_${randomCode(10)}`,
+                ownerLogin: application.login,
+                applicationId: application.id,
+                name: application.name,
+                description: application.description,
+                createdAt: Date.now()
+            };
+            shops.push(shop);
+            application.status = "approved";
+            application.shopId = shop.id;
+            await env.ACCOUNTS_KV.put(SHOPS_KEY, JSON.stringify(shops));
+        } else {
+            application.status = "rejected";
+        }
+
+        await env.ACCOUNTS_KV.put(SHOP_APPLICATIONS_KEY, JSON.stringify(applications));
+        return { application };
+    });
+
+    if (result.error) return result.error;
+    return jsonResponse({ ok: true, application: shopApplicationView(result.application, true) }, 200, cors);
 }
 
 async function handleLoginLocation(request, env, cors) {
@@ -8355,7 +8590,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "5.7.2";
+const VIDEO_VERSION = "6.0.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -11254,6 +11489,16 @@ export default {
                 return await handleShopStock(request, env, cors);
             }
 
+            if (url.pathname === "/api/shop/application") {
+                if (request.method === "GET" || request.method === "POST") {
+                    return await handleShopApplication(request, env, cors);
+                }
+            }
+
+            if (url.pathname === "/api/shops" && request.method === "GET") {
+                return await handlePublicShops(request, env, cors);
+            }
+
             if (url.pathname === "/api/login" && request.method === "POST") {
                 return await handleLogin(request, env, cors);
             }
@@ -11413,6 +11658,19 @@ export default {
 
             if (url.pathname === "/api/admin/log" && request.method === "GET") {
                 return await handleAdminLog(request, env, cors);
+            }
+
+            if (url.pathname === "/api/admin/shop-applications" && request.method === "GET") {
+                return await handleAdminShopApplications(request, env, cors);
+            }
+
+            {
+                const adminShopRoute = url.pathname.match(/^\/api\/admin\/shop-applications\/([^/]+)$/);
+                if (adminShopRoute) {
+                    if (request.method === "POST" || request.method === "PUT") {
+                        return await handleAdminShopReview(request, env, cors, decodeURIComponent(adminShopRoute[1]));
+                    }
+                }
             }
 
             if (url.pathname === "/api/admin/gifts") {

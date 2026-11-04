@@ -404,6 +404,19 @@
             font-size: 12px;
         }
 
+        .shop-app-list { display: grid; gap: 10px; margin-top: 12px; }
+        .shop-app-item { padding: 12px 14px; border: 1px solid #e3e8f1; border-radius: 12px; background: #fbfcff; }
+        .shop-app-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+        .shop-app-head b { font-size: 14px; }
+        .shop-app-head small { color: #7a879c; }
+        .shop-app-desc { margin: 7px 0 0; color: #52617a; font-size: 12.5px; line-height: 1.65; }
+        .shop-app-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+        .shop-app-actions button { padding: 6px 10px; font-size: 12px; }
+        .shop-app-status { display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #eef2f8; color: #52617a; }
+        .shop-app-status.pending { background: #fff6df; color: #966517; }
+        .shop-app-status.approved { background: #eaf9f0; color: #237a4b; }
+        .shop-app-status.rejected { background: #fdeef0; color: #a9202f; }
+
         .gift-status.active {
             background: #e8f7ef;
             color: #1f7a52;
@@ -450,7 +463,7 @@
         </a>
         <div class="topbar-actions">
             <span class="admin-chip">站主专用</span>
-            <span class="version">v5.7.2</span>
+            <span class="version">v6.0.0</span>
             <a href="manager.html">返回账户</a>
             <a href="admin.html">仓库修改器</a>
             <a href="chatroom.html">聊天室</a>
@@ -604,16 +617,27 @@
             <p id="gift-empty" class="empty" hidden>还没有礼品兑换码。</p>
         </section>
 
+        <section class="panel" style="margin-top:18px;" id="shop-application-panel">
+            <div class="panel-title">
+                <span>商铺审核 [Beta]</span>
+                <button id="shop-application-refresh" class="ghost" type="button">刷新</button>
+            </div>
+            <p class="copy">审核用户提交的商铺名称与简介。通过后会出现在商店的认证商铺列表中。</p>
+            <p id="shop-application-message" class="status" role="status" aria-live="polite" hidden></p>
+            <div id="shop-application-list" class="shop-app-list"></div>
+            <p id="shop-application-empty" class="empty" hidden>还没有商铺申请。</p>
+        </section>
+
         <section class="panel" style="margin-top:18px;">
             <h2>审计记录</h2>
             <ol id="audit-list" class="audit"></ol>
             <p id="audit-empty" class="empty">暂无记录。</p>
         </section>
 
-        <footer>Vitual XRing 8.0 · 账户数据存储于 Workers KV</footer>
+        <footer>Vitual XRing 6.0.0 · 账户数据存储于 Workers KV</footer>
     </main>
 
-    <script src="vtx-api.js?v=5.7.2"></script>
+    <script src="vtx-api.js?v=6.0.0"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";
@@ -644,11 +668,15 @@
         const giftMessage = document.getElementById("gift-message");
         const giftList = document.getElementById("gift-list");
         const giftEmpty = document.getElementById("gift-empty");
+        const shopApplicationList = document.getElementById("shop-application-list");
+        const shopApplicationEmpty = document.getElementById("shop-application-empty");
+        const shopApplicationMessage = document.getElementById("shop-application-message");
 
         let accountsData = {};
         let selected = null;
         let passwordVisible = false;
         let giftCodes = [];
+        let shopApplications = [];
 
         function showMessage(text, kind) {
             messageBox.textContent = text;
@@ -921,6 +949,87 @@
             }
         }
 
+        function showShopApplicationMessage(text, kind) {
+            shopApplicationMessage.textContent = text;
+            shopApplicationMessage.className = `status ${kind || ""}`;
+            shopApplicationMessage.hidden = !text;
+        }
+
+        function renderShopApplications() {
+            shopApplicationList.textContent = "";
+            shopApplicationEmpty.hidden = shopApplications.length > 0;
+            const labels = { pending: "待审核", approved: "已通过", rejected: "已拒绝" };
+            for (const application of shopApplications) {
+                const item = document.createElement("article");
+                item.className = "shop-app-item";
+                const head = document.createElement("div");
+                head.className = "shop-app-head";
+                const name = document.createElement("b");
+                name.textContent = application.name;
+                const status = document.createElement("span");
+                status.className = `shop-app-status ${application.status}`;
+                status.textContent = labels[application.status] || application.status;
+                const owner = document.createElement("small");
+                owner.textContent = `申请人：${application.login} · ${giftDateLabel(application.createdAt)}`;
+                head.append(name, status, owner);
+                item.appendChild(head);
+
+                const desc = document.createElement("p");
+                desc.className = "shop-app-desc";
+                desc.textContent = application.description;
+                item.appendChild(desc);
+
+                if (application.reviewNote) {
+                    const note = document.createElement("p");
+                    note.className = "shop-app-desc";
+                    note.textContent = `审核备注：${application.reviewNote}`;
+                    item.appendChild(note);
+                }
+
+                if (application.status === "pending") {
+                    const actions = document.createElement("div");
+                    actions.className = "shop-app-actions";
+                    const approve = document.createElement("button");
+                    approve.type = "button";
+                    approve.className = "primary";
+                    approve.textContent = "通过";
+                    approve.addEventListener("click", () => reviewShopApplication(application, "approve"));
+                    const reject = document.createElement("button");
+                    reject.type = "button";
+                    reject.className = "danger";
+                    reject.textContent = "拒绝";
+                    reject.addEventListener("click", () => reviewShopApplication(application, "reject"));
+                    actions.append(approve, reject);
+                    item.appendChild(actions);
+                }
+                shopApplicationList.appendChild(item);
+            }
+        }
+
+        async function loadShopApplications() {
+            try {
+                const data = await window.VTXApi.adminShopApplications();
+                shopApplications = Array.isArray(data.applications) ? data.applications : [];
+                renderShopApplications();
+            } catch (error) {
+                shopApplications = [];
+                renderShopApplications();
+                showShopApplicationMessage(error instanceof TypeError ? "无法连接服务器读取商铺申请。" : error.message, "error");
+            }
+        }
+
+        async function reviewShopApplication(application, action) {
+            const note = action === "reject" ? (window.prompt("拒绝原因（可留空）", "") || "") : "";
+            if (action === "approve" && !window.confirm(`通过「${application.name}」的商铺申请？`)) return;
+            try {
+                await window.VTXApi.adminReviewShop(application.id, action, note);
+                showShopApplicationMessage(action === "approve" ? "已通过商铺申请。" : "已拒绝商铺申请。", "success");
+                await loadShopApplications();
+            } catch (error) {
+                showShopApplicationMessage(error instanceof TypeError ? "无法连接服务器。" : error.message, "error");
+            }
+        }
+
         async function loadGifts() {
             try {
                 const data = await window.VTXApi.adminGifts();
@@ -1156,11 +1265,15 @@
             loadAccounts();
             loadAudit();
             loadGifts();
+            loadShopApplications();
         });
+
+        document.getElementById("shop-application-refresh").addEventListener("click", loadShopApplications);
 
         loadAccounts();
         loadAudit();
         loadGifts();
+        loadShopApplications();
     </script>
 </body>
 </html>

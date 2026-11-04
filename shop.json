@@ -1,5 +1,5 @@
 {
-    "version": "9.0",
+    "version": "10.0",
     "items": [],
     "文具本 - 采用冷胶工艺": [
         {
@@ -582,6 +582,24 @@
                 "MIDI 播放器",
                 "计时器"
             ]
+        }
+    ],
+    "同捆包 [Beta]": [
+        {
+            "id": "bundle-xos-creator-26h2",
+            "name": "XOS 创作者双机同捆包 [Beta]",
+            "price": "2200.00",
+            "description": "同捆包 Beta：一次获得 XOS PC Home 26H2 与 XOS PC Personal 26H2 两台云电脑，比单独购买节省 100 VTX。购买后自动加入设备列表。",
+            "manufacturer": "XRing Studios",
+            "stock": 9999,
+            "virtual": true,
+            "type": "bundle",
+            "bundle": true,
+            "bundleItems": [
+                "xos-pc-home-26h2",
+                "xos-pc-personal-26h2"
+            ],
+            "image": "images/xos-pc-home.svg"
         }
     ]
 }

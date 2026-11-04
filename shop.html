@@ -150,6 +150,57 @@
         .xos-entry span { color: #aebedb; font-size: 12.5px; line-height: 1.6; }
         .xos-entry .go { flex: 0 0 auto; padding: 9px 13px; border: 1px solid rgba(150, 190, 255, .4); border-radius: 9px; color: #dce8ff; font-size: 12px; font-weight: 700; }
 
+        .shop-beta {
+            margin: 22px 0 0;
+            padding: 20px 22px;
+            border: 1px solid #d8e4f7;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #ffffff, #f5f9ff);
+            box-shadow: 0 12px 34px rgba(31, 52, 92, 0.05);
+        }
+        .shop-beta-head h2 { margin: 4px 0 6px; font-size: 20px; }
+        .shop-beta-head p:not(.eyebrow) { margin: 0; color: #738097; font-size: 13px; line-height: 1.65; }
+        .shop-apply-status {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border: 1px solid #e0e7f1;
+            border-radius: 10px;
+            background: #fff;
+            color: #4d5d76;
+            font-size: 12.5px;
+            line-height: 1.6;
+        }
+        .shop-apply-status.approved { border-color: #bfe8d6; background: #f1fbf6; color: #237a4b; }
+        .shop-apply-status.pending { border-color: #ffe2a8; background: #fff9ec; color: #9a6a16; }
+        .shop-apply-status.rejected { border-color: #f3c8ce; background: #fff5f6; color: #a9202f; }
+        .shop-apply-form { margin-top: 12px; }
+        .shop-apply-fields { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 10px; }
+        .shop-apply-fields label { display: flex; flex-direction: column; gap: 6px; color: #5d6c83; font-size: 12px; font-weight: 700; }
+        .shop-apply-fields input,
+        .shop-apply-fields textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d8e0ec;
+            border-radius: 10px;
+            background: #fff;
+            color: #172033;
+            font: inherit;
+            font-size: 13px;
+            outline: none;
+        }
+        .shop-apply-fields textarea { min-height: 76px; resize: vertical; }
+        .shop-apply-fields input:focus,
+        .shop-apply-fields textarea:focus { border-color: #3867e8; box-shadow: 0 0 0 3px rgba(56, 103, 232, 0.1); }
+        .shop-apply-form .primary-button { margin-top: 10px; }
+        .approved-shops { margin-top: 16px; padding-top: 14px; border-top: 1px solid #e7edf7; }
+        .approved-shops h3 { margin: 0 0 8px; font-size: 14px; }
+        .approved-shop-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+        .approved-shop-card { padding: 10px 12px; border: 1px solid #dfe8f6; border-radius: 10px; background: #fff; }
+        .approved-shop-card b { display: block; color: #3158d1; font-size: 13px; }
+        .approved-shop-card span { display: block; margin-top: 4px; color: #738097; font-size: 12px; line-height: 1.55; }
+        .approved-shop-empty { margin: 0; color: #8a97aa; font-size: 12px; }
+        @media (max-width: 620px) { .shop-apply-fields { grid-template-columns: 1fr; } }
+
         .redeem-card {
             margin: 22px 0 26px;
             padding: 20px 22px;
@@ -410,6 +461,17 @@
             line-height: 1.55;
         }
 
+        .bundle-contents {
+            padding: 10px 12px;
+            border: 1px solid #d8e4ff;
+            border-radius: 10px;
+            background: #f7faff;
+            color: #3d4c63;
+            font-size: 12px;
+        }
+        .bundle-contents b { color: #2449b8; }
+        .bundle-contents ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.7; }
+
         .product-meta {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -657,7 +719,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v5.7.2</span>
+            <span class="version">v6.0.0</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -679,6 +741,27 @@
             </span>
             <span class="go">打开 XOS →</span>
         </a>
+
+        <section class="shop-beta" id="shop-application" aria-labelledby="shop-application-title">
+            <div class="shop-beta-head">
+                <p class="eyebrow">Beta · 商铺</p>
+                <h2 id="shop-application-title">成为商铺</h2>
+                <p>提交商铺名称和简介，由站主审核。通过后会出现在下面的认证商铺列表中，并获得商铺身份。</p>
+            </div>
+            <div id="shop-apply-status" class="shop-apply-status"></div>
+            <form id="shop-apply-form" class="shop-apply-form" hidden>
+                <div class="shop-apply-fields">
+                    <label>商铺名称<input id="shop-apply-name" type="text" maxlength="40" required placeholder="2–40 个字符"></label>
+                    <label>商铺简介<textarea id="shop-apply-desc" maxlength="500" required placeholder="介绍你的商铺、商品方向或创作内容（5–500 个字符）"></textarea></label>
+                </div>
+                <button id="shop-apply-submit" class="primary-button" type="submit">提交审核</button>
+            </form>
+            <p id="shop-apply-message" class="status" role="status" aria-live="polite" hidden></p>
+            <div class="approved-shops">
+                <h3>认证商铺</h3>
+                <div id="approved-shop-list" class="approved-shop-list"></div>
+            </div>
+        </section>
 
         <section class="redeem-card" aria-labelledby="redeem-title">
             <div class="redeem-head">
@@ -735,7 +818,7 @@
         </form>
     </dialog>
 
-    <script src="vtx-api.js?v=5.7.2"></script>
+    <script src="vtx-api.js?v=6.0.0"></script>
 
 
     <script>
@@ -761,11 +844,19 @@
         const redeemForm = document.getElementById("redeem-form");
         const redeemInput = document.getElementById("redeem-code");
         const redeemButton = document.getElementById("redeem-button");
+        const shopApplyStatus = document.getElementById("shop-apply-status");
+        const shopApplyForm = document.getElementById("shop-apply-form");
+        const shopApplyName = document.getElementById("shop-apply-name");
+        const shopApplyDesc = document.getElementById("shop-apply-desc");
+        const shopApplyMessage = document.getElementById("shop-apply-message");
+        const shopApplySubmit = document.getElementById("shop-apply-submit");
+        const approvedShopList = document.getElementById("approved-shop-list");
 
         let shopData = null;
         let accountsData = null;
         let selectedId = null;
         let activeCategory = ALL_CATEGORIES;
+        let approvedShops = [];
 
         function showMessage(text, kind) {
             message.textContent = text;
@@ -1057,6 +1148,23 @@
                 desc.textContent = item.description || "暂无详情描述。";
                 card.appendChild(desc);
 
+                if (item.bundle) {
+                    const contents = document.createElement("div");
+                    contents.className = "bundle-contents";
+                    const heading = document.createElement("b");
+                    heading.textContent = "同捆包包含";
+                    contents.appendChild(heading);
+                    const list = document.createElement("ul");
+                    for (const id of Array.isArray(item.bundleItems) ? item.bundleItems : []) {
+                        const entry = findEntry(id);
+                        const li = document.createElement("li");
+                        li.textContent = entry ? entry.item.name : id;
+                        list.appendChild(li);
+                    }
+                    contents.appendChild(list);
+                    card.appendChild(contents);
+                }
+
                 if (item.xosConfig) {
                     const specs = document.createElement("div");
                     specs.className = "xos-specs";
@@ -1085,7 +1193,7 @@
                     upgrade.className = "xos-upgrade";
                     upgrade.textContent = `已拥有 ${item.name.replace(/ 26H2$/, " 26H1")}？可直接升级，仅需 25 VTX。`;
                     card.appendChild(upgrade);
-                } else if (item.virtual && ownedXosDevices().length) {
+                } else if (item.virtual && !item.bundle && ownedXosDevices().length) {
                     const count = document.createElement("p");
                     count.className = "xos-upgrade";
                     count.textContent = `已拥有 ${ownedXosDevices().length} 台 XOS；再次购买会新增一台，不影响已有设备。`;
@@ -1355,6 +1463,104 @@
             return { accounts, shop: shopData, receipt: payment.receipt, amount };
         }
 
+        function setShopApplyMessage(text, kind) {
+            shopApplyMessage.textContent = text;
+            shopApplyMessage.className = `status ${kind || ""}`;
+            shopApplyMessage.hidden = !text;
+        }
+
+        function renderShopApplication(data) {
+            const application = data && data.application ? data.application : null;
+            const shop = data && data.shop ? data.shop : null;
+            shopApplyForm.hidden = true;
+            shopApplyStatus.className = "shop-apply-status";
+            if (shop || (application && application.status === "approved")) {
+                shopApplyStatus.classList.add("approved");
+                shopApplyStatus.textContent = `已认证商铺：${shop ? shop.name : application.name}。简介：${shop ? shop.description : application.description}`;
+                return;
+            }
+            if (application && application.status === "pending") {
+                shopApplyStatus.classList.add("pending");
+                shopApplyStatus.textContent = `商铺申请审核中：${application.name}。站主审核通过后会显示在认证商铺列表中。`;
+                return;
+            }
+            if (application && application.status === "rejected") {
+                shopApplyStatus.classList.add("rejected");
+                shopApplyStatus.textContent = `上次申请未通过${application.reviewNote ? `：${application.reviewNote}` : "。"}可以修改名称或简介后重新提交。`;
+                shopApplyName.value = application.name || "";
+                shopApplyDesc.value = application.description || "";
+            } else {
+                shopApplyStatus.textContent = "还没有提交商铺申请。填写名称和简介后提交，等待站主审核。";
+            }
+            shopApplyForm.hidden = false;
+        }
+
+        async function loadShopApplication() {
+            try {
+                const data = await window.VTXApi.shopApplication();
+                renderShopApplication(data);
+            } catch (error) {
+                shopApplyStatus.textContent = networkMessage(error, "无法读取商铺申请状态，请稍后刷新。");
+            }
+        }
+
+        function renderApprovedShops(shops) {
+            approvedShopList.textContent = "";
+            approvedShops = Array.isArray(shops) ? shops : [];
+            if (!approvedShops.length) {
+                const emptyNode = document.createElement("p");
+                emptyNode.className = "approved-shop-empty";
+                emptyNode.textContent = "还没有认证商铺，欢迎成为第一家。";
+                approvedShopList.appendChild(emptyNode);
+                return;
+            }
+            for (const shop of approvedShops) {
+                const card = document.createElement("article");
+                card.className = "approved-shop-card";
+                const name = document.createElement("b");
+                name.textContent = shop.name;
+                const desc = document.createElement("span");
+                desc.textContent = shop.description || "暂无简介";
+                card.append(name, desc);
+                approvedShopList.appendChild(card);
+            }
+        }
+
+        async function loadApprovedShops() {
+            try {
+                const data = await window.VTXApi.publicShops();
+                renderApprovedShops(data && data.shops);
+            } catch (error) {
+                renderApprovedShops([]);
+            }
+        }
+
+        shopApplyForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const name = shopApplyName.value.trim();
+            const description = shopApplyDesc.value.trim();
+            if (name.length < 2 || name.length > 40) {
+                setShopApplyMessage("商铺名称需要 2–40 个字符。", "error");
+                return;
+            }
+            if (description.length < 5 || description.length > 500) {
+                setShopApplyMessage("商铺简介需要 5–500 个字符。", "error");
+                return;
+            }
+            shopApplySubmit.disabled = true;
+            shopApplySubmit.textContent = "提交中…";
+            try {
+                await window.VTXApi.applyShop({ name, description });
+                setShopApplyMessage("已提交，等待站主审核。", "success");
+                await loadShopApplication();
+            } catch (error) {
+                setShopApplyMessage(networkMessage(error, "提交失败，请稍后重试。"), "error");
+            } finally {
+                shopApplySubmit.disabled = false;
+                shopApplySubmit.textContent = "提交审核";
+            }
+        });
+
         document.getElementById("checkout-cancel").addEventListener("click", closeCheckout);
         form.addEventListener("submit", purchase);
         redeemForm.addEventListener("submit", redeemGift);
@@ -1370,7 +1576,9 @@
                 }
                 if (accountName && window.VTXApi.hasSession()) {
                     await loadAccount();
+                    await loadShopApplication();
                 }
+                await loadApprovedShops();
             } catch (error) {
                 showMessage(
                     networkMessage(error, "无法读取商店数据，请确认页面通过 https 打开后重试。"),
