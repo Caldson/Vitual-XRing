@@ -4390,7 +4390,7 @@ VTXApi.xos.removeFile(id)
   - GitHub 风格深色界面；
   - 输入 `owner/repo` 或 GitHub URL 浏览公开仓库；
   - 显示仓库描述、语言、Star / Fork、文件列表、README；
-  - 通过 `gh-proxy.com` 打开 GitHub 页面和读取 README 原始文件；
+  - 通过 `gh-proxy.com` 打开 GitHub 页面和读取 README 原始文件；GitHub API 直连失败时也回退到镜像；
   - 只使用 Vitual XRing 登录；
   - 明确预告：**GitHub 登录将在 8.0.0 上线**。
 - 首页和账户页新增 VitualGit 入口。

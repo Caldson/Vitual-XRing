@@ -147,8 +147,23 @@
             }
 
             async function json(url) {
-                const response = await fetch(url, { headers: { accept: "application/vnd.github+json" }, cache: "no-store" });
-                if (!response.ok) throw new Error(response.status === 404 ? "仓库不存在或不是公开仓库" : "GitHub 请求失败（HTTP " + response.status + "）");
+                let response;
+                try {
+                    response = await fetch(url, { headers: { accept: "application/vnd.github+json" }, cache: "no-store" });
+                } catch (error) {
+                    response = null;
+                }
+                if (!response || !response.ok) {
+                    if (url.startsWith(API_ROOT)) {
+                        try {
+                            const proxied = await fetch(PROXY_ROOT + url, { headers: { accept: "application/vnd.github+json" }, cache: "no-store" });
+                            if (proxied && proxied.ok) return proxied.json();
+                        } catch (error) {
+                            /* 直接与镜像都失败，下面统一报错 */
+                        }
+                    }
+                    throw new Error(response && response.status === 404 ? "仓库不存在或不是公开仓库" : "GitHub 请求失败（HTTP " + (response ? response.status : "网络错误") + "）");
+                }
                 return response.json();
             }
 
