@@ -1,5 +1,5 @@
-/* Vitual XRing 8.1.1 — page cache / offline shell */
-const CACHE_NAME = "xring-v8.1.1";
+/* Vitual XRing 8.1.2 — page cache / offline shell */
+const CACHE_NAME = "xring-v8.1.2";
 const CORE = [
     "./",
     "index.html",
@@ -13,11 +13,11 @@ const CORE = [
     "offline.html",
     "vtx-theme.css",
     "vtx-theme.js",
-    "vtx-theme.css?v=8.1.1",
-    "vtx-theme.js?v=8.1.1",
+    "vtx-theme.css?v=8.1.2",
+    "vtx-theme.js?v=8.1.2",
     "vtx-api.js",
     "vtx-pwa.js",
-    "vtx-pwa.js?v=8.1.1",
+    "vtx-pwa.js?v=8.1.2",
     "XRingLogo-V.png"
 ];
 

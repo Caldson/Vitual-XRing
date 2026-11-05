@@ -1,7 +1,7 @@
-/* Vitual XRing 8.1.1 — theme + language shell */
+/* Vitual XRing 8.1.2 — theme + language shell */
 (function () {
     "use strict";
-    const VERSION = "8.1.1";
+    const VERSION = "8.1.2";
     const THEME_KEY = "xring:theme";
     const LANGUAGE_KEY = "xring:language";
     const THEME_MODES = ["auto", "light", "dark"];
@@ -33,7 +33,7 @@
             "card.share.title": "分享", "card.share.desc": "自定义分享卡片与站内识别",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 风格仓库浏览 · Proxy 镜像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英语 / 日语课程与 7 种题型",
-            "footer": "Vitual XRing 8.1.1 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。",
+            "footer": "Vitual XRing 8.1.2 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。",
             "widget.theme": "切换主题", "widget.settings": "打开设置",
             "widget.themeAuto": "主题：自动（{theme}）", "widget.themeLight": "主题：浅色", "widget.themeDark": "主题：深色",
             "settings.kicker": "界面偏好", "settings.title": "设置", "settings.subtitle": "主题、语言和显示偏好会保存在本机，并立即生效。",
@@ -78,7 +78,7 @@
             "card.share.title": "分享", "card.share.desc": "自訂分享卡片與站內辨識",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風格倉庫瀏覽 · Proxy 鏡像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日語課程與 7 種題型",
-            "footer": "Vitual XRing 8.1.1 · XOS 是瀏覽器端虛擬桌面，不是真實遠端虛擬機。",
+            "footer": "Vitual XRing 8.1.2 · XOS 是瀏覽器端虛擬桌面，不是真實遠端虛擬機。",
             "widget.theme": "切換主題", "widget.settings": "開啟設定",
             "widget.themeAuto": "主題：自動（{theme}）", "widget.themeLight": "主題：淺色", "widget.themeDark": "主題：深色",
             "settings.kicker": "介面偏好", "settings.title": "設定", "settings.subtitle": "主題、語言和顯示偏好會保存在本機，並立即生效。",
@@ -123,7 +123,7 @@
             "card.share.title": "Share", "card.share.desc": "Custom share cards and in-site previews",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub-style repository browser · proxy mirror",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "English / Japanese lessons and 7 exercise types",
-            "footer": "Vitual XRing 8.1.1 · XOS is a browser virtual desktop, not a real remote VM.",
+            "footer": "Vitual XRing 8.1.2 · XOS is a browser virtual desktop, not a real remote VM.",
             "widget.theme": "Change theme", "widget.settings": "Open settings",
             "widget.themeAuto": "Theme: auto ({theme})", "widget.themeLight": "Theme: light", "widget.themeDark": "Theme: dark",
             "settings.kicker": "Interface preferences", "settings.title": "Settings", "settings.subtitle": "Theme, language and display preferences are saved on this device and applied immediately.",
@@ -168,7 +168,7 @@
             "card.share.title": "共有", "card.share.desc": "カスタム共有カードとサイト内プレビュー",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風リポジトリ閲覧 · Proxy ミラー",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日本語レッスンと7種類の練習",
-            "footer": "Vitual XRing 8.1.1 · XOS はブラウザ内の仮想デスクトップであり、実際のリモート VM ではありません。",
+            "footer": "Vitual XRing 8.1.2 · XOS はブラウザ内の仮想デスクトップであり、実際のリモート VM ではありません。",
             "widget.theme": "テーマを切り替え", "widget.settings": "設定を開く",
             "widget.themeAuto": "テーマ：自動（{theme}）", "widget.themeLight": "テーマ：ライト", "widget.themeDark": "テーマ：ダーク",
             "settings.kicker": "表示設定", "settings.title": "設定", "settings.subtitle": "テーマ、言語、表示設定はこの端末に保存され、すぐに反映されます。",
@@ -263,7 +263,52 @@
         "应用": { "zh-TW": "應用", en: "Apps", ja: "アプリ" },
         "设置": { "zh-TW": "設定", en: "Settings", ja: "設定" },
         "退出登录": { "zh-TW": "登出", en: "Sign out", ja: "ログアウト" },
-        "管理": { "zh-TW": "管理", en: "Manage", ja: "管理" }
+        "管理": { "zh-TW": "管理", en: "Manage", ja: "管理" },
+
+        "用户名": { "zh-TW": "使用者名稱", en: "Username", ja: "ユーザー名" },
+        "登录名": { "zh-TW": "登入名稱", en: "Login name", ja: "ログイン名" },
+        "账户信息": { "zh-TW": "帳戶資訊", en: "Account information", ja: "アカウント情報" },
+        "账户状态": { "zh-TW": "帳戶狀態", en: "Account status", ja: "アカウント状態" },
+        "正常": { "zh-TW": "正常", en: "Active", ja: "正常" },
+        "货币单位": { "zh-TW": "貨幣單位", en: "Currency", ja: "通貨単位" },
+        "账户设置": { "zh-TW": "帳戶設定", en: "Account settings", ja: "アカウント設定" },
+        "修改会写入 Workers 中的账户数据，立即生效。": { "zh-TW": "修改會寫入 Workers 中的帳戶資料，立即生效。", en: "Changes are written to account data in Workers and apply immediately.", ja: "変更は Workers のアカウントデータに保存され、すぐに反映されます。" },
+        "更改用户名": { "zh-TW": "變更使用者名稱", en: "Change username", ja: "ユーザー名を変更" },
+        "新用户名": { "zh-TW": "新使用者名稱", en: "New username", ja: "新しいユーザー名" },
+        "2-20 个字符，仅影响显示": { "zh-TW": "2-20 個字元，僅影響顯示", en: "2–20 characters; display name only", ja: "2〜20文字。表示名のみ変更されます" },
+        "更改密码": { "zh-TW": "變更密碼", en: "Change password", ja: "パスワードを変更" },
+        "当前密码": { "zh-TW": "目前密碼", en: "Current password", ja: "現在のパスワード" },
+        "新密码": { "zh-TW": "新密碼", en: "New password", ja: "新しいパスワード" },
+        "确认新密码": { "zh-TW": "確認新密碼", en: "Confirm new password", ja: "新しいパスワード（確認）" },
+        "转账会写入 Workers 中的账户数据，服务端校验密码后同时更新双方余额。": { "zh-TW": "轉帳會寫入 Workers 中的帳戶資料，伺服器驗證密碼後同時更新雙方餘額。", en: "Transfers are written to Workers account data; the server verifies your password and updates both balances.", ja: "送金は Workers のアカウントデータに保存され、サーバーがパスワードを確認して双方の残高を更新します。" },
+        "收款人": { "zh-TW": "收款人", en: "Recipient", ja: "受取人" },
+        "金额（VTX）": { "zh-TW": "金額（VTX）", en: "Amount (VTX)", ja: "金額（VTX）" },
+        "金额 (VTX)": { "zh-TW": "金額 (VTX)", en: "Amount (VTX)", ja: "金額 (VTX)" },
+        "分享生态": { "zh-TW": "分享生態", en: "Sharing ecosystem", ja: "共有エコシステム" },
+        "MIDI 分享与作曲": { "zh-TW": "MIDI 分享與作曲", en: "MIDI sharing & composing", ja: "MIDI 共有・作曲" },
+        "在线音乐平台": { "zh-TW": "線上音樂平台", en: "Online music platform", ja: "オンライン音楽プラットフォーム" },
+        "Scratch 作品": { "zh-TW": "Scratch 作品", en: "Scratch projects", ja: "Scratch 作品" },
+        "语音会议": { "zh-TW": "語音會議", en: "Voice meetings", ja: "音声会議" },
+        "CSS 样式包": { "zh-TW": "CSS 樣式包", en: "CSS style packs", ja: "CSS スタイルパック" },
+        "C++ 项目": { "zh-TW": "C++ 專案", en: "C++ projects", ja: "C++ プロジェクト" },
+        "图文动态": { "zh-TW": "圖文動態", en: "Posts", ja: "画像・テキスト投稿" },
+        "自定义分享卡片": { "zh-TW": "自訂分享卡片", en: "Custom share cards", ja: "カスタム共有カード" },
+        "虚拟桌面 26H3": { "zh-TW": "虛擬桌面 26H3", en: "Virtual desktop 26H3", ja: "仮想デスクトップ 26H3" },
+        "GitHub 风格仓库浏览": { "zh-TW": "GitHub 風格倉庫瀏覽", en: "GitHub-style repository browser", ja: "GitHub 風リポジトリ閲覧" },
+        "英语 / 日语预览课程": { "zh-TW": "英語 / 日語預覽課程", en: "English / Japanese preview lessons", ja: "英語 / 日本語プレビューコース" },
+        "账号修改": { "zh-TW": "帳號修改", en: "Account editor", ja: "アカウント編集" },
+        "AI 聊天": { "zh-TW": "AI 聊天", en: "AI chat", ja: "AI チャット" },
+        "AI 生图": { "zh-TW": "AI 生圖", en: "AI image", ja: "AI 画像生成" },
+        "视频": { "zh-TW": "影片", en: "Video", ja: "動画" },
+        "返回账户": { "zh-TW": "返回帳戶", en: "Back to account", ja: "アカウントへ戻る" },
+        "登录位置": { "zh-TW": "登入位置", en: "Login locations", ja: "ログイン位置" },
+        "商品分类": { "zh-TW": "商品分類", en: "Product categories", ja: "商品カテゴリ" },
+        "同捆包 [Beta]": { "zh-TW": "同捆包 [Beta]", en: "Bundles [Beta]", ja: "バンドル [Beta]" },
+        "XOS虚拟云电脑": { "zh-TW": "XOS 虛擬雲端電腦", en: "XOS virtual desktop", ja: "XOS 仮想デスクトップ" },
+        "制造商": { "zh-TW": "製造商", en: "Manufacturer", ja: "メーカー" },
+        "商家": { "zh-TW": "商家", en: "Merchant", ja: "販売者" },
+        "登录以购买": { "zh-TW": "登入以購買", en: "Sign in to buy", ja: "購入するにはログイン" },
+        "没有找到匹配的商品": { "zh-TW": "沒有找到符合的商品", en: "No matching products", ja: "一致する商品がありません" }
     };
 
     const TEXT_ATTRIBUTES = ["placeholder", "title", "aria-label"];
