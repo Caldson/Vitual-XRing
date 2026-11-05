@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import worker from "../index.js";
 
-/* 6.0.0：同捆包与成为商铺 Beta */
+/* 6.1.0：同捆包与成为商铺 Beta */
 
 class MockKV {
     constructor() {
@@ -137,7 +137,7 @@ async function prepare() {
     return { env, tokens };
 }
 
-test("6.0.0：购买同捆包一次获得多个 XOS 授权", async () => {
+test("6.1.0：购买同捆包一次获得多个 XOS 授权", async () => {
     const { env, tokens } = await prepare();
     const result = await api(env, "POST", "/api/me/purchase", {
         token: tokens.Alice,
@@ -152,7 +152,7 @@ test("6.0.0：购买同捆包一次获得多个 XOS 授权", async () => {
     assert.match(result.data.receipt, /包含/);
 });
 
-test("6.0.0：同捆包有缺失商品时拒绝购买", async () => {
+test("6.1.0：同捆包有缺失商品时拒绝购买", async () => {
     const { env, tokens } = await prepare();
     const result = await api(env, "POST", "/api/me/purchase", {
         token: tokens.Alice,
@@ -162,7 +162,7 @@ test("6.0.0：同捆包有缺失商品时拒绝购买", async () => {
     assert.equal(result.data.error, "unsupported_bundle");
 });
 
-test("6.0.0：商铺申请由站主审核并通过", async () => {
+test("6.1.0：商铺申请由站主审核并通过", async () => {
     const { env, tokens } = await prepare();
     const submit = await api(env, "POST", "/api/shop/application", {
         token: tokens.Alice,
@@ -199,7 +199,74 @@ test("6.0.0：商铺申请由站主审核并通过", async () => {
     assert.equal(shops.data.shops[0].name, "爱丽丝工坊");
 });
 
-test("6.0.0：普通用户不能审核商铺，拒绝后可以重新申请", async () => {
+test("6.1.0：认证商铺上架商品，站主审核后可购买并结算给商家", async () => {
+    const { env, tokens } = await prepare();
+    const application = await api(env, "POST", "/api/shop/application", {
+        token: tokens.Alice,
+        body: { name: "爱丽丝工坊", description: "制作 XOS 主题壁纸和小工具。" }
+    });
+    assert.equal(application.status, 201);
+    const approvedShop = await api(env, "POST", `/api/admin/shop-applications/${application.data.application.id}`, {
+        token: tokens.Kitawaga,
+        body: { action: "approve", note: "" }
+    });
+    assert.equal(approvedShop.status, 200);
+
+    const listing = await api(env, "POST", "/api/merchant/products", {
+        token: tokens.Alice,
+        body: {
+            name: "XOS 主题贴纸",
+            description: "一套四张的 XOS 26H2 主题贴纸。",
+            price: "25.00",
+            stock: 2,
+            category: "文具",
+            image: "images/xos-pc-home.svg"
+        }
+    });
+    assert.equal(listing.status, 201, JSON.stringify(listing.data));
+    assert.equal(listing.data.product.status, "pending");
+
+    const submitted = await api(env, "GET", "/api/merchant/products", { token: tokens.Alice });
+    assert.equal(submitted.status, 200);
+    assert.equal(submitted.data.products.length, 1);
+
+    const review = await api(env, "POST", `/api/admin/merchant-products/${listing.data.product.id}`, {
+        token: tokens.Kitawaga,
+        body: { action: "approve", note: "可以上架" }
+    });
+    assert.equal(review.status, 200, JSON.stringify(review.data));
+
+    const publicProducts = await api(env, "GET", "/api/shop/merchant-products");
+    assert.equal(publicProducts.status, 200);
+    assert.equal(publicProducts.data.products.length, 1);
+    assert.equal(publicProducts.data.products[0].shopName, "爱丽丝工坊");
+
+    const updated = await api(env, "GET", "/api/shop");
+    assert.equal(updated.status, 200);
+    assert.equal(updated.data.stock[listing.data.product.id], 2);
+
+    const bought = await api(env, "POST", "/api/me/purchase", {
+        token: tokens.Bob,
+        body: { id: listing.data.product.id, quantity: 1, password: "password1" }
+    });
+    assert.equal(bought.status, 200, JSON.stringify(bought.data));
+    assert.match(bought.data.receipt, /爱丽丝工坊/);
+
+    const meAlice = await api(env, "GET", "/api/me", { token: tokens.Alice });
+    assert.equal(meAlice.data.account.money, "5025.00");
+    const meBob = await api(env, "GET", "/api/me", { token: tokens.Bob });
+    assert.equal(meBob.data.account.money, "75.00");
+    const afterStock = await api(env, "GET", "/api/shop");
+    assert.equal(afterStock.data.stock[listing.data.product.id], 1);
+
+    const selfBuy = await api(env, "POST", "/api/me/purchase", {
+        token: tokens.Alice,
+        body: { id: listing.data.product.id, quantity: 1, password: "password1" }
+    });
+    assert.equal(selfBuy.status, 400);
+});
+
+test("6.1.0：普通用户不能审核商铺，拒绝后可以重新申请", async () => {
     const { env, tokens } = await prepare();
     const submit = await api(env, "POST", "/api/shop/application", {
         token: tokens.Bob,

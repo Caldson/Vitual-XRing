@@ -201,6 +201,49 @@
         .approved-shop-empty { margin: 0; color: #8a97aa; font-size: 12px; }
         @media (max-width: 620px) { .shop-apply-fields { grid-template-columns: 1fr; } }
 
+        .merchant-panel {
+            margin: 18px 0 0;
+            padding: 20px 22px;
+            border: 1px solid #d8e4f7;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #ffffff, #f7fbff);
+            box-shadow: 0 12px 34px rgba(31, 52, 92, 0.05);
+        }
+        .merchant-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .merchant-head h2 { margin: 4px 0 6px; font-size: 20px; }
+        .merchant-head p:not(.eyebrow) { margin: 0; color: #738097; font-size: 13px; line-height: 1.65; }
+        .merchant-shop-name { flex: 0 0 auto; padding: 5px 10px; border-radius: 999px; background: #eaf9f0; color: #237a4b; font-size: 12px; font-weight: 700; }
+        .merchant-form { margin-top: 14px; display: grid; gap: 10px; }
+        .merchant-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .merchant-form label { display: flex; flex-direction: column; gap: 6px; color: #5d6c83; font-size: 12px; font-weight: 700; }
+        .merchant-form input,
+        .merchant-form textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d8e0ec;
+            border-radius: 10px;
+            background: #fff;
+            color: #172033;
+            font: inherit;
+            font-size: 13px;
+            outline: none;
+        }
+        .merchant-form textarea { min-height: 70px; resize: vertical; }
+        .merchant-form input:focus,
+        .merchant-form textarea:focus { border-color: #3867e8; box-shadow: 0 0 0 3px rgba(56, 103, 232, 0.1); }
+        .merchant-form .primary-button { justify-self: start; }
+        .merchant-list { display: grid; gap: 8px; margin-top: 14px; }
+        .merchant-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e3e9f4; border-radius: 10px; background: #fff; }
+        .merchant-item-main { flex: 1; min-width: 0; }
+        .merchant-item-main b { display: block; font-size: 13px; }
+        .merchant-item-main span { display: block; margin-top: 3px; color: #738097; font-size: 11.5px; }
+        .merchant-item .merchant-status { padding: 3px 8px; border-radius: 999px; font-size: 11px; background: #eef2f8; color: #52617a; white-space: nowrap; }
+        .merchant-item .merchant-status.approved { background: #eaf9f0; color: #237a4b; }
+        .merchant-item .merchant-status.pending { background: #fff6df; color: #966517; }
+        .merchant-item .merchant-status.rejected { background: #fdeef0; color: #a9202f; }
+        .merchant-item .ghost-button { flex: 0 0 auto; padding: 6px 9px; font-size: 11px; }
+        @media (max-width: 760px) { .merchant-grid { grid-template-columns: 1fr 1fr; } }
+
         .redeem-card {
             margin: 22px 0 26px;
             padding: 20px 22px;
@@ -344,6 +387,13 @@
             margin: -4px 0 0;
             color: #7b3fe4;
             font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        .merchant-badge {
+            margin: 6px 0 0;
+            color: #237a4b;
+            font-size: 11.5px;
             font-weight: 700;
         }
 
@@ -719,7 +769,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v6.0.0</span>
+            <span class="version">v6.1.0</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -761,6 +811,31 @@
                 <h3>认证商铺</h3>
                 <div id="approved-shop-list" class="approved-shop-list"></div>
             </div>
+        </section>
+
+        <section class="merchant-panel" id="merchant-panel" hidden aria-labelledby="merchant-title">
+            <div class="merchant-head">
+                <div>
+                    <p class="eyebrow">Beta · 商家</p>
+                    <h2 id="merchant-title">商家上架</h2>
+                    <p>认证商铺可以提交商品，站主审核通过后会展示在商店中。你的商品由你自行履约。</p>
+                </div>
+                <span id="merchant-shop-name" class="merchant-shop-name"></span>
+            </div>
+
+            <form id="merchant-form" class="merchant-form">
+                <div class="merchant-grid">
+                    <label>商品名称<input id="merchant-name" type="text" maxlength="60" required placeholder="2–60 个字符"></label>
+                    <label>价格（VTX）<input id="merchant-price" type="number" min="0.01" step="0.01" required placeholder="例如 25.00"></label>
+                    <label>库存<input id="merchant-stock" type="number" min="0" max="9999" step="1" required value="10"></label>
+                    <label>分类<input id="merchant-category" type="text" maxlength="30" required placeholder="例如 文具、数字作品"></label>
+                </div>
+                <label>图片 URL（可选）<input id="merchant-image" type="text" maxlength="500" placeholder="https://... 或 images/..."></label>
+                <label>商品简介<textarea id="merchant-desc" maxlength="500" required placeholder="5–500 个字符"></textarea></label>
+                <button id="merchant-submit" class="primary-button" type="submit">提交审核</button>
+            </form>
+            <p id="merchant-message" class="status" role="status" aria-live="polite" hidden></p>
+            <div id="merchant-list" class="merchant-list"></div>
         </section>
 
         <section class="redeem-card" aria-labelledby="redeem-title">
@@ -818,7 +893,7 @@
         </form>
     </dialog>
 
-    <script src="vtx-api.js?v=6.0.0"></script>
+    <script src="vtx-api.js?v=6.1.0"></script>
 
 
     <script>
@@ -851,6 +926,18 @@
         const shopApplyMessage = document.getElementById("shop-apply-message");
         const shopApplySubmit = document.getElementById("shop-apply-submit");
         const approvedShopList = document.getElementById("approved-shop-list");
+        const merchantPanel = document.getElementById("merchant-panel");
+        const merchantShopName = document.getElementById("merchant-shop-name");
+        const merchantForm = document.getElementById("merchant-form");
+        const merchantName = document.getElementById("merchant-name");
+        const merchantPrice = document.getElementById("merchant-price");
+        const merchantStock = document.getElementById("merchant-stock");
+        const merchantCategory = document.getElementById("merchant-category");
+        const merchantImage = document.getElementById("merchant-image");
+        const merchantDesc = document.getElementById("merchant-desc");
+        const merchantSubmit = document.getElementById("merchant-submit");
+        const merchantMessage = document.getElementById("merchant-message");
+        const merchantList = document.getElementById("merchant-list");
 
         let shopData = null;
         let accountsData = null;
@@ -1136,6 +1223,13 @@
                 head.appendChild(badge);
                 card.appendChild(head);
 
+                if (item.merchantShop) {
+                    const merchant = document.createElement("p");
+                    merchant.className = "merchant-badge";
+                    merchant.textContent = `认证商铺 · ${item.merchantShop}`;
+                    card.appendChild(merchant);
+                }
+
                 if (activeCategory === ALL_CATEGORIES) {
                     const category = document.createElement("p");
                     category.className = "product-category";
@@ -1286,6 +1380,27 @@
             }
         }
 
+        async function loadMerchantCatalog() {
+            if (!window.VTXApi || typeof window.VTXApi.publicMerchantProducts !== "function") return;
+            try {
+                const data = await window.VTXApi.publicMerchantProducts();
+                const products = Array.isArray(data && data.products) ? data.products : [];
+                for (const product of products) {
+                    if (!product || !product.id) continue;
+                    const category = product.category || "商铺上架 [Beta]";
+                    if (!Array.isArray(shopData[category])) shopData[category] = [];
+                    if (shopData[category].some((item) => item && item.id === product.id)) continue;
+                    shopData[category].push({
+                        ...product,
+                        manufacturer: product.shopName || "认证商铺",
+                        merchantShop: product.shopName || "认证商铺"
+                    });
+                }
+            } catch (error) {
+                /* 商家商品读取失败不影响主商店 */
+            }
+        }
+
         async function loadShop() {
             // 带上时间戳，避免读到 GitHub Pages CDN 里 10 分钟内的旧版本
             const response = await fetch(`shop.json?t=${Date.now()}`, { cache: "no-store" });
@@ -1293,6 +1408,7 @@
                 throw new Error("无法读取商店数据，请稍后重试。");
             }
             shopData = await response.json();
+            await loadMerchantCatalog();
             await applyServerStock();
             renderShop();
         }
@@ -1477,8 +1593,11 @@
             if (shop || (application && application.status === "approved")) {
                 shopApplyStatus.classList.add("approved");
                 shopApplyStatus.textContent = `已认证商铺：${shop ? shop.name : application.name}。简介：${shop ? shop.description : application.description}`;
+                merchantPanel.hidden = false;
+                loadMerchantProducts();
                 return;
             }
+            merchantPanel.hidden = true;
             if (application && application.status === "pending") {
                 shopApplyStatus.classList.add("pending");
                 shopApplyStatus.textContent = `商铺申请审核中：${application.name}。站主审核通过后会显示在认证商铺列表中。`;
@@ -1534,6 +1653,98 @@
                 renderApprovedShops([]);
             }
         }
+
+        function setMerchantMessage(text, kind) {
+            merchantMessage.textContent = text;
+            merchantMessage.className = `status ${kind || ""}`;
+            merchantMessage.hidden = !text;
+        }
+
+        function renderMerchantProducts(products) {
+            merchantList.textContent = "";
+            if (!products.length) {
+                const emptyNode = document.createElement("p");
+                emptyNode.className = "empty";
+                emptyNode.textContent = "还没有上架商品，提交第一个商品等待站主审核。";
+                merchantList.appendChild(emptyNode);
+                return;
+            }
+            const labels = { pending: "待审核", approved: "已上架", rejected: "已拒绝" };
+            for (const product of products) {
+                const item = document.createElement("div");
+                item.className = "merchant-item";
+                const main = document.createElement("div");
+                main.className = "merchant-item-main";
+                const title = document.createElement("b");
+                title.textContent = product.name;
+                const meta = document.createElement("span");
+                meta.textContent = `${product.price} VTX · 库存 ${product.stock} · ${product.category}`;
+                main.append(title, meta);
+                const status = document.createElement("span");
+                status.className = `merchant-status ${product.status}`;
+                status.textContent = labels[product.status] || product.status;
+                item.append(main, status);
+                if (product.status !== "pending") {
+                    const remove = document.createElement("button");
+                    remove.type = "button";
+                    remove.className = "ghost-button";
+                    remove.textContent = "下架";
+                    remove.addEventListener("click", async () => {
+                        try {
+                            await window.VTXApi.deleteMerchantProduct(product.id);
+                            setMerchantMessage("已下架商品。", "success");
+                            await loadMerchantProducts();
+                            await loadShop();
+                        } catch (error) {
+                            setMerchantMessage(networkMessage(error, "下架失败，请稍后重试。"), "error");
+                        }
+                    });
+                    item.appendChild(remove);
+                }
+                merchantList.appendChild(item);
+            }
+        }
+
+        async function loadMerchantProducts() {
+            try {
+                const data = await window.VTXApi.merchantProducts();
+                if (!data || !data.shop) {
+                    merchantPanel.hidden = true;
+                    return;
+                }
+                merchantPanel.hidden = false;
+                merchantShopName.textContent = data.shop.name;
+                renderMerchantProducts(Array.isArray(data.products) ? data.products : []);
+            } catch (error) {
+                merchantPanel.hidden = true;
+            }
+        }
+
+        merchantForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const payload = {
+                name: merchantName.value.trim(),
+                price: merchantPrice.value.trim(),
+                stock: Math.floor(Number(merchantStock.value)),
+                category: merchantCategory.value.trim(),
+                image: merchantImage.value.trim(),
+                description: merchantDesc.value.trim()
+            };
+            merchantSubmit.disabled = true;
+            merchantSubmit.textContent = "提交中…";
+            try {
+                await window.VTXApi.createMerchantProduct(payload);
+                setMerchantMessage("已提交商品，等待站主审核。", "success");
+                merchantForm.reset();
+                merchantStock.value = "10";
+                await loadMerchantProducts();
+            } catch (error) {
+                setMerchantMessage(networkMessage(error, "提交失败，请稍后重试。"), "error");
+            } finally {
+                merchantSubmit.disabled = false;
+                merchantSubmit.textContent = "提交审核";
+            }
+        });
 
         shopApplyForm.addEventListener("submit", async (event) => {
             event.preventDefault();

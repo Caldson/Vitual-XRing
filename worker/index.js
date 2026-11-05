@@ -85,11 +85,11 @@
  * 5.5.0：
  *   - XOS 顶栏和开始菜单增加「返回主页」入口。
  *
- * 6.0.0：
+ * 6.1.0：
  *   - 新增 GameVersion / GameULTRA / GameMAX 三台高性能 XOS；
  *   - GameMAX 1500–30000fps 极端刷新率提示。
  *
- * 6.0.0：
+ * 6.1.0：
  *   - 修复旧缓存页面把 GameMAX 识别成 Home；未知版本按 rank 回退 CE；
  *   - XOS 页面增加版本守卫与 no-cache meta。
  *
@@ -120,7 +120,7 @@ import { createUno, UNO_VERSION } from "./uno.js";
 import { MeetingHub } from "./meeting.js";
 import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 
-const VERSION = "6.0.0";
+const VERSION = "6.1.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -144,7 +144,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "6.0.0";
+const CHAT_VERSION = "6.1.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -234,12 +234,17 @@ const MAX_TRADE_NAME_LENGTH = 20;
 const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
 const SHOP_CACHE_TTL_MS = 30 * 1000;
 const SHOP_MAX_QUANTITY = 999;
-/* 6.0.0：同捆包与商铺申请 */
+/* 6.1.0：同捆包与商铺申请 */
 const SHOP_APPLICATIONS_KEY = "shop:applications";
 const SHOPS_KEY = "shops";
 const SHOP_APPLICATION_MAX = 500;
 const SHOP_APPLICATION_NAME_MAX = 40;
 const SHOP_APPLICATION_DESCRIPTION_MAX = 500;
+const MERCHANT_PRODUCTS_KEY = "merchant:products";
+const MERCHANT_PRODUCT_MAX = 2000;
+const MERCHANT_PRODUCT_NAME_MAX = 60;
+const MERCHANT_PRODUCT_DESCRIPTION_MAX = 500;
+const MERCHANT_PRODUCT_CATEGORY_MAX = 30;
 /* 1.4.0：面对面加群（4 / 8 位邀请码与群号）不再按 IP 限流，删除了原来的 INVITE_* 节流 */
 /* 1.2.0：聊天附件只允许这些类型内联显示，其余一律按下载处理 */
 const CHAT_MEDIA_INLINE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
@@ -1216,13 +1221,44 @@ function flattenShopCatalog(catalog) {
     return items;
 }
 
+async function mergeMerchantProducts(env, items) {
+    if (!hasKv(env)) return items;
+    const merchantProducts = await readMerchantProductList(env);
+    for (const product of merchantProducts) {
+        if (product.status !== "approved" || items.has(product.id)) continue;
+        const cents = toCents(product.price);
+        if (cents === null || cents <= 0) continue;
+        items.set(product.id, {
+            id: product.id,
+            name: product.name,
+            cents,
+            stock: Math.max(0, Math.floor(Number(product.stock) || 0)),
+            virtual: false,
+            merchant: true,
+            ownerLogin: product.ownerLogin,
+            shopName: product.shopName,
+            category: product.category,
+            image: product.image || "",
+            description: product.description || "",
+            xosEdition: "",
+            xosRank: 0,
+            xosGeneration: 1,
+            xosUpgradePrice: "0.00",
+            xosConfig: {},
+            xosApps: [],
+            refreshRates: []
+        });
+    }
+    return items;
+}
+
 let shopCache = { at: 0, items: null };
 
 async function loadShopCatalog(request, env) {
     // SHOP_CATALOG 可选：直接给 Worker 一份目录（测试或站点静态文件不可达时用）
     if (env.SHOP_CATALOG) {
         const inline = typeof env.SHOP_CATALOG === "string" ? JSON.parse(env.SHOP_CATALOG) : env.SHOP_CATALOG;
-        return flattenShopCatalog(inline);
+        return await mergeMerchantProducts(env, flattenShopCatalog(inline));
     }
 
     if (shopCache.items && Date.now() - shopCache.at < SHOP_CACHE_TTL_MS) {
@@ -1239,7 +1275,7 @@ async function loadShopCatalog(request, env) {
         throw new HttpError(502, "catalog_unavailable", "读取商品目录失败，请稍后重试");
     }
 
-    const items = flattenShopCatalog(await response.json());
+    const items = await mergeMerchantProducts(env, flattenShopCatalog(await response.json()));
     shopCache = { at: Date.now(), items };
     return items;
 }
@@ -2548,6 +2584,10 @@ async function handlePurchase(request, env, cors) {
         return jsonResponse({ error: "bad_request", message: "XOS 云电脑授权和同捆包一次只能购买 1 份" }, 400, cors);
     }
 
+    if (product.merchant && product.ownerLogin === login) {
+        return jsonResponse({ error: "self_purchase", message: "不能购买自己上架的商品" }, 400, cors);
+    }
+
     let bundleProducts = [];
     if (product.bundle) {
         const ids = [...new Set(product.bundleItems || [])];
@@ -2578,6 +2618,8 @@ async function handlePurchase(request, env, cors) {
         const account = requireOwnAccount(data, login);
 
         await checkPassword(account, password);
+
+        const seller = product.merchant ? requireOwnAccount(data, product.ownerLogin) : null;
 
         let xosUpgradeIndex = -1;
         if (product.virtual && product.xosEdition) {
@@ -2635,8 +2677,20 @@ async function handlePurchase(request, env, cors) {
             price: `-${amount}`,
             time,
             from: account.username || login,
-            to: "XRingCR"
+            to: product.merchant ? product.shopName : "XRingCR"
         });
+
+        if (seller) {
+            seller.money = fromCents((toCents(seller.money) ?? 0) + amountCents);
+            pushTrade(seller, {
+                name: "商品售出",
+                description: `${product.name} ×${quantity} 售予 ${account.username || login}`,
+                price: `+${amount}`,
+                time,
+                from: product.shopName,
+                to: seller.username || product.ownerLogin
+            });
+        }
 
         if (product.bundle) {
             const devices = xosDevicesOf(account);
@@ -2673,11 +2727,13 @@ async function handlePurchase(request, env, cors) {
         trade,
         item: { id: product.id, name: product.name, unitPrice: fromCents(amountCents), quantity },
         stock: remaining === null ? null : { id: product.id, remaining },
-        receipt: product.bundle
-            ? `购买成功：${product.name}，共 ${amount} VTX。包含：${bundleProducts.map((item) => item.name).join("、")}。打开 xos.html 即可在设备列表中看到这些云电脑。购买时间：${time}`
-            : product.virtual
-                ? `购买成功：${product.name}${xosUpgraded ? "（XOS1 → XOS2 升级）" : "（新增一台云电脑）"}，共 ${amount} VTX。打开 xos.html 即可使用。购买时间：${time}`
-                : `购买成功：${product.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
+        receipt: product.merchant
+            ? `购买成功：${product.name} ×${quantity}，共 ${amount} VTX。订单已提交给商家「${product.shopName}」，请按商家说明联系取货/发货。购买时间：${time}`
+            : product.bundle
+                ? `购买成功：${product.name}，共 ${amount} VTX。包含：${bundleProducts.map((item) => item.name).join("、")}。打开 xos.html 即可在设备列表中看到这些云电脑。购买时间：${time}`
+                : product.virtual
+                    ? `购买成功：${product.name}${xosUpgraded ? "（XOS1 → XOS2 升级）" : "（新增一台云电脑）"}，共 ${amount} VTX。打开 xos.html 即可使用。购买时间：${time}`
+                    : `购买成功：${product.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
         account: selfAccount(accounts[login])
     }, 200, cors);
 }
@@ -2903,7 +2959,7 @@ async function handleShopStock(request, env, cors) {
     return jsonResponse({ ok: true, version: VERSION, stock }, 200, cors);
 }
 
-/* ───────── 6.0.0：成为商铺 Beta ───────── */
+/* ───────── 6.1.0：成为商铺 Beta ───────── */
 
 function shopApplicationView(application, includeLogin) {
     const view = {
@@ -3083,6 +3139,202 @@ async function handleAdminShopReview(request, env, cors, id) {
 
     if (result.error) return result.error;
     return jsonResponse({ ok: true, application: shopApplicationView(result.application, true) }, 200, cors);
+}
+
+/* ───────── 6.1.0：商家上架商品 Beta ───────── */
+
+function merchantProductView(product, includePrivate) {
+    const view = {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        stock: product.stock,
+        category: product.category,
+        image: product.image || "",
+        shopName: product.shopName,
+        manufacturer: product.shopName
+    };
+    if (includePrivate) {
+        view.shopId = product.shopId;
+        view.status = product.status;
+        view.createdAt = product.createdAt;
+        view.reviewedAt = product.reviewedAt || 0;
+        view.reviewNote = product.reviewNote || "";
+    }
+    return view;
+}
+
+async function readMerchantProductList(env) {
+    const value = await env.ACCOUNTS_KV.get(MERCHANT_PRODUCTS_KEY, "json");
+    return Array.isArray(value) ? value.filter((item) => item && item.id && item.ownerLogin) : [];
+}
+
+function merchantImage(value) {
+    const image = String(value || "").trim().slice(0, 500);
+    if (!image) return "";
+    return /^https?:\/\//i.test(image) || image.startsWith("images/") ? image : "";
+}
+
+async function handleMerchantProducts(request, env, cors) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) return session.error;
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "unavailable", message: "商家服务暂不可用" }, 503, cors);
+    }
+    const login = session.payload.sub;
+    const shops = await readApprovedShopList(env);
+    const shop = shops.find((item) => item.ownerLogin === login);
+    if (!shop) {
+        return jsonResponse({ error: "not_a_shop", message: "只有审核通过的认证商铺才能上架商品" }, 403, cors);
+    }
+
+    if (request.method === "GET") {
+        const products = (await readMerchantProductList(env))
+            .filter((item) => item.ownerLogin === login)
+            .sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+        return jsonResponse({
+            ok: true,
+            shop: { id: shop.id, name: shop.name, description: shop.description },
+            products: products.map((item) => merchantProductView(item, true))
+        }, 200, cors);
+    }
+
+    if (request.method !== "POST") {
+        return jsonResponse({ error: "method_not_allowed", message: "不支持的方法" }, 405, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const name = String(body.name || "").trim();
+    const description = String(body.description || "").trim();
+    const category = String(body.category || "").trim();
+    const price = fromCents(toCents(body.price));
+    const stock = Math.floor(Number(body.stock));
+    const image = merchantImage(body.image);
+    if (name.length < 2 || name.length > MERCHANT_PRODUCT_NAME_MAX || /[\u0000-\u001f]/.test(name)) {
+        return jsonResponse({ error: "bad_request", message: `商品名称需要 2–${MERCHANT_PRODUCT_NAME_MAX} 个字符` }, 400, cors);
+    }
+    if (description.length < 5 || description.length > MERCHANT_PRODUCT_DESCRIPTION_MAX) {
+        return jsonResponse({ error: "bad_request", message: `商品简介需要 5–${MERCHANT_PRODUCT_DESCRIPTION_MAX} 个字符` }, 400, cors);
+    }
+    if (category.length < 2 || category.length > MERCHANT_PRODUCT_CATEGORY_MAX || /[\u0000-\u001f]/.test(category)) {
+        return jsonResponse({ error: "bad_request", message: `分类需要 2–${MERCHANT_PRODUCT_CATEGORY_MAX} 个字符` }, 400, cors);
+    }
+    if (toCents(price) === null || toCents(price) <= 0 || toCents(price) > MAX_TRADE_CENTS) {
+        return jsonResponse({ error: "bad_request", message: "价格不合法" }, 400, cors);
+    }
+    if (!Number.isFinite(stock) || stock < 0 || stock > 9999) {
+        return jsonResponse({ error: "bad_request", message: "库存必须是 0–9999 的整数" }, 400, cors);
+    }
+
+    const result = await withStoreLock(async () => {
+        const products = await readMerchantProductList(env);
+        if (products.length >= MERCHANT_PRODUCT_MAX) {
+            return { error: jsonResponse({ error: "too_many_products", message: "商家商品数量已满" }, 413, cors) };
+        }
+        const product = {
+            id: `mp_${randomCode(10)}`,
+            shopId: shop.id,
+            shopName: shop.name,
+            ownerLogin: login,
+            name,
+            description,
+            price,
+            stock,
+            category,
+            image,
+            status: "pending",
+            createdAt: Date.now(),
+            reviewedAt: 0,
+            reviewedBy: "",
+            reviewNote: ""
+        };
+        products.push(product);
+        await env.ACCOUNTS_KV.put(MERCHANT_PRODUCTS_KEY, JSON.stringify(products));
+        return { product };
+    });
+    if (result.error) return result.error;
+    return jsonResponse({ ok: true, product: merchantProductView(result.product, true) }, 201, cors);
+}
+
+async function handleMerchantProductDelete(request, env, cors, id) {
+    const session = await requireSession(request, env, cors);
+    if (session.error) return session.error;
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "unavailable", message: "商家服务暂不可用" }, 503, cors);
+    }
+    const result = await withStoreLock(async () => {
+        const products = await readMerchantProductList(env);
+        const product = products.find((item) => item.id === id && item.ownerLogin === session.payload.sub);
+        if (!product) {
+            return { error: jsonResponse({ error: "not_found", message: "商品不存在" }, 404, cors) };
+        }
+        await env.ACCOUNTS_KV.put(MERCHANT_PRODUCTS_KEY, JSON.stringify(products.filter((item) => item.id !== id)));
+        shopCache.items = null;
+        return { removed: id };
+    });
+    if (result.error) return result.error;
+    return jsonResponse({ ok: true, removed: result.removed }, 200, cors);
+}
+
+async function handlePublicMerchantProducts(request, env, cors) {
+    if (!hasKv(env)) {
+        return jsonResponse({ ok: true, products: [] }, 200, cors);
+    }
+    const products = (await readMerchantProductList(env))
+        .filter((item) => item.status === "approved")
+        .sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
+    return jsonResponse({ ok: true, products: products.map((item) => merchantProductView(item, false)) }, 200, cors);
+}
+
+async function handleAdminMerchantProducts(request, env, cors) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) return session.error;
+    if (!hasKv(env)) {
+        return jsonResponse({ ok: true, products: [] }, 200, cors);
+    }
+    const products = (await readMerchantProductList(env))
+        .sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+    return jsonResponse({
+        ok: true,
+        products: products.map((item) => ({
+            ...merchantProductView(item, true),
+            ownerLogin: item.ownerLogin
+        }))
+    }, 200, cors);
+}
+
+async function handleAdminMerchantReview(request, env, cors, id) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) return session.error;
+    if (!hasKv(env)) {
+        return jsonResponse({ error: "unavailable", message: "商家服务暂不可用" }, 503, cors);
+    }
+    const body = plainObject(await readJsonBody(request));
+    const action = String(body.action || "").trim();
+    const note = String(body.note || "").trim().slice(0, 300);
+    if (action !== "approve" && action !== "reject") {
+        return jsonResponse({ error: "bad_request", message: "action 必须是 approve 或 reject" }, 400, cors);
+    }
+    const result = await withStoreLock(async () => {
+        const products = await readMerchantProductList(env);
+        const product = products.find((item) => item.id === id);
+        if (!product) {
+            return { error: jsonResponse({ error: "not_found", message: "商家商品不存在" }, 404, cors) };
+        }
+        if (product.status !== "pending") {
+            return { error: jsonResponse({ error: "already_reviewed", message: "该商品已经审核过" }, 409, cors) };
+        }
+        product.status = action === "approve" ? "approved" : "rejected";
+        product.reviewedAt = Date.now();
+        product.reviewedBy = adminLogin(env);
+        product.reviewNote = note;
+        await env.ACCOUNTS_KV.put(MERCHANT_PRODUCTS_KEY, JSON.stringify(products));
+        shopCache.items = null;
+        return { product };
+    });
+    if (result.error) return result.error;
+    return jsonResponse({ ok: true, product: merchantProductView(result.product, true) }, 200, cors);
 }
 
 async function handleLoginLocation(request, env, cors) {
@@ -8590,7 +8842,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "6.0.0";
+const VIDEO_VERSION = "6.1.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -11499,6 +11751,23 @@ export default {
                 return await handlePublicShops(request, env, cors);
             }
 
+            if (url.pathname === "/api/shop/merchant-products" && request.method === "GET") {
+                return await handlePublicMerchantProducts(request, env, cors);
+            }
+
+            if (url.pathname === "/api/merchant/products") {
+                if (request.method === "GET" || request.method === "POST") {
+                    return await handleMerchantProducts(request, env, cors);
+                }
+            }
+
+            {
+                const merchantProductRoute = url.pathname.match(/^\/api\/merchant\/products\/([^/]+)$/);
+                if (merchantProductRoute && request.method === "DELETE") {
+                    return await handleMerchantProductDelete(request, env, cors, decodeURIComponent(merchantProductRoute[1]));
+                }
+            }
+
             if (url.pathname === "/api/login" && request.method === "POST") {
                 return await handleLogin(request, env, cors);
             }
@@ -11662,6 +11931,17 @@ export default {
 
             if (url.pathname === "/api/admin/shop-applications" && request.method === "GET") {
                 return await handleAdminShopApplications(request, env, cors);
+            }
+
+            if (url.pathname === "/api/admin/merchant-products" && request.method === "GET") {
+                return await handleAdminMerchantProducts(request, env, cors);
+            }
+
+            {
+                const adminMerchantRoute = url.pathname.match(/^\/api\/admin\/merchant-products\/([^/]+)$/);
+                if (adminMerchantRoute && (request.method === "POST" || request.method === "PUT")) {
+                    return await handleAdminMerchantReview(request, env, cors, decodeURIComponent(adminMerchantRoute[1]));
+                }
             }
 
             {
