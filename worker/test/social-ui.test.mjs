@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-/* 7.1.0：分享生态新页面 + 聊天 / 视频评论 / 动态的静态接入检查。
+/* 7.3.0：分享生态新页面 + 聊天 / 视频评论 / 动态的静态接入检查。
    页面逻辑本身在浏览器里跑，这里只防止漏掉脚本、版本、登录卡片和关键入口。 */
 
 const root = new URL("../../", import.meta.url);
@@ -11,7 +11,7 @@ function read(name) {
     return fs.readFileSync(new URL(name, root), "utf8");
 }
 
-test("7.1.0：分享生态新页面都加载 7.1.0 的 SDK 和分享卡片渲染器", () => {
+test("7.3.0：分享生态新页面都加载 7.3.0 的 SDK 和分享卡片渲染器", () => {
     const pages = [
         "vimidi.html",
         "vmusic.html",
@@ -25,34 +25,34 @@ test("7.1.0：分享生态新页面都加载 7.1.0 的 SDK 和分享卡片渲染
     ];
     for (const page of pages) {
         const html = read(page);
-        assert.match(html, /vtx-api\.js\?v=7\.1\.0/, `${page} 缺少 vtx-api.js?v=7.1.0`);
-        assert.match(html, /xring-social\.js\?v=7\.1\.0/, `${page} 缺少 xring-social.js?v=7.1.0`);
-        assert.match(html, /v7\.1\.0/, `${page} 缺少版本徽标`);
+        assert.match(html, /vtx-api\.js\?v=7\.3\.0/, `${page} 缺少 vtx-api.js?v=7.3.0`);
+        assert.match(html, /xring-social\.js\?v=7\.3\.0/, `${page} 缺少 xring-social.js?v=7.3.0`);
+        assert.match(html, /v7\.3\.0/, `${page} 缺少版本徽标`);
         assert.doesNotMatch(html, /2\.1\.0/, `${page} 仍然引用旧版本 2.1.0`);
         assert.match(html, /manager\.html/, `${page} 缺少返回账户的入口`);
     }
 });
 
-test("7.1.0：聊天室和 Vitx 视频评论渲染分享卡片，Vitx 增加动态入口", () => {
+test("7.3.0：聊天室和 Vitx 视频评论渲染分享卡片，Vitx 增加动态入口", () => {
     const chat = read("chatroom.html");
-    assert.match(chat, /xring-social\.js\?v=7\.1\.0/);
+    assert.match(chat, /xring-social\.js\?v=7\.3\.0/);
     assert.match(chat, /message\.card/);
     assert.match(chat, /XRSocial\.cardHtml/);
-    assert.match(chat, /REQUIRED_API_VERSION = "7\.1\.0"/);
-    assert.match(chat, /PAGE_VERSION = "7\.1\.0"/);
+    assert.match(chat, /REQUIRED_API_VERSION = "7\.3\.0"/);
+    assert.match(chat, /PAGE_VERSION = "7\.3\.0"/);
 
     const video = read("vitxvideo.html");
-    assert.match(video, /xring-social\.js\?v=7\.1\.0/);
+    assert.match(video, /xring-social\.js\?v=7\.3\.0/);
     assert.match(video, /item\.card/);
     assert.match(video, /vitx-dynamic\.html/);
-    assert.match(video, /v7\.1\.0/);
+    assert.match(video, /v7\.3\.0/);
 
     assert.match(chat, /openChatRecordDialog/);
     assert.match(chat, /createRecord/);
     assert.match(chat, /record-btn/);
 });
 
-test("7.1.0：Vimidi / VMusic 的识别、播放和上传入口齐全", () => {
+test("7.3.0：Vimidi / VMusic 的识别、播放和上传入口齐全", () => {
     const midi = read("vimidi.html");
     assert.match(midi, /VTXApi\.window|window\.VTXApi/);
     assert.match(midi, /musicId/);
@@ -70,7 +70,7 @@ test("7.1.0：Vimidi / VMusic 的识别、播放和上传入口齐全", () => {
     assert.match(music, /vimidi\.html\?id=/);
 });
 
-test("7.1.0：Viratch 提供站内积木运行器和 .sb3 导入", () => {
+test("7.3.0：Viratch 提供站内积木运行器和 .sb3 导入", () => {
     const html = read("viratch.html");
     assert.match(html, /requestAnimationFrame/);
     assert.match(html, /createInterpreter/);
@@ -84,7 +84,7 @@ test("7.1.0：Viratch 提供站内积木运行器和 .sb3 导入", () => {
     assert.match(html, /social\.publish\(KIND/);
 });
 
-test("7.1.0：AUDIV 使用 WebRTC mesh 和会议信令", () => {
+test("7.3.0：AUDIV 使用 WebRTC mesh 和会议信令", () => {
     const html = read("audiv.html");
     assert.match(html, /getUserMedia/);
     assert.match(html, /RTCPeerConnection/);
@@ -96,7 +96,7 @@ test("7.1.0：AUDIV 使用 WebRTC mesh 和会议信令", () => {
     assert.match(html, /stun:stun\.l\.google\.com:19302/);
 });
 
-test("7.1.0：ViStyle 不做预览、管理员页面被明确排除，VClang 强制 .dev", () => {
+test("7.3.0：ViStyle 不做预览、管理员页面被明确排除，VClang 强制 .dev", () => {
     const style = read("vistyle.html");
     assert.doesNotMatch(style, /<iframe/i);
     assert.match(style, /vtxStylePack/);
@@ -114,7 +114,7 @@ test("7.1.0：ViStyle 不做预览、管理员页面被明确排除，VClang 强
     assert.match(cpp, /code-line/);
 });
 
-test("7.1.0：动态页与通用分享落地页接口齐全", () => {
+test("7.3.0：动态页与通用分享落地页接口齐全", () => {
     const dynamic = read("vitx-dynamic.html");
     assert.match(dynamic, /social\.list\("dynamic"/);
     assert.match(dynamic, /social\.create\("dynamic"/);
@@ -132,9 +132,9 @@ test("7.1.0：动态页与通用分享落地页接口齐全", () => {
     assert.match(share, /http\(s\)|http:\/\/|https:\/\//);
 });
 
-test("7.1.0：SDK / manager 入口 / 文案与接口保持同步", () => {
+test("7.3.0：SDK / manager 入口 / 文案与接口保持同步", () => {
     const sdk = read("vtx-api.js");
-    assert.match(sdk, /const API_VERSION = "7\.1\.0"/);
+    assert.match(sdk, /const API_VERSION = "7\.3\.0"/);
     assert.match(sdk, /uploadImage: socialImageUpload/);
     assert.match(sdk, /redeem\(code\)/);
     assert.match(sdk, /meetingSocketUrl/);
@@ -149,7 +149,7 @@ test("7.1.0：SDK / manager 入口 / 文案与接口保持同步", () => {
     const recordPage = read("chat-record.html");
     assert.match(recordPage, /chat\.record/);
     assert.match(recordPage, /chat\.removeRecord/);
-    assert.match(recordPage, /v7\.1\.0/);
+    assert.match(recordPage, /v7\.3\.0/);
 
     const manager = read("manager.html");
     assert.match(manager, /类="social-hub"|class="social-hub"/);

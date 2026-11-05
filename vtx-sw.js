@@ -1,5 +1,5 @@
-/* Vitual XRing 7.1.0 — page cache / offline shell */
-const CACHE_NAME = "xring-v7.1.0";
+/* Vitual XRing 7.3.0 — page cache / offline shell */
+const CACHE_NAME = "xring-v7.3.0";
 const CORE = [
     "./",
     "index.html",
@@ -49,7 +49,7 @@ self.addEventListener("fetch", (event) => {
     if (request.method !== "GET") return;
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return;
-    if (url.pathname.startsWith("/api/") || url.pathname.endsWith("/vtx-closed.js")) return;
+    if (url.pathname.startsWith("/api/") || url.pathname.endsWith("/vtx-closed.js") || url.pathname.endsWith("/version.json")) return;
 
     if (request.mode === "navigate") {
         event.respondWith((async () => {
