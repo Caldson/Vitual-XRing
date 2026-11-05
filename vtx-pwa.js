@@ -1,4 +1,4 @@
-/* Vitual XRing 7.0.0 — 注册页面缓存 Service Worker */
+/* Vitual XRing 7.1.0 — 注册页面缓存 Service Worker */
 (function () {
     "use strict";
     if (!("serviceWorker" in navigator)) return;
