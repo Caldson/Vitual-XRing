@@ -1,8 +1,9 @@
-/* Vitual XRing 7.3.1 — page cache / offline shell */
-const CACHE_NAME = "xring-v7.3.1";
+/* Vitual XRing 8.0.0 — page cache / offline shell */
+const CACHE_NAME = "xring-v8.0.0";
 const CORE = [
     "./",
     "index.html",
+    "settings.html",
     "shop.html",
     "xos.html",
     "manager.html",
@@ -10,8 +11,13 @@ const CORE = [
     "vitualgit.html",
     "vuolingo.html",
     "offline.html",
+    "vtx-theme.css",
+    "vtx-theme.js",
+    "vtx-theme.css?v=8.0.0",
+    "vtx-theme.js?v=8.0.0",
     "vtx-api.js",
     "vtx-pwa.js",
+    "vtx-pwa.js?v=8.0.0",
     "XRingLogo-V.png"
 ];
 
