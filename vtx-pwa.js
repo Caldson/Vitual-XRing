@@ -55,7 +55,7 @@
 
     window.addEventListener("load", async function () {
         if (await checkForNewVersion()) return;
-        navigator.serviceWorker.register("vtx-sw.js", { scope: "./" }).then(function (registration) {
+        navigator.serviceWorker.register("vtx-sw.js?v=" + CLIENT_VERSION, { scope: "./" }).then(function (registration) {
             if (registration.waiting) registration.waiting.postMessage("SKIP_WAITING");
             registration.addEventListener("updatefound", function () {
                 const worker = registration.installing;

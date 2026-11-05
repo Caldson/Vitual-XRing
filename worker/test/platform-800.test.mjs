@@ -19,6 +19,7 @@ test("8.0.0：页面缓存与离线入口齐全", () => {
     assert.match(pwa, /unregister/);
     assert.match(pwa, /location\.replace/);
     assert.match(pwa, /serviceWorker\.register/);
+    assert.match(pwa, /vtx-sw\.js\?v=/);
     assert.equal(fs.existsSync(new URL("offline.html", root)), true);
     assert.equal(fs.existsSync(new URL("version.json", root)), true);
     const version = JSON.parse(read("version.json"));
