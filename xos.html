@@ -9,7 +9,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=8.2.0"></script>
+    <script src="vtx-api.js?v=8.2.1"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -579,7 +579,7 @@
             .xos-gate-grid { grid-template-columns: 1fr; }
         }
 
-        /* ───────── 8.2.0：Aurora Glass 外壳 ───────── */
+        /* ───────── 8.2.1：Aurora Glass 外壳 ───────── */
 
         :root {
             --xos-accent: #6ea8ff;
@@ -699,8 +699,12 @@
             white-space: nowrap;
             font-size: 10.5px;
         }
-        .xos-lang-badge { color: #8fe7d8; border-color: rgba(143, 231, 216, 0.28); }
+        .xos-lang-badge { color: #8fe7d8; border-color: rgba(143, 231, 216, 0.28); cursor: pointer; }
         .xos-lang-badge[hidden] { display: none !important; }
+        .xos-lang-wrap { position: relative; display: flex; align-items: center; }
+        .xos-lang-menu { position: absolute; top: 34px; left: 0; z-index: 90; min-width: 132px; padding: 5px; }
+        .xos-lang-menu button { display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: #c9d6ef; text-align: left; font: inherit; font-size: 12px; cursor: pointer; }
+        .xos-lang-menu button:hover { background: rgba(135, 169, 255, .14); color: #fff; }
 
         .xos-topbar .spacer { flex: 1 1 auto; min-width: 8px; }
         .xos-top-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; min-width: 0; }
@@ -996,8 +1000,8 @@
             *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
         }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=8.2.0">
-    <script src="vtx-theme.js?v=8.2.0"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=8.2.1">
+    <script src="vtx-theme.js?v=8.2.1"></script>
 </head>
 <body data-vtx-skip-text="true">
     <div class="xos-gate" id="xos-gate" hidden>
@@ -1048,7 +1052,14 @@
                         <span class="xos-device-caret">⌄</span>
                     </button>
                     <span class="xos-chip" id="xos-config-label">1440 × 900</span>
-                    <span class="xos-chip xos-lang-badge" id="xos-lang-badge" hidden>中文</span>
+                    <div class="xos-lang-wrap">
+                        <button class="xos-chip xos-lang-badge" id="xos-lang-badge" type="button" aria-haspopup="menu" aria-expanded="false" title="切换语言" hidden>中文</button>
+                        <div class="xos-popover xos-lang-menu" id="xos-lang-menu" role="menu" hidden>
+                            <button type="button" data-xos-lang="zh-CN">简体中文</button>
+                            <button type="button" data-xos-lang="en">English</button>
+                            <button type="button" data-xos-lang="ja">日本語</button>
+                        </div>
+                    </div>
                     <span class="spacer"></span>
                     <div class="xos-top-actions">
                         <label class="xos-refresh-wrap" title="显示刷新率">
@@ -1078,7 +1089,7 @@
                                 <a class="xos-menu-item" role="menuitem" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">XOS 商店</a>
                                 <a class="xos-menu-item" role="menuitem" href="manager.html">账户中心</a>
                                 <a class="xos-menu-item" role="menuitem" href="index.html">返回主页</a>
-                                <div class="xos-menu-meta">XOS v8.2.0 · 网页虚拟桌面</div>
+                                <div class="xos-menu-meta">XOS v8.2.1 · 网页虚拟桌面</div>
                             </div>
                         </div>
                     </div>
@@ -1132,7 +1143,7 @@
                     </div>
                     <div class="xos-start-footer">
                         <span id="xos-start-edition">XOS</span>
-                        <span>v8.2.0 · 浏览器虚拟桌面</span>
+                        <span>v8.2.1 · 浏览器虚拟桌面</span>
                     </div>
                 </div>
 
@@ -1160,7 +1171,7 @@
             "use strict";
 
             const API = window.VTXApi;
-            const PAGE_VERSION = "8.2.0";
+            const PAGE_VERSION = "8.2.1";
             const $ = (id) => document.getElementById(id);
             const SCREEN_W = 1440;
             const SCREEN_H = 900;
@@ -1382,7 +1393,7 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 8.2.0：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 8.2.1：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");
@@ -2855,6 +2866,10 @@
                     badge.textContent = xosSupportsLanguages()
                         ? (language === "en" ? "EN" : language === "ja" ? "日本語" : "中文")
                         : "";
+                    badge.setAttribute("aria-expanded", "false");
+                }
+                if (!xosSupportsLanguages() && $("xos-lang-menu")) {
+                    $("xos-lang-menu").hidden = true;
                 }
             }
 
@@ -3039,6 +3054,26 @@
                 fitScreen();
                 window.addEventListener("resize", fitScreen);
                 window.addEventListener("vtx:languagechange", applyXosLanguage);
+                $("xos-lang-badge").addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    if (!xosSupportsLanguages()) return;
+                    const menu = $("xos-lang-menu");
+                    menu.hidden = !menu.hidden;
+                    $("xos-lang-badge").setAttribute("aria-expanded", menu.hidden ? "false" : "true");
+                });
+                $("xos-lang-menu").querySelectorAll("[data-xos-lang]").forEach((button) => {
+                    button.addEventListener("click", (event) => {
+                        event.stopPropagation();
+                        const code = button.dataset.xosLang;
+                        $("xos-lang-menu").hidden = true;
+                        if (window.VTXTheme) VTXTheme.setLanguage(code);
+                        applyXosLanguage();
+                    });
+                });
+                document.addEventListener("click", () => {
+                    $("xos-lang-menu").hidden = true;
+                    $("xos-lang-badge").setAttribute("aria-expanded", "false");
+                });
                 applyXosLanguage();
                 $("xos-start-btn").addEventListener("click", (event) => {
                     event.stopPropagation();
@@ -3131,6 +3166,6 @@
             init();
         })();
     </script>
-    <script src="vtx-pwa.js?v=8.2.0" defer></script>
+    <script src="vtx-pwa.js?v=8.2.1" defer></script>
 </body>
 </html>

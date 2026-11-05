@@ -1,10 +1,10 @@
-/* Vitual XRing 8.2.0 — 页面缓存、版本检测与自动清缓存 */
+/* Vitual XRing 8.2.1 — 页面缓存、版本检测与自动清缓存 */
 (function () {
     "use strict";
     if (!("serviceWorker" in navigator)) return;
     if (location.protocol === "file:") return;
 
-    const CLIENT_VERSION = "8.2.0";
+    const CLIENT_VERSION = "8.2.1";
 
     async function clearPageCaches() {
         try {

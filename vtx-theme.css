@@ -1,4 +1,4 @@
-/* Vitual XRing 8.2.0 — global design system, light/dark theme, settings widget */
+/* Vitual XRing 8.2.1 — global design system, light/dark theme, settings widget */
 :root {
     color-scheme: light;
     --vtx-bg: #f3f6fb;
@@ -214,4 +214,105 @@ body[data-vtx-widget="off"] .vtx-theme-widget { display: none; }
     .vtx-nav a { white-space: nowrap; }
     .vtx-top-actions { margin-left: auto; }
     .vtx-section-head { display: block; }
+}
+
+/* ── 8.2.1 dark-mode audit: legacy light surfaces ── */
+[data-theme="dark"] .login-card,
+[data-theme="dark"] .auth-card,
+[data-theme="dark"] .gate-card,
+[data-theme="dark"] .gate,
+[data-theme="dark"] .login-panel,
+[data-theme="dark"] .auth-panel {
+    background: rgb(var(--vtx-glass-rgb) / calc(var(--vtx-glass-alpha) + .3)) !important;
+    border-color: var(--vtx-border) !important;
+    color: var(--vtx-text) !important;
+    box-shadow: var(--vtx-shadow) !important;
+}
+[data-theme="dark"] .tabs,
+[data-theme="dark"] .tab-bar,
+[data-theme="dark"] .version-badge,
+[data-theme="dark"] .tab {
+    background: var(--vtx-surface-soft) !important;
+    border-color: var(--vtx-border) !important;
+    color: var(--vtx-muted) !important;
+}
+[data-theme="dark"] .tab.active,
+[data-theme="dark"] .tabs .active {
+    background: var(--vtx-surface) !important;
+    color: var(--vtx-text) !important;
+}
+[data-theme="dark"] .onboarding,
+[data-theme="dark"] .lesson-card,
+[data-theme="dark"] .word-card,
+[data-theme="dark"] .exercise,
+[data-theme="dark"] .option,
+[data-theme="dark"] .settings-card,
+[data-theme="dark"] .course-strip,
+[data-theme="dark"] .preview,
+[data-theme="dark"] .language-choice,
+[data-theme="dark"] .type-choice,
+[data-theme="dark"] .glass-preview-panel {
+    background: var(--vtx-surface) !important;
+    border-color: var(--vtx-border) !important;
+    color: var(--vtx-text) !important;
+}
+[data-theme="dark"] .onboarding,
+[data-theme="dark"] .course-strip {
+    background: linear-gradient(140deg, var(--vtx-surface), var(--vtx-surface-soft)) !important;
+}
+[data-theme="dark"] .btn,
+[data-theme="dark"] .secondary-button,
+[data-theme="dark"] .ghost,
+[data-theme="dark"] .basic-button,
+[data-theme="dark"] .topbar-link,
+[data-theme="dark"] .logout-button,
+[data-theme="dark"] .filter-chip,
+[data-theme="dark"] .category-chip,
+[data-theme="dark"] .page-button,
+[data-theme="dark"] .ghost-button {
+    background: var(--vtx-surface-soft) !important;
+    border-color: var(--vtx-border-strong) !important;
+    color: var(--vtx-text) !important;
+}
+[data-theme="dark"] .social-hub,
+[data-theme="dark"] .account-card,
+[data-theme="dark"] .settings-card,
+[data-theme="dark"] .records-card,
+[data-theme="dark"] .transfer-card,
+[data-theme="dark"] .withdraw-card,
+[data-theme="dark"] .account-shortcut,
+[data-theme="dark"] .settings-row,
+[data-theme="dark"] .record,
+[data-theme="dark"] .detail-row {
+    border-color: var(--vtx-border) !important;
+}
+[data-theme="dark"] .social-chip {
+    background: rgb(var(--vtx-glass-rgb) / .28) !important;
+    border-color: var(--vtx-border) !important;
+}
+[data-theme="dark"] .toast,
+[data-theme="dark"] .notice,
+[data-theme="dark"] .message,
+[data-theme="dark"] .alert,
+[data-theme="dark"] .tooltip,
+[data-theme="dark"] .dropdown-menu,
+[data-theme="dark"] .popover,
+[data-theme="dark"] .context-menu {
+    background: var(--vtx-surface) !important;
+    border-color: var(--vtx-border) !important;
+    color: var(--vtx-text) !important;
+}
+[data-theme="dark"] [style*="background:#fff"],
+[data-theme="dark"] [style*="background: #fff"],
+[data-theme="dark"] [style*="background:white"],
+[data-theme="dark"] [style*="background: white"],
+[data-theme="dark"] [style*="background-color:#fff"],
+[data-theme="dark"] [style*="background-color: #fff"] {
+    background: var(--vtx-surface) !important;
+    color: var(--vtx-text) !important;
+}
+[data-theme="dark"] .balance-card,
+[data-theme="dark"] .hero,
+[data-theme="dark"] .xos-preview {
+    color: #f3f7ff;
 }

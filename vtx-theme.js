@@ -1,7 +1,7 @@
-/* Vitual XRing 8.2.0 — theme + language shell */
+/* Vitual XRing 8.2.1 — theme + language shell */
 (function () {
     "use strict";
-    const VERSION = "8.2.0";
+    const VERSION = "8.2.1";
     const THEME_KEY = "xring:theme";
     const LANGUAGE_KEY = "xring:language";
     const THEME_MODES = ["auto", "light", "dark"];
@@ -33,7 +33,7 @@
             "card.share.title": "分享", "card.share.desc": "自定义分享卡片与站内识别",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 风格仓库浏览 · Proxy 镜像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英语 / 日语课程与 7 种题型",
-            "footer": "Vitual XRing 8.2.0 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。",
+            "footer": "Vitual XRing 8.2.1 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。",
             "widget.theme": "切换主题", "widget.settings": "打开设置",
             "widget.themeAuto": "主题：自动（{theme}）", "widget.themeLight": "主题：浅色", "widget.themeDark": "主题：深色",
             "settings.kicker": "界面偏好", "settings.title": "设置", "settings.subtitle": "主题、语言和显示偏好会保存在本机，并立即生效。",
@@ -78,7 +78,7 @@
             "card.share.title": "分享", "card.share.desc": "自訂分享卡片與站內辨識",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風格倉庫瀏覽 · Proxy 鏡像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日語課程與 7 種題型",
-            "footer": "Vitual XRing 8.2.0 · XOS 是瀏覽器端虛擬桌面，不是真實遠端虛擬機。",
+            "footer": "Vitual XRing 8.2.1 · XOS 是瀏覽器端虛擬桌面，不是真實遠端虛擬機。",
             "widget.theme": "切換主題", "widget.settings": "開啟設定",
             "widget.themeAuto": "主題：自動（{theme}）", "widget.themeLight": "主題：淺色", "widget.themeDark": "主題：深色",
             "settings.kicker": "介面偏好", "settings.title": "設定", "settings.subtitle": "主題、語言和顯示偏好會保存在本機，並立即生效。",
@@ -123,7 +123,7 @@
             "card.share.title": "Share", "card.share.desc": "Custom share cards and in-site previews",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub-style repository browser · proxy mirror",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "English / Japanese lessons and 7 exercise types",
-            "footer": "Vitual XRing 8.2.0 · XOS is a browser virtual desktop, not a real remote VM.",
+            "footer": "Vitual XRing 8.2.1 · XOS is a browser virtual desktop, not a real remote VM.",
             "widget.theme": "Change theme", "widget.settings": "Open settings",
             "widget.themeAuto": "Theme: auto ({theme})", "widget.themeLight": "Theme: light", "widget.themeDark": "Theme: dark",
             "settings.kicker": "Interface preferences", "settings.title": "Settings", "settings.subtitle": "Theme, language and display preferences are saved on this device and applied immediately.",
@@ -168,7 +168,7 @@
             "card.share.title": "共有", "card.share.desc": "カスタム共有カードとサイト内プレビュー",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風リポジトリ閲覧 · Proxy ミラー",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日本語レッスンと7種類の練習",
-            "footer": "Vitual XRing 8.2.0 · XOS はブラウザ内の仮想デスクトップであり、実際のリモート VM ではありません。",
+            "footer": "Vitual XRing 8.2.1 · XOS はブラウザ内の仮想デスクトップであり、実際のリモート VM ではありません。",
             "widget.theme": "テーマを切り替え", "widget.settings": "設定を開く",
             "widget.themeAuto": "テーマ：自動（{theme}）", "widget.themeLight": "テーマ：ライト", "widget.themeDark": "テーマ：ダーク",
             "settings.kicker": "表示設定", "settings.title": "設定", "settings.subtitle": "テーマ、言語、表示設定はこの端末に保存され、すぐに反映されます。",
