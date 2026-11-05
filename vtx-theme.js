@@ -1,7 +1,7 @@
-/* Vitual XRing 8.1.2 — theme + language shell */
+/* Vitual XRing 8.2.0 — theme + language shell */
 (function () {
     "use strict";
-    const VERSION = "8.1.2";
+    const VERSION = "8.2.0";
     const THEME_KEY = "xring:theme";
     const LANGUAGE_KEY = "xring:language";
     const THEME_MODES = ["auto", "light", "dark"];
@@ -33,7 +33,7 @@
             "card.share.title": "分享", "card.share.desc": "自定义分享卡片与站内识别",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 风格仓库浏览 · Proxy 镜像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英语 / 日语课程与 7 种题型",
-            "footer": "Vitual XRing 8.1.2 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。",
+            "footer": "Vitual XRing 8.2.0 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。",
             "widget.theme": "切换主题", "widget.settings": "打开设置",
             "widget.themeAuto": "主题：自动（{theme}）", "widget.themeLight": "主题：浅色", "widget.themeDark": "主题：深色",
             "settings.kicker": "界面偏好", "settings.title": "设置", "settings.subtitle": "主题、语言和显示偏好会保存在本机，并立即生效。",
@@ -78,7 +78,7 @@
             "card.share.title": "分享", "card.share.desc": "自訂分享卡片與站內辨識",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風格倉庫瀏覽 · Proxy 鏡像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日語課程與 7 種題型",
-            "footer": "Vitual XRing 8.1.2 · XOS 是瀏覽器端虛擬桌面，不是真實遠端虛擬機。",
+            "footer": "Vitual XRing 8.2.0 · XOS 是瀏覽器端虛擬桌面，不是真實遠端虛擬機。",
             "widget.theme": "切換主題", "widget.settings": "開啟設定",
             "widget.themeAuto": "主題：自動（{theme}）", "widget.themeLight": "主題：淺色", "widget.themeDark": "主題：深色",
             "settings.kicker": "介面偏好", "settings.title": "設定", "settings.subtitle": "主題、語言和顯示偏好會保存在本機，並立即生效。",
@@ -123,7 +123,7 @@
             "card.share.title": "Share", "card.share.desc": "Custom share cards and in-site previews",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub-style repository browser · proxy mirror",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "English / Japanese lessons and 7 exercise types",
-            "footer": "Vitual XRing 8.1.2 · XOS is a browser virtual desktop, not a real remote VM.",
+            "footer": "Vitual XRing 8.2.0 · XOS is a browser virtual desktop, not a real remote VM.",
             "widget.theme": "Change theme", "widget.settings": "Open settings",
             "widget.themeAuto": "Theme: auto ({theme})", "widget.themeLight": "Theme: light", "widget.themeDark": "Theme: dark",
             "settings.kicker": "Interface preferences", "settings.title": "Settings", "settings.subtitle": "Theme, language and display preferences are saved on this device and applied immediately.",
@@ -168,7 +168,7 @@
             "card.share.title": "共有", "card.share.desc": "カスタム共有カードとサイト内プレビュー",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風リポジトリ閲覧 · Proxy ミラー",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日本語レッスンと7種類の練習",
-            "footer": "Vitual XRing 8.1.2 · XOS はブラウザ内の仮想デスクトップであり、実際のリモート VM ではありません。",
+            "footer": "Vitual XRing 8.2.0 · XOS はブラウザ内の仮想デスクトップであり、実際のリモート VM ではありません。",
             "widget.theme": "テーマを切り替え", "widget.settings": "設定を開く",
             "widget.themeAuto": "テーマ：自動（{theme}）", "widget.themeLight": "テーマ：ライト", "widget.themeDark": "テーマ：ダーク",
             "settings.kicker": "表示設定", "settings.title": "設定", "settings.subtitle": "テーマ、言語、表示設定はこの端末に保存され、すぐに反映されます。",
@@ -292,6 +292,7 @@
         "CSS 样式包": { "zh-TW": "CSS 樣式包", en: "CSS style packs", ja: "CSS スタイルパック" },
         "C++ 项目": { "zh-TW": "C++ 專案", en: "C++ projects", ja: "C++ プロジェクト" },
         "图文动态": { "zh-TW": "圖文動態", en: "Posts", ja: "画像・テキスト投稿" },
+        "Vitx 动态": { "zh-TW": "Vitx 動態", en: "Vitx Feed", ja: "Vitx フィード" },
         "自定义分享卡片": { "zh-TW": "自訂分享卡片", en: "Custom share cards", ja: "カスタム共有カード" },
         "虚拟桌面 26H3": { "zh-TW": "虛擬桌面 26H3", en: "Virtual desktop 26H3", ja: "仮想デスクトップ 26H3" },
         "GitHub 风格仓库浏览": { "zh-TW": "GitHub 風格倉庫瀏覽", en: "GitHub-style repository browser", ja: "GitHub 風リポジトリ閲覧" },
@@ -308,7 +309,60 @@
         "制造商": { "zh-TW": "製造商", en: "Manufacturer", ja: "メーカー" },
         "商家": { "zh-TW": "商家", en: "Merchant", ja: "販売者" },
         "登录以购买": { "zh-TW": "登入以購買", en: "Sign in to buy", ja: "購入するにはログイン" },
-        "没有找到匹配的商品": { "zh-TW": "沒有找到符合的商品", en: "No matching products", ja: "一致する商品がありません" }
+        "没有找到匹配的商品": { "zh-TW": "沒有找到符合的商品", en: "No matching products", ja: "一致する商品がありません" },
+
+        "你好，": { "zh-TW": "你好，", en: "Hello, ", ja: "こんにちは、" },
+        "这里是你的 Vitual XRing 账户信息。": { "zh-TW": "這裡是你的 Vitual XRing 帳戶資訊。", en: "This is your Vitual XRing account information.", ja: "ここはあなたの Vitual XRing アカウント情報です。" },
+        "今日已签到": { "zh-TW": "今日已簽到", en: "Checked in today", ja: "今日はチェックイン済み" },
+        "明天再来可以再领 5 VTX。": { "zh-TW": "明天再來可以再領 5 VTX。", en: "Come back tomorrow to claim 5 VTX.", ja: "明日また来ると 5 VTX を受け取れます。" },
+        "每天可领取一次 5 VTX。": { "zh-TW": "每天可領取一次 5 VTX。", en: "Claim 5 VTX once per day.", ja: "1日1回 5 VTX を受け取れます。" },
+        "签到中…": { "zh-TW": "簽到中…", en: "Checking in…", ja: "チェックイン中…" },
+        "每日签到 +5 VTX": { "zh-TW": "每日簽到 +5 VTX", en: "Daily check-in +5 VTX", ja: "デイリーチェックイン +5 VTX" },
+        "分享": { "zh-TW": "分享", en: "Share", ja: "共有" },
+        "Vitual XRing 分享生态": { "zh-TW": "Vitual XRing 分享生態", en: "Vitual XRing sharing ecosystem", ja: "Vitual XRing 共有エコシステム" },
+        "MIDI 分享与识曲": { "zh-TW": "MIDI 分享與識曲", en: "MIDI sharing & recognition", ja: "MIDI 共有・楽曲認識" },
+        "英语 / 日语预览课": { "zh-TW": "英語 / 日語預覽課", en: "English / Japanese preview lessons", ja: "英語 / 日本語プレビューコース" },
+
+        "开始": { "zh-TW": "開始", en: "Start", ja: "スタート" },
+        "设备": { "zh-TW": "裝置", en: "Device", ja: "デバイス" },
+        "切换设备": { "zh-TW": "切換裝置", en: "Switch device", ja: "デバイスを切り替え" },
+        "关机": { "zh-TW": "關機", en: "Shut down", ja: "シャットダウン" },
+        "重启": { "zh-TW": "重新啟動", en: "Restart", ja: "再起動" },
+        "注销": { "zh-TW": "登出", en: "Sign out", ja: "サインアウト" },
+        "共享文件": { "zh-TW": "共用檔案", en: "Shared files", ja: "共有ファイル" },
+        "画图": { "zh-TW": "小畫家", en: "Paint", ja: "ペイント" },
+        "TXTPro 移植版": { "zh-TW": "TXTPro 移植版", en: "TXTPro port", ja: "TXTPro 移植版" },
+        "计算器": { "zh-TW": "計算機", en: "Calculator", ja: "電卓" },
+        "天气": { "zh-TW": "天氣", en: "Weather", ja: "天気" },
+        "Microsoft Todo 移植版": { "zh-TW": "Microsoft Todo 移植版", en: "Microsoft Todo port", ja: "Microsoft Todo 移植版" },
+        "Outlook 移植版": { "zh-TW": "Outlook 移植版", en: "Outlook port", ja: "Outlook 移植版" },
+        "屏幕截图": { "zh-TW": "螢幕截圖", en: "Screenshot", ja: "スクリーンショット" },
+        "VSCode 移植版": { "zh-TW": "VSCode 移植版", en: "VSCode port", ja: "VSCode 移植版" },
+        "3D 画图": { "zh-TW": "3D 繪圖", en: "3D Paint", ja: "3D ペイント" },
+        "Musescore 4": { "zh-TW": "Musescore 4", en: "Musescore 4", ja: "Musescore 4" },
+        "MIDI 播放器": { "zh-TW": "MIDI 播放器", en: "MIDI Player", ja: "MIDI プレイヤー" },
+        "计时器": { "zh-TW": "計時器", en: "Timer", ja: "タイマー" },
+        "Development Kit": { "zh-TW": "Development Kit", en: "Development Kit", ja: "Development Kit" },
+        "Development Kit CE": { "zh-TW": "Development Kit CE", en: "Development Kit CE", ja: "Development Kit CE" },
+        "库乐队": { "zh-TW": "庫樂隊", en: "GarageBand", ja: "GarageBand" },
+        "番茄钟": { "zh-TW": "番茄鐘", en: "Pomodoro", ja: "ポモドーロ" },
+        "欢迎使用 XOS": { "zh-TW": "歡迎使用 XOS", en: "Welcome to XOS", ja: "XOS へようこそ" },
+        "登录 XOS": { "zh-TW": "登入 XOS", en: "Sign in to XOS", ja: "XOS にログイン" },
+        "选择设备": { "zh-TW": "選擇裝置", en: "Select device", ja: "デバイスを選択" },
+        "刷新率": { "zh-TW": "重新整理率", en: "Refresh rate", ja: "リフレッシュレート" },
+        "云同步": { "zh-TW": "雲端同步", en: "Cloud sync", ja: "クラウド同期" },
+        "返回主页": { "zh-TW": "返回首頁", en: "Back home", ja: "ホームへ戻る" },
+        "锁定": { "zh-TW": "鎖定", en: "Lock", ja: "ロック" },
+        "账户菜单": { "zh-TW": "帳戶選單", en: "Account menu", ja: "アカウントメニュー" },
+        "切换云电脑": { "zh-TW": "切換雲端電腦", en: "Switch device", ja: "デバイスを切り替え" },
+        "当前只有一台云电脑": { "zh-TW": "目前只有一台雲端電腦", en: "Only one device", ja: "デバイスは1台のみです" },
+        "最小化": { "zh-TW": "最小化", en: "Minimize", ja: "最小化" },
+        "最大化": { "zh-TW": "最大化", en: "Maximize", ja: "最大化" },
+        "当前 XOS 版本不支持这个应用": { "zh-TW": "目前 XOS 版本不支援這個應用", en: "This XOS version does not support this app.", ja: "この XOS バージョンではこのアプリを利用できません。" },
+        "内存": { "zh-TW": "記憶體", en: "Memory", ja: "メモリ" },
+        "已登录账户": { "zh-TW": "已登入帳戶", en: "Signed in account", ja: "ログイン中のアカウント" },
+        "XOS 商店": { "zh-TW": "XOS 商店", en: "XOS Shop", ja: "XOS ショップ" },
+        "账户中心": { "zh-TW": "帳戶中心", en: "Account center", ja: "アカウントセンター" }
     };
 
     const TEXT_ATTRIBUTES = ["placeholder", "title", "aria-label"];
@@ -319,6 +373,11 @@
         if (!raw || language === "zh-CN") return raw;
         const entry = TEXT_TRANSLATIONS[raw];
         if (entry && entry[language]) return entry[language];
+        const prefixed = raw.match(/^([^\p{L}\p{N}]+)(.+)$/u);
+        if (prefixed) {
+            const inner = translatePhrase(prefixed[2], language);
+            if (inner !== prefixed[2].trim()) return prefixed[1] + inner;
+        }
         if (language === "en") {
             let match = raw.match(/^(\d+)\s*个应用$/);
             if (match) return `${match[1]} apps`;
@@ -480,16 +539,19 @@
         if (document.body && document.body.dataset.i18nDocumentTitle) {
             document.title = t(document.body.dataset.i18nDocumentTitle, language);
         }
-        document.querySelectorAll("a, button, summary").forEach((node) => {
-            if (node.hasAttribute("data-i18n") || node.childElementCount > 0) return;
-            const original = node.dataset.vtxCommonKey || node.textContent.trim();
-            const key = COMMON[original];
-            if (key) {
-                node.dataset.vtxCommonKey = original;
-                node.textContent = t(key, language);
-            }
-        });
-        translatePage(language);
+        const skipText = Boolean(document.body && document.body.dataset.vtxSkipText === "true");
+        if (!skipText) {
+            document.querySelectorAll("a, button, summary").forEach((node) => {
+                if (node.hasAttribute("data-i18n") || node.childElementCount > 0) return;
+                const original = node.dataset.vtxCommonKey || node.textContent.trim();
+                const key = COMMON[original];
+                if (key) {
+                    node.dataset.vtxCommonKey = original;
+                    node.textContent = t(key, language);
+                }
+            });
+            translatePage(language);
+        }
         updateWidget();
         window.dispatchEvent(new CustomEvent("vtx:languagechange", { detail: { mode: languageMode, language } }));
     }
@@ -566,8 +628,9 @@
         }
     }
 
-    function translatePage(language) {
+    function translatePage(language, force) {
         if (!document.body) return;
+        if (!force && document.body.dataset.vtxSkipText === "true") return;
         translateSubtree(document.body, language);
     }
 
@@ -576,6 +639,7 @@
         textObserver = new MutationObserver((mutations) => {
             const language = effectiveLanguage();
             if (language === "zh-CN") return;
+            if (document.body && document.body.dataset.vtxSkipText === "true") return;
             for (const mutation of mutations) {
                 if (mutation.type === "characterData") {
                     translateTextNode(mutation.target, language);
@@ -699,6 +763,8 @@
         getGlass: () => ({ ...glass }),
         setGlass,
         applyGlass,
+        translatePage,
+        translateSubtree,
         t: (key) => t(key, effectiveLanguage())
     };
 })();

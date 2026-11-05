@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 import worker from "../index.js";
 
-/* 8.1.2：XOS 虚拟云电脑商店授权与桌面入口 */
+/* 8.2.0：XOS 虚拟云电脑商店授权与桌面入口 */
 
 class MockKV {
     constructor() {
@@ -103,6 +103,23 @@ const CATALOG = {
             xosApps: ["任务管理器", "番茄钟", "3D 画图", "VitualGit"]
         },
         {
+            id: "xos-pc-home-v31-26h3-s1",
+            name: "XOS PC Home V3.1 26H3 Snapshot 1",
+            price: "1025.00",
+            description: "家庭版 V3.1，支持中文/英语/日语",
+            virtual: true,
+            type: "xos",
+            xosEdition: "home",
+            xosRank: 0,
+            xosGeneration: 4,
+            xosVersion: "V3.1",
+            xosSnapshot: "Snapshot 1",
+            xosLanguageSupport: ["zh-CN", "en", "ja"],
+            xosConfig: { resolution: "1440x900", cpu: "XOS CPU V1 2025" },
+            refreshRates: [15],
+            xosApps: ["任务管理器", "番茄钟", "3D 画图", "VitualGit"]
+        },
+        {
             id: "xos-pc-gamemax-26h2",
             name: "XOS PC GameMAX 26H2 [高性能] [需要使用强劲的电脑]",
             price: "3000.00",
@@ -165,7 +182,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("8.1.2：购买 XOS 授权写入账户，并只允许购买一份", async () => {
+test("8.2.0：购买 XOS 授权写入账户，并只允许购买一份", async () => {
     const { env, token } = await prepare();
 
     const shop = await api(env, "GET", "/api/shop");
@@ -204,7 +221,7 @@ test("8.1.2：购买 XOS 授权写入账户，并只允许购买一份", async (
     assert.equal(me.data.account.xosDevices.length, 2);
 });
 
-test("8.1.2：没有 XOS1 时按完整 V2 价格购买", async () => {
+test("8.2.0：没有 XOS1 时按完整 V2 价格购买", async () => {
     const { env, token } = await prepare();
     const v2 = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -217,7 +234,7 @@ test("8.1.2：没有 XOS1 时按完整 V2 价格购买", async () => {
     assert.equal(v2.data.account.money, "3975.00");
 });
 
-test("8.1.2：购买 GameMAX 写入高性能配置和极端帧率提示", async () => {
+test("8.2.0：购买 GameMAX 写入高性能配置和极端帧率提示", async () => {
     const { env, token } = await prepare();
     const game = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -232,7 +249,7 @@ test("8.1.2：购买 GameMAX 写入高性能配置和极端帧率提示", async 
     assert.equal(game.data.account.xos.fpsWarningMax, 30000);
 });
 
-test("8.1.2：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
+test("8.2.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
     const { env, token } = await prepare();
     const v1 = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -262,7 +279,7 @@ test("8.1.2：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
     assert.equal(again.data.account.money, "2950.00");
 });
 
-test("8.1.2：26H2 可以免费升级到 26H3 V2.1", async () => {
+test("8.2.0：26H2 可以免费升级到 26H3 V2.1", async () => {
     const { env, token } = await prepare();
     const v2 = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -283,7 +300,21 @@ test("8.1.2：26H2 可以免费升级到 26H3 V2.1", async () => {
     assert.match(upgrade.data.receipt, /26H3 V2\.1 免费升级/);
 });
 
-test("8.1.2：同一版本也可以购买多台", async () => {
+test("8.2.0：V3.1 26H3 Snapshot 1 支持中日英并完整计价", async () => {
+    const { env, token } = await prepare();
+    const v31 = await api(env, "POST", "/api/me/purchase", {
+        token,
+        body: { id: "xos-pc-home-v31-26h3-s1", quantity: 1, password: "password1" }
+    });
+    assert.equal(v31.status, 200, JSON.stringify(v31.data));
+    assert.equal(v31.data.item.unitPrice, "1025.00");
+    assert.equal(v31.data.account.xos.generation, 4);
+    assert.equal(v31.data.account.money, "3975.00");
+    assert.equal(v31.data.account.xosDevices.length, 1);
+    assert.deepEqual(v31.data.account.xos.languageSupport, ["zh-CN", "en", "ja"]);
+});
+
+test("8.2.0：同一版本也可以购买多台", async () => {
     const { env, token } = await prepare();
     const first = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -300,7 +331,7 @@ test("8.1.2：同一版本也可以购买多台", async () => {
     assert.notEqual(second.data.account.xosDevices[0].id, second.data.account.xosDevices[1].id);
 });
 
-test("8.1.2：可以购买多台不同版本的 XOS", async () => {
+test("8.2.0：可以购买多台不同版本的 XOS", async () => {
     const { env, token } = await prepare();
     const pro = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -322,7 +353,7 @@ test("8.1.2：可以购买多台不同版本的 XOS", async () => {
     assert.equal(me.data.account.xosDevices.length, 2);
 });
 
-test("8.1.2：XOS 页面、商店分类和版本号齐全", () => {
+test("8.2.0：XOS 页面、商店分类和版本号齐全", () => {
     const page = fs.readFileSync(new URL("../../xos.html", import.meta.url), "utf8");
     const shop = fs.readFileSync(new URL("../../shop.json", import.meta.url), "utf8");
     const shopPage = fs.readFileSync(new URL("../../shop.html", import.meta.url), "utf8");
@@ -355,7 +386,7 @@ test("8.1.2：XOS 页面、商店分类和版本号齐全", () => {
     assert.match(page, /GameULTRA/);
     assert.match(page, /GameMAX/);
     assert.match(page, /此帧率过于极端，可能会导致电脑卡顿\/蓝屏\/黑屏\/变砖，真的要打开吗？/);
-    assert.match(page, /PAGE_VERSION = "8\.1\.2"/);
+    assert.match(page, /PAGE_VERSION = "8\.2\.0"/);
     assert.match(page, /API\.version !== PAGE_VERSION/);
     assert.match(page, /function editionForDevice/);
     assert.match(page, /rank >= 3\) return "ce"/);
@@ -377,16 +408,19 @@ test("8.1.2：XOS 页面、商店分类和版本号齐全", () => {
     assert.match(shop, /"price": "1775.00"/);
     const catalog = JSON.parse(shop);
     const xosItems = catalog["XOS虚拟云电脑"];
-    assert.equal(xosItems[0].id, "xos-pc-home-26h3");
-    assert.equal(xosItems[3].id, "xos-pc-ce-26h3");
-    assert.equal(xosItems[6].id, "xos-pc-gamemax-26h3");
-    assert.equal(xosItems[7].id, "xos-pc-home-26h2");
-    assert.equal(xosItems[13].id, "xos-pc-gamemax-26h2");
-    assert.equal(xosItems[14].id, "xos-pc-home-26h1");
-    assert.equal(xosItems.slice(0, 7).every((item) => Number(item.xosGeneration) === 3), true);
-    assert.equal(xosItems.slice(7, 14).every((item) => Number(item.xosGeneration) === 2), true);
-    assert.equal(xosItems.slice(14).every((item) => Number(item.xosGeneration) !== 3), true);
+    assert.equal(xosItems[0].id, "xos-pc-home-v31-26h3-s1");
+    assert.equal(xosItems[6].id, "xos-pc-gamemax-v31-26h3-s1");
+    assert.equal(xosItems[7].id, "xos-pc-home-26h3");
+    assert.equal(xosItems[13].id, "xos-pc-gamemax-26h3");
+    assert.equal(xosItems[14].id, "xos-pc-home-26h2");
+    assert.equal(xosItems[20].id, "xos-pc-gamemax-26h2");
+    assert.equal(xosItems[21].id, "xos-pc-home-26h1");
+    assert.equal(xosItems.slice(0, 7).every((item) => Number(item.xosGeneration) === 4), true);
+    assert.equal(xosItems.slice(7, 14).every((item) => Number(item.xosGeneration) === 3), true);
+    assert.equal(xosItems.slice(14, 21).every((item) => Number(item.xosGeneration) === 2), true);
+    assert.equal(xosItems.slice(21).every((item) => Number(item.xosGeneration) !== 4), true);
     assert.equal(xosItems.slice(0, 7).every((item) => item.xosApps.every((app) => app !== "GitHub Desktop" && app !== "Git")), true);
+    assert.equal(xosItems.slice(0, 7).every((item) => item.xosLanguageSupport.includes("en") && item.xosLanguageSupport.includes("ja")), true);
     assert.match(page, /APPS\.vitualgit/);
     assert.doesNotMatch(page, /APPS\.github/);
     const bundleItem = catalog["同捆包 [Beta]"].find((item) => item.id === "bundle-xos-ce-gamemax-26h2");
@@ -395,17 +429,17 @@ test("8.1.2：XOS 页面、商店分类和版本号齐全", () => {
     assert.match(shopPage, /merchant-form/);
     assert.match(fs.readFileSync(new URL("../../accounts-admin.html", import.meta.url), "utf8"), /merchant-product-panel/);
     assert.match(shop, /Community Edition/);
-    assert.match(page, /vtx-api\.js\?v=8\.1\.2/);
+    assert.match(page, /vtx-api\.js\?v=8\.2\.0/);
     assert.match(page, /API\.me\(\)/);
     assert.match(shop, /"XOS虚拟云电脑"/);
     assert.match(shop, /"xos-pc-ce-26h1"/);
     assert.match(shopPage, /get\("category"\)/);
     assert.match(shopPage, /class="xos-entry"/);
     assert.match(home, /href="xos\.html"/);
-    assert.match(home, /v8\.1\.2/);
+    assert.match(home, /v8\.2\.0/);
     assert.match(home, /Vitual XRing/);
     assert.doesNotMatch(home, /Virtual XRing/);
-    assert.match(home, /XRingLogo-V\.png\?v=8\.1\.2/);
+    assert.match(home, /XRingLogo-V\.png\?v=8\.2\.0/);
     assert.doesNotMatch(home, /<img src="XRingLogo\.png"/);
     assert.equal(fs.existsSync(new URL("../../XRingLogo-V.png", import.meta.url)), true);
     assert.match(manager, /href="xos\.html"/);

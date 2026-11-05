@@ -725,13 +725,46 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=8.1.2">
-    <script src="vtx-theme.js?v=8.1.2"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=8.2.0">
+    <script src="vtx-theme.js?v=8.2.0"></script>
+    <style>
+        .manager-xos { background: radial-gradient(circle at 12% 4%, color-mix(in srgb, var(--vtx-accent) 24%, transparent), transparent 30%), radial-gradient(circle at 88% 2%, color-mix(in srgb, var(--vtx-accent-2) 20%, transparent), transparent 32%), var(--vtx-bg) !important; }
+        .manager-xos .topbar { position: sticky; top: 0; z-index: 50; padding: 12px max(24px, calc((100% - 1120px) / 2)); border-bottom: 1px solid rgb(var(--vtx-glass-border) / .34); background: rgb(var(--vtx-glass-rgb) / calc(var(--vtx-glass-alpha) + .14)) !important; -webkit-backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.45); backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.45); }
+        .manager-xos .brand-mark { width: 42px; height: 42px; border-radius: 13px; background: linear-gradient(135deg, #637bff, #31d8c6 62%, #8be9ff); box-shadow: 0 8px 24px rgba(54, 95, 255, .35), inset 0 1px 0 rgba(255,255,255,.55); color: #081225; }
+        .manager-xos .topbar-link, .manager-xos .logout-button, .manager-xos .admin-link { border-color: rgb(var(--vtx-glass-border) / .45) !important; background: rgb(var(--vtx-glass-rgb) / .34) !important; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+        .manager-xos main { width: min(100% - 40px, 1120px); margin: 30px auto 130px; }
+        .manager-xos .welcome { position: relative; overflow: hidden; margin-bottom: 18px; padding: 30px 32px; border: 1px solid rgb(var(--vtx-glass-border) / .5); border-radius: 26px; background: rgb(var(--vtx-glass-rgb) / var(--vtx-glass-alpha)); -webkit-backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.4); backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.4); box-shadow: var(--vtx-shadow-soft), inset 0 1px 0 rgba(255,255,255,.4); }
+        .manager-xos .welcome::after { content: "X"; position: absolute; right: 40px; top: -34px; color: rgb(var(--vtx-glass-rgb) / .12); font-size: 180px; font-weight: 900; line-height: 1; pointer-events: none; }
+        .manager-xos .welcome h1 { position: relative; z-index: 1; font-size: clamp(34px, 5vw, 54px); letter-spacing: -.06em; }
+        .manager-xos .welcome-copy { position: relative; z-index: 1; max-width: 640px; color: var(--vtx-muted); }
+        .manager-xos .balance-card { position: relative; overflow: hidden; border: 1px solid rgba(180, 197, 255, .28); border-radius: 26px; background: radial-gradient(circle at 86% 12%, rgba(78, 238, 219, .28), transparent 32%), linear-gradient(122deg, #2636b8, #4e5cff 48%, #26b9e8 120%); box-shadow: 0 26px 65px rgba(35, 62, 180, .28), inset 0 1px 0 rgba(255,255,255,.3); }
+        .manager-xos .balance-card::before { content: ""; position: absolute; left: 22px; top: 18px; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.72); box-shadow: 15px 0 0 rgba(255,255,255,.38), 30px 0 0 rgba(255,255,255,.22); }
+        .manager-xos .balance-label { margin-top: 16px; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; }
+        .manager-xos .balance { text-shadow: 0 8px 28px rgba(0,0,0,.18); }
+        .manager-xos .balance-footer { position: relative; z-index: 1; }
+        .manager-xos .checkin-button { border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.14); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+        .manager-xos .social-hub, .manager-xos .account-card, .manager-xos .settings-card, .manager-xos .records-card, .manager-xos .transfer-card, .manager-xos .withdraw-card { border: 1px solid rgb(var(--vtx-glass-border) / .5) !important; border-radius: 22px !important; background: rgb(var(--vtx-glass-rgb) / var(--vtx-glass-alpha)) !important; -webkit-backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.35); backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.35); box-shadow: var(--vtx-shadow-soft), inset 0 1px 0 rgba(255,255,255,.32) !important; }
+        .manager-xos .social-hub h2, .manager-xos .account-card h2, .manager-xos .settings-card h2, .manager-xos .records-card h2, .manager-xos .transfer-card h2, .manager-xos .withdraw-card h2 { display: flex; align-items: center; gap: 9px; }
+        .manager-xos .social-hub h2::before, .manager-xos .account-card h2::before, .manager-xos .settings-card h2::before, .manager-xos .records-card h2::before, .manager-xos .transfer-card h2::before, .manager-xos .withdraw-card h2::before { content: ""; width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: linear-gradient(135deg, var(--vtx-accent), var(--vtx-accent-2)); box-shadow: 0 0 14px color-mix(in srgb, var(--vtx-accent) 55%, transparent); }
+        .manager-xos .social-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .manager-xos .social-chip { min-height: 78px; padding: 13px; border: 1px solid rgb(var(--vtx-glass-border) / .42); border-radius: 15px; background: rgb(var(--vtx-glass-rgb) / .26); transition: transform 160ms, border-color 160ms, background 160ms; }
+        .manager-xos .social-chip:hover { transform: translateY(-2px); border-color: var(--vtx-accent); background: rgb(var(--vtx-glass-rgb) / .42); }
+        .manager-xos .social-chip b { font-size: 13px; }
+        .manager-xos .social-chip span { color: var(--vtx-muted); font-size: 11px; }
+        .manager-xos .detail-row { border-top-color: var(--vtx-border); }
+        .manager-xos .field input, .manager-xos .field select, .manager-xos input[type="text"], .manager-xos input[type="password"], .manager-xos input[type="number"] { border-color: rgb(var(--vtx-glass-border) / .55); background: rgb(var(--vtx-glass-rgb) / .3); color: var(--vtx-text); }
+        .manager-xos .xos-dock { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 5px; padding: 7px 9px; border: 1px solid rgb(var(--vtx-glass-border) / .5); border-radius: 18px; background: rgb(var(--vtx-glass-rgb) / calc(var(--vtx-glass-alpha) + .1)); -webkit-backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.4); backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.4); box-shadow: var(--vtx-shadow); }
+        .manager-xos .xos-dock a { display: grid; place-items: center; gap: 2px; width: 54px; min-height: 48px; border-radius: 12px; color: var(--vtx-muted); text-decoration: none; font-size: 17px; transition: background 150ms, color 150ms, transform 150ms; }
+        .manager-xos .xos-dock a small { font-size: 9px; font-weight: 700; }
+        .manager-xos .xos-dock a:hover { background: rgb(var(--vtx-glass-rgb) / .45); color: var(--vtx-text); transform: translateY(-2px); }
+        @media (max-width: 900px) { .manager-xos .social-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 620px) { .manager-xos main { margin-bottom: 150px; } .manager-xos .social-grid { grid-template-columns: 1fr; } .manager-xos .xos-dock { max-width: calc(100vw - 24px); overflow-x: auto; } .manager-xos .xos-dock a { width: 48px; } }
+    </style>
 </head>
-<body>
+<body class="manager-xos">
     <header class="topbar">
         <a class="brand" href="index.html">
-            <span class="brand-mark" aria-hidden="true">V</span>
+            <span class="brand-mark" aria-hidden="true">X</span>
             <span>Vitual XRing</span>
         </a>
         <div class="topbar-actions">
@@ -743,7 +776,7 @@
             <a class="topbar-link" href="API_VTXPAY.html?type=code">收款码</a>
             <a class="topbar-link" href="settings.html" data-i18n="nav.settings">设置</a>
             <a id="accounts-admin-button" class="admin-link" href="accounts-admin.html" hidden>账号修改</a>
-            <span class="version">v8.1.2</span>
+            <span class="version">v8.2.0</span>
             <button id="logout-button" class="logout-button" type="button">退出登录</button>
         </div>
     </header>
@@ -914,9 +947,19 @@
         <p id="account-message" class="status" role="status" aria-live="polite" hidden></p>
     </main>
 
+    <nav class="xos-dock" aria-label="XOS dock">
+        <a href="index.html" title="首页"><span>⌂</span><small>Home</small></a>
+        <a href="xos.html" title="XOS"><span>🖥</span><small>XOS</small></a>
+        <a href="shop.html" title="商店"><span>🛍</span><small>Shop</small></a>
+        <a href="chatroom.html" title="聊天室"><span>💬</span><small>Chat</small></a>
+        <a href="vitualgit.html" title="VitualGit"><span>⑂</span><small>Git</small></a>
+        <a href="vuolingo.html" title="Vuolingo"><span>🦉</span><small>Learn</small></a>
+        <a href="settings.html" title="设置"><span>⚙</span><small>Settings</small></a>
+    </nav>
+
     <footer>Vitual XRing · 账户余额以账户数据为准 · <a href="xos.html">XOS 云电脑</a></footer>
 
-    <script src="vtx-api.js?v=8.1.2"></script>
+    <script src="vtx-api.js?v=8.2.0"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";
@@ -1429,6 +1472,6 @@
 
         loadAccount();
     </script>
-    <script src="vtx-pwa.js?v=8.1.2" defer></script>
+    <script src="vtx-pwa.js?v=8.2.0" defer></script>
 </body>
 </html>

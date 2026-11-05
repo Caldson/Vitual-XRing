@@ -9,7 +9,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=8.1.2"></script>
+    <script src="vtx-api.js?v=8.2.0"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -579,7 +579,7 @@
             .xos-gate-grid { grid-template-columns: 1fr; }
         }
 
-        /* ───────── 8.1.2：Aurora Glass 外壳 ───────── */
+        /* ───────── 8.2.0：Aurora Glass 外壳 ───────── */
 
         :root {
             --xos-accent: #6ea8ff;
@@ -699,6 +699,8 @@
             white-space: nowrap;
             font-size: 10.5px;
         }
+        .xos-lang-badge { color: #8fe7d8; border-color: rgba(143, 231, 216, 0.28); }
+        .xos-lang-badge[hidden] { display: none !important; }
 
         .xos-topbar .spacer { flex: 1 1 auto; min-width: 8px; }
         .xos-top-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; min-width: 0; }
@@ -994,10 +996,10 @@
             *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
         }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=8.1.2">
-    <script src="vtx-theme.js?v=8.1.2"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=8.2.0">
+    <script src="vtx-theme.js?v=8.2.0"></script>
 </head>
-<body>
+<body data-vtx-skip-text="true">
     <div class="xos-gate" id="xos-gate" hidden>
         <div class="xos-gate-inner">
             <div class="xos-gate-head">
@@ -1046,6 +1048,7 @@
                         <span class="xos-device-caret">⌄</span>
                     </button>
                     <span class="xos-chip" id="xos-config-label">1440 × 900</span>
+                    <span class="xos-chip xos-lang-badge" id="xos-lang-badge" hidden>中文</span>
                     <span class="spacer"></span>
                     <div class="xos-top-actions">
                         <label class="xos-refresh-wrap" title="显示刷新率">
@@ -1075,7 +1078,7 @@
                                 <a class="xos-menu-item" role="menuitem" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">XOS 商店</a>
                                 <a class="xos-menu-item" role="menuitem" href="manager.html">账户中心</a>
                                 <a class="xos-menu-item" role="menuitem" href="index.html">返回主页</a>
-                                <div class="xos-menu-meta">XOS v8.1.2 · 网页虚拟桌面</div>
+                                <div class="xos-menu-meta">XOS v8.2.0 · 网页虚拟桌面</div>
                             </div>
                         </div>
                     </div>
@@ -1129,7 +1132,7 @@
                     </div>
                     <div class="xos-start-footer">
                         <span id="xos-start-edition">XOS</span>
-                        <span>v8.1.2 · 浏览器虚拟桌面</span>
+                        <span>v8.2.0 · 浏览器虚拟桌面</span>
                     </div>
                 </div>
 
@@ -1157,7 +1160,7 @@
             "use strict";
 
             const API = window.VTXApi;
-            const PAGE_VERSION = "8.1.2";
+            const PAGE_VERSION = "8.2.0";
             const $ = (id) => document.getElementById(id);
             const SCREEN_W = 1440;
             const SCREEN_H = 900;
@@ -1188,7 +1191,14 @@
                 { edition: "ce", generation: 3, label: "CE (Community Edition) 26H3 V2.1", price: 1775 },
                 { edition: "game", generation: 3, label: "GameVersion 26H3 V2.1", price: 2000 },
                 { edition: "gameultra", generation: 3, label: "GameULTRA 26H3 V2.1", price: 2750 },
-                { edition: "gamemax", generation: 3, label: "GameMAX 26H3 V2.1", price: 3000 }
+                { edition: "gamemax", generation: 3, label: "GameMAX 26H3 V2.1", price: 3000 },
+                { edition: "home", generation: 4, label: "Home V3.1 26H3 Snapshot 1", price: 1025 },
+                { edition: "personal", generation: 4, label: "Personal V3.1 26H3 Snapshot 1", price: 1275 },
+                { edition: "professional", generation: 4, label: "Professional V3.1 26H3 Snapshot 1", price: 1525 },
+                { edition: "ce", generation: 4, label: "CE (Community Edition) V3.1 26H3 Snapshot 1", price: 1775 },
+                { edition: "game", generation: 4, label: "GameVersion V3.1 26H3 Snapshot 1", price: 2000 },
+                { edition: "gameultra", generation: 4, label: "GameULTRA V3.1 26H3 Snapshot 1", price: 2750 },
+                { edition: "gamemax", generation: 4, label: "GameMAX V3.1 26H3 Snapshot 1", price: 3000 }
             ];
             const APP_ORDER = [
                 "taskmgr", "files", "browser", "shared", "paint", "txtpro", "calc", "weather",
@@ -1372,7 +1382,7 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 8.1.2：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 8.2.0：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");
@@ -1579,7 +1589,8 @@
 
             function generationLabel(generation) {
                 const value = Number(generation) || 1;
-                if (value >= 3) return "26H3";
+                if (value >= 4) return "26H3 V3.1 Snapshot 1";
+                if (value === 3) return "26H3";
                 if (value === 2) return "26H2";
                 return "26H1";
             }
@@ -1658,6 +1669,7 @@
                 app.mount(handle.body, handle, args || {});
                 renderTaskbar();
                 renderDesktop();
+                setTimeout(applyXosLanguage, 0);
                 return handle;
             }
 
@@ -2791,7 +2803,7 @@
                     return `<article class="xos-gate-card">
                         <h3>${esc(editionName(version.edition, version.generation))}</h3>
                         <div class="price">${version.price} VTX</div>
-                        <ul><li>${esc(edition.cpu)} · ${esc(edition.gpu)}</li><li>1440 × 900 · ${esc(edition.refreshLabel || edition.refresh.join(" / ") + " fps")}</li><li>${appCount(version.edition, version.generation)} 个应用</li></ul>
+                        <ul><li>${esc(edition.cpu)} · ${esc(edition.gpu)}</li><li>1440 × 900 · ${esc(edition.refreshLabel || edition.refresh.join(" / ") + " fps")}</li><li>${appCount(version.edition, version.generation)} 个应用</li>${version.generation >= 4 ? "<li>中文 / English / 日本語</li>" : ""}</ul>
                         <a class="xos-btn" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">查看商品</a>
                     </article>`;
                 }).join("");
@@ -2805,7 +2817,7 @@
                 return raw.filter((item) => item && typeof item === "object").map((item, index) => ({
                     ...item,
                     id: String(item.id || `xd_${item.edition || "home"}_${item.generation || 1}_${index}`),
-                    generation: Number(item.generation) >= 3 ? 3 : Number(item.generation) === 2 ? 2 : 1,
+                    generation: Number(item.generation) >= 4 ? 4 : Number(item.generation) === 3 ? 3 : Number(item.generation) === 2 ? 2 : 1,
                     rank: Number(item.rank) || 0
                 }));
             }
@@ -2824,9 +2836,31 @@
                     .replace(/\s*\[[^\]]*\]/g, "").trim();
             }
 
+            function xosSupportsLanguages() {
+                return Number(state.generation) >= 4;
+            }
+
+            function applyXosLanguage() {
+                const language = xosSupportsLanguages() && window.VTXTheme
+                    ? VTXTheme.getEffectiveLanguage()
+                    : "zh-CN";
+                if (window.VTXTheme && VTXTheme.translatePage) {
+                    VTXTheme.translatePage(language, true);
+                }
+                document.documentElement.lang = language;
+                document.documentElement.dataset.xosLanguage = language;
+                const badge = $("xos-lang-badge");
+                if (badge) {
+                    badge.hidden = !xosSupportsLanguages();
+                    badge.textContent = xosSupportsLanguages()
+                        ? (language === "en" ? "EN" : language === "ja" ? "日本語" : "中文")
+                        : "";
+                }
+            }
+
             function configureDevice(device) {
                 const edition = editionForDevice(device);
-                const generation = Number(device.generation) >= 3 ? 3 : Number(device.generation) === 2 ? 2 : 1;
+                const generation = Number(device.generation) >= 4 ? 4 : Number(device.generation) === 3 ? 3 : Number(device.generation) === 2 ? 2 : 1;
                 state.license = device;
                 state.deviceId = device.id;
                 state.edition = edition;
@@ -2896,7 +2930,7 @@
                     button.dataset.deviceId = device.id;
                     const name = cleanDeviceName(device);
                     const edition = editionForDevice(device);
-                    const generation = Number(device.generation) >= 3 ? 3 : Number(device.generation) === 2 ? 2 : 1;
+                    const generation = Number(device.generation) >= 4 ? 4 : Number(device.generation) === 3 ? 3 : Number(device.generation) === 2 ? 2 : 1;
                     const apps = APP_ORDER.filter((id) => {
                         const app = APPS[id];
                         if (typeof app.available === "function") return app.available(edition, generation);
@@ -2941,6 +2975,7 @@
                 renderDesktop();
                 renderStart();
                 renderTaskbar();
+                applyXosLanguage();
                 toast("已切换到 " + cleanDeviceName(device));
             }
 
@@ -2981,6 +3016,7 @@
                 $("xos-device-btn").disabled = devices.length <= 1;
                 $("xos-device-btn").title = devices.length <= 1 ? "当前只有一台云电脑" : "切换云电脑";
                 renderDeviceMenu();
+                applyXosLanguage();
                 return true;
             }
 
@@ -2994,6 +3030,7 @@
                     renderDesktop(); renderTaskbar(); renderStart(); refreshClock();
                     setInterval(refreshClock, 1000);
                     fitScreen();
+                    applyXosLanguage();
                     toast("欢迎使用 " + editionName(state.edition, state.generation));
                 }, 1100);
             }
@@ -3001,6 +3038,8 @@
             async function init() {
                 fitScreen();
                 window.addEventListener("resize", fitScreen);
+                window.addEventListener("vtx:languagechange", applyXosLanguage);
+                applyXosLanguage();
                 $("xos-start-btn").addEventListener("click", (event) => {
                     event.stopPropagation();
                     toggleStart();
@@ -3092,6 +3131,6 @@
             init();
         })();
     </script>
-    <script src="vtx-pwa.js?v=8.1.2" defer></script>
+    <script src="vtx-pwa.js?v=8.2.0" defer></script>
 </body>
 </html>
