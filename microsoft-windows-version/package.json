@@ -1,0 +1,78 @@
+{
+    "name": "vitual-xring-desktop",
+    "version": "8.2.2",
+    "description": "Vitual XRing desktop application",
+    "main": "main.js",
+    "author": "XRing Studios",
+    "license": "UNLICENSED",
+    "private": true,
+    "scripts": {
+        "prepare:web": "node prepare.js",
+        "start": "npm run prepare:web && electron .",
+        "build:dir": "npm run prepare:web && electron-builder --win dir --x64 --config.electronDist=node_modules/electron/dist --config.win.signAndEditExecutable=false",
+        "build:exe": "npm run build:dir && powershell -NoProfile -ExecutionPolicy Bypass -File build-portable.ps1",
+        "build": "npm run build:exe",
+        "build:store": "npm run prepare:web && electron-builder --win appx --x64 --config.electronDist=node_modules/electron/dist --config.win.signAndEditExecutable=false"
+    },
+    "devDependencies": {
+        "electron": "34.5.8",
+        "electron-builder": "25.1.8"
+    },
+    "build": {
+        "appId": "com.xring.vitualxring",
+        "productName": "Vitual XRing",
+        "copyright": "Copyright © 2026 XRing Studios",
+        "asar": true,
+        "directories": {
+            "output": "dist",
+            "buildResources": "assets"
+        },
+        "files": [
+            "main.js",
+            "server.js",
+            "package.json",
+            "www/**/*",
+            "assets/**/*"
+        ],
+        "win": {
+            "icon": "assets/icon.ico",
+            "target": [
+                {
+                    "target": "portable",
+                    "arch": [
+                        "x64"
+                    ]
+                },
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ]
+        },
+        "portable": {
+            "artifactName": "VitualXRing-${version}-portable.${ext}"
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "artifactName": "VitualXRing-${version}-setup.${ext}",
+            "shortcutName": "Vitual XRing"
+        },
+        "appx": {
+            "applicationId": "VitualXRing",
+            "identityName": "VitualXRing",
+            "publisher": "CN=XRing Studios",
+            "publisherDisplayName": "XRing Studios",
+            "displayName": "Vitual XRing",
+            "showNameOnTiles": true,
+            "languages": [
+                "zh-CN",
+                "en-US",
+                "ja-JP"
+            ],
+            "minVersion": "10.0.19041.0"
+        }
+    }
+}
