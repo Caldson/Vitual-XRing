@@ -132,8 +132,8 @@ test("3.1.0：健康检查与 Vimidi 上传、解析、发布、链接识别", a
     const { env, tokens } = await prepare();
 
     const health = await api(env, "GET", "/api/health");
-    assert.equal(health.data.version, "8.1.0");
-    assert.equal(health.data.social.version, "8.1.0");
+    assert.equal(health.data.version, "8.1.1");
+    assert.equal(health.data.social.version, "8.1.1");
 
     const id = await createMidi(env, tokens.Alice, "小星星");
     const detail = await api(env, "GET", `/api/social/kinds/midi/${id}`, { token: tokens.Bob });
@@ -225,7 +225,7 @@ test("3.1.0：视频评论里的站内链接自动变成分享卡片", async () 
     const stored = await env.ACCOUNTS_KV.get("video:comments:v_test01", "json");
     assert.equal(stored[0].card.kind, "midi");
 
-    /* 8.1.0：视频链接本身也能被识别成卡片 */
+    /* 8.1.1：视频链接本身也能被识别成卡片 */
     const videoCard = await api(env, "GET", `/api/social/resolve?url=${encodeURIComponent("https://api.test/vitxvideo.html?videoid=v_test01")}`);
     assert.equal(videoCard.status, 200, JSON.stringify(videoCard.data));
     assert.equal(videoCard.data.card.kind, "video");
@@ -473,7 +473,7 @@ test("3.1.0：聊天消息里的站内链接自动带卡片并可被转发", asy
     assert.equal(forwarded.data.messages[0].message.card.kind, "midi");
 });
 
-test("8.1.0：分享聊天记录生成只读快照与聊天记录卡片", async () => {
+test("8.1.1：分享聊天记录生成只读快照与聊天记录卡片", async () => {
     const { env, tokens } = await prepare();
     const midiId = await createMidi(env, tokens.Alice, "聊天记录里的 MIDI");
 

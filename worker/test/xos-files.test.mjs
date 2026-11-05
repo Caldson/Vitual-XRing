@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import worker from "../index.js";
 
-/* 8.1.0：XOS 文件同步到 Workers KV */
+/* 8.1.1：XOS 文件同步到 Workers KV */
 
 class MockKV {
     constructor() {
@@ -102,7 +102,7 @@ async function prepare() {
     return { env, tokens };
 }
 
-test("8.1.0：XOS 文件可上传、列出、读取、更新和删除", async () => {
+test("8.1.1：XOS 文件可上传、列出、读取、更新和删除", async () => {
     const { env, tokens } = await prepare();
     const created = await api(env, "POST", "/api/xos/files", {
         token: tokens.Alice,
@@ -137,14 +137,14 @@ test("8.1.0：XOS 文件可上传、列出、读取、更新和删除", async ()
     assert.equal(after.data.files.length, 0);
 });
 
-test("8.1.0：没有 XOS 授权不能使用云文件", async () => {
+test("8.1.1：没有 XOS 授权不能使用云文件", async () => {
     const { env, tokens } = await prepare();
     const denied = await api(env, "GET", "/api/xos/files", { token: tokens.Bob });
     assert.equal(denied.status, 403);
     assert.equal(denied.data.error, "xos_license_required");
 });
 
-test("8.1.0：路径和文件大小做基本校验", async () => {
+test("8.1.1：路径和文件大小做基本校验", async () => {
     const { env, tokens } = await prepare();
     const badPath = await api(env, "POST", "/api/xos/files", {
         token: tokens.Alice,

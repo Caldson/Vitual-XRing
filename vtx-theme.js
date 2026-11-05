@@ -1,7 +1,7 @@
-/* Vitual XRing 8.1.0 — theme + language shell */
+/* Vitual XRing 8.1.1 — theme + language shell */
 (function () {
     "use strict";
-    const VERSION = "8.1.0";
+    const VERSION = "8.1.1";
     const THEME_KEY = "xring:theme";
     const LANGUAGE_KEY = "xring:language";
     const THEME_MODES = ["auto", "light", "dark"];
@@ -33,7 +33,7 @@
             "card.share.title": "分享", "card.share.desc": "自定义分享卡片与站内识别",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 风格仓库浏览 · Proxy 镜像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英语 / 日语课程与 7 种题型",
-            "footer": "Vitual XRing 8.1.0 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。",
+            "footer": "Vitual XRing 8.1.1 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。",
             "widget.theme": "切换主题", "widget.settings": "打开设置",
             "widget.themeAuto": "主题：自动（{theme}）", "widget.themeLight": "主题：浅色", "widget.themeDark": "主题：深色",
             "settings.kicker": "界面偏好", "settings.title": "设置", "settings.subtitle": "主题、语言和显示偏好会保存在本机，并立即生效。",
@@ -78,7 +78,7 @@
             "card.share.title": "分享", "card.share.desc": "自訂分享卡片與站內辨識",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風格倉庫瀏覽 · Proxy 鏡像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日語課程與 7 種題型",
-            "footer": "Vitual XRing 8.1.0 · XOS 是瀏覽器端虛擬桌面，不是真實遠端虛擬機。",
+            "footer": "Vitual XRing 8.1.1 · XOS 是瀏覽器端虛擬桌面，不是真實遠端虛擬機。",
             "widget.theme": "切換主題", "widget.settings": "開啟設定",
             "widget.themeAuto": "主題：自動（{theme}）", "widget.themeLight": "主題：淺色", "widget.themeDark": "主題：深色",
             "settings.kicker": "介面偏好", "settings.title": "設定", "settings.subtitle": "主題、語言和顯示偏好會保存在本機，並立即生效。",
@@ -123,7 +123,7 @@
             "card.share.title": "Share", "card.share.desc": "Custom share cards and in-site previews",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub-style repository browser · proxy mirror",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "English / Japanese lessons and 7 exercise types",
-            "footer": "Vitual XRing 8.1.0 · XOS is a browser virtual desktop, not a real remote VM.",
+            "footer": "Vitual XRing 8.1.1 · XOS is a browser virtual desktop, not a real remote VM.",
             "widget.theme": "Change theme", "widget.settings": "Open settings",
             "widget.themeAuto": "Theme: auto ({theme})", "widget.themeLight": "Theme: light", "widget.themeDark": "Theme: dark",
             "settings.kicker": "Interface preferences", "settings.title": "Settings", "settings.subtitle": "Theme, language and display preferences are saved on this device and applied immediately.",
@@ -168,7 +168,7 @@
             "card.share.title": "共有", "card.share.desc": "カスタム共有カードとサイト内プレビュー",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風リポジトリ閲覧 · Proxy ミラー",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日本語レッスンと7種類の練習",
-            "footer": "Vitual XRing 8.1.0 · XOS はブラウザ内の仮想デスクトップであり、実際のリモート VM ではありません。",
+            "footer": "Vitual XRing 8.1.1 · XOS はブラウザ内の仮想デスクトップであり、実際のリモート VM ではありません。",
             "widget.theme": "テーマを切り替え", "widget.settings": "設定を開く",
             "widget.themeAuto": "テーマ：自動（{theme}）", "widget.themeLight": "テーマ：ライト", "widget.themeDark": "テーマ：ダーク",
             "settings.kicker": "表示設定", "settings.title": "設定", "settings.subtitle": "テーマ、言語、表示設定はこの端末に保存され、すぐに反映されます。",
@@ -195,6 +195,105 @@
         "设置": "nav.settings", "登录": "action.login", "账户": "action.account",
         "返回主页": "settings.back", "返回首页": "settings.back"
     };
+
+    // Plain-text phrases used by legacy pages. These pages predate data-i18n,
+    // so the shell translates their visible copy in place and keeps an original
+    // string for switching back to Chinese.
+    const TEXT_TRANSLATIONS = {
+        "欢迎回来": { "zh-TW": "歡迎回來", en: "Welcome back", ja: "おかえりなさい" },
+        "登录 Vitual XRing，查看你的账户与 VTX 余额。": { "zh-TW": "登入 Vitual XRing，查看你的帳戶與 VTX 餘額。", en: "Sign in to Vitual XRing to view your account and VTX balance.", ja: "Vitual XRing にログインして、アカウントと VTX 残高を確認します。" },
+        "登录账户名": { "zh-TW": "登入帳戶名", en: "Login name", ja: "ログイン名" },
+        "密码": { "zh-TW": "密碼", en: "Password", ja: "パスワード" },
+        "登录账户": { "zh-TW": "登入帳戶", en: "Sign in", ja: "ログイン" },
+        "创建账户": { "zh-TW": "建立帳戶", en: "Create account", ja: "アカウント作成" },
+        "登录": { "zh-TW": "登入", en: "Sign in", ja: "ログイン" },
+        "返回首页": { "zh-TW": "返回首頁", en: "Back home", ja: "ホームへ戻る" },
+        "← 返回首页": { "zh-TW": "← 返回首頁", en: "← Back home", ja: "← ホームへ戻る" },
+        "← 返回账户": { "zh-TW": "← 返回帳戶", en: "← Back to account", ja: "← アカウントへ戻る" },
+        "收款 / 付款": { "zh-TW": "收款 / 付款", en: "Receive / Pay", ja: "受け取り / 支払い" },
+        "付款需要输入账户密码确认；收款直接到账，无需密码。": { "zh-TW": "付款需要輸入帳戶密碼確認；收款直接到帳，無需密碼。", en: "Payments require your account password. Receiving is instant and needs no password.", ja: "支払いにはアカウントのパスワードが必要です。受け取りは即時で、パスワードは不要です。" },
+        "API：https://xsmmc.caldson.us.ci（本地预览，默认连线上 Worker；可用 ?api=覆盖）": { "zh-TW": "API：https://xsmmc.caldson.us.ci（本機預覽，預設連線上的 Worker；可用 ?api=覆寫）", en: "API: https://xsmmc.caldson.us.ci (local preview connects to the live Worker; override with ?api=)", ja: "API：https://xsmmc.caldson.us.ci（ローカルプレビューは既定でオンライン Worker に接続。?api= で上書き可能）" },
+        "需要登录": { "zh-TW": "需要登入", en: "Sign in required", ja: "ログインが必要です" },
+        "聊天室使用 Vitual XRing 账户登录。登录后回到这里即可开始聊天。": { "zh-TW": "聊天室使用 Vitual XRing 帳戶登入。登入後回到這裡即可開始聊天。", en: "Chat uses your Vitual XRing account. Sign in and come back to start chatting.", ja: "チャットは Vitual XRing アカウントで利用します。ログインしてここに戻ると開始できます。" },
+        "前往登录": { "zh-TW": "前往登入", en: "Go to sign in", ja: "ログインへ" },
+        "重新检测": { "zh-TW": "重新偵測", en: "Check again", ja: "再確認" },
+        "XOS 虚拟云电脑": { "zh-TW": "XOS 虛擬雲端電腦", en: "XOS virtual desktop", ja: "XOS 仮想デスクトップ" },
+        "选择一台 XOS PC，在浏览器里打开你的桌面。": { "zh-TW": "選擇一台 XOS PC，在瀏覽器裡開啟你的桌面。", en: "Choose an XOS PC and open your desktop in the browser.", ja: "XOS PC を選んで、ブラウザでデスクトップを開きます。" },
+        "购买后授权会写入当前账户；XOS 是网页虚拟桌面，不是真实远程虚拟机。所有应用都在本机浏览器中运行。": { "zh-TW": "購買後授權會寫入目前帳戶；XOS 是網頁虛擬桌面，不是真實遠端虛擬機。所有應用都在本機瀏覽器中執行。", en: "Purchases are written to your account. XOS is a web virtual desktop, not a real remote VM; apps run in this browser.", ja: "購入したライセンスはアカウントに保存されます。XOS は Web 上の仮想デスクトップであり、実際のリモート VM ではありません。アプリはこのブラウザで動作します。" },
+        "查看商品": { "zh-TW": "查看商品", en: "View product", ja: "商品を見る" },
+        "XOS 云电脑": { "zh-TW": "XOS 雲端電腦", en: "XOS desktop", ja: "XOS デスクトップ" },
+        "商店": { "zh-TW": "商店", en: "Shop", ja: "ショップ" },
+        "聊天室": { "zh-TW": "聊天室", en: "Chat", ja: "チャット" },
+        "账户": { "zh-TW": "帳戶", en: "Account", ja: "アカウント" },
+        "我的账户": { "zh-TW": "我的帳戶", en: "My account", ja: "マイアカウント" },
+        "账户总览": { "zh-TW": "帳戶總覽", en: "Account overview", ja: "アカウント概要" },
+        "当前余额": { "zh-TW": "目前餘額", en: "Current balance", ja: "現在の残高" },
+        "交易记录": { "zh-TW": "交易記錄", en: "Transactions", ja: "取引履歴" },
+        "提款": { "zh-TW": "提款", en: "Withdraw", ja: "出金" },
+        "转账": { "zh-TW": "轉帳", en: "Transfer", ja: "送金" },
+        "收款码": { "zh-TW": "收款碼", en: "Receive code", ja: "受け取りコード" },
+        "商品": { "zh-TW": "商品", en: "Product", ja: "商品" },
+        "库存": { "zh-TW": "庫存", en: "Stock", ja: "在庫" },
+        "价格": { "zh-TW": "價格", en: "Price", ja: "価格" },
+        "购买": { "zh-TW": "購買", en: "Buy", ja: "購入" },
+        "立即购买": { "zh-TW": "立即購買", en: "Buy now", ja: "今すぐ購入" },
+        "搜索": { "zh-TW": "搜尋", en: "Search", ja: "検索" },
+        "搜索商品": { "zh-TW": "搜尋商品", en: "Search products", ja: "商品を検索" },
+        "全部商品": { "zh-TW": "全部商品", en: "All products", ja: "すべての商品" },
+        "暂无商品": { "zh-TW": "暫無商品", en: "No products yet", ja: "商品はまだありません" },
+        "加载中…": { "zh-TW": "載入中…", en: "Loading…", ja: "読み込み中…" },
+        "发送": { "zh-TW": "傳送", en: "Send", ja: "送信" },
+        "输入消息": { "zh-TW": "輸入訊息", en: "Type a message", ja: "メッセージを入力" },
+        "好友": { "zh-TW": "好友", en: "Friends", ja: "友だち" },
+        "群聊": { "zh-TW": "群聊", en: "Group chat", ja: "グループチャット" },
+        "单聊": { "zh-TW": "單聊", en: "Direct chat", ja: "個人チャット" },
+        "群公告": { "zh-TW": "群公告", en: "Group announcement", ja: "グループのお知らせ" },
+        "成员": { "zh-TW": "成員", en: "Members", ja: "メンバー" },
+        "在线": { "zh-TW": "線上", en: "Online", ja: "オンライン" },
+        "离线": { "zh-TW": "離線", en: "Offline", ja: "オフライン" },
+        "保存": { "zh-TW": "儲存", en: "Save", ja: "保存" },
+        "取消": { "zh-TW": "取消", en: "Cancel", ja: "キャンセル" },
+        "确认": { "zh-TW": "確認", en: "Confirm", ja: "確認" },
+        "删除": { "zh-TW": "刪除", en: "Delete", ja: "削除" },
+        "编辑": { "zh-TW": "編輯", en: "Edit", ja: "編集" },
+        "关闭": { "zh-TW": "關閉", en: "Close", ja: "閉じる" },
+        "任务管理器": { "zh-TW": "工作管理員", en: "Task Manager", ja: "タスクマネージャー" },
+        "文件资源管理器": { "zh-TW": "檔案總管", en: "File Explorer", ja: "ファイルエクスプローラー" },
+        "浏览器": { "zh-TW": "瀏覽器", en: "Browser", ja: "ブラウザ" },
+        "应用": { "zh-TW": "應用", en: "Apps", ja: "アプリ" },
+        "设置": { "zh-TW": "設定", en: "Settings", ja: "設定" },
+        "退出登录": { "zh-TW": "登出", en: "Sign out", ja: "ログアウト" },
+        "管理": { "zh-TW": "管理", en: "Manage", ja: "管理" }
+    };
+
+    const TEXT_ATTRIBUTES = ["placeholder", "title", "aria-label"];
+
+    function translatePhrase(value, language) {
+        if (!value) return "";
+        const raw = String(value).trim();
+        if (!raw || language === "zh-CN") return raw;
+        const entry = TEXT_TRANSLATIONS[raw];
+        if (entry && entry[language]) return entry[language];
+        if (language === "en") {
+            let match = raw.match(/^(\d+)\s*个应用$/);
+            if (match) return `${match[1]} apps`;
+            match = raw.match(/^(\d+)\s*个词条$/);
+            if (match) return `${match[1]} entries`;
+        }
+        if (language === "ja") {
+            let match = raw.match(/^(\d+)\s*个应用$/);
+            if (match) return `${match[1]} 個のアプリ`;
+            match = raw.match(/^(\d+)\s*个词条$/);
+            if (match) return `${match[1]} 項目`;
+        }
+        if (language === "zh-TW") {
+            let match = raw.match(/^(\d+)\s*个应用$/);
+            if (match) return `${match[1]} 個應用`;
+            match = raw.match(/^(\d+)\s*个词条$/);
+            if (match) return `${match[1]} 個詞條`;
+        }
+        return raw;
+    }
 
     function read(key, fallback) {
         try {
@@ -345,8 +444,102 @@
                 node.textContent = t(key, language);
             }
         });
+        translatePage(language);
         updateWidget();
         window.dispatchEvent(new CustomEvent("vtx:languagechange", { detail: { mode: languageMode, language } }));
+    }
+
+    const textOriginals = new WeakMap();
+    const attributeOriginals = new WeakMap();
+    const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "CODE", "PRE"]);
+    let textObserver = null;
+
+    function canTranslateNode(node) {
+        const parent = node.parentElement;
+        if (!parent) return false;
+        if (SKIP_TAGS.has(parent.tagName)) return false;
+        if (parent.closest("[data-i18n], [data-i18n-placeholder], [data-i18n-title], [data-i18n-aria]")) return false;
+        return true;
+    }
+
+    function translateTextNode(node, language) {
+        if (!node.nodeValue || !node.nodeValue.trim() || !canTranslateNode(node)) return;
+        const current = node.nodeValue;
+        if (language === "zh-CN") {
+            const original = textOriginals.get(node);
+            if (original !== undefined && current !== original) node.nodeValue = original;
+            textOriginals.delete(node);
+            return;
+        }
+        const original = textOriginals.get(node) || current;
+        const leading = original.match(/^\s*/)[0];
+        const trailing = original.match(/\s*$/)[0];
+        const translated = translatePhrase(original, language);
+        if (translated !== original.trim()) {
+            textOriginals.set(node, original);
+            const next = leading + translated + trailing;
+            if (current !== next) node.nodeValue = next;
+        }
+    }
+
+    function translateAttributes(element, language) {
+        if (!element || element.nodeType !== 1) return;
+        const saved = attributeOriginals.get(element) || {};
+        for (const attribute of TEXT_ATTRIBUTES) {
+            if (!element.hasAttribute(attribute)) continue;
+            if (attribute === "placeholder" && element.hasAttribute("data-i18n-placeholder")) continue;
+            if (attribute === "title" && element.hasAttribute("data-i18n-title")) continue;
+            if (attribute === "aria-label" && element.hasAttribute("data-i18n-aria")) continue;
+            if (saved[attribute] === undefined) saved[attribute] = element.getAttribute(attribute);
+            const original = saved[attribute];
+            if (language === "zh-CN") {
+                element.setAttribute(attribute, original);
+                continue;
+            }
+            const translated = translatePhrase(original, language);
+            if (translated !== original.trim()) element.setAttribute(attribute, translated);
+        }
+        attributeOriginals.set(element, saved);
+    }
+
+    function translateSubtree(root, language) {
+        if (!root) return;
+        if (root.nodeType === 3) {
+            translateTextNode(root, language);
+            return;
+        }
+        if (root.nodeType !== 1 && root.nodeType !== 9) return;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let node = walker.nextNode();
+        while (node) {
+            translateTextNode(node, language);
+            node = walker.nextNode();
+        }
+        if (root.nodeType === 1) {
+            translateAttributes(root, language);
+            root.querySelectorAll("[placeholder], [title], [aria-label]").forEach((element) => translateAttributes(element, language));
+        }
+    }
+
+    function translatePage(language) {
+        if (!document.body) return;
+        translateSubtree(document.body, language);
+    }
+
+    function startTextObserver() {
+        if (textObserver || !document.body || typeof MutationObserver === "undefined") return;
+        textObserver = new MutationObserver((mutations) => {
+            const language = effectiveLanguage();
+            if (language === "zh-CN") return;
+            for (const mutation of mutations) {
+                if (mutation.type === "characterData") {
+                    translateTextNode(mutation.target, language);
+                } else {
+                    mutation.addedNodes.forEach((node) => translateSubtree(node, language));
+                }
+            }
+        });
+        textObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
     }
 
     function setTheme(mode) {
@@ -414,6 +607,7 @@
         applyGlass();
         applyLanguage();
         createWidget();
+        startTextObserver();
         if (document.body) document.body.classList.add("vtx-theme-ready");
     });
 
