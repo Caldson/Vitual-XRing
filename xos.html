@@ -9,7 +9,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=8.2.1"></script>
+    <script src="vtx-api.js?v=8.2.2"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -579,7 +579,7 @@
             .xos-gate-grid { grid-template-columns: 1fr; }
         }
 
-        /* ───────── 8.2.1：Aurora Glass 外壳 ───────── */
+        /* ───────── 8.2.2：Aurora Glass 外壳 ───────── */
 
         :root {
             --xos-accent: #6ea8ff;
@@ -1000,8 +1000,8 @@
             *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
         }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=8.2.1">
-    <script src="vtx-theme.js?v=8.2.1"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=8.2.2">
+    <script src="vtx-theme.js?v=8.2.2"></script>
 </head>
 <body data-vtx-skip-text="true">
     <div class="xos-gate" id="xos-gate" hidden>
@@ -1089,7 +1089,7 @@
                                 <a class="xos-menu-item" role="menuitem" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">XOS 商店</a>
                                 <a class="xos-menu-item" role="menuitem" href="manager.html">账户中心</a>
                                 <a class="xos-menu-item" role="menuitem" href="index.html">返回主页</a>
-                                <div class="xos-menu-meta">XOS v8.2.1 · 网页虚拟桌面</div>
+                                <div class="xos-menu-meta">XOS v8.2.2 · 网页虚拟桌面</div>
                             </div>
                         </div>
                     </div>
@@ -1143,7 +1143,7 @@
                     </div>
                     <div class="xos-start-footer">
                         <span id="xos-start-edition">XOS</span>
-                        <span>v8.2.1 · 浏览器虚拟桌面</span>
+                        <span>v8.2.2 · 浏览器虚拟桌面</span>
                     </div>
                 </div>
 
@@ -1171,7 +1171,7 @@
             "use strict";
 
             const API = window.VTXApi;
-            const PAGE_VERSION = "8.2.1";
+            const PAGE_VERSION = "8.2.2";
             const $ = (id) => document.getElementById(id);
             const SCREEN_W = 1440;
             const SCREEN_H = 900;
@@ -1393,7 +1393,7 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 8.2.1：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 8.2.2：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");
@@ -3166,6 +3166,6 @@
             init();
         })();
     </script>
-    <script src="vtx-pwa.js?v=8.2.1" defer></script>
+    <script src="vtx-pwa.js?v=8.2.2" defer></script>
 </body>
 </html>

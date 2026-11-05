@@ -1,5 +1,5 @@
 {
-    "version": "8.2.1",
+    "version": "8.2.2",
     "updatedAt": "2026-11-05T18:20:00+08:00",
     "notes": "Vuolingo sequential lessons and cache update guard"
 }
