@@ -346,11 +346,28 @@
             gap: 18px;
         }
 
+        .shop-search {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            height: 44px;
+            margin: 18px 0 10px;
+            padding: 0 13px;
+            border: 1px solid #dfe6f2;
+            border-radius: 12px;
+            background: #fff;
+            color: #8a97aa;
+            box-shadow: 0 5px 18px rgba(30, 50, 90, 0.035);
+        }
+        .shop-search:focus-within { border-color: #3867e8; box-shadow: 0 0 0 3px rgba(56, 103, 232, 0.1); }
+        .shop-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: #172033; font-size: 13.5px; }
+        .shop-search input::placeholder { color: #9aa6b8; }
+
         .filter-bar {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-bottom: 18px;
+            margin: 10px 0 18px;
         }
 
         .filter-chip {
@@ -769,7 +786,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v6.1.0</span>
+            <span class="version">v7.0.0</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="manager.html">返回账户</a>
@@ -853,6 +870,11 @@
 
         <p id="shop-message" class="status" role="status" aria-live="polite" hidden></p>
 
+        <div class="shop-search">
+            <span aria-hidden="true">⌕</span>
+            <input id="shop-search" type="search" placeholder="搜索商品、分类或制造商…" autocomplete="off" aria-label="搜索商品">
+        </div>
+
         <nav id="shop-filters" class="filter-bar" aria-label="商品分类"></nav>
 
         <section id="shop-grid" class="shop-grid" aria-label="商品列表"></section>
@@ -893,7 +915,7 @@
         </form>
     </dialog>
 
-    <script src="vtx-api.js?v=6.1.0"></script>
+    <script src="vtx-api.js?v=7.0.0"></script>
 
 
     <script>
@@ -938,12 +960,14 @@
         const merchantSubmit = document.getElementById("merchant-submit");
         const merchantMessage = document.getElementById("merchant-message");
         const merchantList = document.getElementById("merchant-list");
+        const shopSearch = document.getElementById("shop-search");
 
         let shopData = null;
         let accountsData = null;
         let selectedId = null;
         let activeCategory = ALL_CATEGORIES;
         let approvedShops = [];
+        let shopQuery = "";
 
         function showMessage(text, kind) {
             message.textContent = text;
@@ -993,10 +1017,15 @@
         }
 
         function isXosUpgrade(item) {
+            const target = Number(item && item.xosGeneration) || 1;
             return Boolean(item && item.virtual
-                && Number(item.xosGeneration) === 2
-                && ownedXosDevices().some((owned) => (Number(owned.generation) || 1) === 1
+                && target >= 2
+                && ownedXosDevices().some((owned) => (Number(owned.generation) || 1) === target - 1
                     && owned.edition === item.xosEdition));
+        }
+
+        function isFreeUpgrade(item) {
+            return isXosUpgrade(item) && Number(item.xosUpgradePrice) === 0;
         }
 
         function displayPrice(item) {
@@ -1190,12 +1219,22 @@
             const entries = catalogEntries(shopData);
             renderFilters(entries);
 
-            const visible = activeCategory === ALL_CATEGORIES
+            let visible = activeCategory === ALL_CATEGORIES
                 ? entries
                 : entries.filter((entry) => entry.category === activeCategory);
+            if (shopQuery) {
+                visible = visible.filter((entry) => {
+                    const item = entry.item;
+                    return [item.name, item.description, item.manufacturer, item.shopName, entry.category]
+                        .filter(Boolean)
+                        .join(" ")
+                        .toLowerCase()
+                        .includes(shopQuery);
+                });
+            }
 
             if (visible.length === 0) {
-                empty.textContent = entries.length ? "该分类下暂时没有商品。" : "商店暂时没有商品。";
+                empty.textContent = shopQuery ? "没有找到匹配的商品。" : entries.length ? "该分类下暂时没有商品。" : "商店暂时没有商品。";
                 empty.hidden = false;
                 return;
             }
@@ -1285,7 +1324,11 @@
                 if (isXosUpgrade(item)) {
                     const upgrade = document.createElement("p");
                     upgrade.className = "xos-upgrade";
-                    upgrade.textContent = `已拥有 ${item.name.replace(/ 26H2$/, " 26H1")}？可直接升级，仅需 25 VTX。`;
+                    if (isFreeUpgrade(item)) {
+                        upgrade.textContent = "已拥有对应 26H2 设备？V2.1（26H3）可免费升级。";
+                    } else {
+                        upgrade.textContent = `已拥有 ${item.name.replace(/ 26H3 V2\.1$/, " 26H2").replace(/ 26H2$/, " 26H1")}？可直接升级，仅需 25 VTX。`;
+                    }
                     card.appendChild(upgrade);
                 } else if (item.virtual && !item.bundle && ownedXosDevices().length) {
                     const count = document.createElement("p");
@@ -1318,9 +1361,11 @@
                 foot.className = "product-foot";
                 const price = document.createElement("p");
                 price.className = "price";
-                price.textContent = fromCents(toCents(displayPrice(item))) === "NaN"
-                    ? String(displayPrice(item) || "—")
-                    : `${fromCents(toCents(displayPrice(item)))} VTX`;
+                price.textContent = isFreeUpgrade(item)
+                    ? "免费"
+                    : fromCents(toCents(displayPrice(item))) === "NaN"
+                        ? String(displayPrice(item) || "—")
+                        : `${fromCents(toCents(displayPrice(item)))} VTX`;
                 const unit = document.createElement("small");
                 unit.textContent = isXosUpgrade(item) ? " / 升级" : " / 件";
                 price.appendChild(unit);
@@ -1357,7 +1402,7 @@
             selectedId = item.id;
             clearMessage();
             receiptCard.hidden = true;
-            document.getElementById("checkout-sub").textContent = `${item.name} · ${isXosUpgrade(item) ? "升级价" : "单价"} ${displayPrice(item)} VTX · 库存 ${item.virtual ? "无限（每次 1 份）" : `${stockOf(item)} 件`}`;
+            document.getElementById("checkout-sub").textContent = `${item.name} · ${isFreeUpgrade(item) ? "免费升级" : isXosUpgrade(item) ? "升级价" : "单价"} ${isFreeUpgrade(item) ? "" : displayPrice(item) + " VTX"} · 库存 ${item.virtual ? "无限（每次 1 份）" : `${stockOf(item)} 件`}`;
             quantityInput.min = "1";
             quantityInput.max = item.virtual ? "1" : String(stockOf(item));
             quantityInput.value = "1";
@@ -1772,6 +1817,11 @@
             }
         });
 
+        shopSearch.addEventListener("input", (event) => {
+            shopQuery = event.target.value.trim().toLowerCase();
+            renderShop();
+        });
+
         document.getElementById("checkout-cancel").addEventListener("click", closeCheckout);
         form.addEventListener("submit", purchase);
         redeemForm.addEventListener("submit", redeemGift);
@@ -1800,5 +1850,6 @@
 
         init();
     </script>
+    <script src="vtx-pwa.js?v=7.0.0" defer></script>
 </body>
 </html>

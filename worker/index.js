@@ -85,11 +85,11 @@
  * 5.5.0：
  *   - XOS 顶栏和开始菜单增加「返回主页」入口。
  *
- * 6.1.0：
+ * 7.0.0：
  *   - 新增 GameVersion / GameULTRA / GameMAX 三台高性能 XOS；
  *   - GameMAX 1500–30000fps 极端刷新率提示。
  *
- * 6.1.0：
+ * 7.0.0：
  *   - 修复旧缓存页面把 GameMAX 识别成 Home；未知版本按 rank 回退 CE；
  *   - XOS 页面增加版本守卫与 no-cache meta。
  *
@@ -120,7 +120,7 @@ import { createUno, UNO_VERSION } from "./uno.js";
 import { MeetingHub } from "./meeting.js";
 import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 
-const VERSION = "6.1.0";
+const VERSION = "7.0.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -144,7 +144,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "6.1.0";
+const CHAT_VERSION = "7.0.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -234,7 +234,7 @@ const MAX_TRADE_NAME_LENGTH = 20;
 const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
 const SHOP_CACHE_TTL_MS = 30 * 1000;
 const SHOP_MAX_QUANTITY = 999;
-/* 6.1.0：同捆包与商铺申请 */
+/* 7.0.0：同捆包与商铺申请 */
 const SHOP_APPLICATIONS_KEY = "shop:applications";
 const SHOPS_KEY = "shops";
 const SHOP_APPLICATION_MAX = 500;
@@ -599,7 +599,7 @@ function xosDevicesOf(account) {
     const devices = list.map((item, index) => ({
         ...item,
         id: String(item.id || `xd_legacy_${index}_${Number(item.generation) || 1}`),
-        generation: Number(item.generation) === 2 ? 2 : 1,
+        generation: Number(item.generation) >= 3 ? 3 : Number(item.generation) === 2 ? 2 : 1,
         rank: Number(item.rank) || 0
     }));
     if (!devices.length && account && account.xos && typeof account.xos === "object" && !Array.isArray(account.xos)) {
@@ -2624,12 +2624,15 @@ async function handlePurchase(request, env, cors) {
         let xosUpgradeIndex = -1;
         if (product.virtual && product.xosEdition) {
             const devices = xosDevicesOf(account);
-            if (Number(product.xosGeneration) === 2) {
-                xosUpgradeIndex = devices.findIndex((device) => Number(device.generation) === 1
+            const targetGeneration = Number(product.xosGeneration) || 1;
+            if (targetGeneration >= 2) {
+                const upgradeFrom = targetGeneration - 1;
+                xosUpgradeIndex = devices.findIndex((device) => Number(device.generation) === upgradeFrom
                     && device.edition === product.xosEdition);
                 if (xosUpgradeIndex >= 0) {
                     xosUpgraded = true;
-                    amountCents = toCents(product.xosUpgradePrice) || 2500;
+                    const upgradeCents = toCents(product.xosUpgradePrice);
+                    amountCents = upgradeCents === null ? 2500 : upgradeCents;
                     amount = fromCents(amountCents);
                 }
             }
@@ -2732,7 +2735,7 @@ async function handlePurchase(request, env, cors) {
             : product.bundle
                 ? `购买成功：${product.name}，共 ${amount} VTX。包含：${bundleProducts.map((item) => item.name).join("、")}。打开 xos.html 即可在设备列表中看到这些云电脑。购买时间：${time}`
                 : product.virtual
-                    ? `购买成功：${product.name}${xosUpgraded ? "（XOS1 → XOS2 升级）" : "（新增一台云电脑）"}，共 ${amount} VTX。打开 xos.html 即可使用。购买时间：${time}`
+                    ? `购买成功：${product.name}${xosUpgraded ? (Number(product.xosGeneration) >= 3 ? "（26H2 → 26H3 V2.1 免费升级）" : "（XOS1 → XOS2 升级）") : "（新增一台云电脑）"}，共 ${amount} VTX。打开 xos.html 即可使用。购买时间：${time}`
                     : `购买成功：${product.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
         account: selfAccount(accounts[login])
     }, 200, cors);
@@ -2959,7 +2962,7 @@ async function handleShopStock(request, env, cors) {
     return jsonResponse({ ok: true, version: VERSION, stock }, 200, cors);
 }
 
-/* ───────── 6.1.0：成为商铺 Beta ───────── */
+/* ───────── 7.0.0：成为商铺 Beta ───────── */
 
 function shopApplicationView(application, includeLogin) {
     const view = {
@@ -3141,7 +3144,7 @@ async function handleAdminShopReview(request, env, cors, id) {
     return jsonResponse({ ok: true, application: shopApplicationView(result.application, true) }, 200, cors);
 }
 
-/* ───────── 6.1.0：商家上架商品 Beta ───────── */
+/* ───────── 7.0.0：商家上架商品 Beta ───────── */
 
 function merchantProductView(product, includePrivate) {
     const view = {
@@ -8842,7 +8845,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "6.1.0";
+const VIDEO_VERSION = "7.0.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;

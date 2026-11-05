@@ -9,7 +9,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=6.1.0"></script>
+    <script src="vtx-api.js?v=7.0.0"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -579,7 +579,7 @@
             .xos-gate-grid { grid-template-columns: 1fr; }
         }
 
-        /* ───────── 6.1.0：Aurora Glass 外壳 ───────── */
+        /* ───────── 7.0.0：Aurora Glass 外壳 ───────── */
 
         :root {
             --xos-accent: #6ea8ff;
@@ -1073,7 +1073,7 @@
                                 <a class="xos-menu-item" role="menuitem" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">XOS 商店</a>
                                 <a class="xos-menu-item" role="menuitem" href="manager.html">账户中心</a>
                                 <a class="xos-menu-item" role="menuitem" href="index.html">返回主页</a>
-                                <div class="xos-menu-meta">XOS v6.1.0 · 网页虚拟桌面</div>
+                                <div class="xos-menu-meta">XOS v7.0.0 · 网页虚拟桌面</div>
                             </div>
                         </div>
                     </div>
@@ -1127,7 +1127,7 @@
                     </div>
                     <div class="xos-start-footer">
                         <span id="xos-start-edition">XOS</span>
-                        <span>v6.1.0 · 浏览器虚拟桌面</span>
+                        <span>v7.0.0 · 浏览器虚拟桌面</span>
                     </div>
                 </div>
 
@@ -1155,7 +1155,7 @@
             "use strict";
 
             const API = window.VTXApi;
-            const PAGE_VERSION = "6.1.0";
+            const PAGE_VERSION = "7.0.0";
             const $ = (id) => document.getElementById(id);
             const SCREEN_W = 1440;
             const SCREEN_H = 900;
@@ -1179,12 +1179,19 @@
                 { edition: "ce", generation: 2, label: "CE (Community Edition) 26H2", price: 1775 },
                 { edition: "game", generation: 2, label: "GameVersion 26H2", price: 2000 },
                 { edition: "gameultra", generation: 2, label: "GameULTRA 26H2", price: 2750 },
-                { edition: "gamemax", generation: 2, label: "GameMAX 26H2", price: 3000 }
+                { edition: "gamemax", generation: 2, label: "GameMAX 26H2", price: 3000 },
+                { edition: "home", generation: 3, label: "Home 26H3 V2.1", price: 1025 },
+                { edition: "personal", generation: 3, label: "Personal 26H3 V2.1", price: 1275 },
+                { edition: "professional", generation: 3, label: "Professional 26H3 V2.1", price: 1525 },
+                { edition: "ce", generation: 3, label: "CE (Community Edition) 26H3 V2.1", price: 1775 },
+                { edition: "game", generation: 3, label: "GameVersion 26H3 V2.1", price: 2000 },
+                { edition: "gameultra", generation: 3, label: "GameULTRA 26H3 V2.1", price: 2750 },
+                { edition: "gamemax", generation: 3, label: "GameMAX 26H3 V2.1", price: 3000 }
             ];
             const APP_ORDER = [
                 "taskmgr", "files", "browser", "shared", "paint", "txtpro", "calc", "weather",
                 "todo", "mail", "screenshot", "vscode", "paint3d", "blender", "musescore",
-                "github", "git", "blockbench", "midi", "timer", "pomodoro", "garageband",
+                "vitualgit", "blockbench", "midi", "timer", "pomodoro", "garageband",
                 "devkit", "devkitce"
             ];
             const APPS = {};
@@ -1250,6 +1257,38 @@
                     toast("本地存储已满，无法保存");
                     return false;
                 }
+            }
+
+            function saveOfflineAccount(account) {
+                try {
+                    localStorage.setItem("xos:offlineAccount", JSON.stringify(account));
+                    writeStore("accountSnapshot", account);
+                } catch (error) {
+                    /* 离线快照不影响在线使用 */
+                }
+            }
+
+            function loadOfflineAccount() {
+                try {
+                    const raw = localStorage.getItem("xos:offlineAccount");
+                    return raw ? JSON.parse(raw) : null;
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            function bootOffline(account) {
+                if (!account) return false;
+                state.login = account.login || sessionStorage.getItem("vtxAccount") || "user";
+                loadFs();
+                if (!applyLicense(account)) {
+                    renderGate("离线缓存中没有可用的 XOS 授权。");
+                    return false;
+                }
+                setCloudStatus("local", "仅本机");
+                boot();
+                toast("离线模式：使用本机缓存的 XOS 和文件");
+                return true;
             }
 
             function fitScreen() {
@@ -1331,7 +1370,7 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 6.1.0：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 7.0.0：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");
@@ -1536,13 +1575,20 @@
 
             /* ───────── 窗口管理 ───────── */
 
+            function generationLabel(generation) {
+                const value = Number(generation) || 1;
+                if (value >= 3) return "26H3";
+                if (value === 2) return "26H2";
+                return "26H1";
+            }
+
             function editionName(edition, generation) {
-                return `XOS PC ${EDITIONS[edition].short} ${Number(generation) === 2 ? "26H2" : "26H1"}`;
+                return `XOS PC ${EDITIONS[edition].short} ${generationLabel(generation)}`;
             }
 
             function editionShort(edition, generation) {
                 const short = EDITIONS[edition].short;
-                return `${short === "CE (Community Edition)" ? "Community Edition" : short} ${Number(generation) === 2 ? "26H2" : "26H1"}`;
+                return `${short === "CE (Community Edition)" ? "Community Edition" : short} ${generationLabel(generation)}`;
             }
 
             function appAvailable(id) {
@@ -2069,7 +2115,7 @@
                     mountEditor(body, handle, args, false);
                     const link = document.createElement("p");
                     link.className = "tiny";
-                    link.innerHTML = '仅支持文本 / Markdown。源码：<a class="xos-link" href="https://github.com/Caldson/txtpro-code" target="_blank" rel="noopener">github.com/Caldson/txtpro-code</a>';
+                    link.innerHTML = '仅支持文本 / Markdown。';
                     body.prepend(link);
                 }
             };
@@ -2095,7 +2141,7 @@
                             <p class="tiny">部分网站禁止 iframe 嵌入；打不开时请点「新窗口」。</p>
                             <div class="row">
                                 <button class="xos-btn" data-site="https://example.com">example.com</button>
-                                <button class="xos-btn" data-site="https://github.com/Caldson/txtpro-code">TXTPro 源码</button>
+                                <button class="xos-btn" data-site="https://xsmmc.caldson.us.ci/vitualgit.html">VitualGit</button>
                                 <button class="xos-btn" data-site="https://xsmmc.caldson.us.ci/shop.html">XRing 商店</button>
                                 <button class="xos-btn" data-site="https://xsmmc.caldson.us.ci/viratch.html">Viratch</button>
                             </div>
@@ -2413,40 +2459,39 @@
                 }
             };
 
-            /* ───────── 应用：Git / GitHub Desktop ───────── */
+            /* ───────── 应用：VitualGit ───────── */
 
-            function gitState() { return readStore("git", { initialized: false, branch: "main", commits: [], files: {} }); }
-            function saveGit(value) { writeStore("git", value); }
+            function vitualGitState() { return readStore("git", { initialized: false, branch: "main", commits: [], files: {} }); }
+            function saveVitualGit(value) { writeStore("git", value); }
 
-            APPS.git = {
-                name: "Git", icon: "⑂", minRank: 2, width: 800, height: 540,
+            APPS.vitualgit = {
+                name: "VitualGit", icon: "⑂", minRank: 2, width: 820, height: 560,
                 mount(body) {
-                    body.innerHTML = `<div class="xos-terminal" data-term></div>`;
+                    body.innerHTML = `<div class="row"><a class="xos-btn primary" href="vitualgit.html" target="_blank" rel="noopener">打开 VitualGit 平台</a><span class="tiny">本地终端 · 仓库浏览请打开平台</span></div><div class="xos-terminal" data-term style="margin-top:12px"></div>`;
                     const term = body.querySelector("[data-term]");
-                    let history = [];
                     const print = (text) => { const line = document.createElement("div"); line.textContent = text; term.appendChild(line); term.scrollTop = term.scrollHeight; };
                     const input = document.createElement("input");
-                    input.placeholder = "输入 git 命令…";
+                    input.placeholder = "输入 vitualgit 命令…";
                     term.appendChild(input);
                     const run = (line) => {
                         const [cmd, ...args] = line.trim().split(/\s+/);
-                        const repo = gitState();
+                        const repo = vitualGitState();
                         if (!line.trim()) return;
-                        if (cmd !== "git") { print("xos: 只支持 git 命令"); return; }
+                        if (cmd !== "vitualgit" && cmd !== "vg") { print("xos: 只支持 vitualgit 命令"); return; }
                         const sub = args[0] || "status";
-                        if (sub === "init") { repo.initialized = true; saveGit(repo); print("Initialized empty Git repository in /XOS/.git/"); }
+                        if (sub === "init") { repo.initialized = true; saveVitualGit(repo); print("Initialized empty VitualGit repository in /XOS/.vitualgit/"); }
                         else if (sub === "status") { print("On branch " + repo.branch); print("nothing to commit, working tree clean"); }
                         else if (sub === "add") { print("已暂存：" + (args[1] || ".")); }
                         else if (sub === "commit") {
                             const message = args.slice(1).join(" ").replace(/^["']|["']$/g, "") || "update";
                             repo.commits.unshift({ hash: Math.random().toString(16).slice(2, 9), message, at: Date.now() });
-                            saveGit(repo); print(`[${repo.branch} ${repo.commits[0].hash}] ${message}`);
+                            saveVitualGit(repo); print(`[${repo.branch} ${repo.commits[0].hash}] ${message}`);
                         } else if (sub === "log") { repo.commits.slice(0, 12).forEach((commit) => print(`${commit.hash} ${commit.message}`)); }
                         else if (sub === "branch") { print("* " + repo.branch); }
                         else if (sub === "help") { print("支持：init status add commit log branch checkout help"); }
-                        else print("git: 不支持的命令 " + sub);
+                        else print("vitualgit: 不支持的命令 " + sub);
                     };
-                    print("XOS Git 2.0 — 输入 git help 查看命令");
+                    print("VitualGit 2.1 — 输入 vitualgit help 查看命令");
                     input.addEventListener("keydown", (event) => {
                         if (event.key !== "Enter") return;
                         const line = input.value;
@@ -2457,25 +2502,6 @@
                         input.focus();
                     });
                     setTimeout(() => input.focus(), 100);
-                }
-            };
-
-            APPS.github = {
-                name: "GitHub Desktop", icon: "🐙", minRank: 2, width: 840, height: 580,
-                mount(body) {
-                    const repo = gitState();
-                    body.innerHTML = `<div class="row"><button class="xos-btn primary" data-commit>提交更改</button><button class="xos-btn" data-push>推送（模拟）</button><a class="xos-btn" href="https://github.com/Caldson" target="_blank" rel="noopener">打开 GitHub</a></div><div class="xos-grid2" style="margin-top:12px"><div class="xos-panel"><h3>Changes</h3><p class="tiny">当前分支 ${esc(repo.branch)} · ${repo.commits.length} 个提交</p><div class="xos-list" data-changes></div></div><div class="xos-panel"><h3>History</h3><div class="xos-list" data-history></div></div></div>`;
-                    const changes = [{ name: "README.md", status: "修改" }, { name: "src/main.js", status: "新增" }];
-                    body.querySelector("[data-changes]").innerHTML = changes.map((file) => `<div class="xos-panel" style="padding:8px">${esc(file.name)} <span class="tiny">${file.status}</span></div>`).join("");
-                    body.querySelector("[data-history]").innerHTML = repo.commits.length ? repo.commits.map((commit) => `<div class="xos-panel" style="padding:8px">${esc(commit.message)} <span class="tiny">${commit.hash}</span></div>`).join("") : '<p class="tiny">还没有提交。</p>';
-                    body.querySelector("[data-commit]").addEventListener("click", () => {
-                        const message = prompt("提交说明", "Update XOS project");
-                        if (!message) return;
-                        const next = gitState(); next.commits.unshift({ hash: Math.random().toString(16).slice(2, 9), message, at: Date.now() }); saveGit(next);
-                        toast("已提交到本地仓库");
-                        closeWindow("github"); openApp("github");
-                    });
-                    body.querySelector("[data-push]").addEventListener("click", () => toast("这是模拟 GitHub Desktop，不会真的推送"));
                 }
             };
 
@@ -2777,7 +2803,7 @@
                 return raw.filter((item) => item && typeof item === "object").map((item, index) => ({
                     ...item,
                     id: String(item.id || `xd_${item.edition || "home"}_${item.generation || 1}_${index}`),
-                    generation: Number(item.generation) === 2 ? 2 : 1,
+                    generation: Number(item.generation) >= 3 ? 3 : Number(item.generation) === 2 ? 2 : 1,
                     rank: Number(item.rank) || 0
                 }));
             }
@@ -2798,7 +2824,7 @@
 
             function configureDevice(device) {
                 const edition = editionForDevice(device);
-                const generation = Number(device.generation) === 2 ? 2 : 1;
+                const generation = Number(device.generation) >= 3 ? 3 : Number(device.generation) === 2 ? 2 : 1;
                 state.license = device;
                 state.deviceId = device.id;
                 state.edition = edition;
@@ -2868,7 +2894,7 @@
                     button.dataset.deviceId = device.id;
                     const name = cleanDeviceName(device);
                     const edition = editionForDevice(device);
-                    const generation = Number(device.generation) === 2 ? 2 : 1;
+                    const generation = Number(device.generation) >= 3 ? 3 : Number(device.generation) === 2 ? 2 : 1;
                     const apps = APP_ORDER.filter((id) => {
                         const app = APPS[id];
                         if (typeof app.available === "function") return app.available(edition, generation);
@@ -3032,10 +3058,16 @@
                         /* 忽略缓存刷新失败，继续使用当前页面 */
                     }
                 }
-                if (!API.hasSession()) { renderGate("请先登录账户。"); return; }
+                const offlineAccount = loadOfflineAccount();
+                if (!API.hasSession()) {
+                    if (bootOffline(offlineAccount)) return;
+                    renderGate("请先登录账户。");
+                    return;
+                }
                 try {
                     const account = await API.me();
                     state.login = account.login || sessionStorage.getItem("vtxAccount") || "user";
+                    saveOfflineAccount(account);
                     loadFs();
                     if (applyLicense(account)) {
                         $("xos-boot").hidden = false;
@@ -3046,6 +3078,7 @@
                         $("xos-gate-note").innerHTML = '当前账户还没有 XOS 授权，<a class="xos-link" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">去商店购买</a>。';
                     }
                 } catch (error) {
+                    if (bootOffline(offlineAccount)) return;
                     renderGate(error && error.message ? error.message : "读取账户失败，请稍后刷新。");
                 }
             }
@@ -3057,5 +3090,6 @@
             init();
         })();
     </script>
+    <script src="vtx-pwa.js?v=7.0.0" defer></script>
 </body>
 </html>
