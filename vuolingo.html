@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#58cc02">
     <title>Vuolingo | Vitual XRing</title>
-    <script src="vtx-api.js?v=7.3.0"></script>
+    <script src="vtx-api.js?v=7.3.1"></script>
     <style>
         :root { color-scheme: light; font-family: "Nunito", "Segoe UI", "Microsoft YaHei", sans-serif; --green: #58cc02; --green-dark: #46a302; --blue: #1cb0f6; --ink: #3c3c3c; --muted: #777; --line: #e5e5e5; --bg: #fff; }
         * { box-sizing: border-box; }
@@ -158,7 +158,7 @@
         </div>
     </dialog>
 
-    <script src="vtx-pwa.js?v=7.3.0" defer></script>
+    <script src="vtx-pwa.js?v=7.3.1" defer></script>
     <script>
         (function () {
             "use strict";
@@ -177,25 +177,42 @@
             };
             const DEFAULT_TYPES = { target2zh: true, zh2target: true, spell: true, reading: true, listening: false, shadowing: false, recitation: false };
 
-            function numbersEnglish() {
-                const words = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
-                const zh = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十"];
-                const out = words.map((word, index) => ({ target: word, zh: zh[index], kind: "word" }));
-                const tens = [["ten", "十"], ["twenty", "二十"], ["thirty", "三十"], ["forty", "四十"], ["fifty", "五十"], ["sixty", "六十"], ["seventy", "七十"], ["eighty", "八十"], ["ninety", "九十"], ["one hundred", "一百"]];
-                for (const [target, cn] of tens) out.push({ target, zh: cn, kind: "word" });
-                out.push({ target: "ten", zh: "十", kind: "word" }, { target: "hundred", zh: "百", kind: "word" });
-                return out;
+            function uniqueWords(words) {
+                const seen = new Set();
+                return words.filter((word) => {
+                    if (seen.has(word.target)) return false;
+                    seen.add(word.target);
+                    return true;
+                });
             }
 
-            function numbersJapanese() {
-                const readings = ["いち", "に", "さん", "よん", "ご", "ろく", "なな", "はち", "きゅう", "じゅう", "じゅういち", "じゅうに", "じゅうさん", "じゅうよん", "じゅうご", "じゅうろく", "じゅうなな", "じゅうはち", "じゅうきゅう", "にじゅう"];
-                const romaji = ["ichi", "ni", "san", "yon", "go", "roku", "nana", "hachi", "kyuu", "juu", "juuichi", "juuni", "juusan", "juuyon", "juugo", "juuroku", "juunana", "juuhachi", "juukyuu", "nijuu"];
+            function numberLessonObjects(language) {
                 const zh = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十"];
-                const out = readings.map((word, index) => ({ target: word, romaji: romaji[index], zh: zh[index], kind: "word" }));
-                const tens = [["じゅう", "juu", "十"], ["にじゅう", "nijuu", "二十"], ["さんじゅう", "sanjuu", "三十"], ["よんじゅう", "yonjuu", "四十"], ["ごじゅう", "gojuu", "五十"], ["ろくじゅう", "rokujuu", "六十"], ["ななじゅう", "nanajuu", "七十"], ["はちじゅう", "hachijuu", "八十"], ["きゅうじゅう", "kyuujuu", "九十"], ["ひゃく", "hyaku", "一百"]];
-                for (const [target, r, cn] of tens) out.push({ target, romaji: r, zh: cn, kind: "word" });
-                out.push({ target: "じゅう", romaji: "juu", zh: "十", kind: "word" }, { target: "ひゃく", romaji: "hyaku", zh: "百", kind: "word" });
-                return out;
+                const english = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
+                const japanese = ["いち", "に", "さん", "よん", "ご", "ろく", "なな", "はち", "きゅう", "じゅう", "じゅういち", "じゅうに", "じゅうさん", "じゅうよん", "じゅうご", "じゅうろく", "じゅうなな", "じゅうはち", "じゅうきゅう", "にじゅう"];
+                const japaneseRomaji = ["ichi", "ni", "san", "yon", "go", "roku", "nana", "hachi", "kyuu", "juu", "juuichi", "juuni", "juusan", "juuyon", "juugo", "juuroku", "juunana", "juuhachi", "juukyuu", "nijuu"];
+                const words = language === "en"
+                    ? english.map((word, index) => ({ target: word, zh: zh[index], kind: "word" }))
+                    : japanese.map((word, index) => ({ target: word, romaji: japaneseRomaji[index], zh: zh[index], kind: "word" }));
+                const tens = language === "en"
+                    ? [["ten", "十"], ["twenty", "二十"], ["thirty", "三十"], ["forty", "四十"], ["fifty", "五十"], ["sixty", "六十"], ["seventy", "七十"], ["eighty", "八十"], ["ninety", "九十"], ["one hundred", "一百"]].map(([target, cn]) => ({ target, zh: cn, kind: "word" }))
+                    : [["じゅう", "juu", "十"], ["にじゅう", "nijuu", "二十"], ["さんじゅう", "sanjuu", "三十"], ["よんじゅう", "yonjuu", "四十"], ["ごじゅう", "gojuu", "五十"], ["ろくじゅう", "rokujuu", "六十"], ["ななじゅう", "nanajuu", "七十"], ["はちじゅう", "hachijuu", "八十"], ["きゅうじゅう", "kyuujuu", "九十"], ["ひゃく", "hyaku", "一百"]].map(([target, romaji, cn]) => ({ target, romaji, zh: cn, kind: "word" }));
+                const tenAndHundred = language === "en"
+                    ? [{ target: "ten", zh: "十", kind: "word" }, { target: "hundred", zh: "百", kind: "word" }]
+                    : [{ target: "じゅう", romaji: "juu", zh: "十", kind: "word" }, { target: "ひゃく", romaji: "hyaku", zh: "百", kind: "word" }];
+                const groups = [
+                    words.slice(0, 4),
+                    words.slice(4, 8),
+                    words.slice(8, 12),
+                    words.slice(12, 16),
+                    [...words.slice(16, 20), ...tens]
+                ];
+                return groups.map((group, index) => ({
+                    id: `${language}-${index + 4}`,
+                    section: `第 1 节 · 第 ${index + 4} 课`,
+                    title: `让我们说数字 ${index + 1}`,
+                    words: uniqueWords([...group, ...tenAndHundred])
+                }));
             }
 
             const COURSES = {
@@ -205,7 +222,7 @@
                         { id: "en-1", section: "第 1 节 · 第 1 课", title: "打招呼", words: [["Hello", "你好"], ["Goodbye", "再见"], ["Good morning", "早上好"], ["Good afternoon", "下午好"]].map(([target, zh]) => ({ target, zh, kind: "word" })) },
                         { id: "en-2", section: "第 1 节 · 第 2 课", title: "点食物与饮料", words: [["Food", "食物"], ["Rice", "米饭"], ["Water", "水"], ["Sushi", "寿司"], ["Tea", "茶"], ["Please give me a xxx.", "请给我一个 xxx。"]].map(([target, zh]) => ({ target, zh, kind: target.endsWith(".") ? "sentence" : "word" })) },
                         { id: "en-3", section: "第 1 节 · 第 3 课", title: "礼貌的点食物与饮料", words: [["Could you give me a xxx, please?", "请给我一个 xxx，好吗？"], ["Could you please give me a xxx?", "请您给我一个 xxx 好吗？"], ["May I have a xxx?", "我可以要一个 xxx 吗？"], ["Excuse me.", "不好意思 / 打扰一下。"]].map(([target, zh]) => ({ target, zh, kind: "sentence" })) },
-                        { id: "en-4", section: "第 1 节 · 第 4 课", title: "让我们说数字", words: numbersEnglish() }
+                        ...numberLessonObjects("en")
                     ]
                 },
                 ja: {
@@ -214,7 +231,7 @@
                         { id: "ja-1", section: "第 1 节 · 第 1 课", title: "打招呼", words: [["こんにちは", "konnichiwa", "你好"], ["おはよう", "ohayou", "早上好"], ["こんばんは", "konbanwa", "晚上好"], ["またあした", "mata ashita", "明天见"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: "word" })) },
                         { id: "ja-2", section: "第 1 节 · 第 2 课", title: "点食物与饮料", words: [["ごはん", "gohan", "米饭"], ["みず", "mizu", "水"], ["すし", "sushi", "寿司"], ["おちゃ", "ocha", "茶"], ["xxx、ください", "xxx kudasai", "请给我 xxx。"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: "word" })) },
                         { id: "ja-3", section: "第 1 节 · 第 3 课", title: "礼貌的打招呼", words: [["おはようございます", "ohayou gozaimasu", "早上好（礼貌）"], ["すみません", "sumimasen", "不好意思 / 对不起"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: "word" })) },
-                        { id: "ja-4", section: "第 1 节 · 第 4 课", title: "让我们说数字", words: numbersJapanese() }
+                        ...numberLessonObjects("ja")
                     ]
                 }
             };
@@ -374,7 +391,7 @@
                 courseArea.textContent = "";
                 const strip = document.createElement("div");
                 strip.className = "course-strip";
-                strip.innerHTML = `<span class="flag">${course.flag}</span><div><b>${course.name} · ${course.unit}</b><span>4 节课程 · 已完成 ${done.length} 节 · 按顺序解锁</span></div>`;
+                strip.innerHTML = `<span class="flag">${course.flag}</span><div><b>${course.name} · ${course.unit}</b><span>${course.lessons.length} 节课程 · 已完成 ${done.length} 节 · 按顺序解锁</span></div>`;
                 courseArea.appendChild(strip);
                 const list = document.createElement("div");
                 list.className = "lesson-list";
