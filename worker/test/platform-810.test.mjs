@@ -5,14 +5,14 @@ import fs from "node:fs";
 const root = new URL("../../", import.meta.url);
 const read = (name) => fs.readFileSync(new URL(name, root), "utf8");
 
-test("8.0.0：页面缓存与离线入口齐全", () => {
+test("8.1.0：页面缓存与离线入口齐全", () => {
     const sw = read("vtx-sw.js");
     const pwa = read("vtx-pwa.js");
-    assert.match(sw, /xring-v8\.0\.0/);
+    assert.match(sw, /xring-v8\.1\.0/);
     assert.match(sw, /offline\.html/);
     assert.match(sw, /url\.pathname\.startsWith\("\/api\/"\)/);
     assert.match(sw, /version\.json/);
-    assert.match(pwa, /CLIENT_VERSION = "8\.0\.0"/);
+    assert.match(pwa, /CLIENT_VERSION = "8\.1\.0"/);
     assert.match(pwa, /clearPageCaches/);
     assert.match(pwa, /checkForNewVersion/);
     assert.match(pwa, /isNewerVersion/);
@@ -23,9 +23,9 @@ test("8.0.0：页面缓存与离线入口齐全", () => {
     assert.equal(fs.existsSync(new URL("offline.html", root)), true);
     assert.equal(fs.existsSync(new URL("version.json", root)), true);
     const version = JSON.parse(read("version.json"));
-    assert.equal(version.version, "8.0.0");
+    assert.equal(version.version, "8.1.0");
     for (const page of ["index.html", "shop.html", "xos.html", "vitualgit.html", "vuolingo.html"]) {
-        assert.match(read(page), /vtx-pwa\.js\?v=8\.0\.0/, `${page} 缺少 PWA 注册`);
+        assert.match(read(page), /vtx-pwa\.js\?v=8\.1\.0/, `${page} 缺少 PWA 注册`);
     }
     assert.match(read("xos.html"), /loadOfflineAccount/);
     assert.match(read("xos.html"), /xos:offlineAccount/);
@@ -34,7 +34,7 @@ test("8.0.0：页面缓存与离线入口齐全", () => {
     assert.match(sw, /vtx-theme\.js/);
 });
 
-test("8.0.0：全站主题、浅色/深色/自动与设置栏目", () => {
+test("8.1.0：全站主题、浅色/深色/自动与设置栏目", () => {
     for (const file of ["vtx-theme.css", "vtx-theme.js", "settings.html"]) {
         assert.equal(fs.existsSync(new URL(file, root)), true, `${file} 不存在`);
     }
@@ -64,32 +64,54 @@ test("8.0.0：全站主题、浅色/深色/自动与设置栏目", () => {
     assert.match(settings, /日本語/);
     assert.match(home, /settings\.html/);
     assert.match(home, /data-i18n="hero\.title1"/);
-    assert.match(home, /vtx-theme\.css\?v=8\.0\.0/);
-    assert.match(home, /vtx-theme\.js\?v=8\.0\.0/);
+    assert.match(home, /vtx-theme\.css\?v=8\.1\.0/);
+    assert.match(home, /vtx-theme\.js\?v=8\.1\.0/);
     for (const page of ["shop.html", "xos.html", "vitualgit.html", "vuolingo.html", "manager.html"]) {
-        assert.match(read(page), /vtx-theme\.css\?v=8\.0\.0/, `${page} 未接入主题`);
-        assert.match(read(page), /vtx-theme\.js\?v=8\.0\.0/, `${page} 未接入主题脚本`);
+        assert.match(read(page), /vtx-theme\.css\?v=8\.1\.0/, `${page} 未接入主题`);
+        assert.match(read(page), /vtx-theme\.js\?v=8\.1\.0/, `${page} 未接入主题脚本`);
     }
 });
 
-test("8.0.0：商店搜索框和过滤逻辑齐全", () => {
+test("8.1.0：液态玻璃透明度/模糊设置与管理员仓库修改器移除", () => {
+    const theme = read("vtx-theme.js");
+    const css = read("vtx-theme.css");
+    const settings = read("settings.html");
+    assert.match(theme, /GLASS_KEY/);
+    assert.match(theme, /GLASS_DEFAULTS/);
+    assert.match(theme, /applyGlass/);
+    assert.match(theme, /setGlass/);
+    assert.match(theme, /xring:glass/);
+    assert.match(css, /--vtx-glass-alpha/);
+    assert.match(css, /--vtx-glass-blur/);
+    assert.match(css, /data-glass/);
+    assert.match(settings, /id="glass-enabled"/);
+    assert.match(settings, /id="glass-opacity"/);
+    assert.match(settings, /id="glass-blur"/);
+    assert.match(settings, /液态玻璃/);
+    assert.equal(fs.existsSync(new URL("admin.html", root)), false);
+    assert.equal(fs.existsSync(new URL("vtx-repo.js", root)), false);
+    assert.doesNotMatch(read("manager.html"), /href="admin\.html"/);
+    assert.doesNotMatch(read("accounts-admin.html"), /href="admin\.html"/);
+});
+
+test("8.1.0：商店搜索框和过滤逻辑齐全", () => {
     const shop = read("shop.html");
     assert.match(shop, /id="shop-search"/);
     assert.match(shop, /shopQuery/);
     assert.match(shop, /没有找到匹配的商品/);
 });
 
-test("8.0.0：VitualGit 删除 GitHub 登录预告，保留 Proxy 镜像", () => {
+test("8.1.0：VitualGit 删除 GitHub 登录预告，保留 Proxy 镜像", () => {
     const page = read("vitualgit.html");
     assert.match(page, /VitualGit/);
     assert.match(page, /gh-proxy\.com/);
     assert.match(page, /Vitual XRing 登录/);
     assert.match(page, /api\.github\.com/);
-    assert.doesNotMatch(page, /GitHub 登录将在 8\.0\.0/);
+    assert.doesNotMatch(page, /GitHub 登录将在 8\.1\.0/);
     assert.doesNotMatch(page, /GitHub OAuth 登录/);
 });
 
-test("8.0.0：Vuolingo 语言选择、添加语言和课程内容", () => {
+test("8.1.0：Vuolingo 语言选择、添加语言和课程内容", () => {
     const page = read("vuolingo.html");
     assert.match(page, /选择你要学习的语言/);
     assert.match(page, /添加语言/);
@@ -123,7 +145,7 @@ test("8.0.0：Vuolingo 语言选择、添加语言和课程内容", () => {
     assert.match(page, /罗马音/);
 });
 
-test("8.0.0：Vuolingo 题型完整且听力/口语可关闭", () => {
+test("8.1.0：Vuolingo 题型完整且听力/口语可关闭", () => {
     const page = read("vuolingo.html");
     for (const label of ["英/日译中", "中译英/日", "单词拼写", "听写", "跟读", "背诵", "阅读"]) {
         assert.match(page, new RegExp(label.replace("/", "\\/")), `缺少题型 ${label}`);
@@ -139,7 +161,7 @@ test("8.0.0：Vuolingo 题型完整且听力/口语可关闭", () => {
     assert.match(page, /こんばんわ/);
 });
 
-test("8.0.0：首页和账户页有 VitualGit / Vuolingo 入口", () => {
+test("8.1.0：首页和账户页有 VitualGit / Vuolingo 入口", () => {
     const home = read("index.html");
     const manager = read("manager.html");
     assert.match(home, /vitualgit\.html/);
@@ -148,7 +170,7 @@ test("8.0.0：首页和账户页有 VitualGit / Vuolingo 入口", () => {
     assert.match(manager, /vuolingo\.html/);
 });
 
-test("8.0.0：XOS 26H3 产品、VitualGit 与免费升级", () => {
+test("8.1.0：XOS 26H3 产品、VitualGit 与免费升级", () => {
     const shop = JSON.parse(read("shop.json"));
     const items = shop["XOS虚拟云电脑"];
     const h3 = items.filter((item) => Number(item.xosGeneration) === 3);

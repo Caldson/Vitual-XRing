@@ -1,4 +1,4 @@
-/* Vitual XRing 8.0.0 — global design system, light/dark theme, settings widget */
+/* Vitual XRing 8.1.0 — global design system, light/dark theme, settings widget */
 :root {
     color-scheme: light;
     --vtx-bg: #f3f6fb;
@@ -20,6 +20,10 @@
     --vtx-radius: 18px;
     --vtx-radius-sm: 12px;
     --vtx-font: "Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans", sans-serif;
+    --vtx-glass-alpha: 0.56;
+    --vtx-glass-blur: 18px;
+    --vtx-glass-rgb: 255 255 255;
+    --vtx-glass-border: 255 255 255;
 }
 
 [data-theme="dark"] {
@@ -40,10 +44,13 @@
     --vtx-danger: #ff727e;
     --vtx-shadow: 0 20px 55px rgba(0, 0, 0, .35);
     --vtx-shadow-soft: 0 8px 26px rgba(0, 0, 0, .22);
+    --vtx-glass-rgb: 21 29 43;
+    --vtx-glass-border: 150 170 205;
 }
 
 html { background: var(--vtx-bg); }
 body {
+    position: relative;
     background:
         radial-gradient(circle at 8% -4%, color-mix(in srgb, var(--vtx-accent) 13%, transparent) 0, transparent 34%),
         radial-gradient(circle at 96% 4%, color-mix(in srgb, var(--vtx-accent-2) 11%, transparent) 0, transparent 30%),
@@ -51,6 +58,71 @@ body {
     color: var(--vtx-text) !important;
     font-family: var(--vtx-font);
     transition: background-color 180ms ease, color 180ms ease;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: -22%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--vtx-accent) 24%, transparent) 0, transparent 26%),
+        radial-gradient(circle at 82% 12%, color-mix(in srgb, var(--vtx-accent-2) 22%, transparent) 0, transparent 28%),
+        radial-gradient(circle at 64% 82%, color-mix(in srgb, var(--vtx-accent) 15%, transparent) 0, transparent 32%);
+    filter: blur(34px) saturate(1.18);
+    opacity: .72;
+    animation: vtx-aurora 22s ease-in-out infinite alternate;
+}
+
+@keyframes vtx-aurora {
+    0% { transform: translate3d(-2%, -1%, 0) scale(1); }
+    50% { transform: translate3d(2%, 2%, 0) scale(1.06); }
+    100% { transform: translate3d(-1%, 3%, 0) scale(1.02); }
+}
+
+.vtx-glass,
+.vtx-topbar,
+.vtx-theme-widget {
+    border: 1px solid rgb(var(--vtx-glass-border) / .52);
+    background: rgb(var(--vtx-glass-rgb) / var(--vtx-glass-alpha));
+    -webkit-backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.45);
+    backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.45);
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / .45),
+        inset 0 -1px 0 rgb(255 255 255 / .08),
+        var(--vtx-shadow-soft);
+}
+
+[data-theme="dark"] .vtx-glass,
+[data-theme="dark"] .vtx-topbar,
+[data-theme="dark"] .vtx-theme-widget {
+    border-color: rgb(var(--vtx-glass-border) / .32);
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / .12),
+        inset 0 -1px 0 rgb(0 0 0 / .16),
+        var(--vtx-shadow-soft);
+}
+
+html[data-glass="off"] .vtx-glass,
+html[data-glass="off"] .vtx-topbar,
+html[data-glass="off"] .vtx-theme-widget,
+html[data-glass="off"] .topbar {
+    background: var(--vtx-surface) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+/* Legacy pages: give their existing header the same glass treatment. */
+[data-theme="light"] .topbar {
+    background: rgb(var(--vtx-glass-rgb) / calc(var(--vtx-glass-alpha) + .18)) !important;
+    -webkit-backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.35);
+    backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.35);
+}
+[data-theme="dark"] .topbar {
+    background: rgb(var(--vtx-glass-rgb) / calc(var(--vtx-glass-alpha) + .16)) !important;
+    -webkit-backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.3);
+    backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.3);
 }
 
 /* Shared surface overrides for legacy pages. Scoped so the new pages stay predictable. */

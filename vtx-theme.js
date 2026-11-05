@@ -1,7 +1,7 @@
-/* Vitual XRing 8.0.0 — theme + language shell */
+/* Vitual XRing 8.1.0 — theme + language shell */
 (function () {
     "use strict";
-    const VERSION = "8.0.0";
+    const VERSION = "8.1.0";
     const THEME_KEY = "xring:theme";
     const LANGUAGE_KEY = "xring:language";
     const THEME_MODES = ["auto", "light", "dark"];
@@ -33,11 +33,16 @@
             "card.share.title": "分享", "card.share.desc": "自定义分享卡片与站内识别",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 风格仓库浏览 · Proxy 镜像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英语 / 日语课程与 7 种题型",
-            "footer": "Vitual XRing 8.0.0 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。",
+            "footer": "Vitual XRing 8.1.0 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。",
             "widget.theme": "切换主题", "widget.settings": "打开设置",
             "widget.themeAuto": "主题：自动（{theme}）", "widget.themeLight": "主题：浅色", "widget.themeDark": "主题：深色",
             "settings.kicker": "界面偏好", "settings.title": "设置", "settings.subtitle": "主题、语言和显示偏好会保存在本机，并立即生效。",
             "settings.back": "返回首页", "settings.appearance": "外观", "settings.appearanceDesc": "自动模式跟随设备的浅色 / 深色设置。",
+            "settings.glass": "液态玻璃", "settings.glassDesc": "调整玻璃表面的透明度和模糊强度；关闭后使用纯色表面。",
+            "settings.glassEnabled": "启用液态玻璃", "settings.glassEnableHint": "让顶栏、卡片和悬浮组件呈现半透明玻璃质感",
+            "settings.glassOpacity": "玻璃透明度", "settings.glassOpacityHint": "数值越低越透明",
+            "settings.glassBlur": "模糊强度", "settings.glassBlurHint": "数值越高背景越模糊",
+            "settings.glassPreview": "玻璃预览", "settings.glassPreviewText": "拖动滑块，实时查看液态玻璃效果。",
             "settings.themeAuto": "自动", "settings.themeAutoHint": "跟随设备", "settings.themeLight": "浅色", "settings.themeLightHint": "始终明亮", "settings.themeDark": "深色", "settings.themeDarkHint": "始终暗色",
             "settings.language": "语言", "settings.languageDesc": "选择界面语言；跟随地区会依据设备时区判断。",
             "settings.langAuto": "跟随设备（默认）", "settings.langAutoHint": "使用浏览器语言", "settings.langRegion": "跟随地区", "settings.langRegionHint": "依据设备时区", "settings.langZhCN": "简体中文", "settings.langZhCNHint": "中国大陆", "settings.langZhTW": "繁體中文", "settings.langZhTWHint": "台灣 / 香港 / 澳門", "settings.langEn": "English", "settings.langEnHint": "English interface", "settings.langJa": "日本語", "settings.langJaHint": "日本語インターフェース",
@@ -73,11 +78,16 @@
             "card.share.title": "分享", "card.share.desc": "自訂分享卡片與站內辨識",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風格倉庫瀏覽 · Proxy 鏡像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日語課程與 7 種題型",
-            "footer": "Vitual XRing 8.0.0 · XOS 是瀏覽器端虛擬桌面，不是真實遠端虛擬機。",
+            "footer": "Vitual XRing 8.1.0 · XOS 是瀏覽器端虛擬桌面，不是真實遠端虛擬機。",
             "widget.theme": "切換主題", "widget.settings": "開啟設定",
             "widget.themeAuto": "主題：自動（{theme}）", "widget.themeLight": "主題：淺色", "widget.themeDark": "主題：深色",
             "settings.kicker": "介面偏好", "settings.title": "設定", "settings.subtitle": "主題、語言和顯示偏好會保存在本機，並立即生效。",
             "settings.back": "返回首頁", "settings.appearance": "外觀", "settings.appearanceDesc": "自動模式跟隨裝置的淺色 / 深色設定。",
+            "settings.glass": "液態玻璃", "settings.glassDesc": "調整玻璃表面的透明度和模糊強度；關閉後使用純色表面。",
+            "settings.glassEnabled": "啟用液態玻璃", "settings.glassEnableHint": "讓頂欄、卡片和懸浮元件呈現半透明玻璃質感",
+            "settings.glassOpacity": "玻璃透明度", "settings.glassOpacityHint": "數值越低越透明",
+            "settings.glassBlur": "模糊強度", "settings.glassBlurHint": "數值越高背景越模糊",
+            "settings.glassPreview": "玻璃預覽", "settings.glassPreviewText": "拖動滑桿，即時查看液態玻璃效果。",
             "settings.themeAuto": "自動", "settings.themeAutoHint": "跟隨裝置", "settings.themeLight": "淺色", "settings.themeLightHint": "始終明亮", "settings.themeDark": "深色", "settings.themeDarkHint": "始終暗色",
             "settings.language": "語言", "settings.languageDesc": "選擇介面語言；跟隨地區會依據裝置時區判斷。",
             "settings.langAuto": "跟隨裝置（預設）", "settings.langAutoHint": "使用瀏覽器語言", "settings.langRegion": "跟隨地區", "settings.langRegionHint": "依據裝置時區", "settings.langZhCN": "简体中文", "settings.langZhCNHint": "中國大陸", "settings.langZhTW": "繁體中文", "settings.langZhTWHint": "台灣 / 香港 / 澳門", "settings.langEn": "English", "settings.langEnHint": "English interface", "settings.langJa": "日本語", "settings.langJaHint": "日本語インターフェース",
@@ -113,11 +123,16 @@
             "card.share.title": "Share", "card.share.desc": "Custom share cards and in-site previews",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub-style repository browser · proxy mirror",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "English / Japanese lessons and 7 exercise types",
-            "footer": "Vitual XRing 8.0.0 · XOS is a browser virtual desktop, not a real remote VM.",
+            "footer": "Vitual XRing 8.1.0 · XOS is a browser virtual desktop, not a real remote VM.",
             "widget.theme": "Change theme", "widget.settings": "Open settings",
             "widget.themeAuto": "Theme: auto ({theme})", "widget.themeLight": "Theme: light", "widget.themeDark": "Theme: dark",
             "settings.kicker": "Interface preferences", "settings.title": "Settings", "settings.subtitle": "Theme, language and display preferences are saved on this device and applied immediately.",
             "settings.back": "Back home", "settings.appearance": "Appearance", "settings.appearanceDesc": "Auto follows your device's light or dark setting.",
+            "settings.glass": "Liquid glass", "settings.glassDesc": "Tune the transparency and blur of glass surfaces. Turn it off for solid surfaces.",
+            "settings.glassEnabled": "Enable liquid glass", "settings.glassEnableHint": "Give the header, cards and floating controls a translucent glass finish",
+            "settings.glassOpacity": "Glass opacity", "settings.glassOpacityHint": "Lower values are more transparent",
+            "settings.glassBlur": "Blur strength", "settings.glassBlurHint": "Higher values blur the background more",
+            "settings.glassPreview": "Glass preview", "settings.glassPreviewText": "Drag the sliders to preview the liquid-glass effect live.",
             "settings.themeAuto": "Auto", "settings.themeAutoHint": "Follow device", "settings.themeLight": "Light", "settings.themeLightHint": "Always bright", "settings.themeDark": "Dark", "settings.themeDarkHint": "Always dark",
             "settings.language": "Language", "settings.languageDesc": "Choose the interface language. Follow region uses your device time zone.",
             "settings.langAuto": "Follow device (default)", "settings.langAutoHint": "Use browser language", "settings.langRegion": "Follow region", "settings.langRegionHint": "Use device time zone", "settings.langZhCN": "简体中文", "settings.langZhCNHint": "Mainland China", "settings.langZhTW": "繁體中文", "settings.langZhTWHint": "Taiwan / Hong Kong / Macau", "settings.langEn": "English", "settings.langEnHint": "English interface", "settings.langJa": "日本語", "settings.langJaHint": "Japanese interface",
@@ -153,11 +168,16 @@
             "card.share.title": "共有", "card.share.desc": "カスタム共有カードとサイト内プレビュー",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風リポジトリ閲覧 · Proxy ミラー",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日本語レッスンと7種類の練習",
-            "footer": "Vitual XRing 8.0.0 · XOS はブラウザ内の仮想デスクトップであり、実際のリモート VM ではありません。",
+            "footer": "Vitual XRing 8.1.0 · XOS はブラウザ内の仮想デスクトップであり、実際のリモート VM ではありません。",
             "widget.theme": "テーマを切り替え", "widget.settings": "設定を開く",
             "widget.themeAuto": "テーマ：自動（{theme}）", "widget.themeLight": "テーマ：ライト", "widget.themeDark": "テーマ：ダーク",
             "settings.kicker": "表示設定", "settings.title": "設定", "settings.subtitle": "テーマ、言語、表示設定はこの端末に保存され、すぐに反映されます。",
             "settings.back": "ホームへ戻る", "settings.appearance": "外観", "settings.appearanceDesc": "自動は端末のライト / ダーク設定に従います。",
+            "settings.glass": "リキッドグラス", "settings.glassDesc": "ガラス表面の透明度とぼかしを調整します。オフにすると不透明になります。",
+            "settings.glassEnabled": "リキッドグラスを有効化", "settings.glassEnableHint": "ヘッダー、カード、フローティング操作に半透明のガラス質感を加えます",
+            "settings.glassOpacity": "ガラスの透明度", "settings.glassOpacityHint": "低いほど透明になります",
+            "settings.glassBlur": "ぼかしの強さ", "settings.glassBlurHint": "高いほど背景が強くぼけます",
+            "settings.glassPreview": "ガラスプレビュー", "settings.glassPreviewText": "スライダーを動かしてリキッドグラスの効果を確認できます。",
             "settings.themeAuto": "自動", "settings.themeAutoHint": "端末に従う", "settings.themeLight": "ライト", "settings.themeLightHint": "常に明るく", "settings.themeDark": "ダーク", "settings.themeDarkHint": "常に暗く",
             "settings.language": "言語", "settings.languageDesc": "表示言語を選択します。地域に従う場合は端末のタイムゾーンを使います。",
             "settings.langAuto": "端末に従う（既定）", "settings.langAutoHint": "ブラウザ言語を使用", "settings.langRegion": "地域に従う", "settings.langRegionHint": "端末のタイムゾーンを使用", "settings.langZhCN": "简体中文", "settings.langZhCNHint": "中国大陸", "settings.langZhTW": "繁體中文", "settings.langZhTWHint": "台湾 / 香港 / マカオ", "settings.langEn": "English", "settings.langEnHint": "English interface", "settings.langJa": "日本語", "settings.langJaHint": "日本語インターフェース",
@@ -193,6 +213,38 @@
     if (!THEME_MODES.includes(themeMode)) themeMode = "auto";
     let languageMode = read(LANGUAGE_KEY, "auto");
     if (!LANGUAGE_MODES.includes(languageMode)) languageMode = "auto";
+
+    const GLASS_KEY = "xring:glass";
+    const GLASS_DEFAULTS = { enabled: true, opacity: 0.56, blur: 18 };
+    let glass = { ...GLASS_DEFAULTS };
+    try {
+        const savedGlass = JSON.parse(read(GLASS_KEY, "{}") || "{}");
+        if (savedGlass && typeof savedGlass === "object") {
+            glass.enabled = savedGlass.enabled !== false;
+            glass.opacity = Number.isFinite(Number(savedGlass.opacity)) ? Math.min(.95, Math.max(.2, Number(savedGlass.opacity))) : GLASS_DEFAULTS.opacity;
+            glass.blur = Number.isFinite(Number(savedGlass.blur)) ? Math.min(40, Math.max(0, Number(savedGlass.blur))) : GLASS_DEFAULTS.blur;
+        }
+    } catch (error) {
+        glass = { ...GLASS_DEFAULTS };
+    }
+
+    function applyGlass() {
+        document.documentElement.dataset.glass = glass.enabled ? "on" : "off";
+        document.documentElement.style.setProperty("--vtx-glass-alpha", String(glass.opacity));
+        document.documentElement.style.setProperty("--vtx-glass-blur", `${glass.blur}px`);
+        window.dispatchEvent(new CustomEvent("vtx:glasschange", { detail: { ...glass } }));
+    }
+
+    function setGlass(patch) {
+        const next = { ...glass, ...(patch || {}) };
+        glass = {
+            enabled: Boolean(next.enabled),
+            opacity: Math.min(.95, Math.max(.2, Number(next.opacity) || GLASS_DEFAULTS.opacity)),
+            blur: Math.min(40, Math.max(0, Number(next.blur) || 0))
+        };
+        write(GLASS_KEY, JSON.stringify(glass));
+        applyGlass();
+    }
 
     function deviceLanguage() {
         const candidates = Array.isArray(navigator.languages) && navigator.languages.length
@@ -353,11 +405,13 @@
 
     // Apply theme as early as possible to avoid a flash of the wrong colour.
     applyTheme();
+    applyGlass();
     document.documentElement.lang = effectiveLanguage();
     document.documentElement.dataset.language = effectiveLanguage();
 
     document.addEventListener("DOMContentLoaded", () => {
         applyTheme();
+        applyGlass();
         applyLanguage();
         createWidget();
         if (document.body) document.body.classList.add("vtx-theme-ready");
@@ -378,6 +432,17 @@
             languageMode = LANGUAGE_MODES.includes(event.newValue) ? event.newValue : "auto";
             applyLanguage();
         }
+        if (event.key === GLASS_KEY) {
+            try {
+                const savedGlass = JSON.parse(event.newValue || "{}");
+                if (savedGlass && typeof savedGlass === "object") {
+                    glass.enabled = savedGlass.enabled !== false;
+                    glass.opacity = Math.min(.95, Math.max(.2, Number(savedGlass.opacity) || GLASS_DEFAULTS.opacity));
+                    glass.blur = Math.min(40, Math.max(0, Number(savedGlass.blur) || GLASS_DEFAULTS.blur));
+                    applyGlass();
+                }
+            } catch (error) { /* ignore */ }
+        }
     });
 
     window.VTXTheme = {
@@ -392,6 +457,9 @@
         getLanguageMode: () => languageMode,
         getEffectiveLanguage: effectiveLanguage,
         setLanguage,
+        getGlass: () => ({ ...glass }),
+        setGlass,
+        applyGlass,
         t: (key) => t(key, effectiveLanguage())
     };
 })();
