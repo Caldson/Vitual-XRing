@@ -1,4 +1,4 @@
-/* Vitual XRing 8.2.2 — global design system, light/dark theme, settings widget */
+/* Vitual XRing 9.0.0 — global design system, light/dark theme, settings widget */
 :root {
     color-scheme: light;
     --vtx-bg: #f3f6fb;
@@ -216,7 +216,7 @@ body[data-vtx-widget="off"] .vtx-theme-widget { display: none; }
     .vtx-section-head { display: block; }
 }
 
-/* ── 8.2.2 dark-mode audit: legacy light surfaces ── */
+/* ── 9.0.0 dark-mode audit: legacy light surfaces ── */
 [data-theme="dark"] .login-card,
 [data-theme="dark"] .auth-card,
 [data-theme="dark"] .gate-card,

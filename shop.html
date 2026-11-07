@@ -777,8 +777,8 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=8.2.2">
-    <script src="vtx-theme.js?v=8.2.2"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.0.0">
+    <script src="vtx-theme.js?v=9.0.0"></script>
 </head>
 <body>
     <header class="topbar">
@@ -788,7 +788,7 @@
         </a>
         <div class="topbar-actions">
             <span class="balance-chip">余额 <b id="balance">—</b> VTX</span>
-            <span class="version">v8.2.2</span>
+            <span class="version">v9.0.0</span>
             <a class="topbar-link active" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
             <a class="topbar-link" href="settings.html" data-i18n="nav.settings">设置</a>
@@ -806,10 +806,19 @@
         <a class="xos-entry" href="xos.html">
             <span class="mark">X</span>
             <span class="copy">
-                <b>XOS 虚拟云电脑 26H3 V2.1</b>
-                <span>1440×900 虚拟桌面 · Home / Personal / Professional / CE (Community Edition) · 1000 VTX 起</span>
+                <b>XOS 虚拟云电脑 V4 26H4</b>
+                <span>1440×900 虚拟桌面 · Home / Personal / Professional / CE (Community Edition) · 1125 VTX 起 · 已有 V3.1 仅需 25 VTX 升级</span>
             </span>
             <span class="go">打开 XOS →</span>
+        </a>
+
+        <a class="xos-entry" href="xos.html">
+            <span class="mark">📱</span>
+            <span class="copy">
+                <b>XOS 云手机 XPhone 1 / XPhone 1 Pro</b>
+                <span>手机形态的 XOS · 功能与 XOS PC Home 26H3 V2.1 一致 · 750 VTX 起 · Pro 支持与 V4 26H4 共享文件</span>
+            </span>
+            <span class="go">打开云手机 →</span>
         </a>
 
         <section class="shop-beta" id="shop-application" aria-labelledby="shop-application-title">
@@ -918,7 +927,7 @@
         </form>
     </dialog>
 
-    <script src="vtx-api.js?v=8.2.2"></script>
+    <script src="vtx-api.js?v=9.0.0"></script>
 
 
     <script>
@@ -1021,14 +1030,22 @@
 
         function isXosUpgrade(item) {
             const target = Number(item && item.xosGeneration) || 1;
+            if (!item || item.xosFormFactor || item.xosUpgradePrice === undefined) {
+                return false;
+            }
             return Boolean(item && item.virtual
-                && target >= 2 && target <= 3
+                && target >= 2 && target <= 5
                 && ownedXosDevices().some((owned) => (Number(owned.generation) || 1) === target - 1
+                    && owned.formFactor !== "phone"
                     && owned.edition === item.xosEdition));
         }
 
         function isFreeUpgrade(item) {
             return isXosUpgrade(item) && Number(item.xosUpgradePrice) === 0;
+        }
+
+        function isFreeItem(item) {
+            return Boolean(item && item.type === "xosapp" && Number(displayPrice(item)) === 0);
         }
 
         function displayPrice(item) {
@@ -1329,14 +1346,16 @@
                     upgrade.className = "xos-upgrade";
                     if (isFreeUpgrade(item)) {
                         upgrade.textContent = "已拥有对应 26H2 设备？V2.1（26H3）可免费升级。";
+                    } else if (item.xosUpgradeFrom) {
+                        upgrade.textContent = `已拥有 XOS PC ${item.xosUpgradeFrom}？可直接升级，仅需 ${displayPrice(item)} VTX。`;
                     } else {
                         upgrade.textContent = `已拥有 ${item.name.replace(/ 26H3 V2\.1$/, " 26H2").replace(/ 26H2$/, " 26H1")}？可直接升级，仅需 25 VTX。`;
                     }
                     card.appendChild(upgrade);
-                } else if (item.virtual && !item.bundle && ownedXosDevices().length) {
+                } else if (item.virtual && !item.bundle && item.type !== "xosapp" && ownedXosDevices().length) {
                     const count = document.createElement("p");
                     count.className = "xos-upgrade";
-                    count.textContent = `已拥有 ${ownedXosDevices().length} 台 XOS；再次购买会新增一台，不影响已有设备。`;
+                    count.textContent = `已拥有 ${ownedXosDevices().length} 台 XOS 设备；再次购买会新增一台，不影响已有设备。`;
                     card.appendChild(count);
                 }
 
@@ -1364,20 +1383,20 @@
                 foot.className = "product-foot";
                 const price = document.createElement("p");
                 price.className = "price";
-                price.textContent = isFreeUpgrade(item)
+                price.textContent = isFreeUpgrade(item) || isFreeItem(item)
                     ? "免费"
                     : fromCents(toCents(displayPrice(item))) === "NaN"
                         ? String(displayPrice(item) || "—")
                         : `${fromCents(toCents(displayPrice(item)))} VTX`;
                 const unit = document.createElement("small");
-                unit.textContent = isXosUpgrade(item) ? " / 升级" : " / 件";
+                unit.textContent = isXosUpgrade(item) ? " / 升级" : item.type === "xosapp" ? " / 软件" : " / 件";
                 price.appendChild(unit);
                 foot.appendChild(price);
 
                 const button = document.createElement("button");
                 button.type = "button";
                 button.className = "buy-button";
-                button.textContent = onSale ? "购买" : "无货";
+                button.textContent = onSale ? (item.type === "xosapp" ? "免费获取" : "购买") : "无货";
                 button.disabled = !onSale;
                 button.addEventListener("click", () => openCheckout(item));
                 foot.appendChild(button);
@@ -1405,7 +1424,8 @@
             selectedId = item.id;
             clearMessage();
             receiptCard.hidden = true;
-            document.getElementById("checkout-sub").textContent = `${item.name} · ${isFreeUpgrade(item) ? "免费升级" : isXosUpgrade(item) ? "升级价" : "单价"} ${isFreeUpgrade(item) ? "" : displayPrice(item) + " VTX"} · 库存 ${item.virtual ? "无限（每次 1 份）" : `${stockOf(item)} 件`}`;
+            const priceNote = isFreeUpgrade(item) || isFreeItem(item) ? "免费" : `${displayPrice(item)} VTX`;
+            document.getElementById("checkout-sub").textContent = `${item.name} · ${isXosUpgrade(item) ? "升级价" : "单价"} ${priceNote} · 库存 ${item.virtual ? "无限（每次 1 份）" : `${stockOf(item)} 件`}`;
             quantityInput.min = "1";
             quantityInput.max = item.virtual ? "1" : String(stockOf(item));
             quantityInput.value = "1";
@@ -1570,7 +1590,8 @@
             }
 
             const unitCents = toCents(displayPrice(item));
-            if (!Number.isFinite(unitCents) || unitCents < 0 || (unitCents === 0 && !isFreeUpgrade(item))) {
+            if (!Number.isFinite(unitCents) || unitCents < 0
+                || (unitCents === 0 && !isFreeUpgrade(item) && !isFreeItem(item))) {
                 showMessage("商品价格无效，请联系站主。", "error");
                 return;
             }
@@ -1589,6 +1610,9 @@
                 const xosLink = document.getElementById("receipt-xos");
                 if (xosLink) {
                     xosLink.hidden = !item.virtual;
+                    xosLink.textContent = item.type === "xosapp"
+                        ? "打开 XOS 使用「共享文件」→"
+                        : item.xosFormFactor === "phone" ? "打开 XOS 云手机 →" : "打开 XOS 云电脑 →";
                 }
                 receiptCard.hidden = false;
                 receiptCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1833,9 +1857,17 @@
         async function init() {
             try {
                 await loadShop();
-                const wanted = new URLSearchParams(window.location.search).get("category");
+                const params = new URLSearchParams(window.location.search);
+                const wanted = params.get("category");
+                const query = String(params.get("q") || "").trim();
+                if (query) {
+                    shopSearch.value = query;
+                    shopQuery = query.toLowerCase();
+                }
                 if (wanted) {
                     activeCategory = wanted.trim();
+                }
+                if (wanted || query) {
                     renderShop();
                 }
                 if (accountName && window.VTXApi.hasSession()) {
@@ -1853,6 +1885,6 @@
 
         init();
     </script>
-    <script src="vtx-pwa.js?v=8.2.2" defer></script>
+    <script src="vtx-pwa.js?v=9.0.0" defer></script>
 </body>
 </html>

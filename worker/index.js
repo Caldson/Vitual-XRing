@@ -85,11 +85,11 @@
  * 5.5.0：
  *   - XOS 顶栏和开始菜单增加「返回主页」入口。
  *
- * 8.2.2：
+ * 9.0.0：
  *   - 新增 GameVersion / GameULTRA / GameMAX 三台高性能 XOS；
  *   - GameMAX 1500–30000fps 极端刷新率提示。
  *
- * 8.2.2：
+ * 9.0.0：
  *   - 修复旧缓存页面把 GameMAX 识别成 Home；未知版本按 rank 回退 CE；
  *   - XOS 页面增加版本守卫与 no-cache meta。
  *
@@ -120,7 +120,7 @@ import { createUno, UNO_VERSION } from "./uno.js";
 import { MeetingHub } from "./meeting.js";
 import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 
-const VERSION = "8.2.2";
+const VERSION = "9.0.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -144,7 +144,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "8.2.2";
+const CHAT_VERSION = "9.0.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -234,7 +234,7 @@ const MAX_TRADE_NAME_LENGTH = 20;
 const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
 const SHOP_CACHE_TTL_MS = 30 * 1000;
 const SHOP_MAX_QUANTITY = 999;
-/* 8.2.2：同捆包与商铺申请 */
+/* 9.0.0：同捆包与商铺申请 */
 const SHOP_APPLICATIONS_KEY = "shop:applications";
 const SHOPS_KEY = "shops";
 const SHOP_APPLICATION_MAX = 500;
@@ -591,6 +591,16 @@ function loginHistoryOf(account) {
     return history.slice(-LOGIN_HISTORY_LIMIT);
 }
 
+// 9.0.0：XOS PC 第 5 代（V4 26H4）；云手机沿用 Home 26H3 V2.1 的第 3 代能力
+function xosGenerationOf(value) {
+    const generation = Number(value) || 1;
+    if (generation >= 5) return 5;
+    if (generation >= 4) return 4;
+    if (generation === 3) return 3;
+    if (generation === 2) return 2;
+    return 1;
+}
+
 // 本人可见：额外带登录位置记录、已购买的分享作品
 function xosDevicesOf(account) {
     const list = Array.isArray(account && account.xosDevices)
@@ -599,7 +609,7 @@ function xosDevicesOf(account) {
     const devices = list.map((item, index) => ({
         ...item,
         id: String(item.id || `xd_legacy_${index}_${Number(item.generation) || 1}`),
-        generation: Number(item.generation) >= 4 ? 4 : Number(item.generation) === 3 ? 3 : Number(item.generation) === 2 ? 2 : 1,
+        generation: xosGenerationOf(item.generation),
         rank: Number(item.rank) || 0
     }));
     if (!devices.length && account && account.xos && typeof account.xos === "object" && !Array.isArray(account.xos)) {
@@ -629,6 +639,9 @@ function xosLicenseFromProduct(product, time, id, upgradedFrom) {
         refreshRates: product.refreshRates,
         fpsWarning: Number(product.xosFpsWarning) || 0,
         fpsWarningMax: Number(product.xosFpsWarningMax) || 0,
+        formFactor: product.xosFormFactor === "phone" ? "phone" : "",
+        phonePro: product.xosPhonePro === true,
+        fileSharing: String(product.xosFileSharing || ""),
         upgradedFrom: upgradedFrom || "",
         at: time
     };
@@ -646,6 +659,9 @@ function selfAccount(account) {
         ...publicAccount(account),
         loginHistory: loginHistoryOf(account),
         library: Array.isArray(account && account.library) ? account.library : [],
+        xosApps: Array.isArray(account && account.xosApps)
+            ? account.xosApps.filter((item) => item && typeof item === "object" && !Array.isArray(item))
+            : [],
         xos: active,
         xosDevices: devices
     };
@@ -1182,11 +1198,12 @@ function flattenShopCatalog(catalog) {
         const id = String(entry.id ?? "").trim();
         const name = String(entry.name ?? "").trim();
         const cents = toCents(entry.price);
-        if (!id || !name || cents === null || cents <= 0 || items.has(id)) {
+        const freeApp = entry.type === "xosapp";
+        if (!id || !name || cents === null || (cents <= 0 && !freeApp) || items.has(id)) {
             return;
         }
         const bundle = entry.bundle === true || entry.type === "bundle";
-        const virtual = entry.virtual === true || entry.type === "xos" || bundle;
+        const virtual = entry.virtual === true || entry.type === "xos" || freeApp || bundle;
         const bundleItems = Array.isArray(entry.bundleItems)
             ? entry.bundleItems.map((item) => String(item || "").trim()).filter(Boolean)
             : [];
@@ -1201,6 +1218,7 @@ function flattenShopCatalog(catalog) {
             virtual,
             bundle,
             bundleItems,
+            type: String(entry.type || "").trim(),
             xosEdition: String(entry.xosEdition || "").trim(),
             xosRank: Number(entry.xosRank) || 0,
             xosGeneration: Math.max(1, Number(entry.xosGeneration) || 1),
@@ -1210,11 +1228,18 @@ function flattenShopCatalog(catalog) {
                 ? entry.xosLanguageSupport.map((item) => String(item || "")).filter(Boolean)
                 : ["zh-CN"],
             xosUpgradePrice: String(entry.xosUpgradePrice || "25.00"),
+            xosUpgradeFrom: String(entry.xosUpgradeFrom || "").trim(),
             xosFpsWarning: Number(entry.xosFpsWarning) || 0,
             xosFpsWarningMax: Number(entry.xosFpsWarningMax) || 0,
             xosConfig: plainObject(entry.xosConfig),
             xosApps: Array.isArray(entry.xosApps) ? entry.xosApps.map((item) => String(item || "")).filter(Boolean) : [],
-            refreshRates: Array.isArray(entry.refreshRates) ? entry.refreshRates.map((item) => Number(item) || 0).filter(Boolean) : []
+            refreshRates: Array.isArray(entry.refreshRates) ? entry.refreshRates.map((item) => Number(item) || 0).filter(Boolean) : [],
+            xosFormFactor: entry.xosFormFactor === "phone" ? "phone" : "",
+            xosPhonePro: entry.xosPhonePro === true,
+            xosFileSharing: String(entry.xosFileSharing || "").trim(),
+            appId: String(entry.appId || "").trim(),
+            appScope: String(entry.appScope || "").trim(),
+            appAction: String(entry.appAction || "").trim()
         });
     };
 
@@ -1254,7 +1279,14 @@ async function mergeMerchantProducts(env, items) {
             xosUpgradePrice: "0.00",
             xosConfig: {},
             xosApps: [],
-            refreshRates: []
+            refreshRates: [],
+            type: "",
+            xosFormFactor: "",
+            xosPhonePro: false,
+            xosFileSharing: "",
+            appId: "",
+            appScope: "",
+            appAction: ""
         });
     }
     return items;
@@ -2589,7 +2621,7 @@ async function handlePurchase(request, env, cors) {
     }
 
     if (product.virtual && quantity !== 1) {
-        return jsonResponse({ error: "bad_request", message: "XOS 云电脑授权和同捆包一次只能购买 1 份" }, 400, cors);
+        return jsonResponse({ error: "bad_request", message: "XOS 云电脑 / 云手机授权和同捆包一次只能购买 1 份" }, 400, cors);
     }
 
     if (product.merchant && product.ownerLogin === login) {
@@ -2612,7 +2644,9 @@ async function handlePurchase(request, env, cors) {
     }
 
     let amountCents = product.cents * quantity;
-    if (!Number.isFinite(amountCents) || amountCents <= 0 || amountCents > MAX_TRADE_CENTS) {
+    if (!Number.isFinite(amountCents) || amountCents < 0
+        || (amountCents === 0 && product.type !== "xosapp")
+        || amountCents > MAX_TRADE_CENTS) {
         return jsonResponse({ error: "bad_request", message: "订单金额不合法" }, 400, cors);
     }
 
@@ -2630,12 +2664,13 @@ async function handlePurchase(request, env, cors) {
         const seller = product.merchant ? requireOwnAccount(data, product.ownerLogin) : null;
 
         let xosUpgradeIndex = -1;
-        if (product.virtual && product.xosEdition) {
+        if (product.virtual && product.xosEdition && product.xosFormFactor !== "phone") {
             const devices = xosDevicesOf(account);
             const targetGeneration = Number(product.xosGeneration) || 1;
-            if (targetGeneration === 2 || targetGeneration === 3) {
+            if (targetGeneration === 2 || targetGeneration === 3 || targetGeneration === 5) {
                 const upgradeFrom = targetGeneration - 1;
                 xosUpgradeIndex = devices.findIndex((device) => Number(device.generation) === upgradeFrom
+                    && device.formFactor !== "phone"
                     && device.edition === product.xosEdition);
                 if (xosUpgradeIndex >= 0) {
                     xosUpgraded = true;
@@ -2713,6 +2748,27 @@ async function handlePurchase(request, env, cors) {
                 account.xos = devices[devices.length - 1];
                 account.xosDeviceId = account.xos.id;
             }
+        } else if (product.type === "xosapp") {
+            // 9.0.0：共享文件等 XOS 软件的免费获取 / 更新授权
+            const apps = Array.isArray(account.xosApps) ? account.xosApps : [];
+            if (apps.some((entry) => entry && entry.productId === product.id)) {
+                throw new HttpError(400, "already_owned", "已经获取过这个软件，无需重复获取");
+            }
+            const devices = xosDevicesOf(account);
+            if (product.appScope === "xphone" && !devices.some((device) => device.formFactor === "phone" && device.phonePro)) {
+                throw new HttpError(400, "device_required", "需要先拥有 XPhone 1 Pro 才能获取这个软件");
+            }
+            if (product.appScope === "pc-v4" && !devices.some((device) => device.formFactor !== "phone" && Number(device.generation) >= 5)) {
+                throw new HttpError(400, "device_required", "需要先拥有任意一台 XOS PC V4 26H4 才能获取这个更新");
+            }
+            apps.push({
+                appId: product.appId,
+                scope: product.appScope,
+                action: product.appAction,
+                productId: product.id,
+                at: time
+            });
+            account.xosApps = apps;
         } else if (product.virtual && product.xosEdition) {
             const devices = xosDevicesOf(account);
             const license = xosLicenseFromProduct(product, time);
@@ -2740,11 +2796,17 @@ async function handlePurchase(request, env, cors) {
         stock: remaining === null ? null : { id: product.id, remaining },
         receipt: product.merchant
             ? `购买成功：${product.name} ×${quantity}，共 ${amount} VTX。订单已提交给商家「${product.shopName}」，请按商家说明联系取货/发货。购买时间：${time}`
-            : product.bundle
-                ? `购买成功：${product.name}，共 ${amount} VTX。包含：${bundleProducts.map((item) => item.name).join("、")}。打开 xos.html 即可在设备列表中看到这些云电脑。购买时间：${time}`
-                : product.virtual
-                    ? `购买成功：${product.name}${xosUpgraded ? (Number(product.xosGeneration) >= 3 ? "（26H2 → 26H3 V2.1 免费升级）" : "（XOS1 → XOS2 升级）") : "（新增一台云电脑）"}，共 ${amount} VTX。打开 xos.html 即可使用。购买时间：${time}`
-                    : `购买成功：${product.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
+            : product.type === "xosapp"
+                ? `已获取：${product.name}，共 ${amount} VTX（免费）。打开 xos.html，在「共享文件」中使用；设备间互传需要双方同时打开「共享文件」。购买时间：${time}`
+                : product.bundle
+                    ? `购买成功：${product.name}，共 ${amount} VTX。包含：${bundleProducts.map((item) => item.name).join("、")}。打开 xos.html 即可在设备列表中看到这些设备。购买时间：${time}`
+                    : product.virtual
+                        ? `购买成功：${product.name}${xosUpgraded
+                            ? (Number(product.xosGeneration) >= 5
+                                ? "（V3.1 26H3 Snapshot 1 → V4 26H4 升级）"
+                                : Number(product.xosGeneration) >= 3 ? "（26H2 → 26H3 V2.1 免费升级）" : "（XOS1 → XOS2 升级）")
+                            : (product.xosFormFactor === "phone" ? "（新增一台云手机）" : "（新增一台云电脑）")}，共 ${amount} VTX。打开 xos.html 即可使用。购买时间：${time}`
+                        : `购买成功：${product.name} ×${quantity}，共 ${amount} VTX，请不要关闭此窗口，请将此窗口截图在XRingCR群中发给群主，次日将在学校给你商品。购买时间：${time}`,
         account: selfAccount(accounts[login])
     }, 200, cors);
 }
@@ -2970,7 +3032,7 @@ async function handleShopStock(request, env, cors) {
     return jsonResponse({ ok: true, version: VERSION, stock }, 200, cors);
 }
 
-/* ───────── 8.2.2：成为商铺 Beta ───────── */
+/* ───────── 9.0.0：成为商铺 Beta ───────── */
 
 function shopApplicationView(application, includeLogin) {
     const view = {
@@ -3152,7 +3214,7 @@ async function handleAdminShopReview(request, env, cors, id) {
     return jsonResponse({ ok: true, application: shopApplicationView(result.application, true) }, 200, cors);
 }
 
-/* ───────── 8.2.2：商家上架商品 Beta ───────── */
+/* ───────── 9.0.0：商家上架商品 Beta ───────── */
 
 function merchantProductView(product, includePrivate) {
     const view = {
@@ -8853,7 +8915,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "8.2.2";
+const VIDEO_VERSION = "9.0.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
