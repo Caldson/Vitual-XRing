@@ -11,3 +11,13 @@ account.json
 IMG_*.HEIC
 IMG_*.heic
 IMG_*.jpg
+
+# Microsoft Store / Windows 客户端：本地构建产物与缓存，不入库
+microsoft-windows-version/.cache/
+microsoft-windows-version/dist/
+microsoft-windows-version/www/
+microsoft-windows-version/node_modules/
+microsoft-windows-version/.tmp-*/
+microsoft-windows-version/electron-out.txt
+microsoft-windows-version/app-out.txt
+microsoft-windows-version/app-err.txt
