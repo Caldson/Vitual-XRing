@@ -4,7 +4,7 @@
     xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
     xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
     IgnorableNamespaces="uap mp">
-  <Identity Name="VitualXRing" Publisher="CN=XRing Studios" Version="8.2.1.0" ProcessorArchitecture="x64" />
+  <Identity Name="VitualXRing" Publisher="CN=XRing Studios" Version="9.0.0.0" ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>Vitual XRing</DisplayName>
     <PublisherDisplayName>XRing Studios</PublisherDisplayName>

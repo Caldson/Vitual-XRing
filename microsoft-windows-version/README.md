@@ -35,10 +35,26 @@ npm run build:exe
 
 Outputs in `dist/`:
 
-- `VitualXRing-8.2.2-portable.exe`
+- `VitualXRing-9.0.0-portable.exe`
 
 This uses the local Electron runtime and a 7-Zip self-extracting executable
 with the blue V icon.
+
+### No administrator required
+
+The portable EXE header gets an explicit `asInvoker` manifest before the
+7-Zip archive is appended, so Windows never treats it as a legacy installer
+that needs elevation. It extracts to the current user's `%TEMP%` folder and
+runs entirely from there. The NSIS installer also uses a per-user install
+(`perMachine: false`, `allowElevation: false`).
+
+`build-portable.ps1` needs `mt.exe` from the Windows SDK once at build time.
+If it is not auto-detected:
+
+```powershell
+$env:MT_EXE = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\mt.exe"
+npm run build:exe
+```
 
 ## Microsoft Store package
 

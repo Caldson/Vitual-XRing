@@ -1,6 +1,7 @@
 "use strict";
 
 const { app, BrowserWindow, shell, session } = require("electron");
+const fs = require("node:fs");
 const path = require("node:path");
 const { createLocalServer } = require("./server");
 
@@ -9,6 +10,31 @@ let mainWindow = null;
 let localServer = null;
 
 app.setAppUserModelId(APP_ID);
+
+// 9.0.0：没有管理员权限时把用户数据放到当前用户可写的目录，
+// 避免 %APPDATA% 被重定向 / 只读时 single-instance lock 失败后静默退出。
+function ensureWritableUserData() {
+    const candidates = [];
+    try { candidates.push(app.getPath("userData")); } catch (error) { /* ignore */ }
+    try { candidates.push(path.join(app.getPath("temp"), "VitualXRing")); } catch (error) { /* ignore */ }
+    try { candidates.push(path.join(app.getPath("appData"), "VitualXRing")); } catch (error) { /* ignore */ }
+    for (const dir of candidates) {
+        try {
+            fs.mkdirSync(dir, { recursive: true });
+            const probe = path.join(dir, `.write-test-${process.pid}`);
+            fs.writeFileSync(probe, "ok");
+            fs.unlinkSync(probe);
+            app.setPath("userData", dir);
+            try { app.setPath("sessionData", dir); } catch (error) { /* older Electron */ }
+            return dir;
+        } catch (error) {
+            /* try the next candidate */
+        }
+    }
+    return "";
+}
+
+ensureWritableUserData();
 
 if (!app.requestSingleInstanceLock()) {
     app.quit();

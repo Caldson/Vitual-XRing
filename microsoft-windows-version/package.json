@@ -1,6 +1,6 @@
 {
     "name": "vitual-xring-desktop",
-    "version": "8.2.2",
+    "version": "9.0.0",
     "description": "Vitual XRing desktop application",
     "main": "main.js",
     "author": "XRing Studios",
@@ -16,7 +16,8 @@
     },
     "devDependencies": {
         "electron": "34.5.8",
-        "electron-builder": "25.1.8"
+        "electron-builder": "25.1.8",
+        "rcedit": "3.1.0"
     },
     "build": {
         "appId": "com.xring.vitualxring",
@@ -36,6 +37,7 @@
         ],
         "win": {
             "icon": "assets/icon.ico",
+            "requestedExecutionLevel": "asInvoker",
             "target": [
                 {
                     "target": "portable",
@@ -56,6 +58,8 @@
         },
         "nsis": {
             "oneClick": false,
+            "perMachine": false,
+            "allowElevation": false,
             "allowToChangeInstallationDirectory": true,
             "artifactName": "VitualXRing-${version}-setup.${ext}",
             "shortcutName": "Vitual XRing"
