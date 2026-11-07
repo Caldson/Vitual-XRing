@@ -8,8 +8,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#0b1020">
-    <title>XOS 虚拟云电脑 | Vitual XRing</title>
-    <script src="vtx-api.js?v=8.2.2"></script>
+    <title>XOS 虚拟云电脑与云手机 | Vitual XRing</title>
+    <script src="vtx-api.js?v=9.0.0"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -579,7 +579,7 @@
             .xos-gate-grid { grid-template-columns: 1fr; }
         }
 
-        /* ───────── 8.2.2：Aurora Glass 外壳 ───────── */
+        /* ───────── 9.0.0：Aurora Glass 外壳 ───────── */
 
         :root {
             --xos-accent: #6ea8ff;
@@ -996,12 +996,272 @@
         .xos-notify-wrap { right: 18px; bottom: 92px; }
         .xos-modal { border-radius: 18px; background: #101d35; box-shadow: 0 30px 90px rgba(0, 0, 0, 0.62); }
 
+        /* ───────── 9.0.0：XOS 云手机 ───────── */
+        .xos-screen.phone-mode .xos-desktop,
+        .xos-screen.phone-mode .xos-windows,
+        .xos-screen.phone-mode .xos-taskbar,
+        .xos-screen.phone-mode .xos-start { display: none; }
+
+        .xos-phone {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 38px;
+            bottom: 0;
+            display: grid;
+            place-items: center;
+            z-index: 40;
+        }
+        .xos-phone-frame {
+            position: relative;
+            width: 390px;
+            height: 812px;
+            padding: 11px;
+            border-radius: 56px;
+            background: linear-gradient(150deg, #3a4763 0%, #141c2e 32%, #070b14 100%);
+            box-shadow: 0 0 0 2px rgba(176, 203, 255, 0.3), 0 0 0 11px rgba(8, 12, 22, 0.92), 0 46px 120px rgba(0, 0, 0, 0.7);
+        }
+        .xos-phone-frame::before,
+        .xos-phone-frame::after {
+            content: "";
+            position: absolute;
+            right: -13px;
+            width: 4px;
+            border-radius: 2px;
+            background: #222c42;
+        }
+        .xos-phone-frame::before { top: 190px; height: 74px; }
+        .xos-phone-frame::after { top: 282px; height: 46px; }
+        .xos-phone-screen {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 46px;
+            overflow: hidden;
+            background: #0a1020;
+            user-select: none;
+        }
+        .xos-phone-wallpaper {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 80% 6%, rgba(126, 96, 255, 0.5), transparent 42%),
+                radial-gradient(circle at 12% 28%, rgba(64, 156, 255, 0.4), transparent 40%),
+                radial-gradient(circle at 50% 105%, rgba(78, 214, 190, 0.26), transparent 46%),
+                linear-gradient(160deg, #121a33 0%, #0b1224 52%, #0a1428 100%);
+        }
+        .xos-phone-wallpaper::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 100% 46px;
+            opacity: 0.5;
+        }
+        .xos-phone-island {
+            position: absolute;
+            top: 9px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 25px;
+            border-radius: 15px;
+            background: #04060c;
+            z-index: 9;
+        }
+        .xos-phone-status {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 24px 0;
+            color: #f1f5ff;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            z-index: 8;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+        }
+        .xos-phone-status-right { display: flex; align-items: center; gap: 7px; }
+        .xos-phone-signal { letter-spacing: -2px; font-size: 9px; }
+        .xos-phone-home {
+            position: absolute;
+            inset: 42px 0 0;
+            display: flex;
+            flex-direction: column;
+            padding: 6px 14px 8px;
+        }
+        .xos-phone-grid {
+            flex: 1;
+            min-height: 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: 86px;
+            align-content: start;
+            gap: 4px;
+            overflow: auto;
+            padding: 4px;
+        }
+        .xos-phone-icon {
+            position: relative;
+            border: 0;
+            background: transparent;
+            color: #eef3ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 2px;
+            border-radius: 16px;
+            font-size: 10.5px;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+        }
+        .xos-phone-icon .glyph {
+            width: 56px;
+            height: 56px;
+            display: grid;
+            place-items: center;
+            border-radius: 17px;
+            background: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.07));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 8px 18px rgba(0, 0, 0, 0.24);
+            font-size: 28px;
+            transition: transform 0.12s ease;
+        }
+        .xos-phone-icon:active .glyph { transform: scale(0.92); }
+        .xos-phone-icon .xos-phone-name {
+            max-width: 74px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .xos-phone-icon .xos-phone-badge {
+            position: absolute;
+            top: 2px;
+            right: 12px;
+            min-width: 17px;
+            height: 17px;
+            display: grid;
+            place-items: center;
+            border-radius: 9px;
+            background: #ff8a4c;
+            color: #221104;
+            font-size: 10px;
+            font-weight: 900;
+        }
+        .xos-phone-dock {
+            flex: 0 0 auto;
+            margin-top: 8px;
+            padding: 9px 6px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border-radius: 28px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            backdrop-filter: blur(18px);
+        }
+        .xos-phone-dock .xos-phone-icon { font-size: 0; gap: 0; }
+        .xos-phone-dock .xos-phone-icon .glyph { width: 52px; height: 52px; border-radius: 15px; }
+        .xos-phone-dock .xos-phone-name { display: none; }
+        .xos-phone-homebar { flex: 0 0 auto; height: 20px; display: grid; place-items: center; }
+        .xos-phone-homebar i,
+        .xos-phone-appfoot i {
+            width: 122px;
+            height: 5px;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.78);
+        }
+        .xos-phone-appview {
+            position: absolute;
+            inset: 0;
+            z-index: 6;
+            display: flex;
+            flex-direction: column;
+            background: #0b1424;
+            color: #eaf0ff;
+        }
+        .xos-phone-apphead {
+            flex: 0 0 auto;
+            margin-top: 40px;
+            height: 46px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 10px;
+            border-bottom: 1px solid rgba(147, 180, 238, 0.14);
+            background: rgba(14, 23, 42, 0.92);
+        }
+        .xos-phone-back {
+            width: 34px;
+            height: 34px;
+            flex: 0 0 auto;
+            border: 1px solid rgba(151, 183, 240, 0.18);
+            border-radius: 11px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #dbe8ff;
+            font-size: 19px;
+            line-height: 1;
+        }
+        .xos-phone-appname {
+            flex: 1;
+            min-width: 0;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #eef3ff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .xos-phone-appbody {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            padding: 10px 10px 14px;
+            font-size: 12px;
+            color: #dce8ff;
+        }
+        .xos-phone-appfoot { flex: 0 0 auto; height: 20px; display: grid; place-items: center; }
+
+        /* 手机屏里把桌面应用排版收紧 */
+        #xos-phone-appbody .xos-kpi { grid-template-columns: 1fr 1fr; gap: 6px; }
+        #xos-phone-appbody .xos-kpi div { padding: 8px; }
+        #xos-phone-appbody .xos-grid2 { grid-template-columns: 1fr !important; min-height: 0 !important; }
+        #xos-phone-appbody .xos-canvas { max-height: 230px; }
+        #xos-phone-appbody textarea.xos-input { min-height: 220px !important; }
+        #xos-phone-appbody .xos-folder { grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 6px; }
+        #xos-phone-appbody .xos-file-card { min-height: 70px; padding: 7px 4px; font-size: 10px; }
+        #xos-phone-appbody .xos-file-card .glyph { font-size: 21px; margin-bottom: 3px; }
+        #xos-phone-appbody .xos-table { font-size: 10px; }
+        #xos-phone-appbody .xos-table th,
+        #xos-phone-appbody .xos-table td { padding: 5px 4px; }
+        #xos-phone-appbody.browser-app { height: 100%; padding: 8px; }
+        #xos-phone-appbody .xos-terminal { min-height: 220px; }
+        #xos-phone-appbody h2 { font-size: 15px; }
+        #xos-phone-appbody .row { gap: 6px; }
+
+        .xos-share-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+        .xos-share-tabs button.active { border-color: #4c8dff; background: rgba(76, 141, 255, 0.22); color: #fff; }
+        .xos-share-card { border: 1px solid rgba(147, 180, 238, 0.16); border-radius: 10px; padding: 10px; background: rgba(255, 255, 255, 0.03); margin-bottom: 8px; }
+        .xos-share-card b { font-size: 12px; }
+        .xos-share-peer { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-bottom: 1px solid rgba(147, 180, 238, 0.1); }
+        .xos-share-peer:last-child { border-bottom: 0; }
+        .xos-share-peer .dot { width: 7px; height: 7px; border-radius: 50%; background: #55d6a8; box-shadow: 0 0 8px rgba(85, 214, 168, 0.8); flex: 0 0 auto; }
+        .xos-share-peer-main { flex: 1; min-width: 0; }
+        .xos-share-peer-main small { display: block; color: var(--xos-muted); font-size: 10px; }
+        .xos-share-log { max-height: 150px; overflow: auto; font-size: 10.5px; color: #9fb3d4; }
+        .xos-share-log div { padding: 3px 0; border-bottom: 1px dashed rgba(147, 180, 238, 0.1); }
+        .xos-share-warn { border-color: rgba(255, 170, 90, 0.4); background: rgba(255, 150, 60, 0.08); }
+
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
         }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=8.2.2">
-    <script src="vtx-theme.js?v=8.2.2"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.0.0">
+    <script src="vtx-theme.js?v=9.0.0"></script>
 </head>
 <body data-vtx-skip-text="true">
     <div class="xos-gate" id="xos-gate" hidden>
@@ -1009,14 +1269,15 @@
             <div class="xos-gate-head">
                 <div class="xos-mark" style="width: 46px; height: 46px; font-size: 17px;">X</div>
                 <div>
-                    <h1>XOS 虚拟云电脑</h1>
-                    <p class="xos-gate-sub" style="margin: 2px 0 0;">选择一台 XOS PC，在浏览器里打开你的桌面。</p>
+                    <h1>XOS 虚拟云电脑与云手机</h1>
+                    <p class="xos-gate-sub" style="margin: 2px 0 0;">选择一台 XOS PC 或 XPhone，在浏览器里打开你的设备。</p>
                 </div>
             </div>
             <p class="xos-gate-sub">购买后授权会写入当前账户；XOS 是网页虚拟桌面，不是真实远程虚拟机。所有应用都在本机浏览器中运行。</p>
             <div class="xos-gate-grid" id="xos-gate-grid"></div>
             <div class="xos-gate-actions">
-                <a class="xos-btn primary" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">前往商店购买</a>
+                <a class="xos-btn primary" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">前往商店购买 XOS PC</a>
+                <a class="xos-btn" href="shop.html?category=XOS%E4%BA%91%E6%89%8B%E6%9C%BA">购买 XOS 云手机</a>
                 <a class="xos-btn" href="index.html">返回主页</a>
                 <a class="xos-btn" href="manager.html">返回账户</a>
                 <a class="xos-btn" href="login.html?next=xos.html">切换账户</a>
@@ -1041,7 +1302,7 @@
                 <header class="xos-topbar">
                     <div class="brand">
                         <span class="xos-mark">X</span>
-                        <span class="xos-brand-copy"><b>XOS</b><small>Cloud PC</small></span>
+                        <span class="xos-brand-copy"><b>XOS</b><small id="xos-brand-sub">Cloud PC</small></span>
                     </div>
                     <button class="xos-device-pill" type="button" id="xos-device-btn" aria-haspopup="menu" aria-expanded="false" title="切换云电脑">
                         <span class="xos-device-orb" id="xos-device-orb">X</span>
@@ -1087,9 +1348,10 @@
                                     <span><b id="xos-user-name-menu">—</b><small>已登录账户</small></span>
                                 </div>
                                 <a class="xos-menu-item" role="menuitem" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">XOS 商店</a>
+                                <a class="xos-menu-item" role="menuitem" href="shop.html?category=XOS%E4%BA%91%E6%89%8B%E6%9C%BA">XOS 云手机</a>
                                 <a class="xos-menu-item" role="menuitem" href="manager.html">账户中心</a>
                                 <a class="xos-menu-item" role="menuitem" href="index.html">返回主页</a>
-                                <div class="xos-menu-meta">XOS v8.2.2 · 网页虚拟桌面</div>
+                                <div class="xos-menu-meta">XOS v9.0.0 · 网页虚拟桌面</div>
                             </div>
                         </div>
                     </div>
@@ -1143,7 +1405,7 @@
                     </div>
                     <div class="xos-start-footer">
                         <span id="xos-start-edition">XOS</span>
-                        <span>v8.2.2 · 浏览器虚拟桌面</span>
+                        <span>v9.0.0 · 浏览器虚拟桌面</span>
                     </div>
                 </div>
 
@@ -1162,6 +1424,33 @@
                 </div>
 
                 <div class="xos-notify-wrap" id="xos-notify-wrap"></div>
+
+                <div class="xos-phone" id="xos-phone" hidden>
+                    <div class="xos-phone-frame">
+                        <div class="xos-phone-screen">
+                            <div class="xos-phone-wallpaper"></div>
+                            <div class="xos-phone-island"></div>
+                            <div class="xos-phone-status">
+                                <span id="xos-phone-clock">--:--</span>
+                                <span class="xos-phone-status-right"><span>5G</span><span class="xos-phone-signal">▮▮▮</span><span id="xos-phone-battery">100%</span></span>
+                            </div>
+                            <div class="xos-phone-home" id="xos-phone-home">
+                                <div class="xos-phone-grid" id="xos-phone-grid"></div>
+                                <div class="xos-phone-dock" id="xos-phone-dock"></div>
+                                <div class="xos-phone-homebar"><i></i></div>
+                            </div>
+                            <div class="xos-phone-appview" id="xos-phone-appview" hidden>
+                                <div class="xos-phone-apphead">
+                                    <button class="xos-phone-back" type="button" id="xos-phone-back" aria-label="返回">‹</button>
+                                    <span class="xos-phone-appname" id="xos-phone-appname">应用</span>
+                                    <button class="xos-phone-back" type="button" id="xos-phone-home-btn" aria-label="回到桌面">⌂</button>
+                                </div>
+                                <div class="xos-app xos-phone-appbody" id="xos-phone-appbody"></div>
+                                <div class="xos-phone-appfoot"><i></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1171,7 +1460,7 @@
             "use strict";
 
             const API = window.VTXApi;
-            const PAGE_VERSION = "8.2.2";
+            const PAGE_VERSION = "9.0.0";
             const $ = (id) => document.getElementById(id);
             const SCREEN_W = 1440;
             const SCREEN_H = 900;
@@ -1209,7 +1498,18 @@
                 { edition: "ce", generation: 4, label: "CE (Community Edition) V3.1 26H3 Snapshot 1", price: 1775 },
                 { edition: "game", generation: 4, label: "GameVersion V3.1 26H3 Snapshot 1", price: 2000 },
                 { edition: "gameultra", generation: 4, label: "GameULTRA V3.1 26H3 Snapshot 1", price: 2750 },
-                { edition: "gamemax", generation: 4, label: "GameMAX V3.1 26H3 Snapshot 1", price: 3000 }
+                { edition: "gamemax", generation: 4, label: "GameMAX V3.1 26H3 Snapshot 1", price: 3000 },
+                { edition: "home", generation: 5, label: "Home V4 26H4", price: 1125 },
+                { edition: "personal", generation: 5, label: "Personal V4 26H4", price: 1375 },
+                { edition: "professional", generation: 5, label: "Professional V4 26H4", price: 1625 },
+                { edition: "ce", generation: 5, label: "CE (Community Edition) V4 26H4", price: 1875 },
+                { edition: "game", generation: 5, label: "GameVersion V4 26H4", price: 2100 },
+                { edition: "gameultra", generation: 5, label: "GameULTRA V4 26H4", price: 2850 },
+                { edition: "gamemax", generation: 5, label: "GameMAX V4 26H4", price: 3100 }
+            ];
+            const PHONES = [
+                { id: "xphone-1", name: "XPhone 1", price: 750, pro: false },
+                { id: "xphone-1-pro", name: "XPhone 1 Pro", price: 1000, pro: true }
             ];
             const APP_ORDER = [
                 "taskmgr", "files", "browser", "shared", "paint", "txtpro", "calc", "weather",
@@ -1240,7 +1540,15 @@
                 remoteFiles: new Map(),
                 cloudState: "local",
                 syncing: false,
-                syncTimers: new Map()
+                syncTimers: new Map(),
+                formFactor: "pc",
+                phoneApp: null,
+                phoneStack: [],
+                xosApps: [],
+                shareChannel: null,
+                sharePeers: new Map(),
+                shareTimer: null,
+                shareLog: []
             };
 
             function esc(value) {
@@ -1393,7 +1701,7 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 8.2.2：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 9.0.0：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");
@@ -1598,12 +1906,26 @@
 
             /* ───────── 窗口管理 ───────── */
 
-            function generationLabel(generation) {
+            function generationOf(generation) {
                 const value = Number(generation) || 1;
-                if (value >= 4) return "26H3 V3.1 Snapshot 1";
+                if (value >= 5) return 5;
+                if (value >= 4) return 4;
+                if (value === 3) return 3;
+                if (value === 2) return 2;
+                return 1;
+            }
+
+            function generationLabel(generation) {
+                const value = generationOf(generation);
+                if (value >= 5) return "26H4 V4";
+                if (value === 4) return "26H3 V3.1 Snapshot 1";
                 if (value === 3) return "26H3";
                 if (value === 2) return "26H2";
                 return "26H1";
+            }
+
+            function isPhoneDevice(device) {
+                return Boolean(device && (device.formFactor === "phone" || device.kind === "phone"));
             }
 
             function editionName(edition, generation) {
@@ -1636,6 +1958,10 @@
             }
 
             function openApp(id, args) {
+                if (state.formFactor === "phone") {
+                    const opened = $("xos-phone-appview") && !$("xos-phone-appview").hidden && Boolean(state.phoneApp);
+                    return openPhoneApp(id, args, Boolean(opened));
+                }
                 if (!appAvailable(id)) {
                     toast("当前 XOS 版本不支持这个应用");
                     return null;
@@ -1877,6 +2203,7 @@
                 const now = new Date();
                 $("xos-clock").textContent = now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
                 $("xos-clock-date").textContent = now.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit", weekday: "short" });
+                renderPhoneStatus();
             }
 
             /* ───────── 应用：任务管理器 ───────── */
@@ -2057,14 +2384,306 @@
                 mount(body, handle) { mountFiles(body, handle, "Desktop"); }
             };
 
+            function fsMkdirp(dir) {
+                const parts = String(dir || "").split("/").filter(Boolean);
+                let current = "";
+                let changed = false;
+                for (const part of parts) {
+                    current = current ? `${current}/${part}` : part;
+                    if (!fsEntry(current)) {
+                        state.fs.push({ path: current, type: "dir" });
+                        changed = true;
+                    }
+                }
+                if (changed) saveFs();
+            }
+
+            /* ───────── 9.0.0：XOS File Sharing Service ───────── */
+
+            const SHARE_APP = "shared-files";
+            const SHARE_LINKS = {
+                download: "shop.html?category=XOS%E4%BA%91%E6%89%8B%E6%9C%BA&q=%E5%85%B1%E4%BA%AB%E6%96%87%E4%BB%B6",
+                update: "shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91&q=%E5%85%B1%E4%BA%AB%E6%96%87%E4%BB%B6"
+            };
+
+            function shareEntitlement(scope) {
+                return state.xosApps.some((entry) => entry && entry.appId === SHARE_APP && entry.scope === scope);
+            }
+
+            function shareCapability(device) {
+                const target = device || state.license || {};
+                if (isPhoneDevice(target)) {
+                    if (!target.phonePro) {
+                        return { enabled: false, reason: "XPhone 1 不支持与 XOS PC 共享文件，只有 XPhone 1 Pro 支持。", action: "" };
+                    }
+                    if (!shareEntitlement("xphone")) {
+                        return { enabled: false, reason: "XPhone 1 Pro 需要先在 Vitual Store 下载「共享文件」软件，否则没有设备互传功能。", action: "download" };
+                    }
+                    return { enabled: true, reason: "" };
+                }
+                if (generationOf(target.generation) >= 5) {
+                    if (!shareEntitlement("pc-v4")) {
+                        return { enabled: false, reason: "V4 26H4 需要先在 Vitual Store 更新「共享文件」软件，否则没有设备互传功能。", action: "update" };
+                    }
+                    return { enabled: true, reason: "" };
+                }
+                return { enabled: false, reason: "旧版本没有 XOS File Sharing Service，无法启用设备间共享。", action: "" };
+            }
+
+            function shareDeviceInfo() {
+                return {
+                    deviceId: state.deviceId,
+                    name: cleanDeviceName(state.license) || "XOS",
+                    formFactor: state.formFactor,
+                    pro: Boolean(state.license && state.license.phonePro)
+                };
+            }
+
+            function shareLogLine(text) {
+                state.shareLog.unshift({ text, at: Date.now() });
+                state.shareLog = state.shareLog.slice(0, 40);
+            }
+
+            function stopShareService() {
+                if (state.shareChannel) {
+                    try { state.shareChannel.postMessage({ type: "leave", from: shareDeviceInfo() }); } catch (error) { /* ignore */ }
+                    try { state.shareChannel.close(); } catch (error) { /* ignore */ }
+                    state.shareChannel = null;
+                }
+                if (state.shareTimer) {
+                    clearInterval(state.shareTimer);
+                    state.shareTimer = null;
+                }
+                state.sharePeers.clear();
+            }
+
+            function announceShare() {
+                if (!state.shareChannel) return;
+                try {
+                    state.shareChannel.postMessage({ type: "presence", from: shareDeviceInfo(), at: Date.now() });
+                } catch (error) { /* ignore */ }
+            }
+
+            function receiveSharedFiles(message) {
+                const files = Array.isArray(message.files) ? message.files : [];
+                const fromName = String((message.from && message.from.name) || "另一台设备");
+                const folder = `Shared/Received/${fromName.replace(/[\\/:*?"<>|]/g, "")}`;
+                fsMkdirp(folder);
+                let count = 0;
+                for (const file of files) {
+                    const safeName = String((file && file.name) || "").replace(/[\\/:*?"<>|]/g, "").trim();
+                    if (!safeName) continue;
+                    fsWrite(joinPath(folder, safeName), String(file.content == null ? "" : file.content));
+                    count += 1;
+                }
+                if (count) {
+                    shareLogLine(`收到 ${fromName} 的 ${count} 个文件`);
+                    toast(`已接收 ${fromName} 发来的 ${count} 个文件`);
+                }
+            }
+
+            function startShareService(onChange) {
+                const capability = shareCapability(state.license);
+                if (!capability.enabled || !("BroadcastChannel" in window)) return false;
+                stopShareService();
+                try {
+                    const channel = new BroadcastChannel(`xos-share:${state.login}`);
+                    channel.onmessage = (event) => {
+                        const message = event && event.data ? event.data : null;
+                        if (!message || !message.type) return;
+                        if (message.type === "presence" && message.from && message.from.deviceId !== state.deviceId) {
+                            const known = state.sharePeers.has(message.from.deviceId);
+                            state.sharePeers.set(message.from.deviceId, {
+                                ...message.from,
+                                at: Number(message.at) || Date.now()
+                            });
+                            if (!known && typeof onChange === "function") onChange();
+                            return;
+                        }
+                        if (message.type === "leave" && message.from) {
+                            if (state.sharePeers.delete(message.from.deviceId) && typeof onChange === "function") onChange();
+                            return;
+                        }
+                        if (message.type === "files" && message.to === state.deviceId) {
+                            receiveSharedFiles(message);
+                            if (typeof onChange === "function") onChange();
+                        }
+                    };
+                    state.shareChannel = channel;
+                    announceShare();
+                    state.shareTimer = setInterval(() => {
+                        announceShare();
+                        let changed = false;
+                        const now = Date.now();
+                        state.sharePeers.forEach((peer, id) => {
+                            if (now - Number(peer.at || 0) > 6500) {
+                                state.sharePeers.delete(id);
+                                changed = true;
+                            }
+                        });
+                        if (changed && typeof onChange === "function") onChange();
+                    }, 1800);
+                    return true;
+                } catch (error) {
+                    return false;
+                }
+            }
+
+            function sendSharedFiles(targetId, files) {
+                if (!state.shareChannel) {
+                    toast("共享服务未启动");
+                    return false;
+                }
+                if (!targetId || !state.sharePeers.has(targetId)) {
+                    toast("目标设备不在线，请让它在另一窗口打开「共享文件」");
+                    return false;
+                }
+                const target = state.sharePeers.get(targetId);
+                try {
+                    state.shareChannel.postMessage({
+                        type: "files",
+                        from: shareDeviceInfo(),
+                        to: targetId,
+                        files,
+                        at: Date.now()
+                    });
+                } catch (error) {
+                    toast("发送失败：" + (error && error.message ? error.message : "浏览器不支持"));
+                    return false;
+                }
+                shareLogLine(`已发送 ${files.length} 个文件到 ${target.name}`);
+                toast(`已发送 ${files.length} 个文件到 ${target.name}`);
+                return true;
+            }
+
+            async function refreshEntitlements() {
+                if (!API || !API.hasSession()) return false;
+                try {
+                    const account = await API.me();
+                    state.xosApps = Array.isArray(account.xosApps) ? account.xosApps : [];
+                    saveOfflineAccount(account);
+                    return true;
+                } catch (error) {
+                    return false;
+                }
+            }
+
+            function reopenApp(id) {
+                if (state.formFactor === "phone") {
+                    closePhoneApp();
+                    openPhoneApp(id);
+                    return;
+                }
+                closeWindow(id);
+                openApp(id);
+            }
+
             APPS.shared = {
-                name: "共享文件", icon: "🤝", minRank: 0, width: 780, height: 540,
+                name: "共享文件", icon: "🤝", minRank: 0, width: 820, height: 580,
                 mount(body, handle) {
-                    mountFiles(body, handle, "Shared");
-                    const note = document.createElement("p");
-                    note.className = "tiny";
-                    note.textContent = "共享文件夹保存在当前浏览器的 XOS 空间中，不会上传到网站服务器。";
-                    body.prepend(note);
+                    body.innerHTML = `<p class="tiny">共享文件夹保存在当前浏览器的 XOS 空间中；设备互传使用 XOS File Sharing Service，只有双方都打开本应用时才会连接。</p>
+                        <div class="xos-share-tabs">
+                            <button class="xos-btn small" type="button" data-share-tab="files">共享文件夹</button>
+                            <button class="xos-btn small" type="button" data-share-tab="devices">设备互传</button>
+                        </div>
+                        <div data-share-pane="files"></div>
+                        <div data-share-pane="devices" hidden></div>`;
+                    const filesPane = body.querySelector('[data-share-pane="files"]');
+                    const devicesPane = body.querySelector('[data-share-pane="devices"]');
+                    const tabs = body.querySelectorAll("[data-share-tab]");
+                    let activeTab = "devices";
+
+                    const refreshShareEntitlement = async () => {
+                        const ok = await refreshEntitlements();
+                        toast(ok ? "授权已刷新" : "刷新失败，请确认已登录后重试");
+                        if (ok) reopenApp("shared");
+                    };
+
+                    const renderDevices = () => {
+                        const capability = shareCapability(state.license);
+                        if (!capability.enabled) {
+                            devicesPane.innerHTML = `<div class="xos-share-card xos-share-warn">
+                                <b>设备互传不可用</b>
+                                <p class="tiny" style="margin:6px 0 8px">${esc(capability.reason)}</p>
+                                ${capability.action ? `<a class="xos-btn small primary" href="${SHARE_LINKS[capability.action]}">${capability.action === "download" ? "前往 Vitual Store 下载" : "前往 Vitual Store 更新"}</a>` : ""}
+                                <button class="xos-btn small" type="button" data-share-refresh>已获取，刷新授权</button>
+                            </div>
+                            <p class="tiny">旧版本（V2.1 及更早）没有 XOS File Sharing Service；XPhone 1 不支持共享，只有 XPhone 1 Pro 支持。</p>`;
+                            devicesPane.querySelector("[data-share-refresh]").addEventListener("click", refreshShareEntitlement);
+                            return;
+                        }
+                        if (!("BroadcastChannel" in window)) {
+                            devicesPane.innerHTML = `<div class="xos-share-card xos-share-warn"><b>当前浏览器不支持设备互传</b><p class="tiny">需要支持 BroadcastChannel 的浏览器，并在同一浏览器的两个窗口打开共享文件。</p></div>`;
+                            return;
+                        }
+                        const peers = Array.from(state.sharePeers.values());
+                        const files = state.fs.filter((entry) => entry.type === "file");
+                        const peerHtml = peers.length
+                            ? peers.map((peer) => `<div class="xos-share-peer"><span class="dot"></span><span class="xos-share-peer-main"><b>${esc(peer.name)}</b><small>${peer.formFactor === "phone" ? "XPhone" : "XOS PC"} · 已打开共享文件</small></span></div>`).join("")
+                            : `<p class="tiny">当前没有其它在线设备。请在同一账户的另一台设备（或另一个浏览器窗口）上打开「共享文件」。</p>`;
+                        const fileOptions = files.length
+                            ? files.map((entry) => `<option value="${esc(entry.path)}">${esc(entry.path)}</option>`).join("")
+                            : `<option value="">（共享空间里还没有文件）</option>`;
+                        const targetOptions = peers.length
+                            ? peers.map((peer) => `<option value="${esc(peer.deviceId)}">${esc(peer.name)}（${peer.formFactor === "phone" ? "手机" : "电脑"}）</option>`).join("")
+                            : `<option value="">（没有在线设备）</option>`;
+                        devicesPane.innerHTML = `<div class="xos-share-card">
+                                <b>XOS File Sharing Service 已启用</b>
+                                <p class="tiny" style="margin:5px 0 0">在线设备 ${peers.length} 台 · 本机：${esc(cleanDeviceName(state.license))}</p>
+                                <div style="margin-top:8px">${peerHtml}</div>
+                            </div>
+                            <div class="xos-share-card">
+                                <b>发送文件</b>
+                                <div class="row" style="margin-top:8px;flex-wrap:wrap">
+                                    <select class="xos-input grow" data-share-file>${fileOptions}</select>
+                                    <select class="xos-input grow" data-share-target>${targetOptions}</select>
+                                    <button class="xos-btn small primary" type="button" data-share-send ${files.length && peers.length ? "" : "disabled"}>发送到设备</button>
+                                </div>
+                                <p class="tiny" style="margin:6px 0 0">文件会放进对方的 Shared/Received 文件夹，不会上传到网站服务器。</p>
+                            </div>
+                            <div class="xos-share-card">
+                                <b>活动记录</b>
+                                <div class="xos-share-log">${state.shareLog.length ? state.shareLog.map((line) => `<div>${esc(new Date(line.at).toLocaleTimeString("zh-CN"))} · ${esc(line.text)}</div>`).join("") : "<div>还没有记录。</div>"}</div>
+                            </div>`;
+                        const sendButton = devicesPane.querySelector("[data-share-send]");
+                        if (sendButton) {
+                            sendButton.addEventListener("click", () => {
+                                const path = devicesPane.querySelector("[data-share-file]").value;
+                                const target = devicesPane.querySelector("[data-share-target]").value;
+                                const entry = fsEntry(path);
+                                if (!entry || entry.type !== "file") {
+                                    toast("请选择一个文件");
+                                    return;
+                                }
+                                const content = String(entry.content == null ? "" : entry.content);
+                                if (new TextEncoder().encode(content).length > 8 * 1024 * 1024) {
+                                    toast("单个文件不能超过 8 MB");
+                                    return;
+                                }
+                                if (sendSharedFiles(target, [{ name: path.split("/").pop(), content }])) {
+                                    renderDevices();
+                                }
+                            });
+                        }
+                    };
+
+                    const switchTab = (tab) => {
+                        activeTab = tab;
+                        tabs.forEach((button) => button.classList.toggle("active", button.dataset.shareTab === tab));
+                        filesPane.hidden = tab !== "files";
+                        devicesPane.hidden = tab !== "devices";
+                        if (tab === "devices") renderDevices();
+                    };
+                    tabs.forEach((button) => button.addEventListener("click", () => switchTab(button.dataset.shareTab)));
+                    mountFiles(filesPane, handle, "Shared");
+                    const capability = shareCapability(state.license);
+                    switchTab(activeTab);
+                    if (capability.enabled) {
+                        startShareService(() => {
+                            if (activeTab === "devices") renderDevices();
+                        });
+                    }
+                    handle.onClose = () => stopShareService();
                 }
             };
 
@@ -2159,7 +2778,8 @@
                 name: "VBrowser", icon: "🌐", minRank: 0, width: 940, height: 640,
                 mount(body) {
                     body.classList.add("browser-app");
-                    body.closest(".xos-window-body").style.overflow = "hidden";
+                    const winBody = body.closest(".xos-window-body");
+                    if (winBody) winBody.style.overflow = "hidden";
                     body.innerHTML = `<div class="row browser-toolbar"><input class="xos-input grow" data-url placeholder="输入网址，例如 https://example.com"><button class="xos-btn primary" data-go>打开</button><button class="xos-btn" data-ext>新窗口</button></div>
                         <div class="xos-panel" data-home>
                             <h3>VBrowser 起始页</h3>
@@ -2809,7 +3429,13 @@
                 $("xos-shell").hidden = true;
                 $("xos-gate").hidden = false;
                 const grid = $("xos-gate-grid");
-                grid.innerHTML = VERSIONS.map((version) => {
+                const phoneCards = PHONES.map((phone) => `<article class="xos-gate-card">
+                        <h3>${esc(phone.name)}</h3>
+                        <div class="price">${phone.price} VTX</div>
+                        <ul><li>手机形态 · XOS 云手机</li><li>1170 × 2532 · 60fps</li><li>${appCount("home", 3)} 个应用 · 与 Home 26H3 V2.1 功能一致</li><li>简体中文</li>${phone.pro ? "<li>支持与 XOS PC V4 26H4 共享文件</li>" : ""}</ul>
+                        <a class="xos-btn" href="shop.html?category=XOS%E4%BA%91%E6%89%8B%E6%9C%BA">查看商品</a>
+                    </article>`).join("");
+                const pcCards = VERSIONS.map((version) => {
                     const edition = EDITIONS[version.edition];
                     return `<article class="xos-gate-card">
                         <h3>${esc(editionName(version.edition, version.generation))}</h3>
@@ -2818,6 +3444,7 @@
                         <a class="xos-btn" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">查看商品</a>
                     </article>`;
                 }).join("");
+                grid.innerHTML = phoneCards + pcCards;
                 $("xos-gate-note").textContent = note || "购买后刷新此页面即可启动。";
             }
 
@@ -2828,7 +3455,7 @@
                 return raw.filter((item) => item && typeof item === "object").map((item, index) => ({
                     ...item,
                     id: String(item.id || `xd_${item.edition || "home"}_${item.generation || 1}_${index}`),
-                    generation: Number(item.generation) >= 4 ? 4 : Number(item.generation) === 3 ? 3 : Number(item.generation) === 2 ? 2 : 1,
+                    generation: generationOf(item.generation),
                     rank: Number(item.rank) || 0
                 }));
             }
@@ -2875,11 +3502,12 @@
 
             function configureDevice(device) {
                 const edition = editionForDevice(device);
-                const generation = Number(device.generation) >= 4 ? 4 : Number(device.generation) === 3 ? 3 : Number(device.generation) === 2 ? 2 : 1;
+                const generation = generationOf(device.generation);
                 state.license = device;
                 state.deviceId = device.id;
                 state.edition = edition;
                 state.generation = generation;
+                state.formFactor = isPhoneDevice(device) ? "phone" : "pc";
                 const config = device.config || {};
                 const rates = Array.isArray(device.refreshRates) && device.refreshRates.length
                     ? device.refreshRates.map(Number).filter(Boolean)
@@ -2891,12 +3519,13 @@
 
                 const screen = $("xos-screen");
                 if (screen) screen.dataset.edition = edition;
+                const phone = state.formFactor === "phone";
                 const displayName = cleanDeviceName(device) || editionName(edition, generation);
                 const short = editionShort(edition, generation);
-                $("xos-device-label").textContent = short;
+                $("xos-device-label").textContent = phone ? displayName : short;
                 $("xos-device-label").title = displayName;
-                $("xos-edition-label").textContent = "XOS PC";
-                const orb = short.replace(/[^A-Za-z]/g, "").charAt(0).toUpperCase() || "X";
+                $("xos-edition-label").textContent = phone ? "XOS Phone" : "XOS PC";
+                const orb = phone ? "📱" : (short.replace(/[^A-Za-z]/g, "").charAt(0).toUpperCase() || "X");
                 $("xos-device-orb").textContent = orb;
 
                 const specs = [config.resolution || "1440 × 900"];
@@ -2930,7 +3559,129 @@
                     $("xos-start-refresh").textContent = `${state.refresh}fps`;
                     toast("显示刷新率已切换到 " + state.refresh + "fps");
                 };
+                applyDeviceMode();
                 closeDeviceMenu();
+            }
+
+            /* ───────── 9.0.0：云手机界面 ───────── */
+
+            function applyDeviceMode() {
+                const phone = state.formFactor === "phone";
+                const screen = $("xos-screen");
+                if (screen) screen.classList.toggle("phone-mode", phone);
+                const shell = $("xos-phone");
+                if (shell) shell.hidden = !phone;
+                const brand = $("xos-brand-sub");
+                if (brand) brand.textContent = phone ? "Cloud Phone" : "Cloud PC";
+                closePhoneApp();
+                if (phone) {
+                    closeStart();
+                    closeDeviceMenu();
+                    closeUserMenu();
+                    renderPhoneHome();
+                    renderPhoneStatus();
+                }
+            }
+
+            function renderPhoneStatus() {
+                const now = new Date();
+                const clock = $("xos-phone-clock");
+                if (clock) clock.textContent = now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+                const battery = $("xos-phone-battery");
+                if (battery) battery.textContent = "100%";
+            }
+
+            function phoneAppIcon(id) {
+                const app = APPS[id];
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "xos-phone-icon";
+                button.title = app.name;
+                button.innerHTML = `<span class="glyph">${app.icon}</span><span class="xos-phone-name">${esc(app.name)}</span>`;
+                button.addEventListener("click", () => {
+                    state.phoneStack = [];
+                    openPhoneApp(id);
+                });
+                return button;
+            }
+
+            function renderPhoneHome() {
+                if (state.formFactor !== "phone") return;
+                const apps = APP_ORDER.filter(appAvailable);
+                const dockIds = ["files", "browser", "shared", "txtpro"].filter((id) => apps.includes(id));
+                const gridIds = apps.filter((id) => !dockIds.includes(id));
+                const grid = $("xos-phone-grid");
+                const dock = $("xos-phone-dock");
+                if (!grid || !dock) return;
+                grid.textContent = "";
+                gridIds.forEach((id) => grid.appendChild(phoneAppIcon(id)));
+                dock.textContent = "";
+                dockIds.forEach((id) => dock.appendChild(phoneAppIcon(id)));
+                const home = $("xos-phone-home");
+                if (home) home.hidden = false;
+                const view = $("xos-phone-appview");
+                if (view) view.hidden = true;
+            }
+
+            function unmountPhoneApp() {
+                const current = state.phoneApp;
+                if (current && current.handle && typeof current.handle.onClose === "function") {
+                    try { current.handle.onClose(); } catch (error) { /* 应用清理失败不阻塞切换 */ }
+                }
+                state.phoneApp = null;
+                const body = $("xos-phone-appbody");
+                if (body) {
+                    body.textContent = "";
+                    body.className = "xos-app xos-phone-appbody";
+                }
+            }
+
+            function closePhoneApp() {
+                unmountPhoneApp();
+                state.phoneStack = [];
+                const view = $("xos-phone-appview");
+                if (view) view.hidden = true;
+                const home = $("xos-phone-home");
+                if (home) home.hidden = false;
+            }
+
+            function openPhoneApp(id, args, fromApp) {
+                if (state.formFactor !== "phone") return null;
+                if (!appAvailable(id)) {
+                    toast("当前版本不支持这个应用");
+                    return null;
+                }
+                const app = APPS[id];
+                if (fromApp && state.phoneApp && state.phoneApp.id !== id) {
+                    state.phoneStack.push({ id: state.phoneApp.id, args: state.phoneApp.args || {} });
+                }
+                unmountPhoneApp();
+                const body = $("xos-phone-appbody");
+                if (!body) return null;
+                const handle = {
+                    id, app, node: null, body, minimized: false, maximized: false,
+                    onClose: null, onArgs: null
+                };
+                state.phoneApp = { id, args: args || {}, handle };
+                $("xos-phone-appview").hidden = false;
+                $("xos-phone-home").hidden = true;
+                $("xos-phone-appname").textContent = app.name;
+                try {
+                    app.mount(body, handle, args || {});
+                } catch (error) {
+                    toast("应用启动失败：" + (error && error.message ? error.message : "未知错误"));
+                }
+                setTimeout(applyXosLanguage, 0);
+                return handle;
+            }
+
+            function phoneBack() {
+                const previous = state.phoneStack.pop();
+                if (previous) {
+                    openPhoneApp(previous.id, previous.args, false);
+                    return;
+                }
+                closePhoneApp();
             }
 
             function renderDeviceMenu() {
@@ -2945,14 +3696,15 @@
                     button.dataset.deviceId = device.id;
                     const name = cleanDeviceName(device);
                     const edition = editionForDevice(device);
-                    const generation = Number(device.generation) >= 4 ? 4 : Number(device.generation) === 3 ? 3 : Number(device.generation) === 2 ? 2 : 1;
+                    const generation = generationOf(device.generation);
                     const apps = APP_ORDER.filter((id) => {
                         const app = APPS[id];
                         if (typeof app.available === "function") return app.available(edition, generation);
                         return EDITIONS[edition].rank >= (app.minRank || 0) && (app.minGen || 1) <= generation;
                     }).length;
-                    button.innerHTML = `<span class="xos-device-orb">${esc(editionShort(edition, generation).replace(/[^A-Za-z]/g, "").charAt(0).toUpperCase() || "X")}</span>
-                        <span class="xos-device-item-main"><b>${esc(name)}</b><small>${esc(editionShort(edition, generation))} · ${apps} 个应用</small></span>
+                    const phone = isPhoneDevice(device);
+                    button.innerHTML = `<span class="xos-device-orb">${esc(phone ? "📱" : editionShort(edition, generation).replace(/[^A-Za-z]/g, "").charAt(0).toUpperCase() || "X")}</span>
+                        <span class="xos-device-item-main"><b>${esc(name)}</b><small>${esc(phone ? `XOS 云手机 · ${apps} 个应用` : `${editionShort(edition, generation)} · ${apps} 个应用`)}</small></span>
                         <span class="xos-device-check">${device.id === state.deviceId ? "✓" : ""}</span>`;
                     button.addEventListener("click", () => selectDevice(device));
                     list.appendChild(button);
@@ -3013,6 +3765,7 @@
                 const devices = deviceListOf(account);
                 if (!devices.length) { renderGate("当前账户还没有 XOS 授权。"); return false; }
                 state.devices = devices;
+                state.xosApps = Array.isArray(account.xosApps) ? account.xosApps : [];
                 const remembered = String(readStore("activeDevice", ""));
                 const active = devices.find((device) => device.id === remembered)
                     || devices.find((device) => account.xos && device.productId === account.xos.productId
@@ -3038,15 +3791,19 @@
             function boot() {
                 $("xos-gate").hidden = true;
                 $("xos-boot").hidden = false;
-                $("xos-boot-edition").textContent = editionName(state.edition, state.generation);
+                const bootName = state.formFactor === "phone"
+                    ? cleanDeviceName(state.license)
+                    : editionName(state.edition, state.generation);
+                $("xos-boot-edition").textContent = bootName;
                 setTimeout(() => {
                     $("xos-boot").hidden = true;
                     $("xos-shell").hidden = false;
+                    applyDeviceMode();
                     renderDesktop(); renderTaskbar(); renderStart(); refreshClock();
                     setInterval(refreshClock, 1000);
                     fitScreen();
                     applyXosLanguage();
-                    toast("欢迎使用 " + editionName(state.edition, state.generation));
+                    toast("欢迎使用 " + bootName);
                 }, 1100);
             }
 
@@ -3102,6 +3859,14 @@
                     closeUserMenu();
                     closeAll();
                     showModal('<h2 style="margin-top:0">XOS 已锁定</h2><p class="tiny">这是一个网页虚拟桌面，刷新页面即可重新进入。</p><div style="text-align:right"><button class="xos-btn" data-modal-close>解锁</button></div>');
+                });
+                $("xos-phone-back").addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    phoneBack();
+                });
+                $("xos-phone-home-btn").addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    closePhoneApp();
                 });
                 document.addEventListener("keydown", (event) => {
                     if (event.key !== "Escape") return;
@@ -3166,6 +3931,6 @@
             init();
         })();
     </script>
-    <script src="vtx-pwa.js?v=8.2.2" defer></script>
+    <script src="vtx-pwa.js?v=9.0.0" defer></script>
 </body>
 </html>
