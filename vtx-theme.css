@@ -191,11 +191,15 @@ html[data-glass="off"] .topbar {
 .vtx-section-head p { margin: 4px 0 0; color: var(--vtx-muted); font-size: 13px; }
 .vtx-card { border: 1px solid var(--vtx-border); border-radius: var(--vtx-radius); background: var(--vtx-surface); box-shadow: var(--vtx-shadow-soft); }
 .vtx-theme-widget {
-    position: fixed; right: 16px; bottom: 16px; z-index: 9999;
+    position: fixed; right: 16px; bottom: calc(16px + var(--vtx-widget-lift, 0px)); z-index: 9999;
     display: flex; align-items: center; gap: 4px; padding: 5px;
     border: 1px solid var(--vtx-border); border-radius: 999px;
     background: color-mix(in srgb, var(--vtx-surface) 90%, transparent);
     box-shadow: var(--vtx-shadow-soft); backdrop-filter: blur(16px);
+    transition: bottom 180ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+    .vtx-theme-widget { transition: none; }
 }
 .vtx-theme-widget button, .vtx-theme-widget a {
     display: grid; place-items: center; width: 34px; height: 34px;

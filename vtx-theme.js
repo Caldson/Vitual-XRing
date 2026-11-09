@@ -1,7 +1,7 @@
-/* Vitual XRing 9.0.0 — theme + language shell */
+/* Vitual XRing 9.1.0 — theme + language shell */
 (function () {
     "use strict";
-    const VERSION = "9.0.0";
+    const VERSION = "9.1.0";
     const THEME_KEY = "xring:theme";
     const LANGUAGE_KEY = "xring:language";
     const THEME_MODES = ["auto", "light", "dark"];
@@ -34,7 +34,7 @@
             "card.share.title": "分享", "card.share.desc": "自定义分享卡片与站内识别",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 风格仓库浏览 · Proxy 镜像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英语 / 日语课程与 7 种题型",
-            "footer": "Vitual XRing 9.0.0 · XOS 是浏览器端虚拟桌面与云手机，不是真实远程虚拟机。",
+            "footer": "Vitual XRing 9.1.0 · XOS 是浏览器端虚拟桌面与云手机，不是真实远程虚拟机。",
             "widget.theme": "切换主题", "widget.settings": "打开设置",
             "widget.themeAuto": "主题：自动（{theme}）", "widget.themeLight": "主题：浅色", "widget.themeDark": "主题：深色",
             "settings.kicker": "界面偏好", "settings.title": "设置", "settings.subtitle": "主题、语言和显示偏好会保存在本机，并立即生效。",
@@ -80,7 +80,7 @@
             "card.share.title": "分享", "card.share.desc": "自訂分享卡片與站內辨識",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風格倉庫瀏覽 · Proxy 鏡像",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日語課程與 7 種題型",
-            "footer": "Vitual XRing 9.0.0 · XOS 是瀏覽器端虛擬桌面與雲端手機，不是真實遠端虛擬機。",
+            "footer": "Vitual XRing 9.1.0 · XOS 是瀏覽器端虛擬桌面與雲端手機，不是真實遠端虛擬機。",
             "widget.theme": "切換主題", "widget.settings": "開啟設定",
             "widget.themeAuto": "主題：自動（{theme}）", "widget.themeLight": "主題：淺色", "widget.themeDark": "主題：深色",
             "settings.kicker": "介面偏好", "settings.title": "設定", "settings.subtitle": "主題、語言和顯示偏好會保存在本機，並立即生效。",
@@ -126,7 +126,7 @@
             "card.share.title": "Share", "card.share.desc": "Custom share cards and in-site previews",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub-style repository browser · proxy mirror",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "English / Japanese lessons and 7 exercise types",
-            "footer": "Vitual XRing 9.0.0 · XOS is a browser virtual desktop and cloud phone, not a real remote VM.",
+            "footer": "Vitual XRing 9.1.0 · XOS is a browser virtual desktop and cloud phone, not a real remote VM.",
             "widget.theme": "Change theme", "widget.settings": "Open settings",
             "widget.themeAuto": "Theme: auto ({theme})", "widget.themeLight": "Theme: light", "widget.themeDark": "Theme: dark",
             "settings.kicker": "Interface preferences", "settings.title": "Settings", "settings.subtitle": "Theme, language and display preferences are saved on this device and applied immediately.",
@@ -172,7 +172,7 @@
             "card.share.title": "共有", "card.share.desc": "カスタム共有カードとサイト内プレビュー",
             "card.vitualgit.title": "VitualGit", "card.vitualgit.desc": "GitHub 風リポジトリ閲覧 · Proxy ミラー",
             "card.vuolingo.title": "Vuolingo", "card.vuolingo.desc": "英語 / 日本語レッスンと7種類の練習",
-            "footer": "Vitual XRing 9.0.0 · XOS はブラウザ内の仮想デスクトップとクラウドスマホであり、実際のリモート VM ではありません。",
+            "footer": "Vitual XRing 9.1.0 · XOS はブラウザ内の仮想デスクトップとクラウドスマホであり、実際のリモート VM ではありません。",
             "widget.theme": "テーマを切り替え", "widget.settings": "設定を開く",
             "widget.themeAuto": "テーマ：自動（{theme}）", "widget.themeLight": "テーマ：ライト", "widget.themeDark": "テーマ：ダーク",
             "settings.kicker": "表示設定", "settings.title": "設定", "settings.subtitle": "テーマ、言語、表示設定はこの端末に保存され、すぐに反映されます。",
@@ -687,6 +687,23 @@
         widget.querySelector("[data-vtx-settings]").setAttribute("aria-label", t("widget.settings", language));
     }
 
+    /* 9.1.0：聊天页的输入框和发送按钮也在右下角，悬浮球原来会直接压在上面。
+       页面给底部输入区加 data-vtx-widget-avoid，这里按它的实际高度把悬浮球
+       抬到输入区上方；没有这个标记的页面仍然贴在右下角。 */
+    function syncWidgetOffset() {
+        if (!widget) return;
+        const target = document.querySelector("[data-vtx-widget-avoid]");
+        let lift = 0;
+        if (target) {
+            const rect = target.getBoundingClientRect();
+            if (rect.height > 0 && rect.top < window.innerHeight) {
+                const overlap = window.innerHeight - rect.top;
+                lift = Math.min(Math.round(overlap) + 10, Math.round(window.innerHeight * 0.6));
+            }
+        }
+        document.documentElement.style.setProperty("--vtx-widget-lift", `${Math.max(0, lift)}px`);
+    }
+
     function createWidget() {
         if (document.body.dataset.vtxWidget === "off") return;
         if (document.getElementById("vtx-theme-widget")) return;
@@ -720,6 +737,9 @@
         applyGlass();
         applyLanguage();
         createWidget();
+        syncWidgetOffset();
+        window.addEventListener("resize", syncWidgetOffset);
+        window.addEventListener("orientationchange", () => setTimeout(syncWidgetOffset, 160));
         startTextObserver();
         if (document.body) document.body.classList.add("vtx-theme-ready");
     });
@@ -769,6 +789,7 @@
         applyGlass,
         translatePage,
         translateSubtree,
+        syncWidgetOffset,
         t: (key) => t(key, effectiveLanguage())
     };
 })();
