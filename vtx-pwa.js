@@ -1,10 +1,10 @@
-/* Vitual XRing 9.2.0 — 页面缓存、版本检测与自动清缓存 */
+/* Vitual XRing 9.2.1 — 页面缓存、版本检测与自动清缓存 */
 (function () {
     "use strict";
     if (!("serviceWorker" in navigator)) return;
     if (location.protocol === "file:") return;
 
-    const CLIENT_VERSION = "9.2.0";
+    const CLIENT_VERSION = "9.2.1";
 
     async function clearPageCaches() {
         try {
@@ -38,9 +38,12 @@
             if (!response.ok) return false;
             const data = await response.json();
             if (!data || !data.version || !isNewerVersion(data.version, CLIENT_VERSION)) return false;
+            /* 9.2.1：旧版本原来只允许重置一次，一旦 Service Worker 又返回了缓存页面，
+               就会永久停在旧版本。现在最多尝试 3 次，每次仍然清缓存 + 硬跳转。 */
             const key = "xring:cacheReset:" + data.version;
-            if (sessionStorage.getItem(key) === "1") return false;
-            sessionStorage.setItem(key, "1");
+            const attempts = Number(sessionStorage.getItem(key) || 0);
+            if (attempts >= 3) return false;
+            sessionStorage.setItem(key, String(attempts + 1));
             await clearPageCaches();
             const url = new URL(location.href);
             url.searchParams.set("v", data.version);
@@ -55,7 +58,7 @@
 
     window.addEventListener("load", async function () {
         if (await checkForNewVersion()) return;
-        navigator.serviceWorker.register("vtx-sw.js?v=" + CLIENT_VERSION, { scope: "./" }).then(function (registration) {
+        navigator.serviceWorker.register("vtx-sw.js?v=" + CLIENT_VERSION, { scope: "./", updateViaCache: "none" }).then(function (registration) {
             if (registration.waiting) registration.waiting.postMessage("SKIP_WAITING");
             registration.addEventListener("updatefound", function () {
                 const worker = registration.installing;
@@ -69,5 +72,10 @@
         }).catch(function () {
             /* 离线缓存不是关键路径，注册失败不影响页面 */
         });
+    });
+
+    /* 9.2.1：从往返缓存恢复的页面不会触发 load，单独再检查一次版本。 */
+    window.addEventListener("pageshow", function (event) {
+        if (event.persisted) checkForNewVersion();
     });
 })();

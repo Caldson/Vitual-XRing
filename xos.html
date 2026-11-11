@@ -9,7 +9,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑与云手机 | Vitual XRing</title>
-    <script src="vtx-api.js?v=9.2.0"></script>
+    <script src="vtx-api.js?v=9.2.1"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -579,7 +579,7 @@
             .xos-gate-grid { grid-template-columns: 1fr; }
         }
 
-        /* ───────── 9.2.0：Aurora Glass 外壳 ───────── */
+        /* ───────── 9.2.1：Aurora Glass 外壳 ───────── */
 
         :root {
             --xos-accent: #6ea8ff;
@@ -996,7 +996,7 @@
         .xos-notify-wrap { right: 18px; bottom: 92px; }
         .xos-modal { border-radius: 18px; background: #101d35; box-shadow: 0 30px 90px rgba(0, 0, 0, 0.62); }
 
-        /* ───────── 9.2.0：XOS 云手机 ───────── */
+        /* ───────── 9.2.1：XOS 云手机 ───────── */
         .xos-screen.phone-mode .xos-desktop,
         .xos-screen.phone-mode .xos-windows,
         .xos-screen.phone-mode .xos-taskbar,
@@ -1260,8 +1260,8 @@
             *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
         }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=9.2.0">
-    <script src="vtx-theme.js?v=9.2.0"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.2.1">
+    <script src="vtx-theme.js?v=9.2.1"></script>
 </head>
 <body data-vtx-skip-text="true">
     <div class="xos-gate" id="xos-gate" hidden>
@@ -1351,7 +1351,7 @@
                                 <a class="xos-menu-item" role="menuitem" href="shop.html?category=XOS%E4%BA%91%E6%89%8B%E6%9C%BA">XOS 云手机</a>
                                 <a class="xos-menu-item" role="menuitem" href="manager.html">账户中心</a>
                                 <a class="xos-menu-item" role="menuitem" href="index.html">返回主页</a>
-                                <div class="xos-menu-meta">XOS v9.2.0 · 网页虚拟桌面</div>
+                                <div class="xos-menu-meta">XOS v9.2.1 · 网页虚拟桌面</div>
                             </div>
                         </div>
                     </div>
@@ -1405,7 +1405,7 @@
                     </div>
                     <div class="xos-start-footer">
                         <span id="xos-start-edition">XOS</span>
-                        <span>v9.2.0 · 浏览器虚拟桌面</span>
+                        <span>v9.2.1 · 浏览器虚拟桌面</span>
                     </div>
                 </div>
 
@@ -1460,7 +1460,7 @@
             "use strict";
 
             const API = window.VTXApi;
-            const PAGE_VERSION = "9.2.0";
+            const PAGE_VERSION = "9.2.1";
             const $ = (id) => document.getElementById(id);
             const SCREEN_W = 1440;
             const SCREEN_H = 900;
@@ -1701,7 +1701,7 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 9.2.0：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 9.2.1：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");
@@ -2398,7 +2398,7 @@
                 if (changed) saveFs();
             }
 
-            /* ───────── 9.2.0：XOS File Sharing Service ───────── */
+            /* ───────── 9.2.1：XOS File Sharing Service ───────── */
 
             const SHARE_APP = "shared-files";
             const SHARE_LINKS = {
@@ -3573,7 +3573,7 @@
                 closeDeviceMenu();
             }
 
-            /* ───────── 9.2.0：云手机界面 ───────── */
+            /* ───────── 9.2.1：云手机界面 ───────── */
 
             function applyDeviceMode() {
                 const phone = state.formFactor === "phone";
@@ -3949,6 +3949,6 @@
             init();
         })();
     </script>
-    <script src="vtx-pwa.js?v=9.2.0" defer></script>
+    <script src="vtx-pwa.js?v=9.2.1" defer></script>
 </body>
 </html>

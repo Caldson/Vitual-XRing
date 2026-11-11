@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 9.2.0：分享生态 API（视频卡片 / 聊天记录分享）。
+ * Vitual XRing 9.2.1：分享生态 API（视频卡片 / 聊天记录分享）。
  *
  * 挂载点：/api/social/*
  * 页面：Vimidi、VMusic、Viratch、AUDIV、ViStyle、VClang、Vitx 动态、share.html
@@ -87,6 +87,23 @@ function toCents(value) {
 
 function fromCents(cents) {
     return (Math.round(Number(cents) || 0) / 100).toFixed(2);
+}
+
+/* 9.2.1：余额可能是超过 2^53 的 VTX 字符串，按「分」用 BigInt 精确加减。 */
+function addMoney(value, deltaCents) {
+    const text = String(value == null ? "" : value).trim().replace(/,/g, "");
+    const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(text);
+    const base = match ? BigInt(match[1]) * 100n + BigInt((match[2] || "").padEnd(2, "0")) : 0n;
+    let delta;
+    try {
+        delta = BigInt(deltaCents);
+    } catch (error) {
+        delta = 0n;
+    }
+    const total = base + delta;
+    const negative = total < 0n;
+    const abs = negative ? -total : total;
+    return `${negative ? "-" : ""}${abs / 100n}.${String(abs % 100n).padStart(2, "0")}`;
 }
 
 function pushTrade(account, trade) {
@@ -564,7 +581,7 @@ async function handlePurchase(env, deps, viewer, item, body) {
         if (balance < cents) {
             throw new SocialError(400, "insufficient_funds", `余额不足，当前余额 ${fromCents(balance)} VTX`);
         }
-        buyer.money = fromCents(balance - cents);
+        buyer.money = addMoney(buyer.money, -cents);
         buyer.library = Array.isArray(buyer.library) ? buyer.library : [];
         buyer.library.push({
             id: item.id,
@@ -585,7 +602,7 @@ async function handlePurchase(env, deps, viewer, item, body) {
 
         const seller = accounts[item.owner];
         if (seller) {
-            seller.money = fromCents(toCents(seller.money) + cents);
+            seller.money = addMoney(seller.money, cents);
             seller.library = Array.isArray(seller.library) ? seller.library : [];
             pushTrade(seller, {
                 name: item.kind === "style" ? "出售 ViStyle 样式包" : "出售 VClang 作品",

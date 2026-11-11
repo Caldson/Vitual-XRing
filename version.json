@@ -1,5 +1,5 @@
 {
-    "version": "9.2.0",
-    "updatedAt": "2026-11-11T18:20:00+08:00",
-    "notes": "Vord text documents with share links, permissions and edit history"
+    "version": "9.2.1",
+    "updatedAt": "2026-11-11T19:11:41+08:00",
+    "notes": "Fix large VTX check-in precision, account theme styles and stale cached versions"
 }

@@ -85,11 +85,11 @@
  * 5.5.0：
  *   - XOS 顶栏和开始菜单增加「返回主页」入口。
  *
- * 9.2.0：
+ * 9.2.1：
  *   - 新增 GameVersion / GameULTRA / GameMAX 三台高性能 XOS；
  *   - GameMAX 1500–30000fps 极端刷新率提示。
  *
- * 9.2.0：
+ * 9.2.1：
  *   - 修复旧缓存页面把 GameMAX 识别成 Home；未知版本按 rank 回退 CE；
  *   - XOS 页面增加版本守卫与 no-cache meta。
  *
@@ -121,7 +121,7 @@ import { MeetingHub } from "./meeting.js";
 import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./social.js";
 import { routeVord, VORD_VERSION } from "./vord.js";
 
-const VERSION = "9.2.0";
+const VERSION = "9.2.1";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -145,7 +145,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "9.2.0";
+const CHAT_VERSION = "9.2.1";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -235,7 +235,7 @@ const MAX_TRADE_NAME_LENGTH = 20;
 const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
 const SHOP_CACHE_TTL_MS = 30 * 1000;
 const SHOP_MAX_QUANTITY = 999;
-/* 9.2.0：同捆包与商铺申请 */
+/* 9.2.1：同捆包与商铺申请 */
 const SHOP_APPLICATIONS_KEY = "shop:applications";
 const SHOPS_KEY = "shops";
 const SHOP_APPLICATION_MAX = 500;
@@ -592,7 +592,7 @@ function loginHistoryOf(account) {
     return history.slice(-LOGIN_HISTORY_LIMIT);
 }
 
-// 9.2.0：XOS PC 第 5 代（V4 26H4）；云手机沿用 Home 26H3 V2.1 的第 3 代能力
+// 9.2.1：XOS PC 第 5 代（V4 26H4）；云手机沿用 Home 26H3 V2.1 的第 3 代能力
 function xosGenerationOf(value) {
     const generation = Number(value) || 1;
     if (generation >= 5) return 5;
@@ -1174,6 +1174,35 @@ function fromCents(cents) {
     return (cents / 100).toFixed(2);
 }
 
+/* 9.2.1：余额可能超过 Number.MAX_SAFE_INTEGER（例如 1,000,000,009,043,627,695.00），
+   toCents 用 Number 会把 +5.00 直接吃掉。这里用 BigInt 精确地按「分」做加减，
+   只把最终结果写回两位小数字符串；普通余额的行为完全不变。 */
+function moneyCentsExact(value) {
+    const text = String(value ?? "").trim().replace(/,/g, "");
+    const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(text);
+    if (!match) return null;
+    return BigInt(match[1]) * 100n + BigInt((match[2] || "").padEnd(2, "0"));
+}
+
+function centsExactText(cents) {
+    const negative = cents < 0n;
+    const abs = negative ? -cents : cents;
+    const text = `${abs / 100n}.${String(abs % 100n).padStart(2, "0")}`;
+    return negative ? `-${text}` : text;
+}
+
+function addMoney(value, deltaCents) {
+    const base = moneyCentsExact(value);
+    if (base === null) return fromCents(0);
+    let delta;
+    try {
+        delta = BigInt(deltaCents);
+    } catch (error) {
+        delta = 0n;
+    }
+    return centsExactText(base + delta);
+}
+
 /* ───────── 1.2.0：服务端商品目录 / 库存 ───────── */
 
 function shopStockKey(id) {
@@ -1645,11 +1674,11 @@ async function handlePayReceiptCode(request, env, cors, code) {
 
         payerAccount.trades = Array.isArray(payerAccount.trades) ? payerAccount.trades : [];
         payerAccount.trades.push(payerTrade);
-        payerAccount.money = fromCents(payerBalance - amountCents);
+        payerAccount.money = addMoney(payerAccount.money, -amountCents);
 
         payeeAccount.trades = Array.isArray(payeeAccount.trades) ? payeeAccount.trades : [];
         payeeAccount.trades.push(payeeTrade);
-        payeeAccount.money = fromCents(payeeBalance + amountCents);
+        payeeAccount.money = addMoney(payeeAccount.money, amountCents);
 
         payeeInfo = { login: found.login, username: payeeName };
 
@@ -2208,7 +2237,7 @@ async function handleTrade(request, env, cors, login) {
 
         account.trades = Array.isArray(account.trades) ? account.trades : [];
         account.trades.push(trade);
-        account.money = fromCents(isPayment ? balanceCents - amountCents : balanceCents + amountCents);
+        account.money = addMoney(account.money, isPayment ? -amountCents : amountCents);
 
         return `${name}：${username} ${signed} VTX`;
     });
@@ -2368,7 +2397,7 @@ async function handleCheckin(request, env, cors) {
         }
 
         const balance = toCents(account.money) ?? 0;
-        account.money = fromCents(balance + 500);
+        account.money = addMoney(account.money, 500);
 
         trade = pushTrade(account, {
             name: "每日签到",
@@ -2445,8 +2474,8 @@ async function handleTransfer(request, env, cors) {
         targetName = String(receiver.username || target);
         const common = { name: "转账", description, time, from: senderName, to: targetName };
 
-        sender.money = fromCents(senderBalance - amountCents);
-        receiver.money = fromCents((toCents(receiver.money) ?? 0) + amountCents);
+        sender.money = addMoney(sender.money, -amountCents);
+        receiver.money = addMoney(receiver.money, amountCents);
 
         senderTrade = pushTrade(sender, { ...common, price: `-${price}` });
         pushTrade(receiver, { ...common, price: `+${price}` });
@@ -2501,7 +2530,7 @@ async function handleWithdraw(request, env, cors) {
         }
 
         username = String(account.username || login);
-        account.money = fromCents(balance - amountCents);
+        account.money = addMoney(account.money, -amountCents);
         trade = pushTrade(account, {
             name: "提款",
             description: "线下提款",
@@ -2567,7 +2596,7 @@ async function handleBilling(request, env, cors) {
         const username = String(account.username || login);
         const price = fromCents(amountCents);
 
-        account.money = fromCents(isCharge ? balance - amountCents : balance + amountCents);
+        account.money = addMoney(account.money, isCharge ? -amountCents : amountCents);
         trade = pushTrade(account, {
             name,
             description,
@@ -2717,7 +2746,7 @@ async function handlePurchase(request, env, cors) {
             await env.ACCOUNTS_KV.put(stockKey, String(remaining));
         }
 
-        account.money = fromCents(balance - amountCents);
+        account.money = addMoney(account.money, -amountCents);
         trade = pushTrade(account, {
             name: "购买商品",
             description: description || `${product.name} ×${quantity}`,
@@ -2728,7 +2757,7 @@ async function handlePurchase(request, env, cors) {
         });
 
         if (seller) {
-            seller.money = fromCents((toCents(seller.money) ?? 0) + amountCents);
+            seller.money = addMoney(seller.money, amountCents);
             pushTrade(seller, {
                 name: "商品售出",
                 description: `${product.name} ×${quantity} 售予 ${account.username || login}`,
@@ -2750,7 +2779,7 @@ async function handlePurchase(request, env, cors) {
                 account.xosDeviceId = account.xos.id;
             }
         } else if (product.type === "xosapp") {
-            // 9.2.0：共享文件等 XOS 软件的免费获取 / 更新授权
+            // 9.2.1：共享文件等 XOS 软件的免费获取 / 更新授权
             const apps = Array.isArray(account.xosApps) ? account.xosApps : [];
             if (apps.some((entry) => entry && entry.productId === product.id)) {
                 throw new HttpError(400, "already_owned", "已经获取过这个软件，无需重复获取");
@@ -3033,7 +3062,7 @@ async function handleShopStock(request, env, cors) {
     return jsonResponse({ ok: true, version: VERSION, stock }, 200, cors);
 }
 
-/* ───────── 9.2.0：成为商铺 Beta ───────── */
+/* ───────── 9.2.1：成为商铺 Beta ───────── */
 
 function shopApplicationView(application, includeLogin) {
     const view = {
@@ -3215,7 +3244,7 @@ async function handleAdminShopReview(request, env, cors, id) {
     return jsonResponse({ ok: true, application: shopApplicationView(result.application, true) }, 200, cors);
 }
 
-/* ───────── 9.2.0：商家上架商品 Beta ───────── */
+/* ───────── 9.2.1：商家上架商品 Beta ───────── */
 
 function merchantProductView(product, includePrivate) {
     const view = {
@@ -3487,13 +3516,13 @@ function validatePasswordValue(password) {
 }
 
 function validateMoneyValue(value) {
-    const cents = toCents(value);
+    const cents = moneyCentsExact(value);
 
-    if (cents === null || cents < 0) {
+    if (cents === null || cents < 0n) {
         throw new HttpError(400, "bad_request", "money 必须是不小于 0 的数字，最多两位小数");
     }
 
-    return fromCents(cents);
+    return centsExactText(cents);
 }
 
 async function handleAdminList(request, env, cors) {
@@ -4014,7 +4043,7 @@ async function handleGiftRedeem(request, env, cors) {
 
         if (type === "vtx") {
             const balance = toCents(account.money) ?? 0;
-            account.money = fromCents(balance + amountCents);
+            account.money = addMoney(account.money, amountCents);
         }
         trade = pushTrade(account, {
             name: "礼品兑换",
@@ -8154,7 +8183,7 @@ async function handleChatRedPacketCreate(request, env, cors, id) {
             };
         }
 
-        sender.money = fromCents(balance - totalCents);
+        sender.money = addMoney(sender.money, -totalCents);
         sender.trades = Array.isArray(sender.trades) ? sender.trades : [];
         sender.trades.push({
             name: "拼手速红包",
@@ -8294,7 +8323,7 @@ async function handleChatRedPacketGrab(request, env, cors, messageId) {
             return { error: jsonResponse({ error: "not_found", message: "账户不存在" }, 404, cors) };
         }
 
-        grabber.money = fromCents(balanceCents(grabber) + cents);
+        grabber.money = addMoney(grabber.money, cents);
         grabber.trades = Array.isArray(grabber.trades) ? grabber.trades : [];
         grabber.trades.push({
             name: "拼手速红包",
@@ -8425,7 +8454,7 @@ async function handleChatRedPacketRefund(request, env, cors, messageId) {
         const store = await loadAccountsForLock(env);
         const sender = store[login];
         if (sender) {
-            sender.money = fromCents(balanceCents(sender) + packet.remainCents);
+            sender.money = addMoney(sender.money, packet.remainCents);
             sender.trades = Array.isArray(sender.trades) ? sender.trades : [];
             sender.trades.push({
                 name: "拼手速红包退回",
@@ -8554,7 +8583,7 @@ async function handleChatTransferCreate(request, env, cors, id) {
         const targetName = chatMemberAlias(conv, store, target);
         const price = fromCents(amountCents);
 
-        sender.money = fromCents(balance - amountCents);
+        sender.money = addMoney(sender.money, -amountCents);
         pushTrade(sender, {
             name: "转账",
             description: note || `聊天室转账给 ${targetName}`,
@@ -8699,7 +8728,7 @@ async function handleChatTransferClaim(request, env, cors, messageId) {
         }
 
         const time = shanghaiTimestamp();
-        recipient.money = fromCents(balanceCents(recipient) + transfer.cents);
+        recipient.money = addMoney(recipient.money, transfer.cents);
         pushTrade(recipient, {
             name: "转账",
             description: transfer.note || `收到 ${transfer.fromName || transfer.from} 的聊天室转账`,
@@ -8803,7 +8832,7 @@ async function handleChatTransferRefund(request, env, cors, messageId) {
         }
 
         const time = shanghaiTimestamp();
-        sender.money = fromCents(balanceCents(sender) + transfer.cents);
+        sender.money = addMoney(sender.money, transfer.cents);
         pushTrade(sender, {
             name: "转账退回",
             description: transfer.note || "未收款的聊天室转账退回",
@@ -8916,7 +8945,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "9.2.0";
+const VIDEO_VERSION = "9.2.1";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;
@@ -10819,7 +10848,7 @@ async function handleVideoCoin(request, env, cors, id) {
                 to: meta.ownerName || owner,
                 price: `-${cost}`
             });
-            payer.money = fromCents(payerBalance - VIDEO_COIN_CENTS);
+            payer.money = addMoney(payer.money, -VIDEO_COIN_CENTS);
 
             const payee = owner && owner !== login ? data[owner] : null;
             if (payee) {
@@ -10832,7 +10861,7 @@ async function handleVideoCoin(request, env, cors, id) {
                     to: String(payee.username || owner),
                     price: `+${cost}`
                 });
-                payee.money = fromCents((toCents(payee.money) ?? 0) + VIDEO_COIN_CENTS);
+                payee.money = addMoney(payee.money, VIDEO_COIN_CENTS);
             }
 
             return `投币：${payerName} → 《${meta.title}》${cost} VTX`;
