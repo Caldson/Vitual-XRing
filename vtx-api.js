@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "9.2.2";
+    const API_VERSION = "9.3.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -352,6 +352,60 @@
         }
 
         throw networkError("无法连接 Vitual XRing 服务，已切换到备用通道", lastError);
+    }
+
+    /* 9.3.0：二进制上传 / 下载。apiRequest 只会 JSON 序列化，VPAN 的文件块需要原样 body。 */
+    async function apiRaw(path, options = {}) {
+        const candidates = preferredBase();
+        let lastError = null;
+        for (const candidate of candidates) {
+            let base;
+            try {
+                base = resolveBase(candidate);
+                if (!isAllowedBase(base)) continue;
+            } catch (error) {
+                continue;
+            }
+            const headers = new Headers(options.headers || undefined);
+            const token = sessionToken();
+            if (options.auth !== false && token && !headers.has("authorization")) {
+                headers.set("authorization", `Bearer ${token}`);
+            }
+            let response;
+            try {
+                response = await fetch(`${base}${path}`, {
+                    method: options.method || "GET",
+                    headers,
+                    body: options.body,
+                    cache: "no-store"
+                });
+            } catch (error) {
+                lastError = networkError("无法连接 Vitual XRing 服务", error);
+                continue;
+            }
+            if (!response.ok) {
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (error) {
+                    data = null;
+                }
+                const failure = new Error((data && data.message) || `请求失败（HTTP ${response.status}）`);
+                failure.status = response.status;
+                failure.code = data && data.error;
+                failure.body = data;
+                if (response.status < 500) throw failure;
+                lastError = failure;
+                continue;
+            }
+            try {
+                sessionStorage.setItem(BASE_KEY, candidate);
+            } catch (error) {
+                /* 忽略 */
+            }
+            return response;
+        }
+        throw lastError || networkError("无法连接 Vitual XRing 服务");
     }
 
     // 只有「Workers 连不上 / 服务端 5xx」才算离线；服务端明确拒绝（密码错误、余额不足等）
@@ -1140,7 +1194,7 @@
         )
     };
 
-    /* ───────── 9.2.2：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态 ───────── */
+    /* ───────── 9.3.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态 ───────── */
 
     function socialRequest(path, options = {}) {
         return apiRequest(`/social${path}`, options);
@@ -1541,7 +1595,7 @@
         removeFile: (id) => apiRequest(`/xos/files/${encodeId(id)}`, { method: "DELETE" })
     };
 
-    /* 9.2.2：Vord 文本文档。分享链接的读取 / 编辑接口不强制登录，
+    /* 9.3.0：Vord 文本文档。分享链接的读取 / 编辑接口不强制登录，
        由服务端按 6 档链接权限判断，未登录的编辑会记成「著名用户 [网页版]」。 */
     const vord = {
         list: () => apiRequest("/vord/documents"),
@@ -1562,6 +1616,39 @@
             method: "PUT",
             body: payload || {}
         })
+    };
+
+    /* 9.3.0：VPAN 云盘。小文件 PUT /content，大文件按 32 MB 分片 PUT /chunks/:n。 */
+    const vpan = {
+        plans: () => apiRequest("/vpan/plans"),
+        me: () => apiRequest("/vpan/me"),
+        subscribe: (planId, password) => apiRequest("/vpan/subscribe", {
+            method: "POST",
+            body: { planId, password }
+        }),
+        files: () => apiRequest("/vpan/files"),
+        create: (payload) => apiRequest("/vpan/files", { method: "POST", body: payload || {} }),
+        uploadContent: (id, body) => apiRaw(`/vpan/files/${encodeId(id)}/content`, {
+            method: "PUT",
+            headers: { "content-type": "application/octet-stream" },
+            body
+        }),
+        uploadChunk: (id, number, body) => apiRaw(`/vpan/files/${encodeId(id)}/chunks/${Number(number)}`, {
+            method: "PUT",
+            headers: { "content-type": "application/octet-stream" },
+            body
+        }),
+        complete: (id) => apiRequest(`/vpan/files/${encodeId(id)}/complete`, { method: "POST" }),
+        rename: (id, name) => apiRequest(`/vpan/files/${encodeId(id)}`, { method: "PATCH", body: { name } }),
+        remove: (id) => apiRequest(`/vpan/files/${encodeId(id)}`, { method: "DELETE" }),
+        share: (id, payload) => apiRequest(`/vpan/files/${encodeId(id)}/share`, {
+            method: "POST",
+            body: payload || {}
+        }),
+        unshare: (id) => apiRequest(`/vpan/files/${encodeId(id)}/share`, { method: "DELETE" }),
+        shared: (token, password) => apiRequest(`/vpan/share/${encodeURIComponent(token)}${password ? `?password=${encodeURIComponent(password)}` : ""}`),
+        download: (id) => apiRaw(`/vpan/files/${encodeId(id)}/download`),
+        shareDownload: (token, password) => apiRaw(`/vpan/share/${encodeURIComponent(token)}/download${password ? `?password=${encodeURIComponent(password)}` : ""}`, { auth: false })
     };
 
     const video = {
@@ -1611,7 +1698,7 @@
         )
     };
 
-    /* ───────── 9.2.2：ViStyle 一键应用 ─────────
+    /* ───────── 9.3.0：ViStyle 一键应用 ─────────
        只在一键应用后写入 localStorage，再由这里在每个公开页面注入 <style>。
        管理员 / 站主 / 投稿页面永不应用样式包，避免把后台改坏（页面要求明确禁止）。 */
     const STYLE_PACK_KEY = "vtxStylePack";
@@ -1775,6 +1862,7 @@
         video,
         xos,
         vord,
+        vpan,
         commit,
         readAll,
         loadConfig,

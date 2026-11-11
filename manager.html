@@ -725,8 +725,8 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=9.2.2">
-    <script src="vtx-theme.js?v=9.2.2"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.3.0">
+    <script src="vtx-theme.js?v=9.3.0"></script>
     <style>
         .manager-xos { background: radial-gradient(circle at 12% 4%, color-mix(in srgb, var(--vtx-accent) 24%, transparent), transparent 30%), radial-gradient(circle at 88% 2%, color-mix(in srgb, var(--vtx-accent-2) 20%, transparent), transparent 32%), var(--vtx-bg) !important; }
         .manager-xos .topbar { position: sticky; top: 0; z-index: 50; padding: 12px max(24px, calc((100% - 1120px) / 2)); border-bottom: 1px solid rgb(var(--vtx-glass-border) / .34); background: rgb(var(--vtx-glass-rgb) / calc(var(--vtx-glass-alpha) + .14)) !important; -webkit-backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.45); backdrop-filter: blur(var(--vtx-glass-blur)) saturate(1.45); }
@@ -743,7 +743,7 @@
         .manager-xos .balance { text-shadow: 0 8px 28px rgba(0,0,0,.18); }
         .manager-xos .balance-footer { position: relative; z-index: 1; }
         .manager-xos .checkin-button { border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.14); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
-        /* 9.2.2：未签到时按钮更亮、更浅；已签到才压暗。 */
+        /* 9.3.0：未签到时按钮更亮、更浅；已签到才压暗。 */
         .manager-xos .checkin-button:not(:disabled) { color: #fff; border-color: rgba(255,255,255,.52); background: rgba(255,255,255,.34); }
         .manager-xos .checkin-button:not(:disabled):hover { background: rgba(255,255,255,.46); }
         .manager-xos .checkin-button:disabled { color: rgba(255,255,255,.58); border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.10); }
@@ -781,12 +781,13 @@
             <a class="topbar-link" href="image.html">AI 生图</a>
             <a class="topbar-link" href="shop.html">商店</a>
             <a class="topbar-link" href="chatroom.html">聊天室</a>
+            <a class="topbar-link" href="vpan.html">VPAN</a>
             <a class="topbar-link" href="vord.html">Vord</a>
             <a class="topbar-link" href="vitxvideo.html">视频</a>
             <a class="topbar-link" href="API_VTXPAY.html?type=code">收款码</a>
             <a class="topbar-link" href="settings.html" data-i18n="nav.settings">设置</a>
             <a id="accounts-admin-button" class="admin-link" href="accounts-admin.html" hidden>账号修改</a>
-            <span class="version">v9.2.2</span>
+            <span class="version">v9.3.0</span>
             <button id="logout-button" class="logout-button" type="button">退出登录</button>
         </div>
     </header>
@@ -817,6 +818,7 @@
                 <a class="social-chip" href="vistyle.html"><b>🎨 ViStyle</b><span>CSS 样式包</span></a>
                 <a class="social-chip" href="vclang.html"><b>💻 VClang</b><span>C++ 项目</span></a>
                 <a class="social-chip" href="vitx-dynamic.html"><b>📝 Vitx 动态</b><span>图文动态</span></a>
+                <a class="social-chip" href="vpan.html"><b>☁️ VPAN 云盘</b><span>5GB 免费 · 不限速</span></a>
                 <a class="social-chip" href="vord.html"><b>📄 Vord</b><span>txt / md 文档与分享</span></a>
                 <a class="social-chip" href="share.html?create=1"><b>🔗 分享</b><span>自定义分享卡片</span></a>
                 <a class="social-chip" href="xos.html"><b>🖥 XOS 云电脑</b><span>虚拟桌面 26H4</span></a>
@@ -971,7 +973,7 @@
 
     <footer>Vitual XRing · 账户余额以账户数据为准 · <a href="xos.html">XOS 云电脑</a></footer>
 
-    <script src="vtx-api.js?v=9.2.2"></script>
+    <script src="vtx-api.js?v=9.3.0"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";
@@ -1489,6 +1491,6 @@
 
         loadAccount();
     </script>
-    <script src="vtx-pwa.js?v=9.2.2" defer></script>
+    <script src="vtx-pwa.js?v=9.3.0" defer></script>
 </body>
 </html>

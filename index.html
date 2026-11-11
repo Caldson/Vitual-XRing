@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f3f6fb">
     <title>Vitual XRing · 虚拟云电脑与作品社区</title>
-    <link rel="stylesheet" href="vtx-theme.css?v=9.2.2">
-    <script src="vtx-theme.js?v=9.2.2"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.3.0">
+    <script src="vtx-theme.js?v=9.3.0"></script>
     <style>
         .home-hero { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(320px, .82fr); gap: 28px; align-items: stretch; padding: 46px 0 18px; }
         .hero-copy-wrap { padding: 18px 0; }
@@ -26,6 +26,35 @@
         .store-notice strong { color: var(--vtx-accent); font-size: 11px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
         .store-notice[data-visible="true"] { animation: store-notice-in 150ms ease-out; }
         @keyframes store-notice-in { from { opacity: 0; transform: translateY(-4px); } }
+        /* 9.3.0：首页顶部活动轮播。图片和容器都是 16:9，标题在 events.json 里配置。 */
+        .events { position: relative; margin: 20px 0 8px; }
+        .events-viewport { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; border: 1px solid var(--vtx-border); border-radius: 24px; background: #0b1220; box-shadow: 0 24px 60px rgba(20, 36, 70, .18); }
+        .events-track { display: flex; height: 100%; transition: transform 420ms cubic-bezier(.22, .8, .28, 1); will-change: transform; }
+        .event-slide { position: relative; flex: 0 0 100%; display: block; height: 100%; color: #fff; text-decoration: none; }
+        .event-slide img { display: block; width: 100%; height: 100%; object-fit: cover; }
+        .event-slide::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 12, 24, .02) 38%, rgba(6, 12, 24, .86) 100%); }
+        .event-copy { position: absolute; z-index: 1; left: clamp(18px, 4.2vw, 48px); right: clamp(18px, 12vw, 140px); bottom: clamp(16px, 4vw, 44px); }
+        .event-kicker { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 7px; padding: 4px 9px; border: 1px solid rgba(255, 255, 255, .26); border-radius: 999px; background: rgba(255, 255, 255, .12); color: rgba(255, 255, 255, .86); font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; backdrop-filter: blur(8px); }
+        .event-copy h2 { margin: 0 0 6px; font-size: clamp(19px, 2.9vw, 38px); line-height: 1.12; letter-spacing: -.035em; text-shadow: 0 4px 24px rgba(0, 0, 0, .34); }
+        .event-copy p { margin: 0; max-width: 720px; color: rgba(233, 240, 255, .82); font-size: clamp(11.5px, 1.25vw, 14.5px); line-height: 1.6; }
+        .events-arrow { position: absolute; top: 50%; z-index: 2; display: grid; place-items: center; width: 40px; height: 40px; margin-top: -20px; border: 1px solid rgba(255, 255, 255, .28); border-radius: 50%; background: rgba(10, 18, 34, .32); color: #fff; font-size: 26px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 160ms, background 160ms; backdrop-filter: blur(10px); }
+        .events-arrow.prev { left: 14px; }
+        .events-arrow.next { right: 14px; }
+        .events-viewport:hover .events-arrow, .events-viewport:focus-within .events-arrow { opacity: .9; }
+        .events-arrow:hover { background: rgba(10, 18, 34, .56); }
+        .events-dots { display: flex; justify-content: center; gap: 6px; padding-top: 10px; }
+        .events-dot { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 999px; background: var(--vtx-border-strong); cursor: pointer; transition: width 160ms, background 160ms; }
+        .events-dot.active { width: 22px; background: var(--vtx-accent); }
+        @media (max-width: 620px) {
+            .events-viewport { border-radius: 16px; }
+            .event-copy { right: 16px; bottom: 14px; }
+            .event-copy p { display: none; }
+            .event-kicker { font-size: 9.5px; }
+            .events-arrow { display: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .events-track { transition: none; }
+        }
         .stat-pill { display: flex; align-items: baseline; gap: 6px; padding: 8px 12px; border: 1px solid var(--vtx-border); border-radius: 999px; background: var(--vtx-surface); color: var(--vtx-muted); font-size: 11.5px; font-weight: 700; }
         .stat-pill b { color: var(--vtx-text); font-size: 15px; }
         .xos-preview { position: relative; display: flex; flex-direction: column; min-height: 390px; padding: 18px; overflow: hidden; border: 1px solid var(--vtx-border); border-radius: 24px; background: linear-gradient(150deg, #10192d, #0b1325 58%, #101e33); box-shadow: 0 30px 75px rgba(7, 15, 32, .32); color: #eaf1ff; text-decoration: none; }
@@ -65,7 +94,7 @@
 <body data-i18n-document-title="document.index">
     <header class="vtx-topbar">
         <a class="vtx-brand" href="index.html">
-            <img src="XRingLogo-V.png?v=9.2.2" alt="Vitual XRing" width="38" height="38">
+            <img src="XRingLogo-V.png?v=9.3.0" alt="Vitual XRing" width="38" height="38">
             <span data-i18n="brand">Vitual XRing</span>
         </a>
         <nav class="vtx-nav" aria-label="Main navigation">
@@ -75,16 +104,26 @@
             <a href="vitualgit.html" data-i18n="nav.vitualgit">VitualGit</a>
             <a href="vuolingo.html" data-i18n="nav.vuolingo">Vuolingo</a>
             <a href="chatroom.html" data-i18n="nav.chat">聊天室</a>
+            <a href="vpan.html">VPAN 云盘</a>
             <a href="vord.html">Vord</a>
             <a href="settings.html" data-i18n="nav.settings">设置</a>
         </nav>
         <div class="vtx-top-actions">
-            <a class="vtx-chip" href="settings.html"><strong>v9.2.2</strong></a>
+            <a class="vtx-chip" href="settings.html"><strong>v9.3.0</strong></a>
             <a class="vtx-btn ghost" id="account-link" href="login.html" data-i18n="action.login">登录</a>
         </div>
     </header>
 
     <main class="vtx-shell">
+        <section class="events" id="events" hidden aria-roledescription="carousel" aria-label="活动">
+            <div class="events-viewport">
+                <div class="events-track" id="events-track"></div>
+                <button type="button" class="events-arrow prev" id="events-prev" aria-label="上一个活动">‹</button>
+                <button type="button" class="events-arrow next" id="events-next" aria-label="下一个活动">›</button>
+            </div>
+            <div class="events-dots" id="events-dots" role="tablist" aria-label="活动切换"></div>
+        </section>
+
         <section class="home-hero">
             <div class="hero-copy-wrap">
                 <p class="hero-kicker" data-i18n="hero.kicker">XRing Studios · 虚拟桌面与创作平台</p>
@@ -93,6 +132,7 @@
                 <div class="hero-actions">
                     <a class="vtx-btn primary" href="xos.html" data-i18n="action.openXos">打开 XOS 云电脑</a>
                     <a class="vtx-btn" href="vord.html">打开 Vord 文档</a>
+                    <a class="vtx-btn" href="vpan.html">打开 VPAN 云盘</a>
                     <a class="vtx-btn" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91" data-i18n="action.viewXos">查看 XOS 版本</a>
                     <a class="vtx-btn ghost" id="account-button" href="login.html" data-i18n="action.login">登录</a>
                 </div>
@@ -142,6 +182,7 @@
             <a class="platform-card vtx-glass" href="vitxvideo.html"><span class="platform-icon">▶</span><b data-i18n="card.vitxvideo.title">Vitx® 视频</b><p data-i18n="card.vitxvideo.desc">投稿、观看、评论与分享</p><span class="platform-arrow">↗</span></a>
             <a class="platform-card vtx-glass" href="vitx-dynamic.html"><span class="platform-icon">📝</span><b data-i18n="card.vitxdynamic.title">Vitx 动态</b><p data-i18n="card.vitxdynamic.desc">图文动态与分享卡片</p><span class="platform-arrow">↗</span></a>
             <a class="platform-card vtx-glass" href="chatroom.html"><span class="platform-icon">💬</span><b data-i18n="card.chat.title">聊天室</b><p data-i18n="card.chat.desc">单聊、群聊、红包与实时消息</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vpan.html"><span class="platform-icon">☁️</span><b>VPAN 云盘</b><p>5GB 免费 · 上传即分享 · 不限速</p><span class="platform-arrow">↗</span></a>
             <a class="platform-card vtx-glass" href="vord.html"><span class="platform-icon">📄</span><b data-i18n="card.vord.title">Vord</b><p data-i18n="card.vord.desc">txt / md 文档、分享与编辑记录</p><span class="platform-arrow">↗</span></a>
             <a class="platform-card vtx-glass" href="audiv.html"><span class="platform-icon">🎙</span><b data-i18n="card.audiv.title">AUDIV</b><p data-i18n="card.audiv.desc">浏览器语音会议</p><span class="platform-arrow">↗</span></a>
             <a class="platform-card vtx-glass" href="share.html?create=1"><span class="platform-icon">🔗</span><b data-i18n="card.share.title">分享</b><p data-i18n="card.share.desc">自定义分享卡片与站内识别</p><span class="platform-arrow">↗</span></a>
@@ -150,7 +191,7 @@
         </section>
 
         <footer class="home-footer">
-            <span data-i18n="footer">Vitual XRing 9.2.2 · XOS 是浏览器端虚拟桌面与云手机，不是真实远程虚拟机。</span>
+            <span data-i18n="footer">Vitual XRing 9.3.0 · XOS 是浏览器端虚拟桌面与云手机，不是真实远程虚拟机。</span>
             <span><a href="settings.html" data-i18n="nav.settings">设置</a> · <a href="login.html" data-i18n="action.login">登录</a></span>
         </footer>
     </main>
@@ -172,6 +213,107 @@
                 button.dataset.i18n = "action.openAccount";
                 button.textContent = window.VTXTheme ? VTXTheme.t("action.openAccount") : "进入账户";
             }
+        })();
+    </script>
+    <script>
+        (function () {
+            var root = document.getElementById("events");
+            var track = document.getElementById("events-track");
+            var dots = document.getElementById("events-dots");
+            if (!root || !track || !dots) return;
+            var index = 0;
+            var items = [];
+            var timer = 0;
+            var paused = false;
+
+            function slide(item) {
+                var link = document.createElement("a");
+                link.className = "event-slide";
+                link.href = item.href || "index.html";
+                var image = document.createElement("img");
+                image.src = item.image;
+                image.alt = item.title || "活动";
+                image.loading = "lazy";
+                image.decoding = "async";
+                var copy = document.createElement("div");
+                copy.className = "event-copy";
+                var kicker = document.createElement("span");
+                kicker.className = "event-kicker";
+                kicker.textContent = "活动";
+                var title = document.createElement("h2");
+                title.textContent = item.title || "";
+                var note = document.createElement("p");
+                note.textContent = item.subtitle || "";
+                copy.append(kicker, title, note);
+                link.append(image, copy);
+                return link;
+            }
+
+            function go(next, user) {
+                if (!items.length) return;
+                index = (next + items.length) % items.length;
+                track.style.transform = "translateX(-" + (index * 100) + "%)";
+                Array.prototype.forEach.call(dots.children, function (dot, i) {
+                    dot.classList.toggle("active", i === index);
+                    dot.setAttribute("aria-selected", i === index ? "true" : "false");
+                });
+                if (user) restart();
+            }
+
+            function restart() {
+                clearInterval(timer);
+                if (paused || items.length < 2) return;
+                timer = setInterval(function () { if (!document.hidden) go(index + 1, false); }, 6500);
+            }
+
+            function render(data) {
+                items = data && Array.isArray(data.items) ? data.items.filter(function (item) {
+                    return item && item.title && item.image;
+                }) : [];
+                if (!items.length) return;
+                track.textContent = "";
+                dots.textContent = "";
+                items.forEach(function (item, i) {
+                    track.appendChild(slide(item));
+                    var dot = document.createElement("button");
+                    dot.type = "button";
+                    dot.className = "events-dot" + (i === 0 ? " active" : "");
+                    dot.setAttribute("role", "tab");
+                    dot.setAttribute("aria-label", "切换到第 " + (i + 1) + " 个活动");
+                    dot.addEventListener("click", function () { go(i, true); });
+                    dots.appendChild(dot);
+                });
+                root.hidden = false;
+                go(0, false);
+                restart();
+            }
+
+            var prev = document.getElementById("events-prev");
+            var next = document.getElementById("events-next");
+            if (prev) prev.addEventListener("click", function () { go(index - 1, true); });
+            if (next) next.addEventListener("click", function () { go(index + 1, true); });
+            root.addEventListener("mouseenter", function () { paused = true; clearInterval(timer); });
+            root.addEventListener("mouseleave", function () { paused = false; restart(); });
+            root.addEventListener("focusin", function () { paused = true; clearInterval(timer); });
+            root.addEventListener("focusout", function () { paused = false; restart(); });
+            document.addEventListener("visibilitychange", restart);
+            var touchX = null;
+            root.addEventListener("touchstart", function (event) {
+                touchX = event.touches[0] ? event.touches[0].clientX : null;
+            }, { passive: true });
+            root.addEventListener("touchend", function (event) {
+                if (touchX === null) return;
+                var end = event.changedTouches[0] ? event.changedTouches[0].clientX : touchX;
+                var diff = end - touchX;
+                touchX = null;
+                if (Math.abs(diff) < 40) return;
+                go(index + (diff < 0 ? 1 : -1), true);
+            }, { passive: true });
+
+            fetch("events.json?v=9.3.0&t=" + Date.now(), { cache: "no-store" })
+                .then(function (response) { return response.ok ? response.json() : null; })
+                .then(function (data) { render(data); })
+                .catch(function () { /* 活动加载失败不影响首页其它内容 */ });
         })();
     </script>
     <script>
@@ -207,6 +349,6 @@
         })();
     </script>
     <script type="module" src="https://get.microsoft.com/badge/ms-store-badge.bundled.js"></script>
-    <script src="vtx-pwa.js?v=9.2.2" defer></script>
+    <script src="vtx-pwa.js?v=9.3.0" defer></script>
 </body>
 </html>

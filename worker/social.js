@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 9.2.2：分享生态 API（视频卡片 / 聊天记录分享）。
+ * Vitual XRing 9.3.0：分享生态 API（视频卡片 / 聊天记录分享）。
  *
  * 挂载点：/api/social/*
  * 页面：Vimidi、VMusic、Viratch、AUDIV、ViStyle、VClang、Vitx 动态、share.html
@@ -89,7 +89,7 @@ function fromCents(cents) {
     return (Math.round(Number(cents) || 0) / 100).toFixed(2);
 }
 
-/* 9.2.2：余额可能是超过 2^53 的 VTX 字符串，按「分」用 BigInt 精确加减。 */
+/* 9.3.0：余额可能是超过 2^53 的 VTX 字符串，按「分」用 BigInt 精确加减。 */
 function addMoney(value, deltaCents) {
     const text = String(value == null ? "" : value).trim().replace(/,/g, "");
     const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(text);
