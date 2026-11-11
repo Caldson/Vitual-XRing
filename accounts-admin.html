@@ -278,6 +278,48 @@
             margin-top: 6px;
         }
 
+        .trade-box {
+            margin: 18px 0 14px;
+            padding: 16px;
+            border: 1px dashed #dbe2ee;
+            border-radius: 12px;
+            background: #fbfcff;
+        }
+
+        .trade-box h3 {
+            margin: 0 0 4px;
+            font-size: 14px;
+        }
+
+        .trade-box .field {
+            margin-bottom: 10px;
+        }
+
+        .check-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 2px 0 12px;
+            color: #4a5a75;
+            font-size: 13px;
+            line-height: 1.5;
+            cursor: pointer;
+        }
+
+        .check-row input {
+            margin-top: 2px;
+        }
+
+        [data-theme="dark"] .trade-box {
+            border-color: var(--vtx-border);
+            background: var(--vtx-surface-soft);
+        }
+
+        [data-theme="dark"] .check-row,
+        [data-theme="dark"] .field label {
+            color: var(--vtx-text);
+        }
+
         button {
             padding: 10px 16px;
             border-radius: 10px;
@@ -526,6 +568,36 @@
                         <span class="field-hint">密码会以 PBKDF2-SHA256 哈希（每账户独立盐）保存在 Workers KV 中，至少 6 个字符。</span>
                     </div>
 
+                    <div class="trade-box" id="trade-box">
+                        <h3>添加交易记录</h3>
+                        <p class="field-hint">可以同时调整余额，也可以只补一条记录而不改动金额。</p>
+                        <div class="row">
+                            <div class="field">
+                                <label for="edit-trade-type">记录类型</label>
+                                <select id="edit-trade-type">
+                                    <option value="income">收款（增加余额）</option>
+                                    <option value="expense">付款（减少余额）</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="edit-trade-amount">金额（VTX）</label>
+                                <input id="edit-trade-amount" type="text" inputmode="decimal" placeholder="例如 10.00">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="edit-trade-desc">说明</label>
+                            <input id="edit-trade-desc" type="text" maxlength="200" placeholder="例如：活动奖励 / 手动补录 / 退款">
+                        </div>
+                        <label class="check-row">
+                            <input type="checkbox" id="edit-trade-apply" checked>
+                            <span>同时调整余额（收款加钱 / 付款扣钱）；取消勾选则仅记录</span>
+                        </label>
+                        <div class="actions">
+                            <button id="add-trade-button" type="button">添加交易记录</button>
+                        </div>
+                        <p class="status" id="trade-message" hidden></p>
+                    </div>
+
                     <div class="actions">
                         <button id="save-button" class="primary" type="submit">保存修改</button>
                         <button id="delete-button" class="danger" type="button">删除账户</button>
@@ -649,7 +721,7 @@
         <footer>Vitual XRing 9.3.0 · 账户数据存储于 Workers KV</footer>
     </main>
 
-    <script src="vtx-api.js?v=9.3.0"></script>
+    <script src="vtx-api.js?v=9.3.0-trade"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";
@@ -744,6 +816,14 @@
             }
         }
 
+        function setTradeMessage(text, kind) {
+            const node = document.getElementById("trade-message");
+            if (!node) return;
+            node.textContent = text || "";
+            node.className = `status ${kind || ""}`.trim();
+            node.hidden = !text;
+        }
+
         function selectAccount(login) {
             const account = accountsData[login];
 
@@ -768,6 +848,10 @@
             document.getElementById("edit-username").value = account.username || "";
             document.getElementById("edit-money").value = account.money || "0.00";
             document.getElementById("edit-password").value = "";
+            document.getElementById("edit-trade-amount").value = "";
+            document.getElementById("edit-trade-desc").value = "";
+            document.getElementById("edit-trade-apply").checked = true;
+            setTradeMessage("", "");
             showCurrentPassword(account);
 
             renderList();
@@ -1304,6 +1388,60 @@
                 button.disabled = false;
                 button.textContent = "保存修改";
             }
+        });
+
+        document.getElementById("add-trade-button").addEventListener("click", async () => {
+            if (!selected) {
+                return;
+            }
+            const button = document.getElementById("add-trade-button");
+            const type = document.getElementById("edit-trade-type").value === "expense" ? "expense" : "income";
+            const amount = document.getElementById("edit-trade-amount").value.trim();
+            const description = document.getElementById("edit-trade-desc").value.trim();
+            const applyMoney = document.getElementById("edit-trade-apply").checked;
+
+            if (!amount) {
+                setTradeMessage("请填写金额。", "error");
+                document.getElementById("edit-trade-amount").focus();
+                return;
+            }
+
+            hideMessage();
+            button.disabled = true;
+            button.textContent = "添加中…";
+
+            try {
+                const data = await window.VTXApi.adminTrade(selected, {
+                    type,
+                    amount,
+                    description,
+                    applyMoney
+                });
+                applyAccounts(data);
+                selectAccount(selected);
+                setTradeMessage(
+                    `${type === "income" ? "收款" : "付款"}记录已添加${data.applied ? "，余额已同步调整" : "（仅记录，未改动余额）"}。`,
+                    "success"
+                );
+                loadAudit();
+            } catch (error) {
+                handleError(error, "添加交易记录失败，请检查网络后重试。");
+                setTradeMessage(error instanceof TypeError ? "添加失败，请检查网络。" : error.message, "error");
+            } finally {
+                button.disabled = false;
+                button.textContent = "添加交易记录";
+            }
+        });
+
+        editForm.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") {
+                return;
+            }
+            if (!event.target.closest || !event.target.closest("#trade-box")) {
+                return;
+            }
+            event.preventDefault();
+            document.getElementById("add-trade-button").click();
         });
 
         document.getElementById("delete-button").addEventListener("click", async () => {

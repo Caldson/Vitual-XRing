@@ -3688,6 +3688,82 @@ async function handleAdminUpdate(request, env, cors, login) {
     }, 200, cors);
 }
 
+async function handleAdminTrade(request, env, cors, login) {
+    const session = await requireAdmin(request, env, cors);
+    if (session.error) {
+        return session.error;
+    }
+
+    if (throttled(adminAttempts, clientIp(request), WRITE_WINDOW_MS, WRITE_MAX_ATTEMPTS)) {
+        return jsonResponse({ error: "too_many_requests", message: "操作过于频繁，请稍后再试" }, 429, cors);
+    }
+
+    const body = plainObject(await readJsonBody(request));
+    const type = body.type === "income" ? "income" : body.type === "expense" ? "expense" : "";
+    if (!type) {
+        return jsonResponse({ error: "bad_request", message: "type 必须是 income（收款）或 expense（付款）" }, 400, cors);
+    }
+
+    const cents = moneyCentsExact(body.amount);
+    if (cents === null || cents <= 0n || cents > 100000000000000000000n) {
+        return jsonResponse({ error: "bad_request", message: "金额必须是大于 0、最多两位小数的数字" }, 400, cors);
+    }
+
+    const applyMoney = body.applyMoney !== false;
+    const description = String(body.description || "").trim().slice(0, MAX_DESCRIPTION_LENGTH)
+        || (type === "income" ? "管理员记录的收款" : "管理员记录的付款");
+    const amountText = centsExactText(cents);
+    let trade = null;
+
+    const accounts = await commitAccounts(env, async (data) => {
+        const account = data[login];
+        if (!account) {
+            throw new HttpError(404, "not_found", `账户 ${login} 不存在`);
+        }
+
+        if (applyMoney) {
+            if (type === "expense") {
+                const balance = moneyCentsExact(account.money);
+                if (balance === null || balance < cents) {
+                    throw new HttpError(400, "insufficient_funds", `余额不足，当前余额 ${account.money} VTX`);
+                }
+                account.money = addMoney(account.money, -cents);
+            } else {
+                account.money = addMoney(account.money, cents);
+            }
+        }
+
+        const name = String(account.username || login);
+        trade = pushTrade(account, {
+            name: type === "income" ? "收款" : "付款",
+            description,
+            price: `${type === "income" ? "+" : "-"}${amountText}`,
+            time: shanghaiTimestamp(),
+            from: type === "income" ? "管理员" : name,
+            to: type === "income" ? name : "管理员"
+        });
+
+        return `管理员${applyMoney ? (type === "income" ? "收款" : "付款") : "记录"}：${login} ${type === "income" ? "+" : "-"}${amountText}`;
+    });
+
+    await appendAdminLog(
+        env,
+        session.payload.sub,
+        "trade",
+        login,
+        `${type === "income" ? "收款" : "付款"} ${amountText} VTX · ${applyMoney ? "已调整余额" : "仅记录"} · ${description}`
+    );
+
+    return jsonResponse({
+        ok: true,
+        login,
+        trade,
+        applied: applyMoney,
+        account: await fullAccount(accounts[login], env),
+        accounts: await fullAccountMap(accounts, env)
+    }, 200, cors);
+}
+
 async function handleAdminDelete(request, env, cors, login) {
     const session = await requireAdmin(request, env, cors);
     if (session.error) {
@@ -12083,6 +12159,11 @@ export default {
                 if (request.method === "DELETE") {
                     return await handleAdminGiftDelete(request, env, cors, code);
                 }
+            }
+
+            const adminTradeRoute = url.pathname.match(/^\/api\/admin\/accounts\/([^/]+)\/trades$/);
+            if (adminTradeRoute && request.method === "POST") {
+                return await handleAdminTrade(request, env, cors, decodeURIComponent(adminTradeRoute[1]));
             }
 
             const adminAccountRoute = url.pathname.match(/^\/api\/admin\/accounts\/([^/]+)$/);

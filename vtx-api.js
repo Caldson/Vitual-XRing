@@ -861,6 +861,14 @@
         return await apiRequest(`/admin/accounts/${encodeURIComponent(login)}`, { method: "PUT", body: changes });
     }
 
+    /* 管理员给账户补一条收款 / 付款记录；applyMoney=false 时只记录不动余额。 */
+    async function adminTrade(login, payload) {
+        return await apiRequest(`/admin/accounts/${encodeURIComponent(login)}/trades`, {
+            method: "POST",
+            body: payload || {}
+        });
+    }
+
     async function adminDelete(login) {
         return await apiRequest(`/admin/accounts/${encodeURIComponent(login)}`, { method: "DELETE" });
     }
@@ -1834,6 +1842,7 @@
         adminCreate,
         adminUpdate,
         adminDelete,
+        adminTrade,
         adminGifts,
         adminCreateGift,
         adminUpdateGift,

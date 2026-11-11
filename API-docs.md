@@ -154,6 +154,7 @@ curl https://xsmmc.caldson.us.ci/api/accounts \
 | GET | `/api/admin/accounts` | 是（站主） | 读取全部账户（含登录记录与可显示的 `password`，后者 1.4.0 起恢复；未配置 `PASSWORD_VIEW_KEY` 时为 `null`） |
 | POST | `/api/admin/accounts` | 是（站主） | 直接创建账户 |
 | PUT | `/api/admin/accounts/{登录名}` | 是（站主） | 修改用户名 / 密码 / 余额 |
+| POST | `/api/admin/accounts/{登录名}/trades` | 是（站主） | 添加收款 / 付款记录；`applyMoney: true` 同时调整余额，`false` 仅记录 |
 | DELETE | `/api/admin/accounts/{登录名}` | 是（站主） | 删除账户（不能删站主自己） |
 | GET | `/api/admin/log` | 是（站主） | 管理操作审计记录 |
 | GET | `/api/chat/status` | 否 | 聊天室状态（版本、开关、实时通道、公共频道、媒体 TTL） |
@@ -1290,6 +1291,11 @@ curl -X PUT https://xsmmc.caldson.us.ci/api/admin/accounts/账户名 \
 curl -X POST https://xsmmc.caldson.us.ci/api/admin/accounts -H "authorization: ******" \
   -H "content-type: application/json" -d '{"login":"newuser","password":"secret123","username":"新人","money":"0.00"}'
 curl -X DELETE https://xsmmc.caldson.us.ci/api/admin/accounts/newuser -H "authorization: ******"
+# 添加一条收款记录，并同时 +100.00 VTX（付款用 expense；applyMoney=false 则仅记录）
+curl -X POST https://xsmmc.caldson.us.ci/api/admin/accounts/账户名/trades \
+     -H "authorization: ******" \
+     -H "content-type: application/json" \
+     -d '{"type":"income","amount":"100.00","description":"活动奖励","applyMoney":true}'
 
 # 审计记录
 curl https://xsmmc.caldson.us.ci/api/admin/log -H "authorization: ******"
