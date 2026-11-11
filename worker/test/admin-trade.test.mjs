@@ -113,6 +113,55 @@ test("付款会检查余额，余额不足时拒绝且不写记录", async () =>
     assert.equal(read.data.account.trades.length, 0);
 });
 
+test("自动模式按调整后的余额自动判断收款 / 付款", async () => {
+    const { env, tokens } = await prepare();
+    const up = await api(env, "POST", "/api/admin/accounts/Alice/trades", {
+        token: tokens.Kitawaga,
+        body: { type: "auto", amount: "110.00", description: "自动调整" }
+    });
+    assert.equal(up.status, 200, JSON.stringify(up.data));
+    assert.equal(up.data.type, "income");
+    assert.equal(up.data.applied, true);
+    assert.equal(up.data.previousMoney, "10.00");
+    assert.equal(up.data.account.money, "110.00");
+    assert.equal(up.data.trade.name, "收款");
+    assert.equal(up.data.trade.price, "+100.00");
+
+    const down = await api(env, "POST", "/api/admin/accounts/Alice/trades", {
+        token: tokens.Kitawaga,
+        body: { type: "auto", amount: "3.00", description: "自动下调" }
+    });
+    assert.equal(down.status, 200, JSON.stringify(down.data));
+    assert.equal(down.data.type, "expense");
+    assert.equal(down.data.account.money, "3.00");
+    assert.equal(down.data.trade.name, "付款");
+    assert.equal(down.data.trade.price, "-107.00");
+
+    const zero = await api(env, "POST", "/api/admin/accounts/Alice/trades", {
+        token: tokens.Kitawaga,
+        body: { type: "auto", amount: "0" }
+    });
+    assert.equal(zero.status, 200, JSON.stringify(zero.data));
+    assert.equal(zero.data.account.money, "0.00");
+    assert.equal(zero.data.trade.price, "-3.00");
+});
+
+test("自动模式余额没有变化或为负数时拒绝", async () => {
+    const { env, tokens } = await prepare();
+    const same = await api(env, "POST", "/api/admin/accounts/Alice/trades", {
+        token: tokens.Kitawaga,
+        body: { type: "auto", amount: "10.00" }
+    });
+    assert.equal(same.status, 400);
+    assert.equal(same.data.error, "no_change");
+
+    const negative = await api(env, "POST", "/api/admin/accounts/Alice/trades", {
+        token: tokens.Kitawaga,
+        body: { type: "auto", amount: "-1.00" }
+    });
+    assert.equal(negative.status, 400);
+});
+
 test("非管理员与非法参数被拒绝", async () => {
     const { env, tokens } = await prepare();
     const forbidden = await api(env, "POST", "/api/admin/accounts/Alice/trades", {

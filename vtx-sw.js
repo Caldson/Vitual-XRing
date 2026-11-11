@@ -1,5 +1,5 @@
-/* Vitual XRing 9.3.0 — page cache / offline shell */
-const CACHE_NAME = "xring-v9.3.0";
+/* Vitual XRing 9.4.0 — page cache / offline shell */
+const CACHE_NAME = "xring-v9.4.0";
 const CORE = [
     "./",
     "index.html",
@@ -16,11 +16,11 @@ const CORE = [
     "offline.html",
     "vtx-theme.css",
     "vtx-theme.js",
-    "vtx-theme.css?v=9.3.0",
-    "vtx-theme.js?v=9.3.0",
+    "vtx-theme.css?v=9.4.0",
+    "vtx-theme.js?v=9.4.0",
     "vtx-api.js",
     "vtx-pwa.js",
-    "vtx-pwa.js?v=9.3.0",
+    "vtx-pwa.js?v=9.4.0",
     "XRingLogo-V.png"
 ];
 
@@ -63,7 +63,7 @@ self.addEventListener("fetch", (event) => {
     if (request.mode === "navigate") {
         event.respondWith((async () => {
             const cache = await caches.open(CACHE_NAME);
-            /* 9.3.0：不要忽略查询串。版本更新时会带着 ?v=9.x.x&t=... 跳转，
+            /* 9.4.0：不要忽略查询串。版本更新时会带着 ?v=9.x.x&t=... 跳转，
                如果 ignoreSearch 仍命中旧页面，就会永久停留在旧版本。 */
             const cached = await cache.match(request);
             if (cached) {

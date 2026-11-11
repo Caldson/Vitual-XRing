@@ -85,11 +85,11 @@
  * 5.5.0：
  *   - XOS 顶栏和开始菜单增加「返回主页」入口。
  *
- * 9.3.0：
+ * 9.4.0：
  *   - 新增 GameVersion / GameULTRA / GameMAX 三台高性能 XOS；
  *   - GameMAX 1500–30000fps 极端刷新率提示。
  *
- * 9.3.0：
+ * 9.4.0：
  *   - 修复旧缓存页面把 GameMAX 识别成 Home；未知版本按 rank 回退 CE；
  *   - XOS 页面增加版本守卫与 no-cache meta。
  *
@@ -122,7 +122,7 @@ import { routeSocial, resolveTextCard, socialBase, SOCIAL_VERSION } from "./soci
 import { routeVord, VORD_VERSION } from "./vord.js";
 import { routeVpan, VPAN_VERSION } from "./vpan.js";
 
-const VERSION = "9.3.0";
+const VERSION = "9.4.0";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -146,7 +146,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "9.3.0";
+const CHAT_VERSION = "9.4.0";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -236,7 +236,7 @@ const MAX_TRADE_NAME_LENGTH = 20;
 const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
 const SHOP_CACHE_TTL_MS = 30 * 1000;
 const SHOP_MAX_QUANTITY = 999;
-/* 9.3.0：同捆包与商铺申请 */
+/* 9.4.0：同捆包与商铺申请 */
 const SHOP_APPLICATIONS_KEY = "shop:applications";
 const SHOPS_KEY = "shops";
 const SHOP_APPLICATION_MAX = 500;
@@ -593,7 +593,7 @@ function loginHistoryOf(account) {
     return history.slice(-LOGIN_HISTORY_LIMIT);
 }
 
-// 9.3.0：XOS PC 第 5 代（V4 26H4）；云手机沿用 Home 26H3 V2.1 的第 3 代能力
+// 9.4.0：XOS PC 第 5 代（V4 26H4）；云手机沿用 Home 26H3 V2.1 的第 3 代能力
 function xosGenerationOf(value) {
     const generation = Number(value) || 1;
     if (generation >= 5) return 5;
@@ -1175,7 +1175,7 @@ function fromCents(cents) {
     return (cents / 100).toFixed(2);
 }
 
-/* 9.3.0：余额可能超过 Number.MAX_SAFE_INTEGER（例如 1,000,000,009,043,627,695.00），
+/* 9.4.0：余额可能超过 Number.MAX_SAFE_INTEGER（例如 1,000,000,009,043,627,695.00），
    toCents 用 Number 会把 +5.00 直接吃掉。这里用 BigInt 精确地按「分」做加减，
    只把最终结果写回两位小数字符串；普通余额的行为完全不变。 */
 function moneyCentsExact(value) {
@@ -2780,7 +2780,7 @@ async function handlePurchase(request, env, cors) {
                 account.xosDeviceId = account.xos.id;
             }
         } else if (product.type === "xosapp") {
-            // 9.3.0：共享文件等 XOS 软件的免费获取 / 更新授权
+            // 9.4.0：共享文件等 XOS 软件的免费获取 / 更新授权
             const apps = Array.isArray(account.xosApps) ? account.xosApps : [];
             if (apps.some((entry) => entry && entry.productId === product.id)) {
                 throw new HttpError(400, "already_owned", "已经获取过这个软件，无需重复获取");
@@ -3063,7 +3063,7 @@ async function handleShopStock(request, env, cors) {
     return jsonResponse({ ok: true, version: VERSION, stock }, 200, cors);
 }
 
-/* ───────── 9.3.0：成为商铺 Beta ───────── */
+/* ───────── 9.4.0：成为商铺 Beta ───────── */
 
 function shopApplicationView(application, includeLogin) {
     const view = {
@@ -3245,7 +3245,7 @@ async function handleAdminShopReview(request, env, cors, id) {
     return jsonResponse({ ok: true, application: shopApplicationView(result.application, true) }, 200, cors);
 }
 
-/* ───────── 9.3.0：商家上架商品 Beta ───────── */
+/* ───────── 9.4.0：商家上架商品 Beta ───────── */
 
 function merchantProductView(product, includePrivate) {
     const view = {
@@ -3699,21 +3699,27 @@ async function handleAdminTrade(request, env, cors, login) {
     }
 
     const body = plainObject(await readJsonBody(request));
-    const type = body.type === "income" ? "income" : body.type === "expense" ? "expense" : "";
-    if (!type) {
-        return jsonResponse({ error: "bad_request", message: "type 必须是 income（收款）或 expense（付款）" }, 400, cors);
+    const mode = body.type === "auto" ? "auto" : body.type === "income" ? "income" : body.type === "expense" ? "expense" : "";
+    if (!mode) {
+        return jsonResponse({ error: "bad_request", message: "type 必须是 auto（自动）、income（收款）或 expense（付款）" }, 400, cors);
     }
 
-    const cents = moneyCentsExact(body.amount);
-    if (cents === null || cents <= 0n || cents > 100000000000000000000n) {
+    const entered = moneyCentsExact(body.amount);
+    const limit = 100000000000000000000n;
+    if (mode === "auto") {
+        if (entered === null || entered < 0n || entered > limit) {
+            return jsonResponse({ error: "bad_request", message: "调整后的余额必须是不小于 0、最多两位小数的数字" }, 400, cors);
+        }
+    } else if (entered === null || entered <= 0n || entered > limit) {
         return jsonResponse({ error: "bad_request", message: "金额必须是大于 0、最多两位小数的数字" }, 400, cors);
     }
 
-    const applyMoney = body.applyMoney !== false;
-    const description = String(body.description || "").trim().slice(0, MAX_DESCRIPTION_LENGTH)
-        || (type === "income" ? "管理员记录的收款" : "管理员记录的付款");
-    const amountText = centsExactText(cents);
+    const applyMoney = mode === "auto" ? true : body.applyMoney !== false;
+    const description = String(body.description || "").trim().slice(0, MAX_DESCRIPTION_LENGTH);
     let trade = null;
+    let tradeType = mode === "expense" ? "expense" : "income";
+    let tradeAmount = mode === "auto" ? 0n : entered;
+    let beforeMoney = "";
 
     const accounts = await commitAccounts(env, async (data) => {
         const account = data[login];
@@ -3721,37 +3727,56 @@ async function handleAdminTrade(request, env, cors, login) {
             throw new HttpError(404, "not_found", `账户 ${login} 不存在`);
         }
 
-        if (applyMoney) {
-            if (type === "expense") {
+        beforeMoney = String(account.money == null ? "0.00" : account.money);
+        if (mode === "auto") {
+            const current = moneyCentsExact(account.money) ?? 0n;
+            const delta = entered - current;
+            if (delta === 0n) {
+                throw new HttpError(400, "no_change", "调整后的余额与当前余额相同，不需要记录");
+            }
+            tradeType = delta > 0n ? "income" : "expense";
+            tradeAmount = delta > 0n ? delta : -delta;
+            account.money = centsExactText(entered);
+        } else if (applyMoney) {
+            if (mode === "expense") {
                 const balance = moneyCentsExact(account.money);
-                if (balance === null || balance < cents) {
+                if (balance === null || balance < entered) {
                     throw new HttpError(400, "insufficient_funds", `余额不足，当前余额 ${account.money} VTX`);
                 }
-                account.money = addMoney(account.money, -cents);
+                account.money = addMoney(account.money, -entered);
             } else {
-                account.money = addMoney(account.money, cents);
+                account.money = addMoney(account.money, entered);
             }
         }
 
         const name = String(account.username || login);
+        const amountText = centsExactText(tradeAmount);
         trade = pushTrade(account, {
-            name: type === "income" ? "收款" : "付款",
-            description,
-            price: `${type === "income" ? "+" : "-"}${amountText}`,
+            name: tradeType === "income" ? "收款" : "付款",
+            description: description || (mode === "auto"
+                ? `管理员将余额调整为 ${centsExactText(entered)}`
+                : (tradeType === "income" ? "管理员记录的收款" : "管理员记录的付款")),
+            price: `${tradeType === "income" ? "+" : "-"}${amountText}`,
             time: shanghaiTimestamp(),
-            from: type === "income" ? "管理员" : name,
-            to: type === "income" ? name : "管理员"
+            from: tradeType === "income" ? "管理员" : name,
+            to: tradeType === "income" ? name : "管理员"
         });
 
-        return `管理员${applyMoney ? (type === "income" ? "收款" : "付款") : "记录"}：${login} ${type === "income" ? "+" : "-"}${amountText}`;
+        if (mode === "auto") {
+            return `管理员调整余额：${login} ${beforeMoney} → ${account.money}（${tradeType === "income" ? "+" : "-"}${amountText}）`;
+        }
+        return `管理员${applyMoney ? (tradeType === "income" ? "收款" : "付款") : "记录"}：${login} ${tradeType === "income" ? "+" : "-"}${amountText}`;
     });
 
+    const finalMoney = accounts[login] ? accounts[login].money : "";
     await appendAdminLog(
         env,
         session.payload.sub,
         "trade",
         login,
-        `${type === "income" ? "收款" : "付款"} ${amountText} VTX · ${applyMoney ? "已调整余额" : "仅记录"} · ${description}`
+        mode === "auto"
+            ? `自动调整余额 ${beforeMoney} → ${finalMoney}（${tradeType === "income" ? "+" : "-"}${centsExactText(tradeAmount)}）${description ? ` · ${description}` : ""}`
+            : `${tradeType === "income" ? "收款" : "付款"} ${centsExactText(tradeAmount)} VTX · ${applyMoney ? "已调整余额" : "仅记录"}${description ? ` · ${description}` : ""}`
     );
 
     return jsonResponse({
@@ -3759,6 +3784,8 @@ async function handleAdminTrade(request, env, cors, login) {
         login,
         trade,
         applied: applyMoney,
+        type: tradeType,
+        previousMoney: beforeMoney,
         account: await fullAccount(accounts[login], env),
         accounts: await fullAccountMap(accounts, env)
     }, 200, cors);
@@ -9022,7 +9049,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "9.3.0";
+const VIDEO_VERSION = "9.4.0";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;

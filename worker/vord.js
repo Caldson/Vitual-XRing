@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 9.3.0 — Vord 文本文档
+ * Vitual XRing 9.4.0 — Vord 文本文档
  *
  * - 登录用户可以在 Vord 里新建 / 编辑 txt / md 文档，内容存在 Workers KV；
  * - 文档可以保存到 XOS 云盘（由前端调用 /api/xos/files），也可以下载到本地；
@@ -8,9 +8,9 @@
  *     3 = 仅受邀的账号可预览   4 = 可编辑
  *     5 = 仅登录账号可编辑     6 = 仅受邀的账号可编辑
  * - 编辑记录按人记录：登录用户显示账户昵称，未登录的编辑者显示
- *   「著名用户 [网页版]」/「著名用户 [Windows版]」。
+ *   「匿名用户 [网页版]」/「匿名用户 [Windows版]」。
  */
-const VORD_VERSION = "9.3.0";
+const VORD_VERSION = "9.4.0";
 
 const VORD_DOC_PREFIX = "vord:doc:";
 const VORD_INDEX_PREFIX = "vord:index:";
@@ -100,7 +100,7 @@ function vordClientName(request, raw) {
 }
 
 function vordGuestName(client) {
-    return `著名用户 [${VORD_CLIENTS.includes(client) ? client : "网页版"}]`;
+    return `匿名用户 [${VORD_CLIENTS.includes(client) ? client : "网页版"}]`;
 }
 
 /* 返回链接权限允许的操作。登录用户可以不具备邀请资格（3 / 6 档）。 */
@@ -157,7 +157,7 @@ function vordHistoryView(history, includeLogin) {
     return (Array.isArray(history) ? history : []).slice(0, VORD_HISTORY_LIMIT).map((entry) => {
         const item = {
             at: Number(entry.at) || 0,
-            name: String(entry.name || ""),
+            name: String(entry.name || "").replace(/^著名用户/, "匿名用户"),
             guest: entry.guest === true,
             client: VORD_CLIENTS.includes(entry.client) ? entry.client : "网页版",
             action: entry.action === "create" ? "create" : "edit"

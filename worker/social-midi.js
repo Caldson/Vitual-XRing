@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 9.3.0：MIDI 解析与“以曲识 MIDI”用的指纹。
+ * Vitual XRing 9.4.0：MIDI 解析与“以曲识 MIDI”用的指纹。
  *
  * 浏览器里没有现成的 MIDI 解析器，Vimidi 上传的 .mid 在 Worker 里解析：
  *   - 取出音轨名 / 文本 / 版权 / 速度 / 时长；

@@ -496,8 +496,8 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=9.3.0">
-    <script src="vtx-theme.js?v=9.3.0"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.4.0">
+    <script src="vtx-theme.js?v=9.4.0"></script>
 </head>
 <body>
     <header class="topbar">
@@ -507,7 +507,7 @@
         </a>
         <div class="topbar-actions">
             <span class="admin-chip">站主专用</span>
-            <span class="version">v9.3.0</span>
+            <span class="version">v9.4.0</span>
             <a href="manager.html">返回账户</a>
             <a href="chatroom.html">聊天室</a>
         </div>
@@ -570,28 +570,30 @@
 
                     <div class="trade-box" id="trade-box">
                         <h3>添加交易记录</h3>
-                        <p class="field-hint">可以同时调整余额，也可以只补一条记录而不改动金额。</p>
+                        <p class="field-hint">自动模式输入「调整后的余额」，服务端按增减自动判断收款 / 付款；也可以手动选择收款或付款，仅记录时不改动余额。</p>
                         <div class="row">
                             <div class="field">
-                                <label for="edit-trade-type">记录类型</label>
+                                <label for="edit-trade-type">记录模式</label>
                                 <select id="edit-trade-type">
+                                    <option value="auto">自动（输入调整后的余额）</option>
                                     <option value="income">收款（增加余额）</option>
                                     <option value="expense">付款（减少余额）</option>
                                 </select>
                             </div>
                             <div class="field">
-                                <label for="edit-trade-amount">金额（VTX）</label>
-                                <input id="edit-trade-amount" type="text" inputmode="decimal" placeholder="例如 10.00">
+                                <label for="edit-trade-amount" id="edit-trade-amount-label">调整后的余额（VTX）</label>
+                                <input id="edit-trade-amount" type="text" inputmode="decimal" placeholder="例如 100.00（调整后）">
                             </div>
                         </div>
                         <div class="field">
                             <label for="edit-trade-desc">说明</label>
                             <input id="edit-trade-desc" type="text" maxlength="200" placeholder="例如：活动奖励 / 手动补录 / 退款">
                         </div>
-                        <label class="check-row">
+                        <label class="check-row" id="edit-trade-apply-row">
                             <input type="checkbox" id="edit-trade-apply" checked>
                             <span>同时调整余额（收款加钱 / 付款扣钱）；取消勾选则仅记录</span>
                         </label>
+                        <p class="field-hint" id="edit-trade-mode-hint">自动模式会直接把余额设为输入值，并根据增减写一条收款或付款记录。</p>
                         <div class="actions">
                             <button id="add-trade-button" type="button">添加交易记录</button>
                         </div>
@@ -718,10 +720,10 @@
             <p id="audit-empty" class="empty">暂无记录。</p>
         </section>
 
-        <footer>Vitual XRing 9.3.0 · 账户数据存储于 Workers KV</footer>
+        <footer>Vitual XRing 9.4.0 · 账户数据存储于 Workers KV</footer>
     </main>
 
-    <script src="vtx-api.js?v=9.3.0-trade"></script>
+    <script src="vtx-api.js?v=9.4.0-trade"></script>
 
     <script>
         const ADMIN_ACCOUNT = "Kitawaga";
@@ -824,6 +826,24 @@
             node.hidden = !text;
         }
 
+        function syncTradeMode() {
+            const mode = document.getElementById("edit-trade-type").value;
+            const auto = mode === "auto";
+            const label = document.getElementById("edit-trade-amount-label");
+            const amount = document.getElementById("edit-trade-amount");
+            const apply = document.getElementById("edit-trade-apply");
+            const row = document.getElementById("edit-trade-apply-row");
+            const hint = document.getElementById("edit-trade-mode-hint");
+            label.textContent = auto ? "调整后的余额（VTX）" : "金额（VTX）";
+            amount.placeholder = auto ? "例如 100.00（调整后）" : "例如 10.00";
+            if (auto) apply.checked = true;
+            apply.disabled = auto;
+            row.style.opacity = auto ? ".62" : "1";
+            hint.textContent = auto
+                ? "自动模式会直接把余额设为输入值，并根据增减自动写收款 / 付款记录。"
+                : "手动模式按选择的收款 / 付款记录；取消勾选「同时调整余额」则仅记录。";
+        }
+
         function selectAccount(login) {
             const account = accountsData[login];
 
@@ -850,6 +870,8 @@
             document.getElementById("edit-password").value = "";
             document.getElementById("edit-trade-amount").value = "";
             document.getElementById("edit-trade-desc").value = "";
+            document.getElementById("edit-trade-type").value = "auto";
+            syncTradeMode();
             document.getElementById("edit-trade-apply").checked = true;
             setTradeMessage("", "");
             showCurrentPassword(account);
@@ -1333,6 +1355,8 @@
         });
 
         syncGiftType();
+        document.getElementById("edit-trade-type").addEventListener("change", syncTradeMode);
+        syncTradeMode();
 
         document.getElementById("toggle-password").addEventListener("click", () => {
             const input = document.getElementById("edit-current-password");
@@ -1395,13 +1419,14 @@
                 return;
             }
             const button = document.getElementById("add-trade-button");
-            const type = document.getElementById("edit-trade-type").value === "expense" ? "expense" : "income";
+            const mode = document.getElementById("edit-trade-type").value;
+            const type = mode === "auto" ? "auto" : mode === "expense" ? "expense" : "income";
             const amount = document.getElementById("edit-trade-amount").value.trim();
             const description = document.getElementById("edit-trade-desc").value.trim();
-            const applyMoney = document.getElementById("edit-trade-apply").checked;
+            const applyMoney = mode === "auto" ? true : document.getElementById("edit-trade-apply").checked;
 
             if (!amount) {
-                setTradeMessage("请填写金额。", "error");
+                setTradeMessage(mode === "auto" ? "请填写调整后的余额。" : "请填写金额。", "error");
                 document.getElementById("edit-trade-amount").focus();
                 return;
             }
@@ -1420,7 +1445,9 @@
                 applyAccounts(data);
                 selectAccount(selected);
                 setTradeMessage(
-                    `${type === "income" ? "收款" : "付款"}记录已添加${data.applied ? "，余额已同步调整" : "（仅记录，未改动余额）"}。`,
+                    mode === "auto"
+                        ? `余额已自动调整：${data.previousMoney} → ${data.account.money}（按${data.type === "income" ? "收款" : "付款"}记录）。`
+                        : `${type === "income" ? "收款" : "付款"}记录已添加${data.applied ? "，余额已同步调整" : "（仅记录，未改动余额）"}。`,
                     "success"
                 );
                 loadAudit();
@@ -1513,6 +1540,6 @@
         loadShopApplications();
         loadMerchantProducts();
     </script>
-    <script src="vtx-pwa.js?v=9.3.0" defer></script>
+    <script src="vtx-pwa.js?v=9.4.0" defer></script>
 </body>
 </html>

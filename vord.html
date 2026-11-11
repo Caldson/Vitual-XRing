@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f3f6fb">
     <title>Vord 文本文档 | Vitual XRing</title>
-    <link rel="stylesheet" href="vtx-theme.css?v=9.3.0">
-    <script src="vtx-theme.js?v=9.3.0"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.4.0">
+    <script src="vtx-theme.js?v=9.4.0"></script>
     <style>
         :root {
             --vord-blue: #3867e8;
@@ -261,7 +261,7 @@
             <span class="vord-mark">V</span>
             <span>Vord<small>文本文档 · txt / md</small></span>
         </a>
-        <span class="vord-version">v9.3.0</span>
+        <span class="vord-version">v9.4.0</span>
         <span class="vord-top-spacer"></span>
         <a class="vord-link" href="xos.html">XOS</a>
         <a class="vord-link" href="settings.html">设置</a>
@@ -376,7 +376,7 @@
             </div>
         </div>
         <div class="vord-permissions" id="share-permissions"></div>
-        <p class="vord-hint">未登录的访客在「可编辑」链接里也能直接编辑，编辑记录会写成「著名用户 [网页版]」或「著名用户 [Windows版]」。</p>
+        <p class="vord-hint">未登录的访客在「可编辑」链接里也能直接编辑，编辑记录会写成「匿名用户 [网页版]」或「匿名用户 [Windows版]」。</p>
         <div class="vord-invites" id="share-invite-list"></div>
         <div class="vord-add-invite">
             <input id="share-invite-input" placeholder="输入受邀账号的登录名" autocomplete="off" maxlength="40">
@@ -398,8 +398,8 @@
     </div>
 </div>
 
-<script src="vtx-markdown.js?v=9.3.0"></script>
-<script src="vtx-api.js?v=9.3.0"></script>
+<script src="vtx-markdown.js?v=9.4.0"></script>
+<script src="vtx-api.js?v=9.4.0"></script>
 <script>
 (function () {
     "use strict";
@@ -410,7 +410,7 @@
         { value: 1, label: "仅预览", desc: "任何人拿到链接都可以查看，但不能编辑。" },
         { value: 2, label: "仅登录账号可预览", desc: "只有登录 Vitual XRing 的账号可以查看。" },
         { value: 3, label: "仅受邀的账号可预览", desc: "只有你添加的受邀账号可以查看。" },
-        { value: 4, label: "可编辑", desc: "任何人拿到链接都可以编辑；匿名编辑记为著名用户。" },
+        { value: 4, label: "可编辑", desc: "任何人拿到链接都可以编辑；匿名编辑记为匿名用户。" },
         { value: 5, label: "仅登录账号可编辑", desc: "登录账号可以查看并编辑。" },
         { value: 6, label: "仅受邀的账号可编辑", desc: "只有受邀账号可以查看并编辑。" }
     ];
@@ -1131,6 +1131,6 @@
     boot();
 })();
 </script>
-<script src="vtx-pwa.js?v=9.3.0" defer></script>
+<script src="vtx-pwa.js?v=9.4.0" defer></script>
 </body>
 </html>
