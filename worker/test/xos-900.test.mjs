@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 import worker from "../index.js";
 
-/* 9.2.1：XOS 云手机、XOS PC V4 26H4 与共享文件软件 */
+/* 9.2.2：XOS 云手机、XOS PC V4 26H4 与共享文件软件 */
 
 class MockKV {
     constructor() {
@@ -171,7 +171,7 @@ async function buy(env, token, id) {
     });
 }
 
-test("9.2.1：购买 XPhone 1 / Pro 写入云手机授权", async () => {
+test("9.2.2：购买 XPhone 1 / Pro 写入云手机授权", async () => {
     const { env, token } = await prepare();
 
     const phone = await buy(env, token, "xphone-1");
@@ -199,7 +199,7 @@ test("9.2.1：购买 XPhone 1 / Pro 写入云手机授权", async () => {
     assert.equal(v21.data.account.xosDevices.length, 3);
 });
 
-test("9.2.1：V3.1 可 25 VTX 升级到 V4 26H4，否则按 1125 计价", async () => {
+test("9.2.2：V3.1 可 25 VTX 升级到 V4 26H4，否则按 1125 计价", async () => {
     const { env, token } = await prepare();
     const v31 = await buy(env, token, "xos-pc-home-v31-26h3-s1");
     assert.equal(v31.status, 200, JSON.stringify(v31.data));
@@ -221,7 +221,7 @@ test("9.2.1：V3.1 可 25 VTX 升级到 V4 26H4，否则按 1125 计价", async 
     assert.equal(second.data.account.money, "2825.00");
 });
 
-test("9.2.1：共享文件软件需对应设备，免费获取且不可重复", async () => {
+test("9.2.2：共享文件软件需对应设备，免费获取且不可重复", async () => {
     const { env, token } = await prepare();
 
     const beforePhone = await buy(env, token, "xos-app-shared-files-xphone");
@@ -267,7 +267,7 @@ test("9.2.1：共享文件软件需对应设备，免费获取且不可重复", 
     assert.equal(me.data.account.xosApps.length, 2);
 });
 
-test("9.2.1：旧版 XOS PC 没有共享服务，云手机与 V4 的目录字段齐全", () => {
+test("9.2.2：旧版 XOS PC 没有共享服务，云手机与 V4 的目录字段齐全", () => {
     const shop = JSON.parse(fs.readFileSync(new URL("../../shop.json", import.meta.url), "utf8"));
     assert.equal(shop.version, "13.0");
     const pcs = shop["XOS虚拟云电脑"];
@@ -292,9 +292,9 @@ test("9.2.1：旧版 XOS PC 没有共享服务，云手机与 V4 的目录字段
     assert.equal(apps.every((item) => item.price === "0.00" && item.virtual === true), true);
 });
 
-test("9.2.1：XOS 页面包含云手机、V4 与文件共享服务", () => {
+test("9.2.2：XOS 页面包含云手机、V4 与文件共享服务", () => {
     const page = fs.readFileSync(new URL("../../xos.html", import.meta.url), "utf8");
-    assert.match(page, /PAGE_VERSION = "9\.2\.1"/);
+    assert.match(page, /PAGE_VERSION = "9\.2\.2"/);
     assert.match(page, /xos-phone/);
     assert.match(page, /xos-phone-appview/);
     assert.match(page, /PHONES = \[/);

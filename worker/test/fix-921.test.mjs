@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 import worker from "../index.js";
 
-/* 9.2.1：大额 VTX 精确签到、版本缓存与主题样式修复 */
+/* 9.2.2：大额 VTX 精确签到、版本缓存与主题样式修复 */
 
 class MockKV {
     constructor() {
@@ -78,21 +78,21 @@ async function prepare(money) {
     return { env, tokens };
 }
 
-test("9.2.1：超过 Number 安全范围的余额也能精确 +5 VTX", async () => {
+test("9.2.2：超过 Number 安全范围的余额也能精确 +5 VTX", async () => {
     const { env, tokens } = await prepare("1000000009043627695.00");
     const response = await api(env, "POST", "/api/me/checkin", { token: tokens.Alice });
     assert.equal(response.status, 200, JSON.stringify(response.data));
     assert.equal(response.data.account.money, "1000000009043627700.00");
 });
 
-test("9.2.1：普通余额签到仍然正常", async () => {
+test("9.2.2：普通余额签到仍然正常", async () => {
     const { env, tokens } = await prepare("998995.00");
     const response = await api(env, "POST", "/api/me/checkin", { token: tokens.Alice });
     assert.equal(response.status, 200);
     assert.equal(response.data.account.money, "999000.00");
 });
 
-test("9.2.1：大额余额转出 5 VTX 后仍然精确", async () => {
+test("9.2.2：大额余额转出 5 VTX 后仍然精确", async () => {
     const { env, tokens } = await prepare("1000000009043627695.00");
     const response = await api(env, "POST", "/api/me/transfer", {
         token: tokens.Alice,
@@ -104,16 +104,16 @@ test("9.2.1：大额余额转出 5 VTX 后仍然精确", async () => {
     assert.equal(bob.data.account.money, "5.00");
 });
 
-test("9.2.1：Service Worker 不再忽略 ?v= 查询串，版本重试不再只限一次", () => {
+test("9.2.2：Service Worker 不再忽略 ?v= 查询串，版本重试不再只限一次", () => {
     const sw = read("vtx-sw.js");
     const pwa = read("vtx-pwa.js");
     assert.doesNotMatch(sw, /cache\.match\(request, \{ ignoreSearch: true \}\)/);
     assert.match(pwa, /attempts >= 3/);
     assert.match(pwa, /updateViaCache: "none"/);
-    assert.match(sw, /xring-v9\.2\.1/);
+    assert.match(sw, /xring-v9\.2\.2/);
 });
 
-test("9.2.1：账户主页的登录位置按钮与签到按钮有明暗主题 / 状态样式", () => {
+test("9.2.2：账户主页的登录位置按钮与签到按钮有明暗主题 / 状态样式", () => {
     const manager = read("manager.html");
     assert.match(manager, /\[data-theme="dark"\] \.account-shortcut/);
     assert.match(manager, /\.checkin-button:not\(:disabled\)/);
