@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 import worker from "../index.js";
 
-/* 9.1.0：XOS 虚拟云电脑商店授权与桌面入口 */
+/* 9.2.0：XOS 虚拟云电脑商店授权与桌面入口 */
 
 class MockKV {
     constructor() {
@@ -182,7 +182,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("9.1.0：购买 XOS 授权写入账户，并只允许购买一份", async () => {
+test("9.2.0：购买 XOS 授权写入账户，并只允许购买一份", async () => {
     const { env, token } = await prepare();
 
     const shop = await api(env, "GET", "/api/shop");
@@ -221,7 +221,7 @@ test("9.1.0：购买 XOS 授权写入账户，并只允许购买一份", async (
     assert.equal(me.data.account.xosDevices.length, 2);
 });
 
-test("9.1.0：没有 XOS1 时按完整 V2 价格购买", async () => {
+test("9.2.0：没有 XOS1 时按完整 V2 价格购买", async () => {
     const { env, token } = await prepare();
     const v2 = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -234,7 +234,7 @@ test("9.1.0：没有 XOS1 时按完整 V2 价格购买", async () => {
     assert.equal(v2.data.account.money, "3975.00");
 });
 
-test("9.1.0：购买 GameMAX 写入高性能配置和极端帧率提示", async () => {
+test("9.2.0：购买 GameMAX 写入高性能配置和极端帧率提示", async () => {
     const { env, token } = await prepare();
     const game = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -249,7 +249,7 @@ test("9.1.0：购买 GameMAX 写入高性能配置和极端帧率提示", async 
     assert.equal(game.data.account.xos.fpsWarningMax, 30000);
 });
 
-test("9.1.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
+test("9.2.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
     const { env, token } = await prepare();
     const v1 = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -279,7 +279,7 @@ test("9.1.0：XOS1 同版本可以另付 25 VTX 升级到 XOS2", async () => {
     assert.equal(again.data.account.money, "2950.00");
 });
 
-test("9.1.0：26H2 可以免费升级到 26H3 V2.1", async () => {
+test("9.2.0：26H2 可以免费升级到 26H3 V2.1", async () => {
     const { env, token } = await prepare();
     const v2 = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -300,7 +300,7 @@ test("9.1.0：26H2 可以免费升级到 26H3 V2.1", async () => {
     assert.match(upgrade.data.receipt, /26H3 V2\.1 免费升级/);
 });
 
-test("9.1.0：V3.1 26H3 Snapshot 1 支持中日英并完整计价", async () => {
+test("9.2.0：V3.1 26H3 Snapshot 1 支持中日英并完整计价", async () => {
     const { env, token } = await prepare();
     const v31 = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -314,7 +314,7 @@ test("9.1.0：V3.1 26H3 Snapshot 1 支持中日英并完整计价", async () => 
     assert.deepEqual(v31.data.account.xos.languageSupport, ["zh-CN", "en", "ja"]);
 });
 
-test("9.1.0：同一版本也可以购买多台", async () => {
+test("9.2.0：同一版本也可以购买多台", async () => {
     const { env, token } = await prepare();
     const first = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -331,7 +331,7 @@ test("9.1.0：同一版本也可以购买多台", async () => {
     assert.notEqual(second.data.account.xosDevices[0].id, second.data.account.xosDevices[1].id);
 });
 
-test("9.1.0：可以购买多台不同版本的 XOS", async () => {
+test("9.2.0：可以购买多台不同版本的 XOS", async () => {
     const { env, token } = await prepare();
     const pro = await api(env, "POST", "/api/me/purchase", {
         token,
@@ -353,7 +353,7 @@ test("9.1.0：可以购买多台不同版本的 XOS", async () => {
     assert.equal(me.data.account.xosDevices.length, 2);
 });
 
-test("9.1.0：XOS 页面、商店分类和版本号齐全", () => {
+test("9.2.0：XOS 页面、商店分类和版本号齐全", () => {
     const page = fs.readFileSync(new URL("../../xos.html", import.meta.url), "utf8");
     const shop = fs.readFileSync(new URL("../../shop.json", import.meta.url), "utf8");
     const shopPage = fs.readFileSync(new URL("../../shop.html", import.meta.url), "utf8");
@@ -386,7 +386,7 @@ test("9.1.0：XOS 页面、商店分类和版本号齐全", () => {
     assert.match(page, /GameULTRA/);
     assert.match(page, /GameMAX/);
     assert.match(page, /此帧率过于极端，可能会导致电脑卡顿\/蓝屏\/黑屏\/变砖，真的要打开吗？/);
-    assert.match(page, /PAGE_VERSION = "9\.1\.0"/);
+    assert.match(page, /PAGE_VERSION = "9\.2\.0"/);
     assert.match(page, /API\.version !== PAGE_VERSION/);
     assert.match(page, /function editionForDevice/);
     assert.match(page, /rank >= 3\) return "ce"/);
@@ -433,17 +433,17 @@ test("9.1.0：XOS 页面、商店分类和版本号齐全", () => {
     assert.match(shopPage, /merchant-form/);
     assert.match(fs.readFileSync(new URL("../../accounts-admin.html", import.meta.url), "utf8"), /merchant-product-panel/);
     assert.match(shop, /Community Edition/);
-    assert.match(page, /vtx-api\.js\?v=9\.1\.0/);
+    assert.match(page, /vtx-api\.js\?v=9\.2\.0/);
     assert.match(page, /API\.me\(\)/);
     assert.match(shop, /"XOS虚拟云电脑"/);
     assert.match(shop, /"xos-pc-ce-26h1"/);
     assert.match(shopPage, /get\("category"\)/);
     assert.match(shopPage, /class="xos-entry"/);
     assert.match(home, /href="xos\.html"/);
-    assert.match(home, /v9\.1\.0/);
+    assert.match(home, /v9\.2\.0/);
     assert.match(home, /Vitual XRing/);
     assert.doesNotMatch(home, /Virtual XRing/);
-    assert.match(home, /XRingLogo-V\.png\?v=9\.1\.0/);
+    assert.match(home, /XRingLogo-V\.png\?v=9\.2\.0/);
     assert.doesNotMatch(home, /<img src="XRingLogo\.png"/);
     assert.equal(fs.existsSync(new URL("../../XRingLogo-V.png", import.meta.url)), true);
     assert.match(manager, /href="xos\.html"/);

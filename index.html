@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f3f6fb">
     <title>Vitual XRing · 虚拟云电脑与作品社区</title>
-    <link rel="stylesheet" href="vtx-theme.css?v=9.1.0">
-    <script src="vtx-theme.js?v=9.1.0"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.2.0">
+    <script src="vtx-theme.js?v=9.2.0"></script>
     <style>
         .home-hero { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(320px, .82fr); gap: 28px; align-items: stretch; padding: 46px 0 18px; }
         .hero-copy-wrap { padding: 18px 0; }
@@ -18,7 +18,14 @@
         .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
         .hero-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
         .hero-store { display: flex; align-items: center; min-height: 56px; margin-top: 20px; }
+        .store-badge-wrap { position: relative; display: inline-flex; flex-direction: column; align-items: flex-start; }
         .hero-store ms-store-badge { display: block; }
+        .store-cover { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 10px; background: transparent; cursor: pointer; }
+        .store-cover:focus-visible { outline: 2px solid var(--vtx-accent); outline-offset: 3px; }
+        .store-notice { position: absolute; left: 0; top: calc(100% + 9px); z-index: 3; display: flex; flex-direction: column; gap: 3px; width: min(300px, calc(100vw - 48px)); padding: 11px 13px; border: 1px solid var(--vtx-border); border-radius: 12px; background: var(--vtx-surface); box-shadow: var(--vtx-shadow); color: var(--vtx-text); font-size: 12.5px; line-height: 1.6; }
+        .store-notice strong { color: var(--vtx-accent); font-size: 11px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+        .store-notice[data-visible="true"] { animation: store-notice-in 150ms ease-out; }
+        @keyframes store-notice-in { from { opacity: 0; transform: translateY(-4px); } }
         .stat-pill { display: flex; align-items: baseline; gap: 6px; padding: 8px 12px; border: 1px solid var(--vtx-border); border-radius: 999px; background: var(--vtx-surface); color: var(--vtx-muted); font-size: 11.5px; font-weight: 700; }
         .stat-pill b { color: var(--vtx-text); font-size: 15px; }
         .xos-preview { position: relative; display: flex; flex-direction: column; min-height: 390px; padding: 18px; overflow: hidden; border: 1px solid var(--vtx-border); border-radius: 24px; background: linear-gradient(150deg, #10192d, #0b1325 58%, #101e33); box-shadow: 0 30px 75px rgba(7, 15, 32, .32); color: #eaf1ff; text-decoration: none; }
@@ -58,7 +65,7 @@
 <body data-i18n-document-title="document.index">
     <header class="vtx-topbar">
         <a class="vtx-brand" href="index.html">
-            <img src="XRingLogo-V.png?v=9.1.0" alt="Vitual XRing" width="38" height="38">
+            <img src="XRingLogo-V.png?v=9.2.0" alt="Vitual XRing" width="38" height="38">
             <span data-i18n="brand">Vitual XRing</span>
         </a>
         <nav class="vtx-nav" aria-label="Main navigation">
@@ -68,10 +75,11 @@
             <a href="vitualgit.html" data-i18n="nav.vitualgit">VitualGit</a>
             <a href="vuolingo.html" data-i18n="nav.vuolingo">Vuolingo</a>
             <a href="chatroom.html" data-i18n="nav.chat">聊天室</a>
+            <a href="vord.html">Vord</a>
             <a href="settings.html" data-i18n="nav.settings">设置</a>
         </nav>
         <div class="vtx-top-actions">
-            <a class="vtx-chip" href="settings.html"><strong>v9.1.0</strong></a>
+            <a class="vtx-chip" href="settings.html"><strong>v9.2.0</strong></a>
             <a class="vtx-btn ghost" id="account-link" href="login.html" data-i18n="action.login">登录</a>
         </div>
     </header>
@@ -93,14 +101,21 @@
                     <span class="stat-pill vtx-glass"><b>⇣</b><span data-i18n="hero.stat3">离线可用</span></span>
                 </div>
                 <div class="hero-store">
-                    <ms-store-badge
-                        productid="9nfw3xkxx6cd"
-                        window-mode="full"
-                        theme="auto"
-                        size="large"
-                        language="zh-cn"
-                        animation="off">
-                    </ms-store-badge>
+                    <div class="store-badge-wrap" id="store-wrap">
+                        <ms-store-badge
+                            productid="9nfw3xkxx6cd"
+                            window-mode="full"
+                            theme="auto"
+                            size="large"
+                            language="zh-cn"
+                            animation="off">
+                        </ms-store-badge>
+                        <button type="button" class="store-cover" id="store-cover" aria-label="Microsoft Store 打包说明" aria-expanded="false" aria-controls="store-notice"></button>
+                        <div class="store-notice" id="store-notice" role="status" hidden>
+                            <strong>Microsoft Store</strong>
+                            <span>近期我们会暂停打包，因为微软可能过于繁忙。</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -126,6 +141,7 @@
             <a class="platform-card vtx-glass" href="vitxvideo.html"><span class="platform-icon">▶</span><b data-i18n="card.vitxvideo.title">Vitx® 视频</b><p data-i18n="card.vitxvideo.desc">投稿、观看、评论与分享</p><span class="platform-arrow">↗</span></a>
             <a class="platform-card vtx-glass" href="vitx-dynamic.html"><span class="platform-icon">📝</span><b data-i18n="card.vitxdynamic.title">Vitx 动态</b><p data-i18n="card.vitxdynamic.desc">图文动态与分享卡片</p><span class="platform-arrow">↗</span></a>
             <a class="platform-card vtx-glass" href="chatroom.html"><span class="platform-icon">💬</span><b data-i18n="card.chat.title">聊天室</b><p data-i18n="card.chat.desc">单聊、群聊、红包与实时消息</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vord.html"><span class="platform-icon">📄</span><b data-i18n="card.vord.title">Vord</b><p data-i18n="card.vord.desc">txt / md 文档、分享与编辑记录</p><span class="platform-arrow">↗</span></a>
             <a class="platform-card vtx-glass" href="audiv.html"><span class="platform-icon">🎙</span><b data-i18n="card.audiv.title">AUDIV</b><p data-i18n="card.audiv.desc">浏览器语音会议</p><span class="platform-arrow">↗</span></a>
             <a class="platform-card vtx-glass" href="share.html?create=1"><span class="platform-icon">🔗</span><b data-i18n="card.share.title">分享</b><p data-i18n="card.share.desc">自定义分享卡片与站内识别</p><span class="platform-arrow">↗</span></a>
             <a class="platform-card vtx-glass" href="vitualgit.html"><span class="platform-icon">⑂</span><b data-i18n="card.vitualgit.title">VitualGit</b><p data-i18n="card.vitualgit.desc">GitHub 风格仓库浏览 · Proxy 镜像</p><span class="platform-arrow">↗</span></a>
@@ -133,7 +149,7 @@
         </section>
 
         <footer class="home-footer">
-            <span data-i18n="footer">Vitual XRing 9.1.0 · XOS 是浏览器端虚拟桌面与云手机，不是真实远程虚拟机。</span>
+            <span data-i18n="footer">Vitual XRing 9.2.0 · XOS 是浏览器端虚拟桌面与云手机，不是真实远程虚拟机。</span>
             <span><a href="settings.html" data-i18n="nav.settings">设置</a> · <a href="login.html" data-i18n="action.login">登录</a></span>
         </footer>
     </main>
@@ -157,7 +173,39 @@
             }
         })();
     </script>
+    <script>
+        (function () {
+            var wrap = document.getElementById("store-wrap");
+            var cover = document.getElementById("store-cover");
+            var notice = document.getElementById("store-notice");
+            if (!wrap || !cover || !notice) return;
+            function setOpen(open) {
+                notice.hidden = !open;
+                if (open) notice.dataset.visible = "true";
+                cover.setAttribute("aria-expanded", open ? "true" : "false");
+            }
+            cover.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                setOpen(notice.hidden);
+            });
+            /* 官方徽章内部是商店链接：鼠标点击由上面的透明按钮接管，
+               键盘 / 触屏落到徽章本体时也在捕获阶段拦下来，改成显示说明。 */
+            wrap.addEventListener("click", function (event) {
+                if (event.target === cover || notice.contains(event.target)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                setOpen(notice.hidden);
+            }, true);
+            document.addEventListener("click", function (event) {
+                if (!wrap.contains(event.target)) setOpen(false);
+            });
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") setOpen(false);
+            });
+        })();
+    </script>
     <script type="module" src="https://get.microsoft.com/badge/ms-store-badge.bundled.js"></script>
-    <script src="vtx-pwa.js?v=9.1.0" defer></script>
+    <script src="vtx-pwa.js?v=9.2.0" defer></script>
 </body>
 </html>

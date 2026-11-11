@@ -163,7 +163,7 @@
     // 账户数据搬到 Workers KV 后，页面统一走这里。1.2.0 起停用了「Workers 连不上就
     // 用仓库 token 直连 GitHub」的备用通道——那条通道等于把仓库写权限发给所有访客。
 
-    const API_VERSION = "9.1.0";
+    const API_VERSION = "9.2.0";
     const TOKEN_KEY = "vtxToken";
     const EXPIRES_KEY = "vtxTokenExpires";
     const BASE_KEY = "vtxApiBase";
@@ -1140,7 +1140,7 @@
         )
     };
 
-    /* ───────── 9.1.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态 ───────── */
+    /* ───────── 9.2.0：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态 ───────── */
 
     function socialRequest(path, options = {}) {
         return apiRequest(`/social${path}`, options);
@@ -1541,6 +1541,29 @@
         removeFile: (id) => apiRequest(`/xos/files/${encodeId(id)}`, { method: "DELETE" })
     };
 
+    /* 9.2.0：Vord 文本文档。分享链接的读取 / 编辑接口不强制登录，
+       由服务端按 6 档链接权限判断，未登录的编辑会记成「著名用户 [网页版]」。 */
+    const vord = {
+        list: () => apiRequest("/vord/documents"),
+        create: (payload) => apiRequest("/vord/documents", { method: "POST", body: payload || {} }),
+        get: (id) => apiRequest(`/vord/documents/${encodeId(id)}`),
+        update: (id, payload) => apiRequest(`/vord/documents/${encodeId(id)}`, {
+            method: "PUT",
+            body: payload || {}
+        }),
+        remove: (id) => apiRequest(`/vord/documents/${encodeId(id)}`, { method: "DELETE" }),
+        share: (id, payload) => apiRequest(`/vord/documents/${encodeId(id)}/share`, {
+            method: "POST",
+            body: payload || {}
+        }),
+        unshare: (id) => apiRequest(`/vord/documents/${encodeId(id)}/share`, { method: "DELETE" }),
+        shared: (token) => apiRequest(`/vord/share/${encodeURIComponent(token)}`),
+        editShared: (token, payload) => apiRequest(`/vord/share/${encodeURIComponent(token)}`, {
+            method: "PUT",
+            body: payload || {}
+        })
+    };
+
     const video = {
         status: () => videoRequest("/status", { auth: false }),
         list: (options = {}) => {
@@ -1588,7 +1611,7 @@
         )
     };
 
-    /* ───────── 9.1.0：ViStyle 一键应用 ─────────
+    /* ───────── 9.2.0：ViStyle 一键应用 ─────────
        只在一键应用后写入 localStorage，再由这里在每个公开页面注入 <style>。
        管理员 / 站主 / 投稿页面永不应用样式包，避免把后台改坏（页面要求明确禁止）。 */
     const STYLE_PACK_KEY = "vtxStylePack";
@@ -1751,6 +1774,7 @@
         chatMediaUrl: chatMediaUrl,
         video,
         xos,
+        vord,
         commit,
         readAll,
         loadConfig,
