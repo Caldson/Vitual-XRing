@@ -13,63 +13,63 @@
             "id": "2",
             "title": "VPAN 云盘上线：5GB 永久免费",
             "subtitle": "像 123 盘一样轻快，上传、分享、下载都不用等。",
-            "image": "EventPhoto10.svg",
+            "image": "EventPhoto2.svg",
             "href": "vpan.html"
         },
         {
             "id": "3",
             "title": "Vord：把 txt / md 写进云端",
             "subtitle": "支持 XOS 保存、本地下载、链接分享与 6 档编辑权限。",
-            "image": "EventPhoto2.svg",
+            "image": "EventPhoto3.svg",
             "href": "vord.html"
         },
         {
             "id": "4",
             "title": "XOS 云手机 · XPhone 1 Pro",
             "subtitle": "浏览器里的手机形态云电脑，还能和 XOS PC V4 互传文件。",
-            "image": "EventPhoto3.svg",
+            "image": "EventPhoto4.svg",
             "href": "shop.html?category=XOS%E4%BA%91%E6%89%8B%E6%9C%BA"
         },
         {
             "id": "5",
             "title": "XOS V4 26H4 · 你的浏览器桌面",
             "subtitle": "22 个应用、文件云端同步与 Aurora Glass 界面。",
-            "image": "EventPhoto4.svg",
+            "image": "EventPhoto5.svg",
             "href": "xos.html"
         },
         {
             "id": "6",
             "title": "Vitx® 视频：投稿、观看、投币",
             "subtitle": "支持大文件分片上传与站内分享卡片。",
-            "image": "EventPhoto5.svg",
+            "image": "EventPhoto6.svg",
             "href": "vitxvideo.html"
         },
         {
             "id": "7",
             "title": "聊天室：单聊、群聊与实时消息",
             "subtitle": "Markdown、红包、转账、UNO，一个页面全都有。",
-            "image": "EventPhoto6.svg",
+            "image": "EventPhoto7.svg",
             "href": "chatroom.html"
         },
         {
             "id": "8",
             "title": "分享生态：Vimidi / VMusic / Viratch",
             "subtitle": "把 MIDI、音乐、Scratch 作品变成能打开的链接。",
-            "image": "EventPhoto7.svg",
+            "image": "EventPhoto8.svg",
             "href": "share.html"
         },
         {
             "id": "9",
             "title": "AI 聊天与 AI 生图",
             "subtitle": "按字符计费，聊天记录只保存在你的浏览器。",
-            "image": "EventPhoto8.svg",
+            "image": "EventPhoto9.svg",
             "href": "chat.html"
         },
         {
             "id": "10",
             "title": "VitualGit：GitHub 风格仓库浏览",
             "subtitle": "不用登录也能看仓库，支持 Proxy 镜像加速。",
-            "image": "EventPhoto9.svg",
+            "image": "EventPhoto10.svg",
             "href": "vitualgit.html"
         }
     ]
