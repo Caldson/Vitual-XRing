@@ -21,3 +21,4 @@ microsoft-windows-version/.tmp-*/
 microsoft-windows-version/electron-out.txt
 microsoft-windows-version/app-out.txt
 microsoft-windows-version/app-err.txt
+.tmp-*
