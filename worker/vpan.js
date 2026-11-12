@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 9.5.0 — VPAN 云盘
+ * Vitual XRing 9.5.1 — VPAN 云盘
  *
  * 设计目标：像 123 盘 / 蓝奏云一样「打开就能传、传完就能发链接」，
  * 不做限速、不做强制客户端、不做多余跳转。
@@ -11,7 +11,7 @@
  *   - 绑定了 R2（VIDEO_BUCKET）时同样可用，后续可切到 R2。
  * 套餐：5 GB 免费，其余套餐按月购买；10 GB 首次购买首月 49.99 VTX。
  */
-const VPAN_VERSION = "9.5.0";
+const VPAN_VERSION = "9.5.1";
 const VPAN_GB = 1024 * 1024 * 1024;
 const VPAN_TB = 1024 * VPAN_GB;
 const VPAN_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
@@ -82,10 +82,34 @@ function vpanSizeText(bytes) {
     return `${value} B`;
 }
 
+function vpanMoneyText(value) {
+    let text = String(value == null ? "" : value).trim().replace(/,/g, "");
+    if (!text) return "";
+    let sign = "";
+    if (text[0] === "+" || text[0] === "-") {
+        sign = text[0] === "-" ? "-" : "";
+        text = text.slice(1);
+    }
+    const scientific = /^(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/.exec(text);
+    if (scientific) {
+        const whole = scientific[1];
+        const fraction = scientific[2] || "";
+        const power = Number(scientific[3]);
+        const digits = whole + fraction;
+        const point = whole.length + power;
+        if (point <= 0) text = "0." + "0".repeat(-point) + digits;
+        else if (point >= digits.length) text = digits + "0".repeat(point - digits.length);
+        else text = digits.slice(0, point) + "." + digits.slice(point);
+        text = text.replace(/^0+(?=\d)/, "").replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+    }
+    return sign + text;
+}
+
 function vpanAddMoney(value, deltaCents) {
-    const text = String(value == null ? "" : value).trim().replace(/,/g, "");
+    const text = vpanMoneyText(value);
     const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(text);
-    const base = match ? BigInt(match[1]) * 100n + BigInt((match[2] || "").padEnd(2, "0")) : 0n;
+    if (!match) return String(value == null ? "0.00" : value);
+    const base = BigInt(match[1]) * 100n + BigInt((match[2] || "").padEnd(2, "0"));
     let delta;
     try {
         delta = BigInt(deltaCents);
@@ -99,7 +123,7 @@ function vpanAddMoney(value, deltaCents) {
 }
 
 function vpanCents(value) {
-    const text = String(value == null ? "" : value).trim().replace(/,/g, "");
+    const text = vpanMoneyText(value);
     const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(text);
     if (!match) return null;
     return BigInt(match[1]) * 100n + BigInt((match[2] || "").padEnd(2, "0"));

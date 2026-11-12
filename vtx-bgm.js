@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 9.5.0 — 全站 BGM 播放器 + 听歌赚钱
+ * Vitual XRing 9.5.1 — 全站 BGM 播放器 + 听歌赚钱
  *
  * - 由 vtx-theme.js 自动加载，不需要每个页面单独引 script；
  * - 右下角常驻一个可折叠播放器，目前 1 首 BGM；
@@ -30,7 +30,7 @@
         { id: "sequence", label: "顺序循环", icon: "🔁" },
         { id: "shuffle", label: "随机循环", icon: "🔀" }
     ];
-    const api = window.VTXApi;
+    function apiClient() { return window.VTXApi || null; }
     const el = (id) => document.getElementById(id);
     let audio = null;
     let playingIndex = 0;
@@ -40,6 +40,7 @@
     let saveTimer = 0;
     let toastTimer = 0;
     let expanded = false;
+    let openingAudio = null;
 
     function read(key, fallback) {
         try {
@@ -201,8 +202,9 @@
         syncEarned();
         setExpanded(false);
 
-        if (api && api.hasSession && api.hasSession()) {
-            api.me().then((account) => {
+        const client = apiClient();
+        if (client && client.hasSession && client.hasSession()) {
+            client.me().then((account) => {
                 if (account && account.bgm) syncEarned(Number(account.bgm.earnedCents) || 0);
             }).catch(() => {});
         } else {
@@ -248,6 +250,7 @@
 
     function step(direction, ended) {
         if (TRACKS.length < 2) {
+            write(KEY_TIME, "0");
             audio.currentTime = 0;
             if (!ended) play();
             else if (mode !== "single") play();
@@ -257,6 +260,7 @@
         if (mode === "shuffle") {
             do { next = Math.floor(Math.random() * TRACKS.length); } while (next === playingIndex && TRACKS.length > 1);
         }
+        write(KEY_TIME, "0");
         load((next + TRACKS.length) % TRACKS.length, true);
     }
 
@@ -286,7 +290,6 @@
 
     function armResume() {
         const resume = () => {
-            if (!api || !api.hasSession || !api.hasSession()) return;
             audio.play().catch(() => {});
         };
         document.addEventListener("pointerdown", resume, { once: true });
@@ -303,10 +306,11 @@
     }
 
     function startEarning() {
-        if (!api || !api.hasSession || !api.hasSession()) return;
+        const client = apiClient();
+        if (!client || !client.hasSession || !client.hasSession()) return;
         if (!sessionStarted) {
             sessionStarted = true;
-            api.bgm.start().then((data) => {
+            client.bgm.start().then((data) => {
                 if (data && data.earnedCents !== undefined) syncEarned(Number(data.earnedCents) || 0);
             }).catch(() => { sessionStarted = false; });
         }
@@ -314,7 +318,7 @@
         rewardTimer = setInterval(async () => {
             if (!audio || audio.paused || document.hidden) return;
             try {
-                const data = await api.bgm.reward();
+                const data = await client.bgm.reward();
                 if (data && data.earned > 0) {
                     syncEarned(Number(data.totalEarned) || 0);
                     toast("听歌奖励 +0.01 VTX");
@@ -333,13 +337,31 @@
 
     function playOpening() {
         if (!/manager\.html$/i.test(location.pathname)) return;
+        const wasPlaying = read(KEY_PLAYING, "0") === "1";
         const opening = new Audio(OPENING_SRC);
+        openingAudio = opening;
         opening.volume = Math.min(0.8, Math.max(0.2, audio ? audio.volume : 0.65));
         const attempt = opening.play();
+        window.__vtxBgmOpeningAttempt = "called";
+        const resumeBgm = () => {
+            if (!wasPlaying) return;
+            const saved = Number(read(KEY_TIME, "0")) || 0;
+            load(playingIndex, false);
+            const begin = () => {
+                if (saved > 0 && audio.duration && saved < audio.duration - 2) {
+                    try { audio.currentTime = saved; } catch (error) { /* ignore */ }
+                }
+                play();
+            };
+            if (audio.readyState >= 1) begin();
+            else audio.addEventListener("loadedmetadata", begin, { once: true });
+        };
+        opening.addEventListener("ended", resumeBgm, { once: true });
         if (attempt && attempt.catch) {
-            attempt.catch(() => {
+            attempt.then(() => { window.__vtxBgmOpeningAttempt = "playing"; }).catch((error) => {
+                window.__vtxBgmOpeningAttempt = "blocked:" + (error && error.name);
                 document.addEventListener("pointerdown", () => {
-                    opening.play().catch(() => {});
+                    opening.play().then(() => { window.__vtxBgmOpeningAttempt = "playing-after-gesture"; }).catch(() => {});
                 }, { once: true });
             });
         }
@@ -350,6 +372,7 @@
         injectStyle();
         build();
         playOpening();
+        window.__vtxBgm = { get audio() { return audio; }, get opening() { return openingAudio; } };
 
         /* 之前正在播放的话，换页后尝试续播；浏览器拦自动播放时等用户第一次点击。 */
         const wantedPlaying = read(KEY_PLAYING, "0") === "1";

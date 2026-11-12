@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 9.5.0：分享生态 API（视频卡片 / 聊天记录分享）。
+ * Vitual XRing 9.5.1：分享生态 API（视频卡片 / 聊天记录分享）。
  *
  * 挂载点：/api/social/*
  * 页面：Vimidi、VMusic、Viratch、AUDIV、ViStyle、VClang、Vitx 动态、share.html
@@ -89,11 +89,35 @@ function fromCents(cents) {
     return (Math.round(Number(cents) || 0) / 100).toFixed(2);
 }
 
-/* 9.5.0：余额可能是超过 2^53 的 VTX 字符串，按「分」用 BigInt 精确加减。 */
+/* 9.5.1：兼容历史账户里的 1e+40 科学计数法余额，避免解析失败后写成 0。 */
+function moneyText(value) {
+    let text = String(value == null ? "" : value).trim().replace(/,/g, "");
+    if (!text) return "";
+    let sign = "";
+    if (text[0] === "+" || text[0] === "-") {
+        sign = text[0] === "-" ? "-" : "";
+        text = text.slice(1);
+    }
+    const scientific = /^(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/.exec(text);
+    if (scientific) {
+        const whole = scientific[1];
+        const fraction = scientific[2] || "";
+        const power = Number(scientific[3]);
+        const digits = whole + fraction;
+        const point = whole.length + power;
+        if (point <= 0) text = "0." + "0".repeat(-point) + digits;
+        else if (point >= digits.length) text = digits + "0".repeat(point - digits.length);
+        else text = digits.slice(0, point) + "." + digits.slice(point);
+        text = text.replace(/^0+(?=\d)/, "").replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+    }
+    return sign + text;
+}
+
 function addMoney(value, deltaCents) {
-    const text = String(value == null ? "" : value).trim().replace(/,/g, "");
+    const text = moneyText(value);
     const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(text);
-    const base = match ? BigInt(match[1]) * 100n + BigInt((match[2] || "").padEnd(2, "0")) : 0n;
+    if (!match) return String(value == null ? "0.00" : value);
+    const base = BigInt(match[1]) * 100n + BigInt((match[2] || "").padEnd(2, "0"));
     let delta;
     try {
         delta = BigInt(deltaCents);

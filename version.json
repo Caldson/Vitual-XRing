@@ -1,5 +1,5 @@
 {
-    "version": "9.5.0",
-    "updatedAt": "2026-11-12T21:59:02+08:00",
-    "notes": "Site-wide BGM player with listen-to-earn and manager opening sound"
+    "version": "9.5.1",
+    "updatedAt": "2026-11-12T22:35:00+08:00",
+    "notes": "BGM player fixes: safe balances, reward payload and playback resume"
 }
