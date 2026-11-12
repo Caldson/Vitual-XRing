@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-/* 9.4.0：Vord 页面与 XOS 集成、首页 Microsoft Store 提示 */
+/* 9.5.0：Vord 页面与 XOS 集成、首页 Microsoft Store 提示 */
 
 const root = new URL("../../", import.meta.url);
 const read = (name) => fs.readFileSync(new URL(name, root), "utf8");
 
-test("9.4.0：Vord 页面包含 6 档链接权限和编辑记录入口", () => {
+test("9.5.0：Vord 页面包含 6 档链接权限和编辑记录入口", () => {
     const page = read("vord.html");
     for (const label of [
         "仅预览",
@@ -21,13 +21,13 @@ test("9.4.0：Vord 页面包含 6 档链接权限和编辑记录入口", () => {
     }
     assert.match(page, /匿名用户 \[网页版\]/);
     assert.match(page, /匿名用户 \[Windows版\]/);
-    assert.match(page, /vtx-api\.js\?v=9\.4\.0/);
+    assert.match(page, /vtx-api\.js\?v=9\.5\.0/);
     assert.match(page, /api\.xos\.saveFile/);
     assert.match(page, /api\.vord\.editShared/);
     assert.match(page, /data-vtx-widget-avoid|vord-editor/);
 });
 
-test("9.4.0：XOS 桌面 / 云手机集成 Vord", () => {
+test("9.5.0：XOS 桌面 / 云手机集成 Vord", () => {
     const xos = read("xos.html");
     assert.match(xos, /"txtpro", "vord"/);
     assert.match(xos, /APPS\.vord = \{/);
@@ -35,7 +35,7 @@ test("9.4.0：XOS 桌面 / 云手机集成 Vord", () => {
     assert.match(xos, /xos:vord-saved/);
 });
 
-test("9.4.0：首页 Vord 入口与 Microsoft Store 暂停打包提示", () => {
+test("9.5.0：首页 Vord 入口与 Microsoft Store 暂停打包提示", () => {
     const home = read("index.html");
     assert.match(home, /href="vord\.html"/);
     assert.match(home, /id="store-cover"/);
@@ -43,10 +43,10 @@ test("9.4.0：首页 Vord 入口与 Microsoft Store 暂停打包提示", () => {
     assert.match(home, /ms-store-badge/);
 });
 
-test("9.4.0：版本号与 Service Worker 缓存同步", () => {
+test("9.5.0：版本号与 Service Worker 缓存同步", () => {
     const version = JSON.parse(read("version.json"));
-    assert.equal(version.version, "9.4.0");
-    assert.match(read("vtx-sw.js"), /xring-v9\.4\.0/);
+    assert.equal(version.version, "9.5.0");
+    assert.match(read("vtx-sw.js"), /xring-v9\.5\.0/);
     assert.match(read("vtx-sw.js"), /vord\.html/);
-    assert.match(read("vtx-api.js"), /const API_VERSION = "9\.4\.0"/);
+    assert.match(read("vtx-api.js"), /const API_VERSION = "9\.5\.0"/);
 });
