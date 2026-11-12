@@ -33,6 +33,7 @@ test("9.5.1：主题壳自动加载 BGM，音频文件存在", () => {
 
 test("9.5.1：Service Worker 不缓存 206 分片，避免音频播放器拿到 504", () => {
     const sw = read("vtx-sw.js");
+    assert.match(sw, /request\.destination === "audio"/);
     assert.match(sw, /request\.headers\.get\("range"\)/);
     assert.match(sw, /response\.status === 200/);
 });

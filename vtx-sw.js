@@ -63,7 +63,12 @@ self.addEventListener("fetch", (event) => {
     if (url.origin !== self.location.origin) return;
     if (url.pathname.startsWith("/api/") || url.pathname.endsWith("/vtx-closed.js") || url.pathname.endsWith("/version.json")) return;
 
-    /* 9.5.1：Range 请求直接交给网络，避免 206 被 Cache API 拒绝后返回 504。 */
+    /* 9.5.1：音频 / 视频交给浏览器直接处理。媒体会发 Range 或分段请求，
+       经过 Service Worker 时一旦上游截断就可能得到空的 504，播放器会卡在 0 秒。 */
+    if (request.destination === "audio" || request.destination === "video" || request.destination === "track") return;
+    if (/\.(mp3|wav|ogg|m4a|flac|mp4|webm|mkv)$/i.test(url.pathname)) return;
+
+    /* Range 请求同样直接交给网络。 */
     if (request.headers.get("range")) return;
 
     if (request.mode === "navigate") {
