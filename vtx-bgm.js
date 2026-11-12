@@ -30,7 +30,27 @@
         { id: "sequence", label: "顺序循环", icon: "🔁" },
         { id: "shuffle", label: "随机循环", icon: "🔀" }
     ];
-    function apiClient() { return window.VTXApi || null; }
+    let apiLoading = null;
+
+    /* 9.5.1：首页 / 商店等页面不一定加载 vtx-api.js。播放器按需补上，
+       否则登录检测和听歌奖励只在聊天室 / 账户页有效。 */
+    function ensureApi() {
+        if (window.VTXApi) return Promise.resolve(window.VTXApi);
+        if (apiLoading) return apiLoading;
+        apiLoading = new Promise((resolve) => {
+            try {
+                const script = document.createElement("script");
+                script.src = "vtx-api.js";
+                script.async = true;
+                script.onload = () => resolve(window.VTXApi || null);
+                script.onerror = () => resolve(null);
+                document.head.appendChild(script);
+            } catch (error) {
+                resolve(null);
+            }
+        });
+        return apiLoading;
+    }
     const el = (id) => document.getElementById(id);
     let audio = null;
     let playingIndex = 0;
@@ -202,15 +222,16 @@
         syncEarned();
         setExpanded(false);
 
-        const client = apiClient();
-        if (client && client.hasSession && client.hasSession()) {
-            client.me().then((account) => {
-                if (account && account.bgm) syncEarned(Number(account.bgm.earnedCents) || 0);
-            }).catch(() => {});
-        } else {
-            el("vtx-bgm-login").hidden = false;
-            el("vtx-bgm-earned").textContent = "登录后赚";
-        }
+        ensureApi().then((client) => {
+            if (client && client.hasSession && client.hasSession()) {
+                client.me().then((account) => {
+                    if (account && account.bgm) syncEarned(Number(account.bgm.earnedCents) || 0);
+                }).catch(() => {});
+            } else {
+                el("vtx-bgm-login").hidden = false;
+                el("vtx-bgm-earned").textContent = "登录后赚";
+            }
+        });
     }
 
     function syncMode() {
@@ -306,27 +327,28 @@
     }
 
     function startEarning() {
-        const client = apiClient();
-        if (!client || !client.hasSession || !client.hasSession()) return;
-        if (!sessionStarted) {
-            sessionStarted = true;
-            client.bgm.start().then((data) => {
-                if (data && data.earnedCents !== undefined) syncEarned(Number(data.earnedCents) || 0);
-            }).catch(() => { sessionStarted = false; });
-        }
-        clearInterval(rewardTimer);
-        rewardTimer = setInterval(async () => {
-            if (!audio || audio.paused || document.hidden) return;
-            try {
-                const data = await client.bgm.reward();
-                if (data && data.earned > 0) {
-                    syncEarned(Number(data.totalEarned) || 0);
-                    toast("听歌奖励 +0.01 VTX");
-                }
-            } catch (error) {
-                if (error && error.status === 400) sessionStarted = false;
+        ensureApi().then((client) => {
+            if (!client || !client.hasSession || !client.hasSession()) return;
+            if (!sessionStarted) {
+                sessionStarted = true;
+                client.bgm.start().then((data) => {
+                    if (data && data.earnedCents !== undefined) syncEarned(Number(data.earnedCents) || 0);
+                }).catch(() => { sessionStarted = false; });
             }
-        }, 20000);
+            clearInterval(rewardTimer);
+            rewardTimer = setInterval(async () => {
+                if (!audio || audio.paused || document.hidden) return;
+                try {
+                    const data = await client.bgm.reward();
+                    if (data && data.earned > 0) {
+                        syncEarned(Number(data.totalEarned) || 0);
+                        toast("听歌奖励 +0.01 VTX");
+                    }
+                } catch (error) {
+                    if (error && error.status === 400) sessionStarted = false;
+                }
+            }, 20000);
+        });
     }
 
     function stopEarning() {

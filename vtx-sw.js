@@ -1,5 +1,5 @@
 /* Vitual XRing 9.5.1 — page cache / offline shell */
-const CACHE_NAME = "xring-v9.5.1";
+const CACHE_NAME = "xring-v9.5.1-bgm1";
 const CORE = [
     "./",
     "index.html",
@@ -47,7 +47,9 @@ self.addEventListener("message", (event) => {
 
 async function networkAndCache(request) {
     const response = await fetch(request);
-    if (response && response.ok) {
+    /* 9.5.1：206 Partial Content（音频 / 视频 Range）不能写进 Cache API，
+       否则 cache.put 会抛错，播放器会收到一个 504 空响应而卡在 0 秒。 */
+    if (response && response.ok && response.status === 200) {
         const cache = await caches.open(CACHE_NAME);
         await cache.put(request, response.clone());
     }
@@ -60,6 +62,9 @@ self.addEventListener("fetch", (event) => {
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return;
     if (url.pathname.startsWith("/api/") || url.pathname.endsWith("/vtx-closed.js") || url.pathname.endsWith("/version.json")) return;
+
+    /* 9.5.1：Range 请求直接交给网络，避免 206 被 Cache API 拒绝后返回 504。 */
+    if (request.headers.get("range")) return;
 
     if (request.mode === "navigate") {
         event.respondWith((async () => {

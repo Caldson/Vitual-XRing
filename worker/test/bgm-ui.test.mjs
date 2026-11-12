@@ -23,11 +23,18 @@ test("9.5.1：BGM 播放器包含播放、循环模式、音量与听歌赚钱",
 test("9.5.1：主题壳自动加载 BGM，音频文件存在", () => {
     const theme = read("vtx-theme.js");
     assert.match(theme, /vtx-bgm\.js\?v=/);
+    assert.match(read("vtx-bgm.js"), /ensureApi/);
     for (const file of ["audio/opening.mp3", "audio/your-beat.mp3"]) {
         const path = new URL(file, root);
         assert.equal(fs.existsSync(path), true, `${file} 不存在`);
         assert.ok(fs.statSync(path).size > 10000, `${file} 太小`);
     }
+});
+
+test("9.5.1：Service Worker 不缓存 206 分片，避免音频播放器拿到 504", () => {
+    const sw = read("vtx-sw.js");
+    assert.match(sw, /request\.headers\.get\("range"\)/);
+    assert.match(sw, /response\.status === 200/);
 });
 
 test("9.5.1：BGM 接口与版本同步", () => {
