@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f3f6fb">
     <title>设置 · Vitual XRing</title>
-    <link rel="stylesheet" href="vtx-theme.css?v=10.0.0">
-    <script src="vtx-theme.js?v=10.0.0"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=10.0.1">
+    <script src="vtx-theme.js?v=10.0.1"></script>
     <style>
         .settings-shell { width: min(100% - 40px, 900px); margin: 0 auto; padding: 34px 0 80px; }
         .settings-kicker { margin: 0 0 8px; color: var(--vtx-accent); font-size: 11.5px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
@@ -94,7 +94,7 @@
 <body data-vtx-widget="off" data-i18n-document-title="document.settings">
     <header class="vtx-topbar">
         <a class="vtx-brand" href="index.html">
-            <img src="XRingLogo-V.png?v=10.0.0-solid" alt="Vitual XRing" width="38" height="38">
+            <img src="XRingLogo-V.png?v=10.0.1-solid" alt="Vitual XRing" width="38" height="38">
             <span data-i18n="brand">Vitual XRing</span>
         </a>
         <nav class="vtx-nav">
@@ -241,7 +241,7 @@
         <iframe id="tm-frame" title="历史版本预览" src="about:blank" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-downloads"></iframe>
     </div>
 
-    <script src="vtx-pwa.js?v=10.0.0" defer></script>
+    <script src="vtx-pwa.js?v=10.0.1" defer></script>
     <script>
         (function () {
             "use strict";
@@ -356,7 +356,7 @@
             syncGlass();
             syncOpening();
 
-            /* 10.0.0：时光回溯机。manifest 只提供 HTML 文件，文件目录也只渲染 .html。 */
+            /* 10.0.1：时光回溯机。manifest 只提供 HTML 文件，文件目录也只渲染 .html。 */
             (function timeMachine() {
                 const versionBox = document.getElementById("tm-versions");
                 const fileBox = document.getElementById("tm-file-list");

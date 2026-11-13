@@ -1,5 +1,5 @@
 {
-    "version": "10.0.0",
-    "updatedAt": "2026-11-13T18:21:16+08:00",
-    "notes": "Time Machine Beta with archived HTML versions"
+    "version": "10.0.1",
+    "updatedAt": "2026-11-13T19:26:16+08:00",
+    "notes": "Fix login fallback for desktop and archived pages"
 }

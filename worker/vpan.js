@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 10.0.0 — VPAN 云盘
+ * Vitual XRing 10.0.1 — VPAN 云盘
  *
  * 设计目标：像 123 盘 / 蓝奏云一样「打开就能传、传完就能发链接」，
  * 不做限速、不做强制客户端、不做多余跳转。
@@ -11,7 +11,7 @@
  *   - 绑定了 R2（VIDEO_BUCKET）时同样可用，后续可切到 R2。
  * 套餐：5 GB 免费，其余套餐按月购买；10 GB 首次购买首月 49.99 VTX。
  */
-const VPAN_VERSION = "10.0.0";
+const VPAN_VERSION = "10.0.1";
 const VPAN_GB = 1024 * 1024 * 1024;
 const VPAN_TB = 1024 * VPAN_GB;
 const VPAN_MONTH_MS = 30 * 24 * 60 * 60 * 1000;

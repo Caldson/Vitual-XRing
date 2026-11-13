@@ -2,13 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-/* 10.0.0：右下角的主题 / 设置悬浮球原来会压住聊天室的输入框和「发送」按钮。
+/* 10.0.1：右下角的主题 / 设置悬浮球原来会压住聊天室的输入框和「发送」按钮。
    这里做静态回归检查，防止以后改样式或改页面结构时又把避让逻辑弄丢。 */
 
 const root = new URL("../../", import.meta.url);
 const read = (name) => fs.readFileSync(new URL(name, root), "utf8");
 
-test("10.0.0：主题悬浮球按输入区高度避让", () => {
+test("10.0.1：主题悬浮球按输入区高度避让", () => {
     const css = read("vtx-theme.css");
     const theme = read("vtx-theme.js");
     assert.match(css, /bottom: calc\(16px \+ var\(--vtx-widget-lift, 0px\)\)/);
@@ -19,7 +19,7 @@ test("10.0.0：主题悬浮球按输入区高度避让", () => {
     assert.match(theme, /addEventListener\("resize", syncWidgetOffset\)/);
 });
 
-test("10.0.0：聊天页把底部输入区标记为需要避让", () => {
+test("10.0.1：聊天页把底部输入区标记为需要避让", () => {
     const chatroom = read("chatroom.html");
     assert.match(chatroom, /data-vtx-widget-avoid/);
     assert.match(chatroom, /function syncThemeWidget\(\)/);
@@ -30,10 +30,10 @@ test("10.0.0：聊天页把底部输入区标记为需要避让", () => {
     assert.match(chat, /<form id="composer" class="composer" data-vtx-widget-avoid>/);
 });
 
-test("10.0.0：版本号与 Service Worker 缓存同步", () => {
+test("10.0.1：版本号与 Service Worker 缓存同步", () => {
     const version = JSON.parse(read("version.json"));
-    assert.equal(version.version, "10.0.0");
-    assert.match(read("vtx-sw.js"), /xring-v10\.0\.0/);
-    assert.match(read("vtx-theme.js"), /const VERSION = "10\.0\.0"/);
-    assert.match(read("index.html"), /v10\.0\.0/);
+    assert.equal(version.version, "10.0.1");
+    assert.match(read("vtx-sw.js"), /xring-v10\.0\.1/);
+    assert.match(read("vtx-theme.js"), /const VERSION = "10\.0\.1"/);
+    assert.match(read("index.html"), /v10\.0\.1/);
 });
