@@ -1,0 +1,5 @@
+{
+    "version": "9.2.2",
+    "updatedAt": "2026-11-11T19:33:54+08:00",
+    "notes": "Emergency update: deploy 9.2.x to all devices stuck on 9.1.0"
+}

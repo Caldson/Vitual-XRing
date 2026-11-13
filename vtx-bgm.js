@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 9.6.0 — 全站 BGM 播放器 + 听歌赚钱
+ * Vitual XRing 10.0.0 — 全站 BGM 播放器 + 听歌赚钱
  *
  * - 由 vtx-theme.js 自动加载，不需要每个页面单独引 script；
  * - 右下角常驻一个可折叠播放器，目前 1 首 BGM；
@@ -32,7 +32,7 @@
     ];
     let apiLoading = null;
 
-    /* 9.6.0：首页 / 商店等页面不一定加载 vtx-api.js。播放器按需补上，
+    /* 10.0.0：首页 / 商店等页面不一定加载 vtx-api.js。播放器按需补上，
        否则登录检测和听歌奖励只在聊天室 / 账户页有效。 */
     function ensureApi() {
         if (window.VTXApi) return Promise.resolve(window.VTXApi);

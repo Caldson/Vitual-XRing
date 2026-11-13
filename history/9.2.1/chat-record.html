@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="referrer" content="no-referrer">
+    <meta name="theme-color" content="#f5f8fd">
+    <title>聊天记录 | Vitual XRing</title>
+    <script src="vtx-api.js?v=9.2.1"></script>
+    <script src="xring-social.js?v=9.2.1"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --blue: #2f63d8;
+            --blue-soft: #eef3ff;
+            --ink: #172033;
+            --muted: #68768d;
+            --line: #e4e9f2;
+            --bg: #f4f7fb;
+            --card: #ffffff;
+            --danger: #d64545;
+        }
+
+        * { box-sizing: border-box; }
+
+        [hidden] { display: none !important; }
+
+        html, body { margin: 0; }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 10% 0%, #e7efff 0, transparent 38%),
+                radial-gradient(circle at 92% 8%, #eaf7f0 0, transparent 32%),
+                var(--bg);
+            color: var(--ink);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        button, input { font: inherit; color: inherit; }
+        button { cursor: pointer; }
+        a { color: var(--blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 18px;
+            padding-top: calc(11px + env(safe-area-inset-top, 0px));
+            background: rgba(255, 255, 255, 0.93);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: inherit;
+            text-decoration: none;
+            font-weight: 800;
+        }
+
+        .brand-mark {
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #2f63d8, #6c8cff);
+            color: #fff;
+            font-size: 15px;
+        }
+
+        .brand-text small { display: block; color: var(--muted); font-size: 10.5px; font-weight: 600; }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            font-size: 12.5px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 7px 13px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fff;
+            color: #40506b;
+            font-size: 13px;
+            font-weight: 650;
+            text-decoration: none;
+        }
+
+        .btn:hover { border-color: #b9c8f5; background: var(--blue-soft); color: var(--blue); text-decoration: none; }
+        .btn.primary { border: 0; background: linear-gradient(135deg, #2f63d8, #5b83ff); color: #fff; }
+        .btn.primary:hover { color: #fff; filter: brightness(1.04); }
+        .btn.danger { border-color: #f2c9c9; background: #fff6f6; color: var(--danger); }
+        .btn:disabled { opacity: 0.6; cursor: wait; }
+
+        .version {
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: var(--blue-soft);
+            color: var(--blue);
+            font-size: 11.5px;
+            font-weight: 700;
+        }
+
+        .wrap { width: min(100% - 32px, 820px); margin: 0 auto; padding: 24px 0 48px; }
+
+        .hero {
+            padding: 20px 22px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(40, 80, 150, 0.06);
+            margin-bottom: 16px;
+        }
+
+        .eyebrow {
+            margin: 0 0 6px;
+            color: var(--blue);
+            font-size: 11.5px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            margin: 0 0 7px;
+            font-size: 24px;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .hero-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px 12px;
+            color: var(--muted);
+            font-size: 12.5px;
+            line-height: 1.6;
+        }
+
+        .hero-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+        .warning {
+            margin: 0 0 16px;
+            padding: 10px 13px;
+            border: 1px solid #f0e0bd;
+            border-radius: 12px;
+            background: #fffaf0;
+            color: #8a6423;
+            font-size: 12.5px;
+            line-height: 1.6;
+        }
+
+        .messages {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+            padding: 12px 14px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: #fff;
+        }
+
+        .avatar {
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            border: 1px solid #dbe4f2;
+            background: linear-gradient(135deg, #dbe6ff, #eef3ff);
+            color: var(--blue);
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .message-main { flex: 1; min-width: 0; }
+
+        .message-head {
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .message-head b { font-size: 12.5px; color: #40506b; }
+        .message-head span { color: #9aa5b6; font-size: 11px; }
+
+        .message-text {
+            margin: 0;
+            color: #34445c;
+            font-size: 13.5px;
+            line-height: 1.65;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .message-media {
+            display: inline-flex;
+            margin: 4px 0 0;
+            padding: 5px 9px;
+            border-radius: 8px;
+            background: #f5f8fd;
+            color: #6a7890;
+            font-size: 12px;
+        }
+
+        .message-card { margin-top: 6px; }
+        .message-card .xr-card { margin: 0; }
+
+        .loading, .error, .empty {
+            padding: 42px 20px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: #fff;
+            text-align: center;
+            color: var(--muted);
+            font-size: 13.5px;
+            line-height: 1.7;
+        }
+
+        .error h2 { margin: 0 0 8px; color: var(--ink); font-size: 19px; }
+
+        .foot {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            justify-content: space-between;
+            color: #93a0b4;
+            font-size: 11.5px;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 34px;
+            z-index: 9000;
+            transform: translateX(-50%);
+            padding: 9px 15px;
+            border-radius: 10px;
+            background: rgba(25, 37, 56, 0.94);
+            color: #fff;
+            font-size: 12.5px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s;
+        }
+
+        .toast.show { opacity: 1; }
+
+        @media (max-width: 560px) {
+            .topbar { padding-left: 14px; padding-right: 14px; }
+            .brand-text small { display: none; }
+            .back-label { display: none; }
+            .wrap { width: min(100% - 24px, 820px); padding-top: 16px; }
+            .hero { padding: 17px 16px; }
+            .hero h1 { font-size: 21px; }
+            .message { padding: 10px 11px; }
+            .avatar { width: 30px; height: 30px; flex-basis: 30px; }
+        }
+    </style>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.2.1">
+    <script src="vtx-theme.js?v=9.2.1"></script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="chatroom.html">
+            <span class="brand-mark">💬</span>
+            <span class="brand-text"><strong>聊天记录</strong><small>Vitual XRing Share</small></span>
+        </a>
+        <div class="top-actions">
+            <a class="btn" id="login-link" href="login.html?next=chat-record.html" hidden>登录</a>
+            <span class="version">v9.2.1</span>
+            <a class="btn" href="chatroom.html"><span class="back-label">← </span>聊天室</a>
+            <a class="btn" href="manager.html">账户</a>
+        </div>
+    </header>
+
+    <main class="wrap" id="app">
+        <section class="loading" id="loading">正在读取聊天记录…</section>
+
+        <section class="error" id="error" hidden>
+            <h2>打不开这条聊天记录</h2>
+            <p id="error-text">链接可能已经被删除。</p>
+            <a class="btn primary" href="chatroom.html">返回聊天室</a>
+        </section>
+
+        <div id="record-view" hidden>
+            <section class="hero">
+                <p class="eyebrow">公开聊天记录</p>
+                <h1 id="record-title">聊天记录</h1>
+                <div class="hero-meta">
+                    <span id="record-owner">分享者：—</span>
+                    <span id="record-time">—</span>
+                    <span id="record-count">0 条消息</span>
+                    <span id="record-kind">会话</span>
+                </div>
+                <div class="hero-actions">
+                    <button class="btn primary" type="button" id="copy-link">复制链接</button>
+                    <button class="btn danger" type="button" id="delete-record" hidden>删除这条聊天记录</button>
+                </div>
+            </section>
+
+            <p class="warning">这是一条公开链接：拿到链接的人都能查看下面选中的消息快照。请勿分享密码、验证码等敏感内容。</p>
+
+            <section class="messages" id="messages"></section>
+        </div>
+
+        <div class="foot">
+            <span>Vitual XRing 9.2.1 · 聊天记录分享</span>
+            <span><a href="chatroom.html">聊天室</a> · <a href="manager.html">返回账户</a></span>
+        </div>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const API = window.VTXApi;
+            const XS = window.XRSocial;
+            const $ = (id) => document.getElementById(id);
+
+            function esc(value) {
+                return String(value == null ? "" : value)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+            }
+
+            function initial(name) {
+                const chars = Array.from(String(name == null ? "" : name).trim());
+                return (chars[0] || "V").toUpperCase();
+            }
+
+            function errorText(error, fallback) {
+                return (error && error.message ? String(error.message) : "") || fallback;
+            }
+
+            let toastTimer = 0;
+            function toast(message) {
+                const node = $("toast");
+                if (!node) {
+                    return;
+                }
+                node.textContent = String(message || "");
+                node.classList.add("show");
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => node.classList.remove("show"), 2200);
+            }
+
+            function loginHref() {
+                return `login.html?next=${encodeURIComponent("chat-record.html" + location.search)}`;
+            }
+
+            function showError(message) {
+                $("loading").hidden = true;
+                $("record-view").hidden = true;
+                $("error").hidden = false;
+                $("error-text").textContent = message;
+            }
+
+            function kindLabel(type) {
+                return type === "direct" ? "单聊" : "群聊";
+            }
+
+            function messageHtml(message) {
+                const name = message.senderName || "聊天成员";
+                const card = message.card && XS ? XS.cardHtml(message.card, { compact: true }) : "";
+                const media = message.media && message.media.name
+                    ? `<span class="message-media">${message.type === "image" ? "🖼" : "📎"} ${esc(message.media.name)}</span>`
+                    : "";
+                const text = message.text
+                    ? `<p class="message-text">${esc(message.text)}</p>`
+                    : (message.summary && message.type !== "text" && !message.media
+                        ? `<p class="message-text">${esc(message.summary)}</p>`
+                        : "");
+                return `<article class="message">
+                    <span class="avatar" aria-hidden="true">${esc(initial(name))}</span>
+                    <div class="message-main">
+                        <div class="message-head"><b>${esc(name)}</b><span>${esc(message.time || "")}</span></div>
+                        ${text}
+                        ${media}
+                        ${card ? `<div class="message-card">${card}</div>` : ""}
+                    </div>
+                </article>`;
+            }
+
+            function renderRecord(record) {
+                const messages = Array.isArray(record.messages) ? record.messages : [];
+                $("record-title").textContent = record.title || "聊天记录";
+                $("record-owner").textContent = `分享者：${record.ownerName || "未知"}`;
+                $("record-time").textContent = record.time || "";
+                $("record-count").textContent = `${Number(record.count) || messages.length} 条消息`;
+                $("record-kind").textContent = `${kindLabel(record.conversationType)}${record.conversationName ? ` · ${record.conversationName}` : ""}`;
+                $("messages").innerHTML = messages.length
+                    ? messages.map(messageHtml).join("")
+                    : '<div class="empty">这条聊天记录里没有可展示的消息。</div>';
+                $("delete-record").hidden = !record.mine;
+                $("loading").hidden = true;
+                $("error").hidden = true;
+                $("record-view").hidden = false;
+                document.title = `${record.title || "聊天记录"} | Vitual XRing`;
+            }
+
+            async function load() {
+                const id = new URLSearchParams(location.search).get("id") || "";
+                if (!API || !API.chat || typeof API.chat.record !== "function") {
+                    showError("页面依赖的 vtx-api.js 没有加载成功，请刷新重试。");
+                    return;
+                }
+                if (!/^rec_[A-Za-z0-9_-]{4,32}$/.test(id)) {
+                    showError("聊天记录链接不完整，请检查地址是否正确。");
+                    return;
+                }
+                try {
+                    const data = await API.chat.record(id);
+                    if (!data || !data.record) {
+                        showError("聊天记录不存在或已被删除。");
+                        return;
+                    }
+                    renderRecord(data.record);
+                } catch (error) {
+                    showError(errorText(error, "聊天记录不存在或已被删除。"));
+                }
+            }
+
+            async function removeRecord() {
+                if (!confirm("删除后这个链接会立即失效，确定吗？")) {
+                    return;
+                }
+                const button = $("delete-record");
+                button.disabled = true;
+                button.textContent = "删除中…";
+                try {
+                    const id = new URLSearchParams(location.search).get("id") || "";
+                    await API.chat.removeRecord(id);
+                    $("record-view").hidden = true;
+                    $("error").hidden = false;
+                    $("error-text").textContent = "这条聊天记录已被删除。";
+                    toast("已删除");
+                } catch (error) {
+                    toast(errorText(error, "删除失败"));
+                    button.disabled = false;
+                    button.textContent = "删除这条聊天记录";
+                }
+            }
+
+            async function boot() {
+                const link = $("login-link");
+                if (link) {
+                    link.href = loginHref();
+                    link.hidden = Boolean(API && typeof API.hasSession === "function" && API.hasSession());
+                }
+                $("copy-link").addEventListener("click", () => {
+                    const url = location.href;
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(url).then(() => toast("链接已复制"), () => toast(url));
+                    } else {
+                        toast(url);
+                    }
+                });
+                $("delete-record").addEventListener("click", removeRecord);
+                await load();
+            }
+
+            boot();
+        })();
+    </script>
+    
+</body>
+</html>

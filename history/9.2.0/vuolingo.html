@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#58cc02">
+    <title>Vuolingo | Vitual XRing</title>
+    <script src="vtx-api.js?v=9.2.0"></script>
+    <style>
+        :root { color-scheme: light; font-family: "Nunito", "Segoe UI", "Microsoft YaHei", sans-serif; --green: #58cc02; --green-dark: #46a302; --blue: #1cb0f6; --ink: #3c3c3c; --muted: #777; --line: #e5e5e5; --bg: #fff; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #fff; color: var(--ink); }
+        a { color: inherit; text-decoration: none; }
+        button, input, select { font: inherit; }
+        button { cursor: pointer; }
+        .topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 18px; padding: 12px 22px; border-bottom: 2px solid var(--line); background: #fff; }
+        .brand { display: flex; align-items: center; gap: 8px; color: var(--green-dark); font-size: 21px; font-weight: 900; letter-spacing: -0.04em; }
+        .mascot { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 12px; background: var(--green); color: #fff; font-size: 19px; }
+        .top-links { display: flex; gap: 16px; margin-left: auto; color: #777; font-size: 13px; font-weight: 800; }
+        .top-links a:hover { color: var(--green-dark); }
+        .preview { padding: 9px 16px; background: #e8f8d8; color: #3d6b16; text-align: center; font-size: 12.5px; font-weight: 700; }
+        main { width: min(100% - 32px, 980px); margin: 0 auto; padding: 30px 0 60px; }
+        .hero { display: flex; align-items: center; gap: 32px; padding: 16px 10px 26px; }
+        .hero-copy { flex: 1; }
+        .hero h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 44px); line-height: 1.15; letter-spacing: -0.04em; }
+        .hero p { margin: 0; color: var(--muted); line-height: 1.7; font-size: 15px; }
+        .hero-mascot { width: 140px; height: 140px; display: grid; place-items: center; border-radius: 44px; background: #e8f8d8; font-size: 68px; transform: rotate(-3deg); }
+        .language-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+        .language-tab { border: 2px solid var(--line); border-radius: 999px; padding: 7px 13px; background: #fff; color: #555; font-size: 13px; font-weight: 800; }
+        .language-tab.active { border-color: var(--green); background: #f3ffe9; color: var(--green-dark); }
+        .add-language { border: 2px dashed #c9d6c2; border-radius: 999px; padding: 7px 12px; background: #fff; color: #5d7950; font-size: 13px; font-weight: 800; }
+        .add-language:hover { border-color: var(--green); }
+        .onboarding { margin: 22px 0; padding: 24px; border: 2px solid #d7f0b8; border-radius: 20px; background: #f7ffe9; }
+        .onboarding h2 { margin: 0 0 6px; font-size: 22px; }
+        .onboarding p { margin: 0 0 14px; color: #6f8e4d; font-size: 13px; line-height: 1.65; }
+        .language-choices { display: flex; flex-wrap: wrap; gap: 10px; }
+        .language-choice { display: flex; align-items: center; gap: 8px; padding: 10px 13px; border: 2px solid #cfe9b5; border-radius: 12px; background: #fff; font-size: 13px; font-weight: 800; }
+        .language-choice input { accent-color: var(--green); }
+        .primary-button { border: 0; border-bottom: 4px solid var(--green-dark); border-radius: 12px; padding: 10px 16px; background: var(--green); color: #fff; font-weight: 900; font-size: 13px; }
+        .primary-button:active { transform: translateY(2px); border-bottom-width: 2px; }
+        .secondary-button { border: 2px solid var(--line); border-radius: 12px; padding: 9px 14px; background: #fff; color: #555; font-weight: 800; font-size: 13px; }
+        .course-strip { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 2px solid #d7f0b8; border-radius: 16px; background: #f7ffe9; margin-bottom: 16px; }
+        .course-strip .flag { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; background: #fff; font-size: 26px; }
+        .course-strip div { flex: 1; }
+        .course-strip b { display: block; font-size: 16px; }
+        .course-strip span { display: block; margin-top: 3px; color: #6f8e4d; font-size: 12px; }
+        .lesson-list { display: grid; gap: 10px; }
+        .lesson-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 2px solid var(--line); border-radius: 14px; background: #fff; text-align: left; }
+        .lesson-card:hover { border-color: var(--green); background: #fbfff6; }
+        .lesson-card.locked { opacity: .58; cursor: not-allowed; background: #f7f7f7; }
+        .lesson-card.locked:hover { border-color: var(--line); background: #f7f7f7; }
+        .lesson-card.completed { border-color: #b8e986; background: #f7ffe9; }
+        .lesson-lock-note { margin: 10px 0 0; color: #a35b15; font-size: 12px; line-height: 1.6; }
+        .lesson-index { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: #e8f8d8; color: var(--green-dark); font-weight: 900; }
+        .lesson-card b { display: block; font-size: 14px; }
+        .lesson-card span { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; }
+        .lesson-card .go { margin-left: auto; color: var(--green-dark); font-size: 18px; }
+        .settings-card { margin-top: 18px; padding: 16px 18px; border: 2px solid var(--line); border-radius: 16px; background: #fff; }
+        .settings-card h2 { margin: 0 0 4px; font-size: 16px; }
+        .settings-card p { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+        .type-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+        .type-choice { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border: 2px solid var(--line); border-radius: 999px; background: #fff; font-size: 12px; font-weight: 700; }
+        .type-choice input { accent-color: var(--green); }
+        .lesson { display: none; padding: 8px 0; }
+        .lesson-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+        .back-button { border: 0; background: transparent; color: var(--blue); font-size: 24px; font-weight: 900; }
+        .progress { flex: 1; height: 12px; border-radius: 999px; background: #e5e5e5; overflow: hidden; }
+        .progress > i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--green); transition: width 220ms; }
+        .lesson h2 { margin: 0 0 4px; font-size: 24px; }
+        .lesson-sub { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+        .word-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .word-card { border: 2px solid var(--line); border-radius: 14px; padding: 13px; background: #fff; text-align: left; }
+        .word-card:hover { border-color: var(--blue); background: #f5fbff; }
+        .word-card b { display: block; font-size: 17px; }
+        .word-card span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+        .translation { margin-top: 12px; padding: 12px 14px; border: 2px solid #cfe9ff; border-radius: 14px; background: #f3faff; color: #286184; font-size: 13px; line-height: 1.6; }
+        .exercise { margin-top: 16px; padding: 18px; border: 2px solid var(--line); border-radius: 16px; background: #fff; }
+        .exercise h3 { margin: 0 0 10px; font-size: 16px; }
+        .exercise-prompt { margin: 0 0 12px; font-size: 22px; font-weight: 800; }
+        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .option { border: 2px solid var(--line); border-radius: 11px; padding: 10px; background: #fff; text-align: left; font-size: 13px; font-weight: 700; }
+        .option:hover { border-color: var(--blue); }
+        .option.correct { border-color: var(--green); background: #f3ffe9; }
+        .option.wrong { border-color: #ff4b4b; background: #fff0f0; }
+        .text-row { display: flex; gap: 8px; }
+        .text-row input { flex: 1; min-width: 0; padding: 11px 12px; border: 2px solid var(--line); border-radius: 11px; outline: none; font-size: 14px; }
+        .text-row input:focus { border-color: var(--blue); }
+        .feedback { min-height: 22px; margin-top: 10px; color: var(--muted); font-size: 12.5px; }
+        .feedback.ok { color: var(--green-dark); font-weight: 800; }
+        .feedback.error { color: #d43f3f; font-weight: 800; }
+        .self-card { padding: 14px; border: 2px solid #cfe9ff; border-radius: 12px; background: #f5fbff; color: #286184; font-size: 13px; line-height: 1.7; }
+        .lesson-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 14px; }
+        .lesson-note { color: var(--muted); font-size: 12px; }
+        .complete { margin-top: 16px; padding: 20px; border: 2px solid #b8e986; border-radius: 16px; background: #f7ffe9; text-align: center; }
+        .complete b { display: block; color: #3d6b16; font-size: 22px; }
+        .complete span { display: block; margin-top: 6px; color: #6f8e4d; font-size: 13px; }
+        dialog { border: 0; border-radius: 18px; padding: 0; box-shadow: 0 24px 70px rgba(0,0,0,.22); }
+        dialog::backdrop { background: rgba(0,0,0,.35); }
+        .dialog-card { width: min(90vw, 420px); padding: 22px; }
+        .dialog-card h2 { margin: 0 0 6px; font-size: 20px; }
+        .dialog-card p { margin: 0 0 14px; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+        .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+        @media (max-width: 680px) { .hero { display: block; } .hero-mascot { width: 100px; height: 100px; font-size: 48px; margin-top: 18px; } .word-grid, .options { grid-template-columns: 1fr; } .settings-card .type-grid { display: grid; grid-template-columns: 1fr 1fr; } }
+    </style>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.2.0">
+    <script src="vtx-theme.js?v=9.2.0"></script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="vuolingo.html"><span class="mascot">🦉</span> Vuolingo</a>
+        <nav class="top-links"><a href="index.html">首页</a><a href="vuolingo.html">课程</a><a href="manager.html">账户</a></nav>
+    </header>
+    <div class="preview">Vuolingo Preview · 选择语言后开始课程 · 点击词汇即可查看翻译 · 听力/口语题可在题目类型中关闭</div>
+
+    <main>
+        <section id="onboarding" class="onboarding" hidden>
+            <h2>选择你要学习的语言</h2>
+            <p>至少选择一种语言。之后可以随时点击「+ 添加语言」继续添加。</p>
+            <div class="language-choices" id="onboarding-choices"></div>
+            <div class="dialog-actions" style="justify-content:flex-start"><button class="primary-button" id="onboarding-start">开始学习</button></div>
+        </section>
+
+        <section id="home-view">
+            <div class="hero"><div class="hero-copy"><h1>用一点点时间，<br>学会点餐和数字。</h1><p>Vuolingo 是一个轻量的语言学习平台。选择语言后学习第一阶段第 1 单元的 4 节课程，点击词汇即可查看翻译。</p></div><div class="hero-mascot">🦉</div></div>
+            <div class="language-bar" id="language-bar"></div>
+            <div id="course-area"></div>
+            <section class="settings-card">
+                <h2>题目类型</h2>
+                <p>默认开启翻译、拼写和阅读；听力、跟读、背诵、口语可以暂时关闭。至少保留一种题型。</p>
+                <div class="type-grid" id="type-grid"></div>
+            </section>
+        </section>
+
+        <section class="lesson" id="lesson-view">
+            <div class="lesson-head"><button class="back-button" id="back-button" aria-label="返回课程">←</button><div class="progress"><i id="lesson-progress"></i></div></div>
+            <h2 id="lesson-title">课程</h2>
+            <p class="lesson-sub" id="lesson-sub"></p>
+            <div class="word-grid" id="word-grid"></div>
+            <div class="translation" id="word-translation">点击上面的词汇，查看中文翻译。</div>
+
+            <div class="exercise" id="exercise" hidden>
+                <h3 id="exercise-title">题目</h3>
+                <p class="exercise-prompt" id="exercise-prompt"></p>
+                <div class="options" id="options"></div>
+                <div class="text-row" id="text-row" hidden><input id="text-answer" type="text" autocomplete="off" placeholder="输入答案"><button class="secondary-button" id="check-answer">检查</button></div>
+                <div class="self-card" id="self-card" hidden></div>
+                <div class="feedback" id="feedback"></div>
+                <div class="lesson-actions"><span class="lesson-note" id="exercise-note"></span><button class="primary-button" id="next-button" disabled>下一题</button></div>
+            </div>
+            <div class="complete" id="complete" hidden><b>🎉 课程完成</b><span id="complete-text">你已经完成这一节课程。</span></div>
+        </section>
+    </main>
+
+    <dialog id="language-dialog">
+        <div class="dialog-card">
+            <h2>添加语言</h2>
+            <p>当前支持英语和日语；更多语言将在后续版本加入。</p>
+            <div class="language-choices" id="dialog-choices"></div>
+            <div class="dialog-actions"><button class="secondary-button" id="dialog-cancel" type="button">取消</button><button class="primary-button" id="dialog-confirm" type="button">添加</button></div>
+        </div>
+    </dialog>
+
+    
+    <script>
+        (function () {
+            "use strict";
+            const LANGUAGES = {
+                en: { name: "英语", flag: "🇬🇧", speech: "en-US" },
+                ja: { name: "日语", flag: "🇯🇵", speech: "ja-JP" }
+            };
+            const TYPE_LABELS = {
+                target2zh: "英/日译中",
+                zh2target: "中译英/日",
+                spell: "单词拼写",
+                listening: "听写",
+                shadowing: "跟读",
+                recitation: "背诵",
+                reading: "阅读"
+            };
+            const DEFAULT_TYPES = { target2zh: true, zh2target: true, spell: true, reading: true, listening: false, shadowing: false, recitation: false };
+
+            function uniqueWords(words) {
+                const seen = new Set();
+                return words.filter((word) => {
+                    if (seen.has(word.target)) return false;
+                    seen.add(word.target);
+                    return true;
+                });
+            }
+
+            function numberLessonObjects(language) {
+                const zh = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十"];
+                const english = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
+                const japanese = ["いち", "に", "さん", "よん", "ご", "ろく", "なな", "はち", "きゅう", "じゅう", "じゅういち", "じゅうに", "じゅうさん", "じゅうよん", "じゅうご", "じゅうろく", "じゅうなな", "じゅうはち", "じゅうきゅう", "にじゅう"];
+                const japaneseRomaji = ["ichi", "ni", "san", "yon", "go", "roku", "nana", "hachi", "kyuu", "juu", "juuichi", "juuni", "juusan", "juuyon", "juugo", "juuroku", "juunana", "juuhachi", "juukyuu", "nijuu"];
+                const words = language === "en"
+                    ? english.map((word, index) => ({ target: word, zh: zh[index], kind: "word" }))
+                    : japanese.map((word, index) => ({ target: word, romaji: japaneseRomaji[index], zh: zh[index], kind: "word" }));
+                const tens = language === "en"
+                    ? [["ten", "十"], ["twenty", "二十"], ["thirty", "三十"], ["forty", "四十"], ["fifty", "五十"], ["sixty", "六十"], ["seventy", "七十"], ["eighty", "八十"], ["ninety", "九十"], ["one hundred", "一百"]].map(([target, cn]) => ({ target, zh: cn, kind: "word" }))
+                    : [["じゅう", "juu", "十"], ["にじゅう", "nijuu", "二十"], ["さんじゅう", "sanjuu", "三十"], ["よんじゅう", "yonjuu", "四十"], ["ごじゅう", "gojuu", "五十"], ["ろくじゅう", "rokujuu", "六十"], ["ななじゅう", "nanajuu", "七十"], ["はちじゅう", "hachijuu", "八十"], ["きゅうじゅう", "kyuujuu", "九十"], ["ひゃく", "hyaku", "一百"]].map(([target, romaji, cn]) => ({ target, romaji, zh: cn, kind: "word" }));
+                const tenAndHundred = language === "en"
+                    ? [{ target: "ten", zh: "十", kind: "word" }, { target: "hundred", zh: "百", kind: "word" }]
+                    : [{ target: "じゅう", romaji: "juu", zh: "十", kind: "word" }, { target: "ひゃく", romaji: "hyaku", zh: "百", kind: "word" }];
+                const groups = [
+                    words.slice(0, 4),
+                    words.slice(4, 8),
+                    words.slice(8, 12),
+                    words.slice(12, 16),
+                    [...words.slice(16, 20), ...tens]
+                ];
+                return groups.map((group, index) => ({
+                    id: `${language}-${index + 4}`,
+                    section: `第 1 节 · 第 ${index + 4} 课`,
+                    title: `让我们说数字 ${index + 1}`,
+                    words: uniqueWords([...group, ...tenAndHundred])
+                }));
+            }
+
+            const COURSES = {
+                en: {
+                    name: "英语", flag: "🇬🇧", unit: "第一阶段第 1 单元",
+                    lessons: [
+                        { id: "en-1", section: "第 1 节 · 第 1 课", title: "打招呼", words: [["Hello", "你好"], ["Goodbye", "再见"], ["Good morning", "早上好"], ["Good afternoon", "下午好"]].map(([target, zh]) => ({ target, zh, kind: "word" })) },
+                        { id: "en-2", section: "第 1 节 · 第 2 课", title: "点食物与饮料", words: [["Food", "食物"], ["Rice", "米饭"], ["Water", "水"], ["Sushi", "寿司"], ["Tea", "茶"], ["Please give me a xxx.", "请给我一个 xxx。"]].map(([target, zh]) => ({ target, zh, kind: target.endsWith(".") ? "sentence" : "word" })) },
+                        { id: "en-3", section: "第 1 节 · 第 3 课", title: "礼貌的点食物与饮料", words: [["Could you give me a xxx, please?", "请给我一个 xxx，好吗？"], ["Could you please give me a xxx?", "请您给我一个 xxx 好吗？"], ["May I have a xxx?", "我可以要一个 xxx 吗？"], ["Excuse me.", "不好意思 / 打扰一下。"]].map(([target, zh]) => ({ target, zh, kind: "sentence" })) },
+                        ...numberLessonObjects("en")
+                    ]
+                },
+                ja: {
+                    name: "日语", flag: "🇯🇵", unit: "第一阶段第 1 单元",
+                    lessons: [
+                        { id: "ja-1", section: "第 1 节 · 第 1 课", title: "打招呼", words: [["こんにちは", "konnichiwa", "你好"], ["おはよう", "ohayou", "早上好"], ["こんばんは", "konbanwa", "晚上好"], ["またあした", "mata ashita", "明天见"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: "word" })) },
+                        { id: "ja-2", section: "第 1 节 · 第 2 课", title: "点食物与饮料", words: [["ごはん", "gohan", "米饭"], ["みず", "mizu", "水"], ["すし", "sushi", "寿司"], ["おちゃ", "ocha", "茶"], ["xxx、ください", "xxx kudasai", "请给我 xxx。"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: "word" })) },
+                        { id: "ja-3", section: "第 1 节 · 第 3 课", title: "礼貌的打招呼", words: [["おはようございます", "ohayou gozaimasu", "早上好（礼貌）"], ["すみません", "sumimasen", "不好意思 / 对不起"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: "word" })) },
+                        ...numberLessonObjects("ja")
+                    ]
+                }
+            };
+
+            const selectedKey = "vuolingo:languages";
+            const typesKey = "vuolingo:types";
+            const activeKey = "vuolingo:activeLanguage";
+            const progressKey = "vuolingo:progress";
+            let selected = [];
+            try { selected = JSON.parse(localStorage.getItem(selectedKey) || "[]").filter((key) => COURSES[key]); } catch (error) { selected = []; }
+            let activeLanguage = selected.includes(localStorage.getItem(activeKey)) ? localStorage.getItem(activeKey) : selected[0] || "";
+            let activeLesson = null;
+            let questions = [];
+            let questionIndex = 0;
+            let types = { ...DEFAULT_TYPES };
+            let completed = {};
+            try { types = { ...types, ...(JSON.parse(localStorage.getItem(typesKey) || "{}") || {}) }; } catch (error) { /* ignore */ }
+            try { completed = JSON.parse(localStorage.getItem(progressKey) || "{}") || {}; } catch (error) { completed = {}; }
+
+            const onboarding = document.getElementById("onboarding");
+            const homeView = document.getElementById("home-view");
+            const lessonView = document.getElementById("lesson-view");
+            const languageBar = document.getElementById("language-bar");
+            const courseArea = document.getElementById("course-area");
+            const typeGrid = document.getElementById("type-grid");
+            const wordGrid = document.getElementById("word-grid");
+            const translation = document.getElementById("word-translation");
+            const exercise = document.getElementById("exercise");
+            const exerciseTitle = document.getElementById("exercise-title");
+            const exercisePrompt = document.getElementById("exercise-prompt");
+            const options = document.getElementById("options");
+            const textRow = document.getElementById("text-row");
+            const textAnswer = document.getElementById("text-answer");
+            const checkAnswer = document.getElementById("check-answer");
+            const selfCard = document.getElementById("self-card");
+            const feedback = document.getElementById("feedback");
+            const nextButton = document.getElementById("next-button");
+            const exerciseNote = document.getElementById("exercise-note");
+            const progress = document.getElementById("lesson-progress");
+            const complete = document.getElementById("complete");
+            const languageDialog = document.getElementById("language-dialog");
+
+            function save() {
+                try {
+                    localStorage.setItem(selectedKey, JSON.stringify(selected));
+                    localStorage.setItem(activeKey, activeLanguage);
+                    localStorage.setItem(typesKey, JSON.stringify(types));
+                    localStorage.setItem(progressKey, JSON.stringify(completed));
+                } catch (error) { /* ignore */ }
+            }
+
+            function checkedTypes() {
+                const enabled = Object.keys(types).filter((key) => types[key]);
+                return enabled.length ? enabled : ["target2zh"];
+            }
+
+            function displayTarget(entry) {
+                return entry && entry.romaji ? `${entry.target}（${entry.romaji}）` : (entry ? entry.target : "");
+            }
+
+            function renderOnboarding() {
+                const box = document.getElementById("onboarding-choices");
+                box.textContent = "";
+                for (const [key, lang] of Object.entries(LANGUAGES)) {
+                    const label = document.createElement("label");
+                    label.className = "language-choice";
+                    label.innerHTML = `<input type="checkbox" value="${key}" ${selected.includes(key) ? "checked" : ""}><span>${lang.flag} ${lang.name}</span>`;
+                    box.appendChild(label);
+                }
+            }
+
+            function renderLanguages() {
+                languageBar.textContent = "";
+                for (const key of selected) {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "language-tab" + (key === activeLanguage ? " active" : "");
+                    button.textContent = `${LANGUAGES[key].flag} ${LANGUAGES[key].name}`;
+                    button.addEventListener("click", () => {
+                        activeLanguage = key;
+                        save();
+                        renderHome();
+                    });
+                    languageBar.appendChild(button);
+                }
+                const add = document.createElement("button");
+                add.type = "button";
+                add.className = "add-language";
+                add.textContent = "+ 添加语言";
+                add.addEventListener("click", openLanguageDialog);
+                languageBar.appendChild(add);
+            }
+
+            function renderTypes() {
+                typeGrid.textContent = "";
+                for (const [key, label] of Object.entries(TYPE_LABELS)) {
+                    const choice = document.createElement("label");
+                    choice.className = "type-choice";
+                    const input = document.createElement("input");
+                    input.type = "checkbox";
+                    input.checked = Boolean(types[key]);
+                    input.addEventListener("change", () => {
+                        const enabled = Object.keys(types).filter((item) => types[item]);
+                        if (!input.checked && enabled.length <= 1) {
+                            input.checked = true;
+                            return;
+                        }
+                        types[key] = input.checked;
+                        save();
+                    });
+                    choice.append(input, document.createTextNode(label));
+                    typeGrid.appendChild(choice);
+                }
+            }
+
+            function completedIds(language = activeLanguage) {
+                const list = completed[language];
+                return Array.isArray(list) ? list : [];
+            }
+
+            function lessonUnlocked(index) {
+                const lessons = COURSES[activeLanguage].lessons;
+                if (index === 0) return true;
+                return lessons.slice(0, index).every((lesson) => completedIds().includes(lesson.id));
+            }
+
+            function markLessonComplete(id) {
+                const list = completedIds();
+                if (!list.includes(id)) {
+                    completed[activeLanguage] = [...list, id];
+                    save();
+                }
+            }
+
+            function showLockNote(index) {
+                const note = document.getElementById("lesson-lock-note");
+                if (!note) return;
+                const previous = COURSES[activeLanguage].lessons[index - 1];
+                note.textContent = `请先完成「${previous.title}」及之前的课程，再学习第 ${index + 1} 课。`;
+                note.hidden = false;
+            }
+
+            function renderHome() {
+                if (!selected.length) {
+                    homeView.style.display = "none";
+                    onboarding.hidden = false;
+                    renderOnboarding();
+                    return;
+                }
+                onboarding.hidden = true;
+                homeView.style.display = "block";
+                if (!selected.includes(activeLanguage)) activeLanguage = selected[0];
+                renderLanguages();
+                renderTypes();
+                const course = COURSES[activeLanguage];
+                const done = completedIds();
+                courseArea.textContent = "";
+                const strip = document.createElement("div");
+                strip.className = "course-strip";
+                strip.innerHTML = `<span class="flag">${course.flag}</span><div><b>${course.name} · ${course.unit}</b><span>${course.lessons.length} 节课程 · 已完成 ${done.length} 节 · 按顺序解锁</span></div>`;
+                courseArea.appendChild(strip);
+                const list = document.createElement("div");
+                list.className = "lesson-list";
+                course.lessons.forEach((lesson, index) => {
+                    const unlocked = lessonUnlocked(index);
+                    const isDone = done.includes(lesson.id);
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "lesson-card" + (unlocked ? "" : " locked") + (isDone ? " completed" : "");
+                    button.setAttribute("aria-disabled", unlocked ? "false" : "true");
+                    button.innerHTML = `<span class="lesson-index">${isDone ? "✓" : index + 1}</span><span><b>${lesson.title}</b><span>${lesson.section} · ${lesson.words.length} 个词条${isDone ? " · 已完成" : ""}</span></span><span class="go">${unlocked ? (isDone ? "↻" : "›") : "🔒"}</span>`;
+                    button.addEventListener("click", () => {
+                        if (!unlocked) {
+                            showLockNote(index);
+                            return;
+                        }
+                        openLesson(lesson);
+                    });
+                    list.appendChild(button);
+                });
+                courseArea.appendChild(list);
+                const lockNote = document.createElement("p");
+                lockNote.id = "lesson-lock-note";
+                lockNote.className = "lesson-lock-note";
+                lockNote.hidden = true;
+                courseArea.appendChild(lockNote);
+            }
+
+            function openLesson(lesson) {
+                const index = COURSES[activeLanguage].lessons.indexOf(lesson);
+                if (index < 0 || !lessonUnlocked(index)) {
+                    renderHome();
+                    if (index > 0) showLockNote(index);
+                    return;
+                }
+                activeLesson = lesson;
+                questions = [];
+                questionIndex = 0;
+                homeView.style.display = "none";
+                lessonView.style.display = "block";
+                complete.hidden = true;
+                exercise.hidden = true;
+                translation.textContent = "点击上面的词汇，查看中文翻译。";
+                document.getElementById("lesson-title").textContent = lesson.title;
+                document.getElementById("lesson-sub").textContent = `${COURSES[activeLanguage].unit} · ${lesson.section} · ${COURSES[activeLanguage].name} · 点击词汇查看翻译`;
+                progress.style.width = "0%";
+                wordGrid.textContent = "";
+                for (const entry of lesson.words) {
+                    const card = document.createElement("button");
+                    card.type = "button";
+                    card.className = "word-card";
+                    card.innerHTML = `<b>${entry.target}</b><span>${entry.romaji ? entry.romaji + " · " : ""}${entry.zh} · 点击查看</span>`;
+                    card.addEventListener("click", () => { translation.textContent = `${displayTarget(entry)} = ${entry.zh}`; });
+                    wordGrid.appendChild(card);
+                }
+                buildQuestions();
+                startQuestions();
+            }
+
+            function buildQuestions() {
+                questions = [];
+                const enabled = checkedTypes();
+                for (const entry of activeLesson.words) {
+                    for (const type of enabled) {
+                        questions.push({ type, entry });
+                    }
+                }
+            }
+
+            function startQuestions() {
+                if (!questions.length) {
+                    complete.hidden = false;
+                    document.getElementById("complete-text").textContent = "没有可用的题目类型，请在首页至少开启一种题型。";
+                    exercise.hidden = true;
+                    return;
+                }
+                exercise.hidden = false;
+                renderQuestion();
+            }
+
+            function renderQuestion() {
+                feedback.textContent = "";
+                feedback.className = "feedback";
+                textRow.hidden = true;
+                selfCard.hidden = true;
+                options.textContent = "";
+                nextButton.disabled = true;
+                checkAnswer.disabled = false;
+                if (questionIndex >= questions.length) {
+                    markLessonComplete(activeLesson.id);
+                    exercise.hidden = true;
+                    complete.hidden = false;
+                    document.getElementById("complete-text").textContent = `你已经完成「${activeLesson.title}」的 ${questions.length} 道练习，下一课已解锁。`;
+                    progress.style.width = "100%";
+                    nextButton.textContent = "返回课程";
+                    nextButton.disabled = false;
+                    return;
+                }
+                const question = questions[questionIndex];
+                const entry = question.entry;
+                const lang = COURSES[activeLanguage];
+                exerciseNote.textContent = `${questionIndex + 1} / ${questions.length} · ${TYPE_LABELS[question.type]}`;
+                progress.style.width = `${(questionIndex / questions.length) * 100}%`;
+                nextButton.textContent = "下一题";
+                nextButton.disabled = true;
+
+                if (question.type === "target2zh") {
+                    exerciseTitle.textContent = "选择正确的中文翻译";
+                    exercisePrompt.textContent = displayTarget(entry);
+                    renderChoiceOptions(entry.zh, activeLesson.words.map((item) => item.zh));
+                } else if (question.type === "zh2target") {
+                    exerciseTitle.textContent = "选择正确的英文/日文";
+                    exercisePrompt.textContent = entry.zh;
+                    renderChoiceOptions(entry.target, activeLesson.words.map((item) => item.target), true);
+                } else if (question.type === "spell") {
+                    exerciseTitle.textContent = "拼写单词";
+                    exercisePrompt.textContent = entry.zh;
+                    textRow.hidden = false;
+                    textAnswer.value = "";
+                    textAnswer.placeholder = "输入英文/日文";
+                    textAnswer.focus();
+                    checkAnswer.onclick = () => checkTextAnswer(entry.target);
+                    textAnswer.onkeydown = (event) => { if (event.key === "Enter") checkTextAnswer(entry.target); };
+                } else if (question.type === "listening") {
+                    exerciseTitle.textContent = "听写：点击播放，然后输入听到的内容";
+                    exercisePrompt.textContent = "🔊";
+                    textRow.hidden = false;
+                    textAnswer.value = "";
+                    textAnswer.placeholder = "输入听到的英文/日文";
+                    speak(entry.target, lang.speech);
+                    const replay = document.createElement("button");
+                    replay.type = "button";
+                    replay.className = "secondary-button";
+                    replay.textContent = "再播一次";
+                    replay.addEventListener("click", () => speak(entry.target, lang.speech));
+                    options.appendChild(replay);
+                    checkAnswer.onclick = () => checkTextAnswer(entry.target);
+                } else if (question.type === "shadowing") {
+                    exerciseTitle.textContent = "跟读";
+                    exercisePrompt.textContent = displayTarget(entry);
+                    selfCard.hidden = false;
+                    selfCard.textContent = `请大声跟读：「${displayTarget(entry)}」\n${entry.zh}`;
+                    const done = document.createElement("button");
+                    done.type = "button";
+                    done.className = "primary-button";
+                    done.textContent = "我读完了";
+                    done.addEventListener("click", () => finishSelfCheck());
+                    options.appendChild(done);
+                } else if (question.type === "recitation") {
+                    exerciseTitle.textContent = "背诵";
+                    exercisePrompt.textContent = entry.zh;
+                    selfCard.hidden = false;
+                    selfCard.textContent = "先在心里背诵对应的英文/日文，再点击完成。";
+                    const done = document.createElement("button");
+                    done.type = "button";
+                    done.className = "primary-button";
+                    done.textContent = "我背完了";
+                    done.addEventListener("click", () => finishSelfCheck());
+                    options.appendChild(done);
+                } else {
+                    exerciseTitle.textContent = "阅读";
+                    exercisePrompt.textContent = displayTarget(entry);
+                    selfCard.hidden = false;
+                    selfCard.textContent = `${entry.romaji ? `罗马音：${entry.romaji}\n` : ""}中文：${entry.zh}\n请朗读一遍，理解这句话。`;
+                    const done = document.createElement("button");
+                    done.type = "button";
+                    done.className = "primary-button";
+                    done.textContent = "我读完了";
+                    done.addEventListener("click", () => finishSelfCheck());
+                    options.appendChild(done);
+                }
+            }
+
+            function renderChoiceOptions(correct, all, showRomaji) {
+                const choices = [correct, ...all.filter((item) => item !== correct)].slice(0, 4).sort(() => Math.random() - 0.5);
+                const labelFor = (value) => {
+                    if (!showRomaji) return value;
+                    const entry = activeLesson.words.find((item) => item.target === value);
+                    return entry && entry.romaji ? `${value}（${entry.romaji}）` : value;
+                };
+                for (const choice of choices) {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "option";
+                    button.textContent = labelFor(choice);
+                    button.addEventListener("click", () => {
+                        if (button.classList.contains("correct") || button.classList.contains("wrong")) return;
+                        if (choice === correct) {
+                            button.classList.add("correct");
+                            feedback.textContent = "回答正确！";
+                            feedback.className = "feedback ok";
+                            nextButton.disabled = false;
+                        } else {
+                            button.classList.add("wrong");
+                            feedback.textContent = `再试一次。提示：${correct}`;
+                            feedback.className = "feedback error";
+                        }
+                    });
+                    options.appendChild(button);
+                }
+            }
+
+            function acceptedAnswers(correct) {
+                const answers = [String(correct).toLowerCase()];
+                if (correct === "こんにちは") answers.push("こんにちわ");
+                if (correct === "こんばんは") answers.push("こんばんわ");
+                return answers;
+            }
+
+            function checkTextAnswer(correct) {
+                const value = textAnswer.value.trim().toLowerCase();
+                if (!value) return;
+                if (acceptedAnswers(correct).includes(value)) {
+                    feedback.textContent = "回答正确！";
+                    feedback.className = "feedback ok";
+                    checkAnswer.disabled = true;
+                    nextButton.disabled = false;
+                } else {
+                    feedback.textContent = "还不对，再试一次。";
+                    feedback.className = "feedback error";
+                }
+            }
+
+            function finishSelfCheck() {
+                feedback.textContent = "已完成这一题。";
+                feedback.className = "feedback ok";
+                nextButton.disabled = false;
+            }
+
+            function speak(text, lang) {
+                if (!("speechSynthesis" in window)) {
+                    feedback.textContent = "当前浏览器不支持语音播放。";
+                    return;
+                }
+                try {
+                    speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = lang;
+                    utterance.rate = 0.85;
+                    speechSynthesis.speak(utterance);
+                } catch (error) { /* ignore */ }
+            }
+
+            function openLanguageDialog() {
+                const box = document.getElementById("dialog-choices");
+                box.textContent = "";
+                for (const [key, lang] of Object.entries(LANGUAGES)) {
+                    const label = document.createElement("label");
+                    label.className = "language-choice";
+                    label.innerHTML = `<input type="checkbox" value="${key}" ${selected.includes(key) ? "disabled checked" : ""}><span>${lang.flag} ${lang.name}</span>`;
+                    box.appendChild(label);
+                }
+                languageDialog.showModal();
+            }
+
+            function closeLanguageDialog() { languageDialog.close(); }
+
+            document.getElementById("onboarding-start").addEventListener("click", () => {
+                const checked = [...document.querySelectorAll("#onboarding-choices input:checked")].map((input) => input.value);
+                if (!checked.length) return;
+                selected = checked;
+                activeLanguage = selected[0];
+                save();
+                renderHome();
+            });
+            document.getElementById("dialog-cancel").addEventListener("click", closeLanguageDialog);
+            document.getElementById("dialog-confirm").addEventListener("click", () => {
+                const checked = [...document.querySelectorAll("#dialog-choices input:checked:not(:disabled)")].map((input) => input.value);
+                for (const key of checked) if (!selected.includes(key)) selected.push(key);
+                if (checked.length && !activeLanguage) activeLanguage = checked[0];
+                save();
+                closeLanguageDialog();
+                renderHome();
+            });
+            document.getElementById("back-button").addEventListener("click", () => {
+                if ("speechSynthesis" in window) speechSynthesis.cancel();
+                lessonView.style.display = "none";
+                homeView.style.display = "block";
+                renderHome();
+            });
+            nextButton.addEventListener("click", () => {
+                if (nextButton.textContent === "返回课程") {
+                    lessonView.style.display = "none";
+                    homeView.style.display = "block";
+                    renderHome();
+                    return;
+                }
+                if (nextButton.textContent === "重新开始") {
+                    openLesson(activeLesson);
+                    return;
+                }
+                questionIndex += 1;
+                renderQuestion();
+            });
+
+            if (selected.length) renderHome();
+            else {
+                homeView.style.display = "none";
+                onboarding.hidden = false;
+                renderOnboarding();
+            }
+        })();
+    </script>
+</body>
+</html>

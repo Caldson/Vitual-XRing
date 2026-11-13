@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>离线 · Vitual XRing</title>
+    <style>
+        :root { color-scheme: light; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; color: #172033; background: #f4f7fb; }
+        * { box-sizing: border-box; }
+        body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 10% 0, #e2edff, transparent 38%), radial-gradient(circle at 90% 10%, #e4f5f0, transparent 30%), #f4f7fb; }
+        .card { width: min(100%, 560px); padding: 36px; border: 1px solid #e2e9f5; border-radius: 24px; background: #fff; box-shadow: 0 20px 60px rgba(30, 50, 90, 0.1); }
+        .mark { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; background: linear-gradient(135deg, #3867e8, #69a1ff); color: #fff; font-size: 22px; font-weight: 900; }
+        h1 { margin: 18px 0 8px; font-size: clamp(28px, 5vw, 40px); }
+        p { margin: 0; color: #65748c; line-height: 1.8; }
+        .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+        a { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 16px; border: 1px solid #d9e1ee; border-radius: 11px; color: #3158d1; background: #fff; font-weight: 700; text-decoration: none; }
+        a.primary { border-color: #3158d1; background: #3158d1; color: #fff; }
+        small { display: block; margin-top: 20px; color: #93a0b4; }
+    </style>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.5.1">
+    <script src="vtx-theme.js?v=9.5.1"></script>
+</head>
+<body>
+    <main class="card">
+        <div class="mark">V</div>
+        <h1>现在没有网络</h1>
+        <p>这个页面已经缓存在设备上，但当前网络不可用。之前访问过的页面和 XOS 本地文件仍然可以继续使用。</p>
+        <div class="actions">
+            <a class="primary" href="index.html">返回首页</a>
+            <a href="xos.html">打开 XOS</a>
+            <a href="shop.html">打开商店</a>
+        </div>
+        <small>Vitual XRing 9.5.1 · 页面缓存</small>
+    </main>
+    
+</body>
+</html>

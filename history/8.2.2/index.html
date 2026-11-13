@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f3f6fb">
+    <title>Vitual XRing · 虚拟云电脑与作品社区</title>
+    <link rel="stylesheet" href="vtx-theme.css?v=8.2.2">
+    <script src="vtx-theme.js?v=8.2.2"></script>
+    <style>
+        .home-hero { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(320px, .82fr); gap: 28px; align-items: stretch; padding: 46px 0 18px; }
+        .hero-copy-wrap { padding: 18px 0; }
+        .hero-kicker { margin: 0 0 14px; color: var(--vtx-accent); font-size: 11.5px; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+        .hero-title { margin: 0; max-width: 720px; font-size: clamp(42px, 6.8vw, 78px); line-height: .99; letter-spacing: -.065em; }
+        .hero-title em { font-style: normal; color: transparent; background: linear-gradient(105deg, var(--vtx-accent), var(--vtx-accent-2)); -webkit-background-clip: text; background-clip: text; }
+        .hero-text { max-width: 610px; margin: 20px 0 24px; color: var(--vtx-muted); font-size: 15px; line-height: 1.85; }
+        .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+        .hero-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+        .stat-pill { display: flex; align-items: baseline; gap: 6px; padding: 8px 12px; border: 1px solid var(--vtx-border); border-radius: 999px; background: var(--vtx-surface); color: var(--vtx-muted); font-size: 11.5px; font-weight: 700; }
+        .stat-pill b { color: var(--vtx-text); font-size: 15px; }
+        .xos-preview { position: relative; display: flex; flex-direction: column; min-height: 390px; padding: 18px; overflow: hidden; border: 1px solid var(--vtx-border); border-radius: 24px; background: linear-gradient(150deg, #10192d, #0b1325 58%, #101e33); box-shadow: 0 30px 75px rgba(7, 15, 32, .32); color: #eaf1ff; text-decoration: none; }
+        .xos-preview::before { content: ""; position: absolute; inset: -30% -10% auto auto; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(70, 103, 240, .55), transparent 66%); }
+        .xos-preview::after { content: ""; position: absolute; inset: auto auto -30% -15%; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, rgba(25, 184, 166, .3), transparent 68%); }
+        .preview-top { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .preview-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid rgba(160, 185, 255, .22); border-radius: 999px; color: #c6d5ff; font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+        .preview-price { color: #8fe7d8; font-size: 11.5px; font-weight: 800; }
+        .preview-screen { position: relative; z-index: 1; flex: 1; margin: 18px 0 14px; padding: 12px; border: 1px solid rgba(156, 184, 255, .17); border-radius: 16px; background: linear-gradient(145deg, rgba(31, 51, 89, .88), rgba(14, 24, 45, .92)); }
+        .preview-menubar { display: flex; align-items: center; gap: 5px; }
+        .preview-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(190, 210, 255, .4); }
+        .preview-clock { margin-left: auto; color: #b7c7e8; font-size: 9px; }
+        .preview-window { margin-top: 14px; padding: 13px; min-height: 155px; border: 1px solid rgba(166, 190, 255, .16); border-radius: 11px; background: rgba(9, 17, 32, .72); }
+        .preview-window h3 { margin: 0 0 5px; font-size: 15px; color: #f2f6ff; }
+        .preview-window p { margin: 0; color: #93a6c8; font-size: 10.5px; line-height: 1.65; }
+        .preview-apps { display: flex; gap: 7px; margin-top: 14px; }
+        .preview-app { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid rgba(160, 190, 255, .18); border-radius: 8px; background: rgba(30, 48, 82, .8); font-size: 13px; }
+        .preview-dock { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid rgba(160, 190, 255, .17); border-radius: 14px; background: rgba(12, 21, 38, .7); }
+        .preview-dock span { color: #b6c5e2; font-size: 11px; }
+        .preview-dock b { color: #eaf1ff; font-size: 11.5px; }
+        .preview-enter { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; margin-top: 15px; color: #dfeaff; font-size: 12px; font-weight: 800; }
+        .platform-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        .platform-card { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 152px; padding: 18px; border: 1px solid var(--vtx-border); border-radius: var(--vtx-radius); background: var(--vtx-surface); box-shadow: var(--vtx-shadow-soft); color: var(--vtx-text); text-decoration: none; transition: transform 170ms, border-color 170ms, box-shadow 170ms; }
+        .platform-card:hover { transform: translateY(-2px); border-color: var(--vtx-border-strong); box-shadow: var(--vtx-shadow); }
+        .platform-card.featured { border-color: color-mix(in srgb, var(--vtx-accent) 35%, var(--vtx-border)); background: linear-gradient(140deg, var(--vtx-surface), color-mix(in srgb, var(--vtx-accent-soft) 65%, var(--vtx-surface))); }
+        .platform-icon { display: grid; place-items: center; width: 37px; height: 37px; border-radius: 11px; background: var(--vtx-surface-soft); font-size: 19px; }
+        .platform-card b { margin-top: 5px; font-size: 15px; letter-spacing: -.015em; }
+        .platform-card p { margin: 0; color: var(--vtx-muted); font-size: 12px; line-height: 1.6; }
+        .platform-arrow { position: absolute; top: 18px; right: 17px; color: var(--vtx-faint); font-size: 16px; }
+        .platform-card:hover .platform-arrow { color: var(--vtx-accent); transform: translateX(2px); }
+        .platform-card.vtx-glass { background: rgb(var(--vtx-glass-rgb) / var(--vtx-glass-alpha)); }\n        html[data-glass="off"] .platform-card.vtx-glass, html[data-glass="off"] .stat-pill.vtx-glass { background: var(--vtx-surface); }\n        .stat-pill.vtx-glass { background: rgb(var(--vtx-glass-rgb) / var(--vtx-glass-alpha)); }\n        .home-footer { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 38px; padding-top: 18px; border-top: 1px solid var(--vtx-border); color: var(--vtx-faint); font-size: 11.5px; line-height: 1.7; }
+        .home-footer a { color: var(--vtx-muted); text-decoration: none; font-weight: 700; }
+        @media (max-width: 980px) { .home-hero { grid-template-columns: 1fr; } .xos-preview { min-height: 320px; } .platform-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 620px) { .platform-grid { grid-template-columns: 1fr; } .home-hero { padding-top: 30px; } .hero-title { font-size: clamp(38px, 13vw, 60px); } .xos-preview { min-height: 300px; } }
+    </style>
+</head>
+<body data-i18n-document-title="document.index">
+    <header class="vtx-topbar">
+        <a class="vtx-brand" href="index.html">
+            <img src="XRingLogo-V.png?v=8.2.2" alt="Vitual XRing" width="38" height="38">
+            <span data-i18n="brand">Vitual XRing</span>
+        </a>
+        <nav class="vtx-nav" aria-label="Main navigation">
+            <a href="index.html" class="is-active" data-i18n="nav.home">首页</a>
+            <a href="xos.html" data-i18n="nav.xos">XOS 云电脑</a>
+            <a href="shop.html" data-i18n="nav.shop">商店</a>
+            <a href="vitualgit.html" data-i18n="nav.vitualgit">VitualGit</a>
+            <a href="vuolingo.html" data-i18n="nav.vuolingo">Vuolingo</a>
+            <a href="chatroom.html" data-i18n="nav.chat">聊天室</a>
+            <a href="settings.html" data-i18n="nav.settings">设置</a>
+        </nav>
+        <div class="vtx-top-actions">
+            <a class="vtx-chip" href="settings.html"><strong>v8.2.2</strong></a>
+            <a class="vtx-btn ghost" id="account-link" href="login.html" data-i18n="action.login">登录</a>
+        </div>
+    </header>
+
+    <main class="vtx-shell">
+        <section class="home-hero">
+            <div class="hero-copy-wrap">
+                <p class="hero-kicker" data-i18n="hero.kicker">XRing Studios · 虚拟桌面与创作平台</p>
+                <h1 class="hero-title"><span data-i18n="hero.title1">把所有创作，</span><br><em data-i18n="hero.title2">装进一个浏览器。</em></h1>
+                <p class="hero-text" data-i18n="hero.copy">XOS 虚拟云电脑、VitualGit 仓库、Vuolingo 语言课和创作社区，共用一套账户与界面。现在也支持深色模式和六种界面语言。</p>
+                <div class="hero-actions">
+                    <a class="vtx-btn primary" href="xos.html" data-i18n="action.openXos">打开 XOS 云电脑</a>
+                    <a class="vtx-btn" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91" data-i18n="action.viewXos">查看 XOS 版本</a>
+                    <a class="vtx-btn ghost" id="account-button" href="login.html" data-i18n="action.login">登录</a>
+                </div>
+                <div class="hero-stats">
+                    <span class="stat-pill vtx-glass"><b>22</b><span data-i18n="hero.stat1">XOS 应用</span></span>
+                    <span class="stat-pill vtx-glass"><b>8</b><span data-i18n="hero.stat2">语言课程</span></span>
+                    <span class="stat-pill vtx-glass"><b>⇣</b><span data-i18n="hero.stat3">离线可用</span></span>
+                </div>
+            </div>
+
+            <a class="xos-preview" href="xos.html" aria-label="XOS PC">
+                <div class="preview-top"><span class="preview-badge" data-i18n="xos.badge">旗舰平台</span><span class="preview-price" data-i18n="xos.price">1000 VTX 起</span></div>
+                <div class="preview-screen">
+                    <div class="preview-menubar"><i class="preview-dot"></i><i class="preview-dot"></i><i class="preview-dot"></i><span class="preview-clock" data-i18n="xos.title">XOS PC 26H3 V2.1</span></div>
+                    <div class="preview-window"><h3 data-i18n="xos.title">XOS PC 26H3 V2.1</h3><p data-i18n="xos.meta">1440×900 · 15–60fps · 最多 22 个应用</p><div class="preview-apps"><span class="preview-app">⌘</span><span class="preview-app">🌐</span><span class="preview-app">📁</span><span class="preview-app">⑂</span><span class="preview-app">🦉</span></div></div>
+                </div>
+                <div class="preview-dock"><span>XOS Dock</span><b>Home / CE / GameMAX</b></div>
+                <span class="preview-enter" data-i18n="xos.enter">进入虚拟桌面 →</span>
+            </a>
+        </section>
+
+        <div class="vtx-section-head">
+            <div><h2 data-i18n="section.platforms">探索平台</h2><p data-i18n="section.platformsDesc">一个账户，连接云电脑、仓库、课程和创作工具。</p></div>
+        </div>
+        <section class="platform-grid" aria-label="Platforms">
+            <a class="platform-card featured vtx-glass" href="xos.html"><span class="platform-icon">🖥</span><b data-i18n="card.xos.title">XOS 云电脑</b><p data-i18n="card.xos.desc">虚拟桌面 · 文件 · 浏览器 · 创作工具</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="shop.html"><span class="platform-icon">🛍</span><b data-i18n="card.shop.title">商店</b><p data-i18n="card.shop.desc">XOS 授权、同捆包与商家商品</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="viratch.html"><span class="platform-icon">🧩</span><b data-i18n="card.viratch.title">Viratch</b><p data-i18n="card.viratch.desc">TurboWarp 积木作品社区</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vitxvideo.html"><span class="platform-icon">▶</span><b data-i18n="card.vitxvideo.title">Vitx® 视频</b><p data-i18n="card.vitxvideo.desc">投稿、观看、评论与分享</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vitx-dynamic.html"><span class="platform-icon">📝</span><b data-i18n="card.vitxdynamic.title">Vitx 动态</b><p data-i18n="card.vitxdynamic.desc">图文动态与分享卡片</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="chatroom.html"><span class="platform-icon">💬</span><b data-i18n="card.chat.title">聊天室</b><p data-i18n="card.chat.desc">单聊、群聊、红包与实时消息</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="audiv.html"><span class="platform-icon">🎙</span><b data-i18n="card.audiv.title">AUDIV</b><p data-i18n="card.audiv.desc">浏览器语音会议</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="share.html?create=1"><span class="platform-icon">🔗</span><b data-i18n="card.share.title">分享</b><p data-i18n="card.share.desc">自定义分享卡片与站内识别</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vitualgit.html"><span class="platform-icon">⑂</span><b data-i18n="card.vitualgit.title">VitualGit</b><p data-i18n="card.vitualgit.desc">GitHub 风格仓库浏览 · Proxy 镜像</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vuolingo.html"><span class="platform-icon">🦉</span><b data-i18n="card.vuolingo.title">Vuolingo</b><p data-i18n="card.vuolingo.desc">英语 / 日语课程与 7 种题型</p><span class="platform-arrow">↗</span></a>
+        </section>
+
+        <footer class="home-footer">
+            <span data-i18n="footer">Vitual XRing 8.2.2 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。</span>
+            <span><a href="settings.html" data-i18n="nav.settings">设置</a> · <a href="login.html" data-i18n="action.login">登录</a></span>
+        </footer>
+    </main>
+
+    <script>
+        (function () {
+            var account = "";
+            try { account = sessionStorage.getItem("vtxAccount") || ""; } catch (error) { account = ""; }
+            if (!account) return;
+            var link = document.getElementById("account-link");
+            var button = document.getElementById("account-button");
+            if (link) {
+                link.href = "manager.html";
+                link.dataset.i18n = "action.account";
+                link.textContent = window.VTXTheme ? VTXTheme.t("action.account") : "账户";
+            }
+            if (button) {
+                button.href = "manager.html";
+                button.dataset.i18n = "action.openAccount";
+                button.textContent = window.VTXTheme ? VTXTheme.t("action.openAccount") : "进入账户";
+            }
+        })();
+    </script>
+    
+</body>
+</html>

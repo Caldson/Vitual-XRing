@@ -1,0 +1,23 @@
+# Cloudflare Worker 本地开发
+worker/.dev.vars
+worker/.wrangler/
+.wrangler/
+node_modules/
+*.log
+
+# 8.0：账户数据已迁移到 Workers KV，仓库不再保存 account.json
+account.json
+# 手绘稿 / 设计草图（本地参考，不入库）
+IMG_*.HEIC
+IMG_*.heic
+IMG_*.jpg
+
+# Microsoft Store / Windows 客户端：本地构建产物与缓存，不入库
+microsoft-windows-version/.cache/
+microsoft-windows-version/dist/
+microsoft-windows-version/www/
+microsoft-windows-version/node_modules/
+microsoft-windows-version/.tmp-*/
+microsoft-windows-version/electron-out.txt
+microsoft-windows-version/app-out.txt
+microsoft-windows-version/app-err.txt

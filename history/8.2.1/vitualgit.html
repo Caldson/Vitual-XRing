@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0d1117">
+    <title>VitualGit | Vitual XRing</title>
+    <script src="vtx-api.js?v=8.2.1"></script>
+    <style>
+        :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; --bg: #0d1117; --panel: #161b22; --line: #30363d; --muted: #8b949e; --text: #e6edf3; --accent: #58a6ff; --green: #3fb950; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--bg); color: var(--text); }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        button, input { font: inherit; }
+        .topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 14px; padding: 12px 24px; background: #010409; border-bottom: 1px solid var(--line); }
+        .brand { display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 800; font-size: 17px; white-space: nowrap; }
+        .mark { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: linear-gradient(135deg, #238636, #2ea043); color: #fff; font-weight: 900; }
+        .topbar-search { display: flex; align-items: center; gap: 8px; width: min(420px, 42vw); padding: 7px 11px; border: 1px solid var(--line); border-radius: 7px; background: #0d1117; color: var(--muted); }
+        .topbar-search input, .repo-search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--text); }
+        .top-actions { margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 13px; }
+        .top-actions a { color: var(--text); }
+        .login-pill { padding: 5px 12px; border: 1px solid var(--line); border-radius: 7px; color: var(--text) !important; }
+        .preview { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 16px; background: #1f2a44; color: #c9d7f0; font-size: 12.5px; text-align: center; }
+        .preview b { color: #fff; }
+        main { width: min(100% - 32px, 1180px); margin: 0 auto; padding: 54px 0 60px; }
+        .hero { text-align: center; padding: 38px 12px 24px; }
+        .hero h1 { margin: 0 0 12px; font-size: clamp(34px, 5vw, 58px); line-height: 1.1; letter-spacing: -0.03em; }
+        .hero p { max-width: 680px; margin: 0 auto; color: var(--muted); font-size: 17px; line-height: 1.7; }
+        .repo-search { display: flex; align-items: center; gap: 8px; width: min(100%, 760px); margin: 28px auto 0; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: #0d1117; }
+        .repo-search button, .primary-btn { border: 1px solid #2ea043; border-radius: 7px; padding: 8px 13px; background: #238636; color: #fff; font-weight: 700; cursor: pointer; }
+        .feature-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 36px; }
+        .feature { padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+        .feature b { display: block; margin-bottom: 6px; }
+        .feature span { color: var(--muted); font-size: 13px; line-height: 1.65; }
+        .notice { margin-top: 22px; padding: 16px 18px; border: 1px solid #3d444d; border-radius: 12px; background: #161b22; color: #c9d1d9; font-size: 13px; line-height: 1.7; }
+        .notice b { color: #fff; }
+        #repo-view { display: none; }
+        .repo-head { padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+        .repo-title { margin: 0; font-size: 24px; font-weight: 650; }
+        .repo-title span { color: var(--accent); }
+        .repo-desc { margin: 8px 0 12px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+        .repo-stats { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 12.5px; }
+        .repo-tabs { display: flex; gap: 20px; margin-top: 18px; border-bottom: 1px solid var(--line); font-size: 13px; }
+        .repo-tabs span { padding: 8px 0; color: var(--muted); }
+        .repo-tabs span.active { color: var(--text); border-bottom: 2px solid #f78166; }
+        .repo-layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 24px; margin-top: 20px; }
+        .file-box, .readme { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }
+        .file-box-head { display: flex; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+        .file-row { display: flex; align-items: center; gap: 9px; padding: 8px 14px; border-bottom: 1px solid #21262d; color: var(--text); font-size: 13px; cursor: pointer; }
+        .file-row:last-child { border-bottom: 0; }
+        .file-row:hover { background: #1c2128; }
+        .file-row .kind { color: var(--muted); width: 18px; text-align: center; }
+        .readme { margin-top: 16px; padding: 16px 18px; color: #c9d1d9; font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .readme h2 { margin: 0 0 10px; color: #fff; font-size: 16px; }
+        .side-card { padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+        .side-card b { color: var(--text); }
+        .proxy-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .proxy-row a, .proxy-row button { border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; background: #21262d; color: #c9d1d9; font-size: 12px; cursor: pointer; text-decoration: none; }
+        .status { margin-top: 16px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 13px; }
+        .status.error { border-color: #8e3b46; color: #ffb3ba; background: #2b1215; }
+        @media (max-width: 800px) { .topbar-search { display: none; } .feature-grid, .repo-layout { grid-template-columns: 1fr; } .top-actions { gap: 9px; font-size: 12px; } }
+    </style>
+    <link rel="stylesheet" href="vtx-theme.css?v=8.2.1">
+    <script src="vtx-theme.js?v=8.2.1"></script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="vitualgit.html"><span class="mark">V</span> VitualGit</a>
+        <label class="topbar-search"><span>⌕</span><input id="top-search" type="search" placeholder="搜索仓库 owner/repo" aria-label="搜索仓库"></label>
+        <nav class="top-actions">
+            <a href="index.html">首页</a>
+            <a href="vitualgit.html">探索</a>
+            <a id="login-link" class="login-pill" href="login.html?next=vitualgit.html">登录</a>
+        </nav>
+    </header>
+    <div class="preview"><b>VitualGit Preview</b> · 浏览使用 GitHub Proxy 镜像 · 使用 Vitual XRing 账户</div>
+
+    <main>
+        <section class="hero" id="home-view">
+            <h1>在这里，构建软件。</h1>
+            <p>VitualGit 是一个 GitHub 风格的开源仓库浏览器。输入公开仓库地址，查看文件与 README；国内访问通过 GitHub Proxy 镜像。</p>
+            <form class="repo-search" id="repo-search-form">
+                <span>⌕</span>
+                <input id="repo-input" type="text" placeholder="例如 Caldon/Vitual-XRing 或 https://github.com/Caldon/Vitual-XRing" autocomplete="off" aria-label="仓库地址">
+                <button type="submit">打开仓库</button>
+            </form>
+            <div class="feature-grid">
+                <div class="feature"><b>仓库浏览</b><span>查看公开 GitHub 仓库的描述、语言、Star、文件列表和 README。</span></div>
+                <div class="feature"><b>Proxy 镜像</b><span>通过 gh-proxy.com 镜像打开 GitHub 页面和原始文件，改善国内访问速度。</span></div>
+                <div class="feature"><b>Vitual XRing 账户</b><span>使用 Vitual XRing 登录，不需要 GitHub 密码。</span></div>
+            </div>
+        </section>
+
+        <section id="repo-view" aria-live="polite">
+            <div class="repo-head">
+                <h1 class="repo-title" id="repo-title">仓库</h1>
+                <p class="repo-desc" id="repo-desc"></p>
+                <div class="repo-stats" id="repo-stats"></div>
+                <div class="repo-tabs"><span class="active">Code</span><span>Issues</span><span>Pull requests</span><span>Actions</span></div>
+            </div>
+            <div class="repo-layout">
+                <div>
+                    <div class="file-box"><div class="file-box-head"><span id="repo-branch">main</span><span id="repo-file-count"></span></div><div id="repo-files"></div></div>
+                    <div class="readme" id="repo-readme"><h2>README</h2>选择仓库后显示 README。</div>
+                </div>
+                <aside>
+                    <div class="side-card">
+                        <b>关于</b>
+                        <p id="repo-about">暂无仓库信息。</p>
+                        <div class="proxy-row">
+                            <a id="github-link" href="https://github.com" target="_blank" rel="noopener">GitHub 原站</a>
+                            <a id="proxy-link" href="https://gh-proxy.com" target="_blank" rel="noopener">Proxy 镜像</a>
+                        </div>
+                    </div>
+                    <div class="status" id="repo-status" hidden></div>
+                </aside>
+            </div>
+        </section>
+    </main>
+
+    
+    <script>
+        (function () {
+            "use strict";
+            const API_ROOT = "https://api.github.com";
+            const PROXY_ROOT = "https://gh-proxy.com/";
+            const account = (() => { try { return sessionStorage.getItem("vtxAccount") || ""; } catch (error) { return ""; } })();
+            const loginLink = document.getElementById("login-link");
+            if (account) {
+                loginLink.textContent = account;
+                loginLink.href = "manager.html";
+                loginLink.title = "Vitual XRing 账户";
+            }
+
+            const homeView = document.getElementById("home-view");
+            const repoView = document.getElementById("repo-view");
+            const repoStatus = document.getElementById("repo-status");
+
+            function parseRepo(value) {
+                const text = String(value || "").trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/i, "").replace(/^\/+|\/+$/g, "");
+                const match = text.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
+                return match ? { owner: match[1], repo: match[2] } : null;
+            }
+
+            function proxyUrl(url) {
+                return PROXY_ROOT + url;
+            }
+
+            async function json(url) {
+                let response;
+                try {
+                    response = await fetch(url, { headers: { accept: "application/vnd.github+json" }, cache: "no-store" });
+                } catch (error) {
+                    response = null;
+                }
+                if (!response || !response.ok) {
+                    if (url.startsWith(API_ROOT)) {
+                        try {
+                            const proxied = await fetch(PROXY_ROOT + url, { headers: { accept: "application/vnd.github+json" }, cache: "no-store" });
+                            if (proxied && proxied.ok) return proxied.json();
+                        } catch (error) {
+                            /* 直接与镜像都失败，下面统一报错 */
+                        }
+                    }
+                    throw new Error(response && response.status === 404 ? "仓库不存在或不是公开仓库" : "GitHub 请求失败（HTTP " + (response ? response.status : "网络错误") + "）");
+                }
+                return response.json();
+            }
+
+            async function fetchRepo(owner, repo) {
+                const info = await json(`${API_ROOT}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
+                return info;
+            }
+
+            async function fetchFiles(owner, repo, branch) {
+                const list = await json(`${API_ROOT}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents?ref=${encodeURIComponent(branch)}`);
+                return Array.isArray(list) ? list : [];
+            }
+
+            async function fetchReadme(owner, repo) {
+                try {
+                    const data = await json(`${API_ROOT}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/readme`);
+                    if (!data || !data.download_url) return "";
+                    const response = await fetch(proxyUrl(data.download_url), { cache: "no-store" });
+                    if (!response.ok) return "";
+                    return (await response.text()).slice(0, 16000);
+                } catch (error) {
+                    return "";
+                }
+            }
+
+            function renderRepo(info, files, readme) {
+                homeView.style.display = "none";
+                repoView.style.display = "block";
+                repoStatus.hidden = true;
+                document.getElementById("repo-title").innerHTML = `${escapeHtml(info.full_name.split("/")[0])} / <span>${escapeHtml(info.name)}</span>`;
+                document.getElementById("repo-desc").textContent = info.description || "没有仓库简介。";
+                document.getElementById("repo-stats").textContent = `${info.stargazers_count || 0} Stars · ${info.forks_count || 0} Forks · ${info.language || "未知语言"} · ${info.private ? "私有" : "公开"}`;
+                document.getElementById("repo-branch").textContent = info.default_branch || "main";
+                document.getElementById("repo-file-count").textContent = `${files.length} 项`;
+                document.getElementById("repo-about").textContent = info.homepage || info.html_url || "GitHub 仓库";
+                document.getElementById("github-link").href = info.html_url || `https://github.com/${info.full_name}`;
+                document.getElementById("proxy-link").href = proxyUrl(info.html_url || `https://github.com/${info.full_name}`);
+
+                const fileList = document.getElementById("repo-files");
+                fileList.textContent = "";
+                for (const entry of files) {
+                    const row = document.createElement("a");
+                    row.className = "file-row";
+                    row.href = entry.html_url || info.html_url;
+                    row.target = "_blank";
+                    row.rel = "noopener";
+                    row.innerHTML = `<span class="kind">${entry.type === "dir" ? "▸" : "·"}</span><span>${escapeHtml(entry.name)}</span><span style="margin-left:auto;color:#8b949e">${entry.type === "dir" ? "目录" : "文件"}</span>`;
+                    fileList.appendChild(row);
+                }
+                if (!files.length) {
+                    const row = document.createElement("div");
+                    row.className = "file-row";
+                    row.textContent = "仓库为空或无法读取文件列表。";
+                    fileList.appendChild(row);
+                }
+
+                const readmeBox = document.getElementById("repo-readme");
+                readmeBox.textContent = "";
+                const heading = document.createElement("h2");
+                heading.textContent = "README";
+                readmeBox.appendChild(heading);
+                const body = document.createElement("div");
+                body.textContent = readme || "这个仓库没有 README，或 README 读取失败。";
+                readmeBox.appendChild(body);
+            }
+
+            function escapeHtml(value) {
+                return String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+            }
+
+            async function openRepo(value) {
+                const parsed = parseRepo(value);
+                if (!parsed) {
+                    showError("请输入 owner/repo 或 https://github.com/owner/repo。");
+                    return;
+                }
+                repoStatus.hidden = false;
+                repoStatus.className = "status";
+                repoStatus.textContent = "正在读取仓库…";
+                try {
+                    const info = await fetchRepo(parsed.owner, parsed.repo);
+                    const [files, readme] = await Promise.all([
+                        fetchFiles(parsed.owner, parsed.repo, info.default_branch || "main"),
+                        fetchReadme(parsed.owner, parsed.repo)
+                    ]);
+                    renderRepo(info, files, readme);
+                    history.replaceState(null, "", "?repo=" + encodeURIComponent(parsed.owner + "/" + parsed.repo));
+                } catch (error) {
+                    showError(error.message || "仓库读取失败。");
+                }
+            }
+
+            function showError(text) {
+                repoStatus.hidden = false;
+                repoStatus.className = "status error";
+                repoStatus.textContent = text;
+            }
+
+            function submitSearch(value) {
+                openRepo(value);
+                const top = document.getElementById("top-search");
+                if (top) top.value = value;
+            }
+
+            document.getElementById("repo-search-form").addEventListener("submit", (event) => {
+                event.preventDefault();
+                submitSearch(document.getElementById("repo-input").value);
+            });
+            document.getElementById("top-search").addEventListener("keydown", (event) => {
+                if (event.key === "Enter") submitSearch(event.target.value);
+            });
+
+            const wanted = new URLSearchParams(location.search).get("repo");
+            if (wanted) {
+                document.getElementById("repo-input").value = wanted;
+                document.getElementById("top-search").value = wanted;
+                openRepo(wanted);
+            }
+        })();
+    </script>
+</body>
+</html>

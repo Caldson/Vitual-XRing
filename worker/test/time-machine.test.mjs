@@ -1,0 +1,53 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+
+/* 10.0.0：设置页时光回溯机与历史 HTML 快照 */
+
+const root = new URL("../../", import.meta.url);
+const read = (name) => fs.readFileSync(new URL(name, root), "utf8");
+
+test("10.0.0：时光回溯机清单包含 13 个历史版本，且只列 HTML", () => {
+    const manifest = JSON.parse(read("history/manifest.json"));
+    assert.equal(manifest.beta, true);
+    assert.equal(manifest.versions.length, 13);
+    for (const entry of manifest.versions) {
+        assert.match(entry.version, /^\d+\.\d+\.\d+$/);
+        assert.ok(entry.files.length > 0, `${entry.version} 没有文件`);
+        for (const file of entry.files) {
+            assert.match(file, /\.html?$/i, `${entry.version} 列出了非 HTML：${file}`);
+            assert.equal(
+                fs.existsSync(new URL(`history/${entry.version}/${file}`, root)),
+                true,
+                `${entry.version}/${file} 不存在`
+            );
+        }
+    }
+    for (const version of ["8.2.0", "9.0.0", "9.5.1", "9.6.0"]) {
+        assert.ok(manifest.versions.some((entry) => entry.version === version), `缺少 ${version}`);
+    }
+});
+
+test("10.0.0：历史页面移除停服守卫和 PWA 注册", () => {
+    for (const version of ["8.2.0", "9.0.0", "9.6.0"]) {
+        const html = read(`history/${version}/index.html`);
+        assert.doesNotMatch(html, /document\.write\(.<script src="vtx-closed\.js/);
+        assert.doesNotMatch(html, /<script[^>]+src="vtx-pwa\.js/);
+    }
+});
+
+test("10.0.0：设置页底部有时光回溯机入口", () => {
+    const settings = read("settings.html");
+    assert.match(settings, /id="time-machine"/);
+    assert.match(settings, /时光回溯机/);
+    assert.match(settings, /history\/manifest\.json/);
+    assert.match(settings, /tm-file-list/);
+    assert.match(settings, /tm-modal/);
+    assert.match(settings, /onlyHtml/);
+});
+
+test("10.0.0：版本号与 Service Worker 缓存同步", () => {
+    assert.equal(JSON.parse(read("version.json")).version, "10.0.0");
+    assert.match(read("vtx-sw.js"), /xring-v10\.0\.0/);
+    assert.match(read("vtx-api.js"), /API_VERSION = "10\.0\.0"/);
+});

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f3f6fb">
     <title>设置 · Vitual XRing</title>
-    <link rel="stylesheet" href="vtx-theme.css?v=9.6.0">
-    <script src="vtx-theme.js?v=9.6.0"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=10.0.0">
+    <script src="vtx-theme.js?v=10.0.0"></script>
     <style>
         .settings-shell { width: min(100% - 40px, 900px); margin: 0 auto; padding: 34px 0 80px; }
         .settings-kicker { margin: 0 0 8px; color: var(--vtx-accent); font-size: 11.5px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
@@ -61,6 +61,32 @@
         .settings-preview b { display: block; font-size: 13px; }
         .settings-preview p { margin: 5px 0 0; color: var(--vtx-muted); font-size: 12px; line-height: 1.65; }
         .settings-preview-actions { display: flex; gap: 8px; margin-top: 10px; }
+        .tm-beta { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 999px; background: #fff1e6; color: #c05621; font-size: 10px; font-weight: 850; vertical-align: middle; }
+        .tm-grid { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 12px; margin-top: 14px; }
+        .tm-versions { display: flex; flex-direction: column; gap: 5px; max-height: 330px; overflow: auto; padding-right: 2px; }
+        .tm-version { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 9px 11px; border: 1px solid var(--vtx-border); border-radius: 9px; background: var(--vtx-surface); color: var(--vtx-muted); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+        .tm-version:hover { border-color: var(--vtx-accent); color: var(--vtx-text); }
+        .tm-version.active { border-color: var(--vtx-accent); background: var(--vtx-accent-soft); color: var(--vtx-accent); font-weight: 800; }
+        .tm-version small { color: var(--vtx-faint); font-size: 10px; }
+        .tm-files { min-width: 0; border: 1px solid var(--vtx-border); border-radius: 12px; background: var(--vtx-surface); overflow: hidden; }
+        .tm-file-head { display: flex; align-items: center; gap: 8px; padding: 10px 13px; border-bottom: 1px solid var(--vtx-border); background: var(--vtx-surface-soft); font-size: 12px; }
+        .tm-file-head b { font-size: 13px; }
+        .tm-file-head span { margin-left: auto; color: var(--vtx-muted); font-size: 10.5px; }
+        .tm-file-list { max-height: 280px; overflow: auto; padding: 5px; }
+        .tm-file-row { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 9px; border: 0; border-radius: 8px; background: transparent; color: var(--vtx-text); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+        .tm-file-row:hover { background: var(--vtx-surface-soft); }
+        .tm-file-row .file-icon { width: 22px; flex: 0 0 22px; text-align: center; }
+        .tm-file-row .file-meta { margin-left: auto; color: var(--vtx-faint); font-size: 10px; }
+        .tm-empty { padding: 28px 16px; color: var(--vtx-muted); font-size: 12px; text-align: center; }
+        .tm-modal { position: fixed; inset: 0; z-index: 400; display: flex; flex-direction: column; background: rgba(7, 12, 24, .65); backdrop-filter: blur(6px); }
+        .tm-modal-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #101a2e; color: #fff; font-size: 13px; }
+        .tm-modal-head b { font-size: 13px; }
+        .tm-modal-head .tm-modal-file { color: rgba(220,232,255,.7); font-size: 12px; }
+        .tm-modal-head .tm-modal-spacer { flex: 1; }
+        .tm-modal-head button, .tm-modal-head a { padding: 6px 11px; border: 1px solid rgba(190,210,255,.25); border-radius: 8px; background: rgba(255,255,255,.08); color: #fff; font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
+        .tm-modal iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+        .tm-modal[hidden] { display: none !important; }
+        @media (max-width: 700px) { .tm-grid { grid-template-columns: 1fr; } .tm-versions { flex-direction: row; flex-wrap: wrap; max-height: none; } .tm-version { width: auto; } }
         @media (max-width: 700px) { .option-grid { grid-template-columns: 1fr; } .language-grid { grid-template-columns: 1fr 1fr; } .status-grid, .range-grid { grid-template-columns: 1fr; } .settings-card { padding: 17px; } }
         @media (max-width: 440px) { .language-grid { grid-template-columns: 1fr; } }
     </style>
@@ -68,7 +94,7 @@
 <body data-vtx-widget="off" data-i18n-document-title="document.settings">
     <header class="vtx-topbar">
         <a class="vtx-brand" href="index.html">
-            <img src="XRingLogo-V.png?v=9.6.0" alt="Vitual XRing" width="38" height="38">
+            <img src="XRingLogo-V.png?v=10.0.0" alt="Vitual XRing" width="38" height="38">
             <span data-i18n="brand">Vitual XRing</span>
         </a>
         <nav class="vtx-nav">
@@ -188,9 +214,34 @@
             </div>
             <p class="settings-note" data-i18n="settings.resetHint">恢复为跟随设备和自动主题。</p>
         </section>
+
+        <section class="settings-card vtx-glass" id="time-machine">
+            <div class="settings-card-head">
+                <div><h2>时光回溯机 <span class="tm-beta">Beta</span></h2><p>查看 Vitual XRing 以前的版本。文件目录里只显示 HTML 文件，点击后可以在站内预览。</p></div>
+            </div>
+            <div class="tm-grid">
+                <div class="tm-versions" id="tm-versions"><div class="tm-empty">正在读取历史版本…</div></div>
+                <div class="tm-files">
+                    <div class="tm-file-head"><b id="tm-version-label">选择一个版本</b><span>仅 HTML 文件</span></div>
+                    <div class="tm-file-list" id="tm-file-list"><div class="tm-empty">从左侧选择版本。</div></div>
+                </div>
+            </div>
+            <p class="settings-note">历史页面是只读快照；部分依赖当前账户 / API 的功能可能与当时行为不同。</p>
+        </section>
     </main>
 
-    <script src="vtx-pwa.js?v=9.6.0" defer></script>
+    <div class="tm-modal" id="tm-modal" hidden>
+        <div class="tm-modal-head">
+            <b id="tm-modal-version">—</b>
+            <span class="tm-modal-file" id="tm-modal-file">—</span>
+            <span class="tm-modal-spacer"></span>
+            <a id="tm-modal-open" href="#" target="_blank" rel="noopener">新标签打开</a>
+            <button type="button" id="tm-modal-close">关闭</button>
+        </div>
+        <iframe id="tm-frame" title="历史版本预览" src="about:blank" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-downloads"></iframe>
+    </div>
+
+    <script src="vtx-pwa.js?v=10.0.0" defer></script>
     <script>
         (function () {
             "use strict";
@@ -304,6 +355,98 @@
             sync();
             syncGlass();
             syncOpening();
+
+            /* 10.0.0：时光回溯机。manifest 只提供 HTML 文件，文件目录也只渲染 .html。 */
+            (function timeMachine() {
+                const versionBox = document.getElementById("tm-versions");
+                const fileBox = document.getElementById("tm-file-list");
+                const label = document.getElementById("tm-version-label");
+                const modal = document.getElementById("tm-modal");
+                const frame = document.getElementById("tm-frame");
+                const modalVersion = document.getElementById("tm-modal-version");
+                const modalFile = document.getElementById("tm-modal-file");
+                const modalOpen = document.getElementById("tm-modal-open");
+                let versions = [];
+                let selected = "";
+                const onlyHtml = (file) => /\.html?$/i.test(file);
+
+                function fileUrl(version, file) {
+                    const parts = String(file).split("/").map(encodeURIComponent).join("/");
+                    return `history/${encodeURIComponent(version)}/${parts}`;
+                }
+
+                function open(version, file) {
+                    const url = fileUrl(version, file);
+                    frame.src = url;
+                    modalOpen.href = url;
+                    modalVersion.textContent = version;
+                    modalFile.textContent = file;
+                    modal.hidden = false;
+                }
+
+                function close() {
+                    modal.hidden = true;
+                    frame.src = "about:blank";
+                }
+
+                function renderFiles() {
+                    const entry = versions.find((item) => item.version === selected);
+                    fileBox.textContent = "";
+                    if (!entry) {
+                        label.textContent = "选择一个版本";
+                        fileBox.innerHTML = '<div class="tm-empty">从左侧选择版本。</div>';
+                        return;
+                    }
+                    label.textContent = entry.version + (entry.date ? " · " + entry.date : "");
+                    const files = (entry.files || []).filter(onlyHtml).sort((a, b) => a.localeCompare(b, "zh-CN"));
+                    if (!files.length) {
+                        fileBox.innerHTML = '<div class="tm-empty">这个版本没有 HTML 文件。</div>';
+                        return;
+                    }
+                    files.forEach((file) => {
+                        const row = document.createElement("button");
+                        row.type = "button";
+                        row.className = "tm-file-row";
+                        row.innerHTML = '<span class="file-icon">📄</span><span>' + file.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])) + '</span><span class="file-meta">HTML</span>';
+                        row.addEventListener("click", () => open(entry.version, file));
+                        fileBox.appendChild(row);
+                    });
+                }
+
+                function renderVersions() {
+                    versionBox.textContent = "";
+                    if (!versions.length) {
+                        versionBox.innerHTML = '<div class="tm-empty">没有可用的历史版本。</div>';
+                        return;
+                    }
+                    versions.forEach((entry) => {
+                        const button = document.createElement("button");
+                        button.type = "button";
+                        button.className = "tm-version" + (entry.version === selected ? " active" : "");
+                        button.innerHTML = '<span>' + entry.version + '</span><small>' + (entry.files || []).filter(onlyHtml).length + ' 个 HTML</small>';
+                        button.addEventListener("click", () => {
+                            selected = entry.version;
+                            renderVersions();
+                            renderFiles();
+                        });
+                        versionBox.appendChild(button);
+                    });
+                }
+
+                document.getElementById("tm-modal-close").addEventListener("click", close);
+                document.addEventListener("keydown", (event) => { if (event.key === "Escape") close(); });
+                fetch("history/manifest.json?t=" + Date.now(), { cache: "no-store" })
+                    .then((response) => response.ok ? response.json() : null)
+                    .then((data) => {
+                        versions = data && Array.isArray(data.versions) ? data.versions.slice().reverse() : [];
+                        if (versions.length) selected = versions[0].version;
+                        renderVersions();
+                        renderFiles();
+                    })
+                    .catch(() => {
+                        versionBox.innerHTML = '<div class="tm-empty">历史版本清单加载失败。</div>';
+                    });
+            })();
         })();
     </script>
 </body>

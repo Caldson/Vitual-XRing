@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 9.6.0 — Vord 文本文档
+ * Vitual XRing 10.0.0 — Vord 文本文档
  *
  * - 登录用户可以在 Vord 里新建 / 编辑 txt / md 文档，内容存在 Workers KV；
  * - 文档可以保存到 XOS 云盘（由前端调用 /api/xos/files），也可以下载到本地；
@@ -10,7 +10,7 @@
  * - 编辑记录按人记录：登录用户显示账户昵称，未登录的编辑者显示
  *   「匿名用户 [网页版]」/「匿名用户 [Windows版]」。
  */
-const VORD_VERSION = "9.6.0";
+const VORD_VERSION = "10.0.0";
 
 const VORD_DOC_PREFIX = "vord:doc:";
 const VORD_INDEX_PREFIX = "vord:index:";
