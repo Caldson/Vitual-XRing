@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-/* 10.0.1：BGM 播放器与听歌赚钱 */
+/* 10.0.2：BGM 播放器与听歌赚钱 */
 
 const root = new URL("../../", import.meta.url);
 const read = (name) => fs.readFileSync(new URL(name, root), "utf8");
 
-test("10.0.1：BGM 播放器包含播放、循环模式、音量与听歌赚钱", () => {
+test("10.0.2：BGM 播放器包含播放、循环模式、音量与听歌赚钱", () => {
     const bgm = read("vtx-bgm.js");
     assert.match(bgm, /audio\/your-beat\.mp3/);
     assert.match(bgm, /audio\/opening\.mp3/);
@@ -20,7 +20,7 @@ test("10.0.1：BGM 播放器包含播放、循环模式、音量与听歌赚钱"
     assert.match(bgm, /vtx-bgm-toggle/);
 });
 
-test("10.0.1：主题壳自动加载 BGM，音频文件存在", () => {
+test("10.0.2：主题壳自动加载 BGM，音频文件存在", () => {
     const theme = read("vtx-theme.js");
     assert.match(theme, /vtx-bgm\.js\?v=/);
     assert.match(read("vtx-bgm.js"), /ensureApi/);
@@ -31,19 +31,19 @@ test("10.0.1：主题壳自动加载 BGM，音频文件存在", () => {
     }
 });
 
-test("10.0.1：Service Worker 不缓存 206 分片，避免音频播放器拿到 504", () => {
+test("10.0.2：Service Worker 不缓存 206 分片，避免音频播放器拿到 504", () => {
     const sw = read("vtx-sw.js");
     assert.match(sw, /request\.destination === "audio"/);
     assert.match(sw, /request\.headers\.get\("range"\)/);
     assert.match(sw, /response\.status === 200/);
 });
 
-test("10.0.1：BGM 接口与版本同步", () => {
+test("10.0.2：BGM 接口与版本同步", () => {
     const api = read("vtx-api.js");
     assert.match(api, /bgmStart|bgm\.start|bgm = \{/);
     assert.match(api, /\/me\/bgm\/start/);
     assert.match(api, /\/me\/bgm\/reward/);
     const version = JSON.parse(read("version.json"));
-    assert.equal(version.version, "10.0.1");
-    assert.match(read("vtx-sw.js"), /xring-v10\.0\.1/);
+    assert.equal(version.version, "10.0.2");
+    assert.match(read("vtx-sw.js"), /xring-v10\.0\.2/);
 });

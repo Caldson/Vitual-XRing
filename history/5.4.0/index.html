@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><script src="../api-bridge.js"></script>
+    <meta charset="UTF-8">
+    <!-- 停服守卫：停服期间任何页面都会跳到 WebsiteClose.html，时间表见 vtx-closed.js -->
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>Vitual XRing · 虚拟云电脑与作品社区</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            color: #172033;
+            background: #f4f7fb;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            background:
+                radial-gradient(circle at 8% 0, #dce9ff 0, transparent 34%),
+                radial-gradient(circle at 94% 8%, #dff7ef 0, transparent 28%),
+                #f4f7fb;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            width: min(100% - 40px, 1120px);
+            margin: 0 auto;
+            padding: 18px 0;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #172033;
+            font-weight: 850;
+            text-decoration: none;
+        }
+
+        .brand img { width: 38px; height: 38px; object-fit: contain; border-radius: 10px; }
+        .brand span { font-size: 17px; }
+        .top-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+        .top-actions a { color: #4a5871; font-size: 13.5px; font-weight: 650; text-decoration: none; }
+        .top-actions a:hover { color: #3158d1; }
+        .version { padding: 4px 10px; border-radius: 999px; background: #eef2ff; color: #3158d1; font-size: 12px; font-weight: 750; }
+
+        main { width: min(100% - 40px, 1120px); margin: 18px auto 40px; }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+            gap: 24px;
+            align-items: stretch;
+        }
+
+        .hero-main {
+            padding: 38px 36px;
+            border: 1px solid #e4eaf4;
+            border-radius: 24px;
+            background: linear-gradient(135deg, #ffffff, #f7faff);
+            box-shadow: 0 18px 50px rgba(30, 50, 90, 0.07);
+        }
+
+        .eyebrow { margin: 0 0 10px; color: #738097; font-size: 12.5px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+        .hero h1 { margin: 0 0 12px; font-size: clamp(30px, 5vw, 52px); line-height: 1.12; letter-spacing: -0.035em; }
+        .hero-copy { margin: 0 0 22px; color: #5f6d84; font-size: 15px; line-height: 1.8; }
+        .hero-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 0 18px;
+            border: 1px solid #dce2ec;
+            border-radius: 11px;
+            color: #3f4b5f;
+            background: #fff;
+            font-size: 13.5px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .btn:hover { border-color: #9fb9f0; color: #3158d1; }
+        .btn.primary { border-color: #3158d1; background: #3158d1; color: #fff; }
+        .btn.primary:hover { background: #2449b8; color: #fff; }
+
+        .hero-xos {
+            position: relative;
+            min-height: 300px;
+            padding: 26px;
+            overflow: hidden;
+            border-radius: 24px;
+            color: #eaf0ff;
+            background:
+                radial-gradient(circle at 80% 18%, rgba(96, 224, 196, .22), transparent 36%),
+                radial-gradient(circle at 14% 20%, rgba(76, 141, 255, .42), transparent 45%),
+                linear-gradient(135deg, #0b1224, #101c38 62%, #0b1527);
+            box-shadow: 0 22px 56px rgba(15, 30, 60, 0.22);
+            text-decoration: none;
+        }
+
+        .hero-xos:hover { transform: translateY(-2px); }
+        .hero-xos { transition: transform 160ms; }
+        .hero-xos .mark { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 14px; background: linear-gradient(135deg, #4c8dff, #60e0c4); color: #071019; font-size: 20px; font-weight: 900; }
+        .hero-xos h2 { margin: 42px 0 6px; font-size: 26px; }
+        .hero-xos p { margin: 0; color: #aebedb; font-size: 13px; line-height: 1.7; }
+        .hero-xos .go { display: inline-flex; margin-top: 18px; padding: 8px 12px; border: 1px solid rgba(160, 190, 255, .35); border-radius: 9px; color: #dce8ff; font-size: 12px; font-weight: 700; }
+        .hero-xos .price { position: absolute; right: 22px; top: 24px; color: #9ec5ff; font-size: 12px; font-weight: 700; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 22px; }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            min-height: 128px;
+            padding: 20px;
+            border: 1px solid #e4eaf4;
+            border-radius: 16px;
+            background: #fff;
+            color: #172033;
+            text-decoration: none;
+            box-shadow: 0 8px 24px rgba(30, 50, 90, 0.045);
+        }
+
+        .card:hover { border-color: #b9c8f5; transform: translateY(-1px); }
+        .card { transition: transform 160ms, border-color 160ms; }
+        .card .icon { font-size: 25px; line-height: 1; }
+        .card b { font-size: 15px; }
+        .card span { color: #738097; font-size: 12.5px; line-height: 1.6; }
+        .card.featured { border-color: #c9d8ff; background: linear-gradient(135deg, #ffffff, #f4f8ff); }
+
+        .foot { margin-top: 28px; color: #93a0b4; font-size: 12px; line-height: 1.7; text-align: center; }
+
+        @media (max-width: 820px) {
+            .hero { grid-template-columns: 1fr; }
+            .hero-main { padding: 28px 22px; }
+            .hero-xos { min-height: 250px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar"><script src="../api-bridge.js"></script>
+        <a class="brand" href="index.html">
+            <img src="XRingLogo.png" alt="Vitual XRing">
+            <span>Vitual XRing</span>
+        </a>
+        <nav class="top-actions">
+            <a href="shop.html">商店</a>
+            <a href="xos.html">XOS 云电脑</a>
+            <a href="chatroom.html">聊天室</a>
+            <a href="viratch.html">Viratch</a>
+            <a class="version">v5.4.0</a>
+            <a id="account-link" href="login.html">登录</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-main">
+                <p class="eyebrow">XRing Studios · Virtual XRing</p>
+                <h1>一台在浏览器里打开的虚拟云电脑。</h1>
+                <p class="hero-copy">XOS PC 26H2 提供 1440×900 虚拟桌面、文件管理器、创作工具与最多 23 个应用。也可以去 Viratch 做积木作品、在 Vitx 看视频，或者到聊天室和大家聊聊。</p>
+                <div class="hero-buttons">
+                    <a class="btn primary" href="xos.html">🖥 打开 XOS 云电脑</a>
+                    <a class="btn" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91">查看 XOS 版本</a>
+                    <a class="btn" id="account-button" href="login.html">登录账户</a>
+                </div>
+            </div>
+
+            <a class="hero-xos" href="xos.html">
+                <div class="mark">X</div>
+                <span class="price">1000 VTX 起</span>
+                <h2>XOS PC 26H2</h2>
+                <p>Home / Personal / Professional / CE (Community Edition)<br>1440×900 · 15–60fps · 最多 23 个应用</p>
+                <span class="go">进入虚拟桌面 →</span>
+            </a>
+        </section>
+
+        <section class="grid" aria-label="站点入口">
+            <a class="card featured" href="xos.html">
+                <span class="icon">🖥</span>
+                <b>XOS 云电脑</b>
+                <span>虚拟桌面 · 文件 · 浏览器 · 创作工具</span>
+            </a>
+            <a class="card" href="shop.html">
+                <span class="icon">🛍</span>
+                <b>商店</b>
+                <span>XOS 授权、文具与礼品兑换</span>
+            </a>
+            <a class="card" href="viratch.html">
+                <span class="icon">🧩</span>
+                <b>Viratch</b>
+                <span>TurboWarp 积木作品社区</span>
+            </a>
+            <a class="card" href="vitxvideo.html">
+                <span class="icon">▶</span>
+                <b>Vitx® 视频</b>
+                <span>投稿、观看、评论与分享</span>
+            </a>
+            <a class="card" href="vitx-dynamic.html">
+                <span class="icon">📝</span>
+                <b>Vitx 动态</b>
+                <span>图文动态与分享卡片</span>
+            </a>
+            <a class="card" href="chatroom.html">
+                <span class="icon">💬</span>
+                <b>聊天室</b>
+                <span>单聊、群聊、红包、转账与周边的人</span>
+            </a>
+            <a class="card" href="audiv.html">
+                <span class="icon">🎙</span>
+                <b>AUDIV</b>
+                <span>浏览器语音会议</span>
+            </a>
+            <a class="card" href="share.html?create=1">
+                <span class="icon">🔗</span>
+                <b>分享</b>
+                <span>自定义分享卡片与站内识别</span>
+            </a>
+        </section>
+
+        <p class="foot">Vitual XRing 5.4.0 · XOS 是浏览器端虚拟桌面，不是真实远程虚拟机。</p>
+    </main>
+
+    <script>
+        (function () {
+            var account = "";
+            try { account = sessionStorage.getItem("vtxAccount") || ""; } catch (error) { account = ""; }
+            if (!account) return;
+            var link = document.getElementById("account-link");
+            var button = document.getElementById("account-button");
+            if (link) { link.href = "manager.html"; link.textContent = "账户"; }
+            if (button) { button.href = "manager.html"; button.textContent = "进入账户"; }
+        })();
+    </script>
+</body>
+</html>

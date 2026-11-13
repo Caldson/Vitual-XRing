@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><script>window.VTX_API_BASE="https://xsmmc.caldson.us.ci/api";</script>
+<head><script src="../api-bridge.js"></script>
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -597,7 +597,7 @@
     <script src="vtx-theme.js?v=8.2.0"></script>
 </head>
 <body>
-    <header class="topbar"><script>window.VTX_API_BASE="https://xsmmc.caldson.us.ci/api";</script>
+    <header class="topbar"><script src="../api-bridge.js"></script>
         <a class="brand" href="vitxvideo.html" title="Vitx® 视频">
             <span class="brand-mark">V</span>
             <span class="brand-text">
@@ -953,7 +953,7 @@
                 const postUrl = new URL(`vitx-dynamic.html?id=${encodeURIComponent(item.id)}`, location.href).href;
 
                 return `<article class="post${opts.detail ? " post-detail" : ""}" data-post="${esc(item.id)}">
-                    <header class="post-head"><script>window.VTX_API_BASE="https://xsmmc.caldson.us.ci/api";</script>
+                    <header class="post-head"><script src="../api-bridge.js"></script>
                         <span class="avatar" aria-hidden="true">${esc(initial(author))}</span>
                         <span class="post-who">
                             <strong>${esc(author)}</strong>

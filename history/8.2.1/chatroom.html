@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><script>window.VTX_API_BASE="https://xsmmc.caldson.us.ci/api";</script>
+<head><script src="../api-bridge.js"></script>
     <meta charset="UTF-8">
     <!-- 停服守卫：停服期间任何页面都会跳到 WebsiteClose.html，时间表见 vtx-closed.js -->
 
@@ -1599,7 +1599,7 @@
 </head>
 <body>
 <div class="app" id="app" hidden>
-    <header class="topbar"><script>window.VTX_API_BASE="https://xsmmc.caldson.us.ci/api";</script>
+    <header class="topbar"><script src="../api-bridge.js"></script>
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
@@ -5363,7 +5363,7 @@
         const actions = options.actions || [{ label: "关闭", act: "cancel" }];
         root.innerHTML = `<div class="modal-backdrop">
             <section class="modal${options.wide ? " wide" : ""}">
-                <header><script>window.VTX_API_BASE="https://xsmmc.caldson.us.ci/api";</script><span class="grow">${title}</span><button type="button" data-act="cancel">×</button></header>
+                <header><script src="../api-bridge.js"></script><span class="grow">${title}</span><button type="button" data-act="cancel">×</button></header>
                 <div class="modal-body">${bodyHtml}</div>
                 <footer>${actions.map((action) => `<button type="button" class="btn${action.primary ? " primary" : ""}" data-act="${action.act}">${action.label}</button>`).join("")}</footer>
             </section>

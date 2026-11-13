@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><script src="../api-bridge.js"></script>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>登录位置 | Vitual XRing</title>
+    <script src="vtx-api.js?v=7.3.1"></script>
+    <script src="vtx-geo.js?v=7.3.1"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            color: #172033;
+            background: #f4f7fb;
+        }
+
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding-bottom: 40px;
+            background:
+                radial-gradient(circle at 10% 0, #e2edff 0, transparent 34%),
+                radial-gradient(circle at 92% 8%, #e4f5f0 0, transparent 28%),
+                #f4f7fb;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 14px 24px;
+            border-bottom: 1px solid #e7ebf2;
+            background: rgba(255, 255, 255, 0.93);
+            backdrop-filter: blur(10px);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #172033;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .brand-mark {
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border-radius: 10px;
+            color: #fff;
+            background: linear-gradient(135deg, #3867e8, #6c8cff);
+            font-size: 16px;
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+
+        .topbar-link { color: #4a5871; text-decoration: none; font-weight: 650; }
+        .topbar-link:hover { color: #3158d1; }
+
+        .version {
+            padding: 4px 10px;
+            border-radius: 999px;
+            color: #3158d1;
+            background: #eef2ff;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        main { width: min(100% - 40px, 980px); margin: 28px auto 0; }
+
+        .hero { margin-bottom: 18px; }
+        .eyebrow {
+            margin: 0 0 6px;
+            color: #738097;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .hero h1 { margin: 0 0 8px; font-size: 28px; }
+        .hero p { margin: 0; color: #738097; line-height: 1.7; }
+
+        .card {
+            padding: 24px 26px;
+            border: 1px solid #e7ebf2;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(30, 50, 90, 0.05);
+        }
+
+        .card-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .card-head h2 { margin: 0; font-size: 19px; }
+        .records-count { color: #8994a7; font-size: 13px; }
+
+        .btn {
+            border: 1px solid #e7ebf2;
+            border-radius: 10px;
+            background: #fff;
+            padding: 8px 14px;
+            color: #3f4b5f;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 650;
+            cursor: pointer;
+        }
+
+        .btn:hover { border-color: #b9c8f5; color: #3158d1; }
+        .btn.primary { border-color: #3158d1; background: #3158d1; color: #fff; }
+        .btn.primary:hover { background: #2449b8; color: #fff; }
+        .btn:disabled { opacity: 0.6; cursor: wait; }
+        .spacer { flex: 1; }
+
+        .hint { margin: 0 0 16px; color: #738097; font-size: 13.5px; line-height: 1.7; }
+
+        .map {
+            height: 340px;
+            margin-bottom: 16px;
+            border: 1px solid #e7ebf2;
+            border-radius: 14px;
+            overflow: hidden;
+            background: #f4f6fa;
+        }
+
+        .map iframe { display: block; width: 100%; height: 100%; border: 0; }
+
+        .records { display: flex; flex-direction: column; }
+
+        .record {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 14px 2px;
+            border-bottom: 1px solid #eef1f6;
+        }
+
+        .record:last-child { border-bottom: 0; }
+        .record-main { flex: 1; min-width: 0; }
+        .record-title { margin: 0 0 4px; font-size: 14.5px; font-weight: 700; word-break: break-word; }
+        .record-description { margin: 0 0 4px; color: #5b6880; font-size: 13.5px; }
+        .record-meta { margin: 0; color: #8994a7; font-size: 12.5px; line-height: 1.6; }
+        .coords { margin: 5px 0 0; color: #738097; font-size: 13px; font-variant-numeric: tabular-nums; }
+
+        .record button {
+            flex: none;
+            align-self: center;
+            min-height: 36px;
+            padding: 0 16px;
+            border: 1px solid #dce2ec;
+            border-radius: 10px;
+            color: #3f4b5f;
+            background: #fff;
+            font: inherit;
+            font-size: 13.5px;
+            font-weight: 650;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .record button:hover { border-color: #5478ed; color: #3158d1; }
+
+        .empty { padding: 22px 0 4px; border-top: 1px solid #eef1f6; color: #8994a7; line-height: 1.7; }
+        .error { margin-top: 16px; padding: 14px 16px; border: 1px solid #f6cdd3; border-radius: 12px; background: #fdeef0; color: #a9202f; line-height: 1.6; }
+        .foot { margin-top: 18px; color: #93a0b4; font-size: 12px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+        @media (max-width: 640px) {
+            .topbar { padding: 12px 16px; }
+            main { width: min(100% - 24px, 980px); margin-top: 18px; }
+            .hero h1 { font-size: 23px; }
+            .card { padding: 18px 16px; }
+            .map { height: 250px; }
+            .record { flex-wrap: wrap; }
+            .record button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar"><script src="../api-bridge.js"></script>
+        <a class="brand" href="manager.html">
+            <span class="brand-mark">📍</span>
+            <span>登录位置</span>
+        </a>
+        <div class="topbar-actions">
+            <a class="topbar-link" href="manager.html">← 返回账户</a>
+            <span class="version">v7.3.1</span>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <p class="eyebrow">账户安全</p>
+            <h1>登录位置记录</h1>
+            <p>每次登录会记录公网 IP 与大致经纬度，用来确认账户操作都来自你本人。</p>
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <h2 id="places-title">最近的登录</h2>
+                <span class="records-count" id="places-count"></span>
+                <span class="spacer"></span>
+                <button type="button" class="btn primary" id="refresh-btn">刷新</button>
+            </div>
+            <p class="hint">位置来自 Cloudflare 提供的大致城市 / 经纬度，只用于账户安全，不会在聊天室里公开。</p>
+            <div id="error" class="error" hidden></div>
+            <div id="map" class="map" hidden></div>
+            <div id="list" class="records"></div>
+            <p id="empty" class="empty" hidden>暂无登录位置记录。</p>
+        </section>
+
+        <div class="foot">
+            <span>Vitual XRing 7.3.1 · 登录位置</span>
+            <span><a href="manager.html">账户首页</a> · <a href="login.html">重新登录</a></span>
+        </div>
+    </main>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const API = window.VTXApi;
+            const GEO = window.VTXGeo;
+            const $ = (id) => document.getElementById(id);
+            const LEAFLET_BASES = [
+                "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist",
+                "https://unpkg.com/leaflet@1.9.4/dist"
+            ];
+
+            let leafletLoader = null;
+            let loginMap = null;
+            let loginMarkers = [];
+
+            function showError(message) {
+                const box = $("error");
+                box.textContent = message;
+                box.hidden = !message;
+            }
+
+            function timeValue(text) {
+                const match = /^(\d{4})\/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/.exec(String(text || ""));
+                if (!match) {
+                    return 0;
+                }
+                const [, year, month, day, hour = 0, minute = 0, second = 0] = match;
+                return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)).getTime();
+            }
+
+            function sortNewest(list) {
+                return (Array.isArray(list) ? list : [])
+                    .map((entry, index) => ({ entry, index, time: timeValue(entry.time) }))
+                    .sort((left, right) => (right.time - left.time) || (right.index - left.index))
+                    .map((item) => item.entry);
+            }
+
+            function loadLeaflet() {
+                if (window.L) {
+                    return Promise.resolve(true);
+                }
+                if (leafletLoader) {
+                    return leafletLoader;
+                }
+
+                function loadFrom(base) {
+                    return new Promise((resolve) => {
+                        let pending = 2;
+                        let failed = false;
+                        const finish = (ok) => {
+                            if (!ok) {
+                                failed = true;
+                            }
+                            pending -= 1;
+                            if (pending === 0) {
+                                resolve(!failed);
+                            }
+                        };
+                        const link = document.createElement("link");
+                        link.rel = "stylesheet";
+                        link.href = `${base}/leaflet.css`;
+                        link.onload = () => finish(true);
+                        link.onerror = () => finish(false);
+                        document.head.appendChild(link);
+
+                        const script = document.createElement("script");
+                        script.src = `${base}/leaflet.js`;
+                        script.onload = () => finish(true);
+                        script.onerror = () => {
+                            script.remove();
+                            link.remove();
+                            finish(false);
+                        };
+                        document.head.appendChild(script);
+                    });
+                }
+
+                leafletLoader = (async () => {
+                    for (const base of LEAFLET_BASES) {
+                        if (await loadFrom(base)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })();
+
+                return leafletLoader;
+            }
+
+            function addTileLayer(map) {
+                const sources = [
+                    {
+                        url: "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+                        options: {
+                            maxZoom: 18,
+                            subdomains: "1234",
+                            attribution: '&copy; <a href="https://www.amap.com/">高德地图</a>'
+                        }
+                    },
+                    {
+                        url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                        options: {
+                            maxZoom: 19,
+                            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        }
+                    }
+                ];
+
+                let index = 0;
+                let errors = 0;
+
+                function attach() {
+                    const source = sources[index];
+                    const layer = window.L.tileLayer(source.url, source.options).addTo(map);
+                    layer.on("tileerror", () => {
+                        errors += 1;
+                        if (errors >= 4 && index + 1 < sources.length) {
+                            index += 1;
+                            errors = 0;
+                            map.removeLayer(layer);
+                            attach();
+                        }
+                    });
+                }
+
+                attach();
+            }
+
+            function popupContent(entry) {
+                const box = document.createElement("div");
+                const title = document.createElement("strong");
+                title.textContent = GEO.describe(entry);
+                box.appendChild(title);
+                const detail = document.createElement("div");
+                detail.textContent = [entry.ip || "未知 IP", entry.time].filter(Boolean).join(" · ");
+                box.appendChild(detail);
+                return box;
+            }
+
+            function renderOsmFallback(box, entry) {
+                const latitude = Number(entry.latitude);
+                const longitude = Number(entry.longitude);
+                const span = 0.06;
+                const bbox = [longitude - span, latitude - span, longitude + span, latitude + span].join(",");
+                const marker = `${latitude},${longitude}`;
+                const frame = document.createElement("iframe");
+                frame.title = "登录位置地图";
+                frame.loading = "lazy";
+                frame.referrerPolicy = "no-referrer";
+                frame.src = "https://www.openstreetmap.org/export/embed.html"
+                    + `?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(marker)}`;
+                box.textContent = "";
+                box.appendChild(frame);
+            }
+
+            async function renderMap(points) {
+                const box = $("map");
+                if (loginMap) {
+                    loginMap.remove();
+                    loginMap = null;
+                }
+                loginMarkers = [];
+
+                if (!points.length) {
+                    box.hidden = true;
+                    box.textContent = "";
+                    return;
+                }
+
+                box.hidden = false;
+                box.textContent = "";
+                const loaded = await loadLeaflet();
+                if (!loaded || !window.L || !box.isConnected) {
+                    renderOsmFallback(box, points[0]);
+                    return;
+                }
+
+                const bounds = [];
+                loginMap = window.L.map(box, { scrollWheelZoom: false });
+                addTileLayer(loginMap);
+
+                for (const point of points) {
+                    const latitude = Number(point.latitude);
+                    const longitude = Number(point.longitude);
+                    const marker = window.L.circleMarker([latitude, longitude], {
+                        radius: 8,
+                        weight: 2,
+                        color: "#3158d1",
+                        fillColor: "#5478ed",
+                        fillOpacity: 0.7
+                    }).addTo(loginMap);
+                    marker.bindPopup(popupContent(point));
+                    loginMarkers.push(marker);
+                    bounds.push([latitude, longitude]);
+                }
+
+                if (bounds.length > 1) {
+                    loginMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+                } else {
+                    loginMap.setView(bounds[0], 10);
+                }
+            }
+
+            function focusPoint(latitude, longitude) {
+                const box = $("map");
+                if (!box || box.hidden) {
+                    return;
+                }
+                box.scrollIntoView({ behavior: "smooth", block: "center" });
+                if (!loginMap) {
+                    return;
+                }
+                loginMap.setView([latitude, longitude], 12);
+                const marker = loginMarkers.find((item) => {
+                    const position = item.getLatLng();
+                    return position.lat === latitude && position.lng === longitude;
+                });
+                if (marker) {
+                    marker.openPopup();
+                }
+            }
+
+            function render(account) {
+                if (!GEO) {
+                    showError("位置组件没有加载成功，请刷新页面。");
+                    return;
+                }
+                const history = sortNewest(account && account.loginHistory);
+                const list = $("list");
+                const empty = $("empty");
+                const count = $("places-count");
+                const points = history.filter((entry) => GEO.hasCoords(entry));
+
+                list.textContent = "";
+                count.textContent = history.length ? `共 ${history.length} 条` : "";
+                empty.hidden = history.length > 0;
+
+                for (const entry of history) {
+                    const item = document.createElement("article");
+                    item.className = "record";
+
+                    const main = document.createElement("div");
+                    main.className = "record-main";
+
+                    const title = document.createElement("p");
+                    title.className = "record-title";
+                    title.textContent = GEO.describe(entry);
+                    main.appendChild(title);
+
+                    const ip = document.createElement("p");
+                    ip.className = "record-description";
+                    ip.textContent = `公网 IP：${entry.ip || "未知"}`;
+                    main.appendChild(ip);
+
+                    const hasCoords = GEO.hasCoords(entry);
+                    if (hasCoords) {
+                        const coords = document.createElement("p");
+                        coords.className = "coords";
+                        coords.textContent = `纬度 ${Number(entry.latitude).toFixed(4)} · 经度 ${Number(entry.longitude).toFixed(4)}`;
+                        main.appendChild(coords);
+                    }
+
+                    const meta = [entry.time, entry.isp].filter(Boolean).join(" · ");
+                    if (meta) {
+                        const metaNode = document.createElement("p");
+                        metaNode.className = "record-meta";
+                        metaNode.textContent = meta;
+                        main.appendChild(metaNode);
+                    }
+
+                    item.appendChild(main);
+
+                    if (hasCoords) {
+                        const latitude = Number(entry.latitude);
+                        const longitude = Number(entry.longitude);
+                        const button = document.createElement("button");
+                        button.type = "button";
+                        button.textContent = "地图";
+                        button.addEventListener("click", () => focusPoint(latitude, longitude));
+                        item.appendChild(button);
+                    }
+
+                    list.appendChild(item);
+                }
+
+                renderMap(points);
+            }
+
+            async function boot() {
+                if (!API || !API.hasSession()) {
+                    location.replace("login.html?next=loginplaces.html");
+                    return;
+                }
+                try {
+                    const data = await API.me();
+                    render(data.account);
+                } catch (error) {
+                    if (error && error.status === 401) {
+                        API.clearSession();
+                        location.replace("login.html?next=loginplaces.html");
+                        return;
+                    }
+                    showError(error && error.message ? error.message : "登录位置读取失败，请稍后重试。");
+                }
+            }
+
+            $("refresh-btn").addEventListener("click", async () => {
+                const button = $("refresh-btn");
+                button.disabled = true;
+                button.textContent = "刷新中…";
+                try {
+                    const data = await API.me();
+                    render(data.account);
+                    showError("");
+                } catch (error) {
+                    showError(error && error.message ? error.message : "刷新失败，请稍后重试。");
+                } finally {
+                    button.disabled = false;
+                    button.textContent = "刷新";
+                }
+            });
+
+            boot();
+        })();
+    </script>
+    
+</body>
+</html>

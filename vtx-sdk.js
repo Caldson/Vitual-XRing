@@ -288,7 +288,7 @@
         });
     }
 
-    /* 10.0.1：分享生态的只读 / 创建卡片接口（上传与定价购买请用完整版 vtx-api.js） */
+    /* 10.0.2：分享生态的只读 / 创建卡片接口（上传与定价购买请用完整版 vtx-api.js） */
     function socialRequest(path, options) {
         return request(`/api/social${path}`, options);
     }

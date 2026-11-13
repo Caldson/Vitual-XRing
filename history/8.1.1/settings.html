@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><script src="../api-bridge.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f3f6fb">
+    <title>设置 · Vitual XRing</title>
+    <link rel="stylesheet" href="vtx-theme.css?v=8.1.1">
+    <script src="vtx-theme.js?v=8.1.1"></script>
+    <style>
+        .settings-shell { width: min(100% - 40px, 900px); margin: 0 auto; padding: 34px 0 80px; }
+        .settings-kicker { margin: 0 0 8px; color: var(--vtx-accent); font-size: 11.5px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+        .settings-title { margin: 0; font-size: clamp(34px, 6vw, 56px); letter-spacing: -.055em; line-height: 1.03; }
+        .settings-sub { max-width: 620px; margin: 14px 0 26px; color: var(--vtx-muted); font-size: 14px; line-height: 1.75; }
+        .settings-card { margin-top: 16px; padding: 22px; border-radius: var(--vtx-radius); box-shadow: var(--vtx-shadow-soft); }
+        .glass-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 15px; border: 1px solid var(--vtx-border); border-radius: 13px; background: var(--vtx-surface-soft); }
+        .glass-toggle-row b { display: block; font-size: 13px; }
+        .glass-toggle-row span { display: block; margin-top: 3px; color: var(--vtx-muted); font-size: 11.5px; line-height: 1.5; }
+        .switch { position: relative; width: 42px; height: 24px; flex: 0 0 auto; }
+        .switch input { position: absolute; opacity: 0; pointer-events: none; }
+        .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--vtx-border-strong); transition: background 160ms; }
+        .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.2); transition: transform 160ms; }
+        .switch input:checked + span { background: var(--vtx-accent); }
+        .switch input:checked + span::after { transform: translateX(18px); }
+        .range-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+        .range-card { padding: 14px; border: 1px solid var(--vtx-border); border-radius: 13px; background: var(--vtx-surface-soft); }
+        .range-card label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 800; }
+        .range-card output { color: var(--vtx-accent); font-size: 12px; font-weight: 850; }
+        .range-card input[type="range"] { width: 100%; margin-top: 10px; accent-color: var(--vtx-accent); }
+        .range-card small { display: block; margin-top: 6px; color: var(--vtx-faint); font-size: 10.5px; line-height: 1.5; }
+        .glass-preview { position: relative; margin-top: 12px; padding: 18px; overflow: hidden; border-radius: 15px; border: 1px solid rgb(var(--vtx-glass-border) / .5); background: linear-gradient(135deg, color-mix(in srgb, var(--vtx-accent) 22%, transparent), color-mix(in srgb, var(--vtx-accent-2) 18%, transparent)); }
+        .glass-preview::before { content: ""; position: absolute; width: 100px; height: 100px; right: -10px; top: -28px; border-radius: 50%; background: color-mix(in srgb, var(--vtx-accent) 55%, transparent); filter: blur(9px); }
+        .glass-preview-panel { position: relative; z-index: 1; padding: 14px; border-radius: 13px; border: 1px solid rgb(var(--vtx-glass-border) / .55); background: rgb(var(--vtx-glass-rgb) / var(--vtx-glass-alpha)); -webkit-backdrop-filter: blur(var(--vtx-glass-blur)); backdrop-filter: blur(var(--vtx-glass-blur)); }
+        .glass-preview-panel b { display: block; font-size: 13px; }
+        .glass-preview-panel p { margin: 4px 0 0; color: var(--vtx-muted); font-size: 11.5px; }
+        .settings-card-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+        .settings-card h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+        .settings-card-head p { margin: 4px 0 0; color: var(--vtx-muted); font-size: 12.5px; line-height: 1.6; }
+        .option-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .option { position: relative; display: flex; flex-direction: column; gap: 6px; min-height: 116px; padding: 14px; border: 2px solid var(--vtx-border); border-radius: 14px; background: var(--vtx-surface-soft); cursor: pointer; transition: border-color 160ms, background 160ms, transform 160ms; }
+        .option:hover { border-color: var(--vtx-border-strong); transform: translateY(-1px); }
+        .option:has(input:checked) { border-color: var(--vtx-accent); background: var(--vtx-accent-soft); }
+        .option input { position: absolute; opacity: 0; pointer-events: none; }
+        .option-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--vtx-surface); color: var(--vtx-accent); font-size: 18px; }
+        .option b { font-size: 13.5px; }
+        .option span.option-hint { color: var(--vtx-muted); font-size: 11.5px; line-height: 1.5; }
+        .option .option-check { position: absolute; top: 12px; right: 12px; width: 17px; height: 17px; border: 2px solid var(--vtx-border-strong); border-radius: 999px; background: var(--vtx-surface); }
+        .option:has(input:checked) .option-check { border-color: var(--vtx-accent); background: radial-gradient(circle, var(--vtx-accent) 0 42%, transparent 45%); }
+        .language-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .language-grid .option { min-height: 92px; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .status-box { padding: 14px 16px; border: 1px solid var(--vtx-border); border-radius: 13px; background: var(--vtx-surface-soft); }
+        .status-box span { display: block; color: var(--vtx-muted); font-size: 11.5px; font-weight: 700; }
+        .status-box b { display: block; margin-top: 4px; font-size: 16px; }
+        .status-box small { display: block; margin-top: 2px; color: var(--vtx-faint); font-size: 11px; }
+        .settings-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+        .settings-note { margin: 10px 0 0; color: var(--vtx-faint); font-size: 11.5px; line-height: 1.7; }
+        .save-state { color: var(--vtx-accent-2); font-size: 12px; font-weight: 800; opacity: 0; transition: opacity 160ms; }
+        .save-state.show { opacity: 1; }
+        .settings-preview { margin-top: 16px; padding: 16px; border: 1px dashed var(--vtx-border-strong); border-radius: 13px; background: var(--vtx-surface-soft); }
+        .settings-preview b { display: block; font-size: 13px; }
+        .settings-preview p { margin: 5px 0 0; color: var(--vtx-muted); font-size: 12px; line-height: 1.65; }
+        .settings-preview-actions { display: flex; gap: 8px; margin-top: 10px; }
+        @media (max-width: 700px) { .option-grid { grid-template-columns: 1fr; } .language-grid { grid-template-columns: 1fr 1fr; } .status-grid, .range-grid { grid-template-columns: 1fr; } .settings-card { padding: 17px; } }
+        @media (max-width: 440px) { .language-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body data-vtx-widget="off" data-i18n-document-title="document.settings">
+    <header class="vtx-topbar"><script src="../api-bridge.js"></script>
+        <a class="vtx-brand" href="index.html">
+            <img src="XRingLogo-V.png?v=8.1.1" alt="Vitual XRing" width="38" height="38">
+            <span data-i18n="brand">Vitual XRing</span>
+        </a>
+        <nav class="vtx-nav">
+            <a href="index.html" data-i18n="nav.home">首页</a>
+            <a href="xos.html" data-i18n="nav.xos">XOS 云电脑</a>
+            <a href="shop.html" data-i18n="nav.shop">商店</a>
+            <a href="settings.html" class="is-active" data-i18n="nav.settings">设置</a>
+        </nav>
+        <div class="vtx-top-actions">
+            <a class="vtx-chip" href="index.html" data-i18n="settings.back">返回首页</a>
+        </div>
+    </header>
+
+    <main class="settings-shell">
+        <p class="settings-kicker" data-i18n="settings.kicker">界面偏好</p>
+        <h1 class="settings-title" data-i18n="settings.title">设置</h1>
+        <p class="settings-sub" data-i18n="settings.subtitle">主题、语言和显示偏好会保存在本机，并立即生效。</p>
+
+        <section class="settings-card vtx-glass">
+            <div class="settings-card-head">
+                <div><h2 data-i18n="settings.appearance">外观</h2><p data-i18n="settings.appearanceDesc">自动模式跟随设备的浅色 / 深色设置。</p></div>
+            </div>
+            <div class="option-grid" role="radiogroup" aria-label="Theme">
+                <label class="option">
+                    <input type="radio" name="theme" value="auto">
+                    <span class="option-icon">◐</span>
+                    <b data-i18n="settings.themeAuto">自动</b>
+                    <span class="option-hint" data-i18n="settings.themeAutoHint">跟随设备</span>
+                    <span class="option-check"></span>
+                </label>
+                <label class="option">
+                    <input type="radio" name="theme" value="light">
+                    <span class="option-icon">☀</span>
+                    <b data-i18n="settings.themeLight">浅色</b>
+                    <span class="option-hint" data-i18n="settings.themeLightHint">始终明亮</span>
+                    <span class="option-check"></span>
+                </label>
+                <label class="option">
+                    <input type="radio" name="theme" value="dark">
+                    <span class="option-icon">☾</span>
+                    <b data-i18n="settings.themeDark">深色</b>
+                    <span class="option-hint" data-i18n="settings.themeDarkHint">始终暗色</span>
+                    <span class="option-check"></span>
+                </label>
+            </div>
+            <div class="settings-preview">
+                <b data-i18n="settings.preview">预览</b>
+                <p data-i18n="settings.previewText">这是一段界面预览。切换主题或语言后，所有支持的区域会立即更新。</p>
+                <div class="settings-preview-actions"><span class="vtx-chip"><strong>XOS</strong> 26H3 V2.1</span><span class="vtx-chip">VitualGit</span><span class="vtx-chip">Vuolingo</span></div>
+            </div>
+        </section>
+
+        <section class="settings-card vtx-glass">
+            <div class="settings-card-head">
+                <div><h2 data-i18n="settings.glass">液态玻璃</h2><p data-i18n="settings.glassDesc">调整玻璃表面的透明度和模糊强度；关闭后使用纯色表面。</p></div>
+            </div>
+            <div class="glass-toggle-row">
+                <div><b data-i18n="settings.glassEnabled">启用液态玻璃</b><span data-i18n="settings.glassEnableHint">让顶栏、卡片和悬浮组件呈现半透明玻璃质感</span></div>
+                <label class="switch"><input type="checkbox" id="glass-enabled"><span></span></label>
+            </div>
+            <div class="range-grid">
+                <div class="range-card">
+                    <label><span data-i18n="settings.glassOpacity">玻璃透明度</span><output id="glass-opacity-value">56%</output></label>
+                    <input type="range" id="glass-opacity" min="20" max="95" step="1" value="56">
+                    <small data-i18n="settings.glassOpacityHint">数值越低越透明</small>
+                </div>
+                <div class="range-card">
+                    <label><span data-i18n="settings.glassBlur">模糊强度</span><output id="glass-blur-value">18px</output></label>
+                    <input type="range" id="glass-blur" min="0" max="40" step="1" value="18">
+                    <small data-i18n="settings.glassBlurHint">数值越高背景越模糊</small>
+                </div>
+            </div>
+            <div class="glass-preview">
+                <div class="glass-preview-panel"><b data-i18n="settings.glassPreview">玻璃预览</b><p data-i18n="settings.glassPreviewText">拖动滑块，实时查看液态玻璃效果。</p></div>
+            </div>
+        </section>
+
+        <section class="settings-card vtx-glass">
+            <div class="settings-card-head">
+                <div><h2 data-i18n="settings.language">语言</h2><p data-i18n="settings.languageDesc">选择界面语言；跟随地区会依据设备时区判断。</p></div>
+            </div>
+            <div class="option-grid language-grid" role="radiogroup" aria-label="Language">
+                <label class="option"><input type="radio" name="language" value="auto"><span class="option-icon">◌</span><b data-i18n="settings.langAuto">跟随设备（默认）</b><span class="option-hint" data-i18n="settings.langAutoHint">使用浏览器语言</span><span class="option-check"></span></label>
+                <label class="option"><input type="radio" name="language" value="region"><span class="option-icon">⌖</span><b data-i18n="settings.langRegion">跟随地区</b><span class="option-hint" data-i18n="settings.langRegionHint">依据设备时区</span><span class="option-check"></span></label>
+                <label class="option"><input type="radio" name="language" value="zh-CN"><span class="option-icon">简</span><b data-i18n="settings.langZhCN">简体中文</b><span class="option-hint" data-i18n="settings.langZhCNHint">中国大陆</span><span class="option-check"></span></label>
+                <label class="option"><input type="radio" name="language" value="zh-TW"><span class="option-icon">繁</span><b data-i18n="settings.langZhTW">繁體中文</b><span class="option-hint" data-i18n="settings.langZhTWHint">台灣 / 香港 / 澳門</span><span class="option-check"></span></label>
+                <label class="option"><input type="radio" name="language" value="en"><span class="option-icon">A</span><b data-i18n="settings.langEn">English</b><span class="option-hint" data-i18n="settings.langEnHint">English interface</span><span class="option-check"></span></label>
+                <label class="option"><input type="radio" name="language" value="ja"><span class="option-icon">あ</span><b data-i18n="settings.langJa">日本語</b><span class="option-hint" data-i18n="settings.langJaHint">日本語インターフェース</span><span class="option-check"></span></label>
+            </div>
+            <p class="settings-note" data-i18n="settings.languageNote">语言设置会影响全站导航、首页和设置页；各平台内部内容仍以原语言为准。</p>
+        </section>
+
+        <section class="settings-card vtx-glass">
+            <div class="settings-card-head"><div><h2 data-i18n="settings.current">当前生效</h2></div></div>
+            <div class="status-grid">
+                <div class="status-box"><span data-i18n="settings.currentTheme">主题</span><b id="current-theme">—</b><small id="current-theme-mode"></small></div>
+                <div class="status-box"><span data-i18n="settings.currentLanguage">语言</span><b id="current-language">—</b><small id="current-language-mode"></small></div>
+            </div>
+            <div class="settings-actions">
+                <button class="vtx-btn" type="button" id="reset-settings" data-i18n="settings.reset">恢复默认</button>
+                <span class="save-state" id="save-state" data-i18n="settings.saved">设置已保存。</span>
+            </div>
+            <p class="settings-note" data-i18n="settings.resetHint">恢复为跟随设备和自动主题。</p>
+        </section>
+    </main>
+
+    
+    <script>
+        (function () {
+            "use strict";
+            const themeInputs = [...document.querySelectorAll('input[name="theme"]')];
+            const languageInputs = [...document.querySelectorAll('input[name="language"]')];
+            const glassEnabled = document.getElementById("glass-enabled");
+            const glassOpacity = document.getElementById("glass-opacity");
+            const glassBlur = document.getElementById("glass-blur");
+            const glassOpacityValue = document.getElementById("glass-opacity-value");
+            const glassBlurValue = document.getElementById("glass-blur-value");
+            const saveState = document.getElementById("save-state");
+            const modeLabel = (mode, type) => {
+                if (type === "theme") {
+                    if (mode === "auto") return VTXTheme.t("settings.themeAuto");
+                    if (mode === "light") return VTXTheme.t("settings.themeLight");
+                    return VTXTheme.t("settings.themeDark");
+                }
+                if (mode === "auto") return VTXTheme.t("settings.langAuto");
+                if (mode === "region") return VTXTheme.t("settings.langRegion");
+                const names = { "zh-CN": "settings.langZhCN", "zh-TW": "settings.langZhTW", en: "settings.langEn", ja: "settings.langJa" };
+                return VTXTheme.t(names[mode] || "settings.langAuto");
+            };
+            const languageName = (code) => {
+                const names = { "zh-CN": "settings.langZhCN", "zh-TW": "settings.langZhTW", en: "settings.langEn", ja: "settings.langJa" };
+                return VTXTheme.t(names[code] || "settings.langAuto");
+            };
+            function showSaved() {
+                saveState.classList.add("show");
+                clearTimeout(showSaved.timer);
+                showSaved.timer = setTimeout(() => saveState.classList.remove("show"), 1800);
+            }
+            function syncGlass() {
+                const value = VTXTheme.getGlass();
+                glassEnabled.checked = value.enabled;
+                glassOpacity.value = Math.round(value.opacity * 100);
+                glassBlur.value = value.blur;
+                glassOpacityValue.textContent = Math.round(value.opacity * 100) + "%";
+                glassBlurValue.textContent = value.blur + "px";
+            }
+            function sync() {
+                themeInputs.forEach((input) => { input.checked = input.value === VTXTheme.getThemeMode(); });
+                languageInputs.forEach((input) => { input.checked = input.value === VTXTheme.getLanguageMode(); });
+                const theme = VTXTheme.getEffectiveTheme();
+                document.getElementById("current-theme").textContent = VTXTheme.t(theme === "dark" ? "theme.dark" : "theme.light");
+                document.getElementById("current-theme-mode").textContent = modeLabel(VTXTheme.getThemeMode(), "theme");
+                const language = VTXTheme.getEffectiveLanguage();
+                document.getElementById("current-language").textContent = languageName(language);
+                document.getElementById("current-language-mode").textContent = modeLabel(VTXTheme.getLanguageMode(), "language");
+            }
+            themeInputs.forEach((input) => input.addEventListener("change", () => {
+                if (!input.checked) return;
+                VTXTheme.setTheme(input.value);
+                sync();
+                showSaved();
+            }));
+            languageInputs.forEach((input) => input.addEventListener("change", () => {
+                if (!input.checked) return;
+                VTXTheme.setLanguage(input.value);
+                sync();
+                showSaved();
+            }));
+            glassEnabled.addEventListener("change", () => {
+                VTXTheme.setGlass({ enabled: glassEnabled.checked });
+                showSaved();
+            });
+            glassOpacity.addEventListener("input", () => {
+                VTXTheme.setGlass({ opacity: Number(glassOpacity.value) / 100 });
+                showSaved();
+            });
+            glassBlur.addEventListener("input", () => {
+                VTXTheme.setGlass({ blur: Number(glassBlur.value) });
+                showSaved();
+            });
+            document.getElementById("reset-settings").addEventListener("click", () => {
+                VTXTheme.setTheme("auto");
+                VTXTheme.setLanguage("auto");
+                VTXTheme.setGlass({ enabled: true, opacity: 0.56, blur: 18 });
+                sync();
+                showSaved();
+            });
+            window.addEventListener("vtx:themechange", sync);
+            window.addEventListener("vtx:languagechange", sync);
+            window.addEventListener("vtx:glasschange", syncGlass);
+            sync();
+            syncGlass();
+        })();
+    </script>
+</body>
+</html>
