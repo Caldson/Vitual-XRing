@@ -320,3 +320,12 @@ body[data-vtx-widget="off"] .vtx-theme-widget { display: none; }
 [data-theme="dark"] .xos-preview {
     color: #f3f7ff;
 }
+
+/* 9.6.0：全站品牌 V 图标统一为原始纯色蓝底白字，移除各页面的渐变覆盖。 */
+.brand-mark {
+    background: #3867e8 !important;
+    background-image: none !important;
+    color: #ffffff !important;
+    box-shadow: 0 6px 18px rgba(56, 103, 232, .24) !important;
+}
+

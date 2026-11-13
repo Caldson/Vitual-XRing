@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 9.5.1 — 全站 BGM 播放器 + 听歌赚钱
+ * Vitual XRing 9.6.0 — 全站 BGM 播放器 + 听歌赚钱
  *
  * - 由 vtx-theme.js 自动加载，不需要每个页面单独引 script；
  * - 右下角常驻一个可折叠播放器，目前 1 首 BGM；
@@ -32,7 +32,7 @@
     ];
     let apiLoading = null;
 
-    /* 9.5.1：首页 / 商店等页面不一定加载 vtx-api.js。播放器按需补上，
+    /* 9.6.0：首页 / 商店等页面不一定加载 vtx-api.js。播放器按需补上，
        否则登录检测和听歌奖励只在聊天室 / 账户页有效。 */
     function ensureApi() {
         if (window.VTXApi) return Promise.resolve(window.VTXApi);
@@ -357,28 +357,121 @@
         sessionStarted = false;
     }
 
-    function playOpening() {
-        if (!/manager\.html$/i.test(location.pathname)) return;
+    function resumeSavedPlayback() {
+        const saved = Number(read(KEY_TIME, "0")) || 0;
+        load(playingIndex, false);
+        const begin = () => {
+            if (saved > 0 && audio.duration && saved < audio.duration - 2) {
+                try { audio.currentTime = saved; } catch (error) { /* ignore */ }
+            }
+            play();
+        };
+        if (audio.readyState >= 1) begin();
+        else audio.addEventListener("loadedmetadata", begin, { once: true });
+    }
+
+    function injectOpeningStyle() {
+        if (el("vtx-opening-style")) return;
+        const style = document.createElement("style");
+        style.id = "vtx-opening-style";
+        style.textContent = `
+            body.vtx-opening-open { overflow: hidden; }
+            #vtx-opening { position: fixed; inset: 0; z-index: 30000; display: grid; place-items: center; overflow: hidden; color: #fff; background: radial-gradient(circle at 50% 38%, #1d3fa8 0%, #101c3c 42%, #070c18 100%); opacity: 1; transition: opacity 420ms ease; }
+            #vtx-opening.closing { opacity: 0; pointer-events: none; }
+            .vtx-opening-bg { position: absolute; inset: -20%; background: radial-gradient(circle at 20% 20%, rgba(80,130,255,.24), transparent 36%), radial-gradient(circle at 80% 76%, rgba(25,184,166,.18), transparent 34%); animation: vtx-opening-bg 8s ease-in-out infinite alternate; }
+            .vtx-opening-ring { position: absolute; border: 1px solid rgba(150,185,255,.18); border-radius: 50%; }
+            .vtx-opening-ring.r1 { width: 420px; height: 420px; animation: vtx-opening-spin 16s linear infinite; }
+            .vtx-opening-ring.r2 { width: 620px; height: 620px; border-style: dashed; opacity: .6; animation: vtx-opening-spin 26s linear reverse infinite; }
+            .vtx-opening-card { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 20px; }
+            .vtx-opening-mark { width: 96px; height: 96px; display: grid; place-items: center; border-radius: 26px; background: #3867e8; color: #fff; font-size: 50px; font-weight: 900; box-shadow: 0 20px 60px rgba(56,103,232,.5), inset 0 1px 0 rgba(255,255,255,.35); animation: vtx-opening-pop 900ms cubic-bezier(.16,1,.3,1) both; }
+            .vtx-opening-word { font-size: clamp(26px, 4.4vw, 44px); font-weight: 850; letter-spacing: -.045em; animation: vtx-opening-up 700ms 260ms both; }
+            .vtx-opening-sub { color: rgba(205,220,255,.62); font-size: 12px; letter-spacing: .22em; text-transform: uppercase; animation: vtx-opening-up 700ms 420ms both; }
+            .vtx-opening-bar { width: min(260px, 62vw); height: 3px; margin-top: 10px; border-radius: 999px; background: rgba(255,255,255,.16); overflow: hidden; }
+            .vtx-opening-bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6d8dff, #19d3c5); animation: vtx-opening-progress 10s linear forwards; }
+            .vtx-opening-skip { position: absolute; right: max(20px, env(safe-area-inset-right, 0px)); bottom: max(22px, env(safe-area-inset-bottom, 0px)); z-index: 2; padding: 8px 15px; border: 1px solid rgba(190,210,255,.32); border-radius: 999px; background: rgba(16,28,60,.5); color: rgba(225,235,255,.82); font: inherit; font-size: 12px; cursor: pointer; backdrop-filter: blur(8px); }
+            .vtx-opening-skip:hover { background: rgba(35,58,110,.7); color: #fff; }
+            @keyframes vtx-opening-pop { from { opacity: 0; transform: scale(.72) rotate(-7deg); } to { opacity: 1; transform: none; } }
+            @keyframes vtx-opening-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+            @keyframes vtx-opening-progress { from { width: 0; } to { width: 100%; } }
+            @keyframes vtx-opening-spin { to { transform: rotate(360deg); } }
+            @keyframes vtx-opening-bg { from { transform: scale(1) translate3d(-1%, -1%, 0); } to { transform: scale(1.08) translate3d(2%, 1%, 0); } }
+            @media (prefers-reduced-motion: reduce) { .vtx-opening-bg, .vtx-opening-ring, .vtx-opening-mark, .vtx-opening-word, .vtx-opening-sub { animation: none !important; } }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function cameFromSite() {
+        try {
+            const referrer = document.referrer || "";
+            if (!referrer) return false;
+            return new URL(referrer).hostname === "xsmmc.caldson.us.ci";
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function openingOverlay(short, audioEl) {
+        injectOpeningStyle();
+        const old = el("vtx-opening");
+        if (old) old.remove();
+        const overlay = document.createElement("div");
+        overlay.id = "vtx-opening";
+        overlay.setAttribute("role", "dialog");
+        overlay.setAttribute("aria-label", "Vitual XRing 开场");
+        overlay.innerHTML = `
+            <div class="vtx-opening-bg"></div>
+            <div class="vtx-opening-ring r1"></div>
+            <div class="vtx-opening-ring r2"></div>
+            <div class="vtx-opening-card">
+                <div class="vtx-opening-mark">V</div>
+                <div class="vtx-opening-word">Vitual XRing</div>
+                <div class="vtx-opening-sub">XRing Studios</div>
+                <div class="vtx-opening-bar"><i></i></div>
+            </div>
+            <button type="button" class="vtx-opening-skip" id="vtx-opening-skip">跳过开场</button>`;
+        document.body.appendChild(overlay);
+        document.body.classList.add("vtx-opening-open");
+        const bar = overlay.querySelector(".vtx-opening-bar i");
+        if (bar && !short) bar.style.animationDuration = "20s";
+        let closed = false;
+        const finish = (resume) => {
+            if (closed) return;
+            closed = true;
+            try { if (audioEl) audioEl.pause(); } catch (error) { /* ignore */ }
+            overlay.classList.add("closing");
+            setTimeout(() => {
+                overlay.remove();
+                document.body.classList.remove("vtx-opening-open");
+            }, 450);
+            document.removeEventListener("keydown", onKey);
+            if (resume && read(KEY_PLAYING, "0") === "1") resumeSavedPlayback();
+        };
+        const onKey = (event) => { if (event.key === "Escape") finish(true); };
+        document.addEventListener("keydown", onKey);
+        overlay.querySelector("#vtx-opening-skip").addEventListener("click", () => finish(true));
+        if (short) setTimeout(() => finish(true), 10000);
+        else if (audioEl) {
+            audioEl.addEventListener("ended", () => finish(true), { once: true });
+            setTimeout(() => finish(true), 75000);
+        }
+        return finish;
+    }
+
+    function maybePlayOpening() {
+        if (!/manager\.html$/i.test(location.pathname)) return false;
+        if (read("vtx:opening:enabled", "1") === "0") return false;
+        if (!cameFromSite()) return false;
+        const last = Number(read("vtx:opening:last", "0")) || 0;
+        if (last && Date.now() - last < 2 * 60 * 60 * 1000) return false;
+        write("vtx:opening:last", Date.now());
+        const short = read("vtx:opening:short", "1") !== "0";
         const wasPlaying = read(KEY_PLAYING, "0") === "1";
         const opening = new Audio(OPENING_SRC);
         openingAudio = opening;
         opening.volume = Math.min(0.8, Math.max(0.2, audio ? audio.volume : 0.65));
+        const finish = openingOverlay(short, opening);
         const attempt = opening.play();
         window.__vtxBgmOpeningAttempt = "called";
-        const resumeBgm = () => {
-            if (!wasPlaying) return;
-            const saved = Number(read(KEY_TIME, "0")) || 0;
-            load(playingIndex, false);
-            const begin = () => {
-                if (saved > 0 && audio.duration && saved < audio.duration - 2) {
-                    try { audio.currentTime = saved; } catch (error) { /* ignore */ }
-                }
-                play();
-            };
-            if (audio.readyState >= 1) begin();
-            else audio.addEventListener("loadedmetadata", begin, { once: true });
-        };
-        opening.addEventListener("ended", resumeBgm, { once: true });
         if (attempt && attempt.catch) {
             attempt.then(() => { window.__vtxBgmOpeningAttempt = "playing"; }).catch((error) => {
                 window.__vtxBgmOpeningAttempt = "blocked:" + (error && error.name);
@@ -387,29 +480,22 @@
                 }, { once: true });
             });
         }
+        window.__vtxOpeningFinish = finish;
+        return { wasPlaying };
     }
 
     function boot() {
         if (!document.body) return;
         injectStyle();
         build();
-        playOpening();
+        const opening = maybePlayOpening();
         window.__vtxBgm = { get audio() { return audio; }, get opening() { return openingAudio; } };
 
         /* 之前正在播放的话，换页后尝试续播；浏览器拦自动播放时等用户第一次点击。 */
         const wantedPlaying = read(KEY_PLAYING, "0") === "1";
         const onManager = /manager\.html$/i.test(location.pathname);
-        if (wantedPlaying && !onManager) {
-            const savedTime = Number(read(KEY_TIME, "0")) || 0;
-            load(playingIndex, false);
-            const begin = () => {
-                if (savedTime > 0 && audio.duration && savedTime < audio.duration - 2) {
-                    try { audio.currentTime = savedTime; } catch (error) { /* ignore */ }
-                }
-                play();
-            };
-            if (audio.readyState >= 1) begin();
-            else audio.addEventListener("loadedmetadata", begin, { once: true });
+        if (wantedPlaying && (!onManager || !opening)) {
+            resumeSavedPlayback();
         }
     }
 

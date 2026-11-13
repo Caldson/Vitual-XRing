@@ -1,5 +1,5 @@
 {
-    "version": "9.5.1",
-    "updatedAt": "2026-11-12T22:35:00+08:00",
-    "notes": "BGM player fixes: safe balances, reward payload and playback resume"
+    "version": "9.6.0",
+    "updatedAt": "2026-11-13T17:48:42+08:00",
+    "notes": "Opening animation and sound controls, solid V brand mark and topbar cleanup"
 }

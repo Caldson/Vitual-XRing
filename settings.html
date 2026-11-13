@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f3f6fb">
     <title>设置 · Vitual XRing</title>
-    <link rel="stylesheet" href="vtx-theme.css?v=9.5.1">
-    <script src="vtx-theme.js?v=9.5.1"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=9.6.0">
+    <script src="vtx-theme.js?v=9.6.0"></script>
     <style>
         .settings-shell { width: min(100% - 40px, 900px); margin: 0 auto; padding: 34px 0 80px; }
         .settings-kicker { margin: 0 0 8px; color: var(--vtx-accent); font-size: 11.5px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
@@ -68,7 +68,7 @@
 <body data-vtx-widget="off" data-i18n-document-title="document.settings">
     <header class="vtx-topbar">
         <a class="vtx-brand" href="index.html">
-            <img src="XRingLogo-V.png?v=9.5.1" alt="Vitual XRing" width="38" height="38">
+            <img src="XRingLogo-V.png?v=9.6.0" alt="Vitual XRing" width="38" height="38">
             <span data-i18n="brand">Vitual XRing</span>
         </a>
         <nav class="vtx-nav">
@@ -148,6 +148,21 @@
 
         <section class="settings-card vtx-glass">
             <div class="settings-card-head">
+                <div><h2>开场动画与音效</h2><p>从 xsmmc.caldson.us.ci 的页面进入账户页时播放；每 2 小时最多触发一次。</p></div>
+            </div>
+            <div class="glass-toggle-row">
+                <div><b>播放开场动画与音效</b><span>关闭后从站内进入账户页不再播放 Opening 音效和开场动画。</span></div>
+                <label class="switch"><input type="checkbox" id="opening-enabled" checked><span></span></label>
+            </div>
+            <div class="glass-toggle-row" style="margin-top:10px;">
+                <div><b>不播放完整动画</b><span>开启时播放 10 秒后自动跳过；关闭后播放完整开场动画。</span></div>
+                <label class="switch"><input type="checkbox" id="opening-short" checked><span></span></label>
+            </div>
+            <p class="settings-note">播放过程中随时可以点「跳过开场」；直接从外部链接打开账户页不会播放。</p>
+        </section>
+
+        <section class="settings-card vtx-glass">
+            <div class="settings-card-head">
                 <div><h2 data-i18n="settings.language">语言</h2><p data-i18n="settings.languageDesc">选择界面语言；跟随地区会依据设备时区判断。</p></div>
             </div>
             <div class="option-grid language-grid" role="radiogroup" aria-label="Language">
@@ -175,7 +190,7 @@
         </section>
     </main>
 
-    <script src="vtx-pwa.js?v=9.5.1" defer></script>
+    <script src="vtx-pwa.js?v=9.6.0" defer></script>
     <script>
         (function () {
             "use strict";
@@ -186,6 +201,8 @@
             const glassBlur = document.getElementById("glass-blur");
             const glassOpacityValue = document.getElementById("glass-opacity-value");
             const glassBlurValue = document.getElementById("glass-blur-value");
+            const openingEnabled = document.getElementById("opening-enabled");
+            const openingShort = document.getElementById("opening-short");
             const saveState = document.getElementById("save-state");
             const modeLabel = (mode, type) => {
                 if (type === "theme") {
@@ -215,6 +232,18 @@
                 glassOpacityValue.textContent = Math.round(value.opacity * 100) + "%";
                 glassBlurValue.textContent = value.blur + "px";
             }
+            function readOpening(key, fallback) {
+                try {
+                    const value = localStorage.getItem(key);
+                    return value === null ? fallback : value;
+                } catch (error) {
+                    return fallback;
+                }
+            }
+            function syncOpening() {
+                openingEnabled.checked = readOpening("vtx:opening:enabled", "1") !== "0";
+                openingShort.checked = readOpening("vtx:opening:short", "1") !== "0";
+            }
             function sync() {
                 themeInputs.forEach((input) => { input.checked = input.value === VTXTheme.getThemeMode(); });
                 languageInputs.forEach((input) => { input.checked = input.value === VTXTheme.getLanguageMode(); });
@@ -241,6 +270,14 @@
                 VTXTheme.setGlass({ enabled: glassEnabled.checked });
                 showSaved();
             });
+            openingEnabled.addEventListener("change", () => {
+                try { localStorage.setItem("vtx:opening:enabled", openingEnabled.checked ? "1" : "0"); } catch (error) { /* ignore */ }
+                showSaved();
+            });
+            openingShort.addEventListener("change", () => {
+                try { localStorage.setItem("vtx:opening:short", openingShort.checked ? "1" : "0"); } catch (error) { /* ignore */ }
+                showSaved();
+            });
             glassOpacity.addEventListener("input", () => {
                 VTXTheme.setGlass({ opacity: Number(glassOpacity.value) / 100 });
                 showSaved();
@@ -253,7 +290,12 @@
                 VTXTheme.setTheme("auto");
                 VTXTheme.setLanguage("auto");
                 VTXTheme.setGlass({ enabled: true, opacity: 0.56, blur: 18 });
+                try {
+                    localStorage.setItem("vtx:opening:enabled", "1");
+                    localStorage.setItem("vtx:opening:short", "1");
+                } catch (error) { /* ignore */ }
                 sync();
+                syncOpening();
                 showSaved();
             });
             window.addEventListener("vtx:themechange", sync);
@@ -261,6 +303,7 @@
             window.addEventListener("vtx:glasschange", syncGlass);
             sync();
             syncGlass();
+            syncOpening();
         })();
     </script>
 </body>
