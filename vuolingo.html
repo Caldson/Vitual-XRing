@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#58cc02">
     <title>Vuolingo | Vitual XRing</title>
-    <script src="vtx-api.js?v=10.0.2"></script>
+    <script src="vtx-api.js?v=10.1.0"></script>
     <style>
         :root { color-scheme: light; font-family: "Nunito", "Segoe UI", "Microsoft YaHei", sans-serif; --green: #58cc02; --green-dark: #46a302; --blue: #1cb0f6; --ink: #3c3c3c; --muted: #777; --line: #e5e5e5; --bg: #fff; }
         * { box-sizing: border-box; }
@@ -102,8 +102,8 @@
         .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
         @media (max-width: 680px) { .hero { display: block; } .hero-mascot { width: 100px; height: 100px; font-size: 48px; margin-top: 18px; } .word-grid, .options { grid-template-columns: 1fr; } .settings-card .type-grid { display: grid; grid-template-columns: 1fr 1fr; } }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=10.0.2">
-    <script src="vtx-theme.js?v=10.0.2"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=10.1.0">
+    <script src="vtx-theme.js?v=10.1.0"></script>
 </head>
 <body>
     <header class="topbar">
@@ -154,23 +154,25 @@
     <dialog id="language-dialog">
         <div class="dialog-card">
             <h2>添加语言</h2>
-            <p>当前支持英语和日语；更多语言将在后续版本加入。</p>
+            <p>当前支持英语、日语、中文（北京）和中文（上海）[Beta]；更多语言将在后续版本加入。</p>
             <div class="language-choices" id="dialog-choices"></div>
             <div class="dialog-actions"><button class="secondary-button" id="dialog-cancel" type="button">取消</button><button class="primary-button" id="dialog-confirm" type="button">添加</button></div>
         </div>
     </dialog>
 
-    <script src="vtx-pwa.js?v=10.0.2" defer></script>
+    <script src="vtx-pwa.js?v=10.1.0" defer></script>
     <script>
         (function () {
             "use strict";
             const LANGUAGES = {
                 en: { name: "英语", flag: "🇬🇧", speech: "en-US" },
-                ja: { name: "日语", flag: "🇯🇵", speech: "ja-JP" }
+                ja: { name: "日语", flag: "🇯🇵", speech: "ja-JP" },
+                "zh-BJ": { name: "中文（北京）", flag: "🇨🇳", speech: "zh-CN" },
+                "zh-SH": { name: "中文（上海）[Beta]", flag: "🇨🇳", speech: "zh-CN" }
             };
             const TYPE_LABELS = {
-                target2zh: "英/日译中",
-                zh2target: "中译英/日",
+                target2zh: "目标语言译中",
+                zh2target: "中译目标语言",
                 spell: "单词拼写",
                 listening: "听写",
                 shadowing: "跟读",
@@ -193,6 +195,29 @@
                 const english = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
                 const japanese = ["いち", "に", "さん", "よん", "ご", "ろく", "なな", "はち", "きゅう", "じゅう", "じゅういち", "じゅうに", "じゅうさん", "じゅうよん", "じゅうご", "じゅうろく", "じゅうなな", "じゅうはち", "じゅうきゅう", "にじゅう"];
                 const japaneseRomaji = ["ichi", "ni", "san", "yon", "go", "roku", "nana", "hachi", "kyuu", "juu", "juuichi", "juuni", "juusan", "juuyon", "juugo", "juuroku", "juunana", "juuhachi", "juukyuu", "nijuu"];
+                if (language === "zh-BJ") {
+                    const beijing = [
+                        ["幺", "yao", "一"], ["两", "liang", "二"], ["仨", "sa", "三"], ["四", "si", "四"],
+                        ["五", "wu", "五"], ["六", "liu", "六"], ["七", "qi", "七"], ["八", "ba", "八"],
+                        ["九", "jiu", "九"], ["十", "shi", "十"], ["十一", "shi-yi", "十一"], ["十二", "shi-er", "十二"],
+                        ["十三", "shi-san", "十三"], ["十四", "shi-si", "十四"], ["十五", "shi-wu", "十五"], ["十六", "shi-liu", "十六"],
+                        ["十七", "shi-qi", "十七"], ["十八", "shi-ba", "十八"], ["十九", "shi-jiu", "十九"], ["二十", "er-shi", "二十"]
+                    ].map(([target, romaji, cn]) => ({ target, romaji, zh: cn, kind: "word" }));
+                    const tens = [["十", "shi", "十"], ["二十", "er-shi", "二十"], ["三十", "san-shi", "三十"], ["四十", "si-shi", "四十"], ["五十", "wu-shi", "五十"], ["六十", "liu-shi", "六十"], ["七十", "qi-shi", "七十"], ["八十", "ba-shi", "八十"], ["九十", "jiu-shi", "九十"], ["一百", "yi-bai", "一百"]].map(([target, romaji, cn]) => ({ target, romaji, zh: cn, kind: "word" }));
+                    const groups = [
+                        beijing.slice(0, 4),
+                        beijing.slice(4, 8),
+                        beijing.slice(8, 12),
+                        beijing.slice(12, 16),
+                        [...beijing.slice(16, 20), ...tens]
+                    ];
+                    return groups.map((group, index) => ({
+                        id: `${language}-${index + 4}`,
+                        section: `第 1 节 · 第 ${index + 4} 课`,
+                        title: `让我们说数字 ${index + 1}`,
+                        words: uniqueWords([...group, ...tens.slice(0, 2)])
+                    }));
+                }
                 const words = language === "en"
                     ? english.map((word, index) => ({ target: word, zh: zh[index], kind: "word" }))
                     : japanese.map((word, index) => ({ target: word, romaji: japaneseRomaji[index], zh: zh[index], kind: "word" }));
@@ -234,6 +259,21 @@
                         { id: "ja-2", section: "第 1 节 · 第 2 课", title: "点食物与饮料", words: [["ごはん", "gohan", "米饭"], ["みず", "mizu", "水"], ["すし", "sushi", "寿司"], ["おちゃ", "ocha", "茶"], ["xxx、ください", "xxx kudasai", "请给我 xxx。"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: "word" })) },
                         { id: "ja-3", section: "第 1 节 · 第 3 课", title: "礼貌的打招呼", words: [["おはようございます", "ohayou gozaimasu", "早上好（礼貌）"], ["すみません", "sumimasen", "不好意思 / 对不起"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: "word" })) },
                         ...numberLessonObjects("ja")
+                    ]
+                },
+                "zh-BJ": {
+                    name: "中文（北京）", flag: "🇨🇳", unit: "第一阶段第 1 单元",
+                    lessons: [
+                        { id: "zh-BJ-1", section: "第 1 节 · 第 1 课", title: "打招呼", words: [["你好", "ni-hao", "你好"], ["早儿好", "za-r-hao", "早上好"], ["晚儿好", "wa-r-hao", "晚上好"], ["明儿见", "min-r-jian", "明天见"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: "word" })) },
+                        { id: "zh-BJ-2", section: "第 1 节 · 第 2 课", title: "点食物与饮料", words: [["饭", "fan", "饭"], ["水儿", "shu-r", "水"], ["寿司儿", "shou-se-r", "寿司"], ["茶鞥", "cha-hngr", "茶"], ["七儿给我儿个xxx呗", "qi-r-gei-wo-r-ge-xxx-bei", "请给我一个xxx"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: target.includes("xxx") ? "sentence" : "word" })) },
+                        { id: "zh-BJ-3", section: "第 1 节 · 第 3 课", title: "礼貌地点餐", words: [["七儿给我儿个xxx", "qi-r-gei-wo-r-ge-xxx", "请给我一个xxx（礼貌）"], ["劳儿驾鞥儿", "lao-r-jia-nr", "不好意思"], ["对不起", "dui-bu-qi", "对不起"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: target.includes("xxx") ? "sentence" : "word" })) },
+                        ...numberLessonObjects("zh-BJ")
+                    ]
+                },
+                "zh-SH": {
+                    name: "中文（上海）[Beta]", flag: "🇨🇳", unit: "第一阶段第 1 单元",
+                    lessons: [
+                        { id: "zh-SH-1", section: "第 1 节 · 第 1 课", title: "问候与小吃", words: [["小笼馒头", "xiao-lhong-mhou-dhou", "小笼包"], ["七", "qik", "吃"], ["伐", "fha", "吗"], ["侬", "nong", "你"]].map(([target, romaji, zh]) => ({ target, romaji, zh, kind: "word" })) }
                     ]
                 }
             };
@@ -505,15 +545,15 @@
                     exercisePrompt.textContent = displayTarget(entry);
                     renderChoiceOptions(entry.zh, activeLesson.words.map((item) => item.zh));
                 } else if (question.type === "zh2target") {
-                    exerciseTitle.textContent = "选择正确的英文/日文";
+                    exerciseTitle.textContent = "选择正确的目标语言";
                     exercisePrompt.textContent = entry.zh;
                     renderChoiceOptions(entry.target, activeLesson.words.map((item) => item.target), true);
                 } else if (question.type === "spell") {
-                    exerciseTitle.textContent = "拼写单词";
+                    exerciseTitle.textContent = "拼写目标语言";
                     exercisePrompt.textContent = entry.zh;
                     textRow.hidden = false;
                     textAnswer.value = "";
-                    textAnswer.placeholder = "输入英文/日文";
+                    textAnswer.placeholder = "输入目标语言";
                     textAnswer.focus();
                     checkAnswer.onclick = () => checkTextAnswer(entry.target);
                     textAnswer.onkeydown = (event) => { if (event.key === "Enter") checkTextAnswer(entry.target); };
@@ -522,7 +562,7 @@
                     exercisePrompt.textContent = "🔊";
                     textRow.hidden = false;
                     textAnswer.value = "";
-                    textAnswer.placeholder = "输入听到的英文/日文";
+                    textAnswer.placeholder = "输入听到的目标语言";
                     speak(entry.target, lang.speech);
                     const replay = document.createElement("button");
                     replay.type = "button";
@@ -546,7 +586,7 @@
                     exerciseTitle.textContent = "背诵";
                     exercisePrompt.textContent = entry.zh;
                     selfCard.hidden = false;
-                    selfCard.textContent = "先在心里背诵对应的英文/日文，再点击完成。";
+                    selfCard.textContent = "先在心里背诵对应的目标语言，再点击完成。";
                     const done = document.createElement("button");
                     done.type = "button";
                     done.className = "primary-button";

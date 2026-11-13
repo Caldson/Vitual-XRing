@@ -8,8 +8,8 @@
     <title>Viratch · 作品社区 | Vitual XRing</title>
     <!-- 停服守卫：停服期间任何页面都会跳到 WebsiteClose.html，时间表见 vtx-closed.js -->
     <script>document.write('<script src="vtx-closed.js?t=' + Date.now() + '"><\/script>');</script>
-    <script src="vtx-api.js?v=10.0.2"></script>
-    <script src="xring-social.js?v=10.0.2"></script>
+    <script src="vtx-api.js?v=10.1.0"></script>
+    <script src="xring-social.js?v=10.1.0"></script>
     <style>
         :root {
             color-scheme: light;
@@ -750,7 +750,7 @@
             gap: 8px;
         }
 
-        /* 10.0.2：创作页使用 TurboWarp 官方编辑器 */
+        /* 10.1.0：创作页使用 TurboWarp 官方编辑器 */
         .tw-head {
             display: flex;
             align-items: flex-end;
@@ -1636,8 +1636,8 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=10.0.2">
-    <script src="vtx-theme.js?v=10.0.2"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=10.1.0">
+    <script src="vtx-theme.js?v=10.1.0"></script>
 </head>
 <body>
     <header class="topbar">
@@ -1657,7 +1657,7 @@
 
         <div class="topbar-actions">
             <button class="btn ghost small" type="button" data-import>⬆ 导入 .sb3</button>
-            <span class="version" title="页面版本">v10.0.2</span>
+            <span class="version" title="页面版本">v10.1.0</span>
             <span id="session-chip" class="session-chip"></span>
             <a class="back" href="manager.html">← 返回账户</a>
         </div>
@@ -1963,7 +1963,7 @@
 
     <footer class="site-foot">
         <span><b>Viratch</b> · 积木作品社区 · 站内创作器</span>
-        <span>Vitual XRing 10.0.2</span>
+        <span>Vitual XRing 10.1.0</span>
         <a href="manager.html">返回账户</a>
     </footer>
 
@@ -2007,7 +2007,7 @@
     </noscript>
 
     <script id="viratch-app">
-    /* Viratch 页面脚本（10.0.2） */
+    /* Viratch 页面脚本（10.1.0） */
     (function () {
         "use strict";
 
@@ -4282,7 +4282,7 @@
                 : "创作器 · Viratch | Vitual XRing";
         }
 
-        /* 10.0.2：新作品走 TurboWarp 官方编辑器，不再使用自定义积木 UI。
+        /* 10.1.0：新作品走 TurboWarp 官方编辑器，不再使用自定义积木 UI。
            官方编辑器没有站点回调接口，所以保存 .sb3 后用下面的按钮上传。 */
         function openTurboWarpEditor() {
             showView("tw");
@@ -4844,6 +4844,6 @@
         }
     })();
     </script>
-    <script src="vtx-pwa.js?v=10.0.2" defer></script>
+    <script src="vtx-pwa.js?v=10.1.0" defer></script>
 </body>
 </html>
