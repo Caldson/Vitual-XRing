@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-/* 10.1.0：设置页时光回溯机与历史 HTML 快照 */
+/* 10.1.1：设置页时光回溯机与历史 HTML 快照 */
 
 const root = new URL("../../", import.meta.url);
 const read = (name) => fs.readFileSync(new URL(name, root), "utf8");
 
-test("10.1.0：时光回溯机清单包含 58 个历史版本，且只列 HTML", () => {
+test("10.1.1：时光回溯机清单包含 58 个历史版本，且只列 HTML", () => {
     const manifest = JSON.parse(read("history/manifest.json"));
     assert.equal(manifest.beta, true);
     assert.equal(manifest.versions.length, 58);
@@ -28,7 +28,7 @@ test("10.1.0：时光回溯机清单包含 58 个历史版本，且只列 HTML",
     }
 });
 
-test("10.1.0：历史页面移除停服守卫和 PWA 注册", () => {
+test("10.1.1：历史页面移除停服守卫和 PWA 注册", () => {
     for (const version of ["8.2.0", "9.0.0", "9.6.0"]) {
         const html = read(`history/${version}/index.html`);
         assert.doesNotMatch(html, /document\.write\(.<script src="vtx-closed\.js/);
@@ -36,7 +36,7 @@ test("10.1.0：历史页面移除停服守卫和 PWA 注册", () => {
     }
 });
 
-test("10.1.0：设置页底部有时光回溯机入口", () => {
+test("10.1.1：设置页底部有时光回溯机入口", () => {
     const settings = read("settings.html");
     assert.match(settings, /id="time-machine"/);
     assert.match(settings, /时光回溯机/);
@@ -44,10 +44,13 @@ test("10.1.0：设置页底部有时光回溯机入口", () => {
     assert.match(settings, /tm-file-list/);
     assert.match(settings, /tm-modal/);
     assert.match(settings, /onlyHtml/);
+    assert.match(settings, /tm-version-select/);
+    assert.match(settings, /shortVersion/);
+    assert.match(settings, /共 \$\{versions\.length\} 个版本/);
 });
 
-test("10.1.0：版本号与 Service Worker 缓存同步", () => {
-    assert.equal(JSON.parse(read("version.json")).version, "10.1.0");
-    assert.match(read("vtx-sw.js"), /xring-v10\.1\.0/);
-    assert.match(read("vtx-api.js"), /API_VERSION = "10\.1\.0"/);
+test("10.1.1：版本号与 Service Worker 缓存同步", () => {
+    assert.equal(JSON.parse(read("version.json")).version, "10.1.1");
+    assert.match(read("vtx-sw.js"), /xring-v10\.1\.1/);
+    assert.match(read("vtx-api.js"), /API_VERSION = "10\.1\.1"/);
 });

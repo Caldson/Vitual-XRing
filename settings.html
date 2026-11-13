@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f3f6fb">
     <title>设置 · Vitual XRing</title>
-    <link rel="stylesheet" href="vtx-theme.css?v=10.1.0">
-    <script src="vtx-theme.js?v=10.1.0"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=10.1.1">
+    <script src="vtx-theme.js?v=10.1.1"></script>
     <style>
         .settings-shell { width: min(100% - 40px, 900px); margin: 0 auto; padding: 34px 0 80px; }
         .settings-kicker { margin: 0 0 8px; color: var(--vtx-accent); font-size: 11.5px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
@@ -63,6 +63,10 @@
         .settings-preview-actions { display: flex; gap: 8px; margin-top: 10px; }
         .tm-beta { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 999px; background: #fff1e6; color: #c05621; font-size: 10px; font-weight: 850; vertical-align: middle; }
         .tm-grid { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 12px; margin-top: 14px; }
+        .tm-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+        .tm-toolbar label { display: flex; align-items: center; gap: 7px; color: var(--vtx-muted); font-size: 12px; }
+        .tm-toolbar select { min-width: 190px; padding: 7px 9px; border: 1px solid var(--vtx-border-strong); border-radius: 9px; background: var(--vtx-surface); color: var(--vtx-text); font: inherit; font-size: 12px; }
+        .tm-toolbar-count { margin-left: auto; color: var(--vtx-faint); font-size: 11px; }
         .tm-versions { display: flex; flex-direction: column; gap: 5px; max-height: 330px; overflow: auto; padding-right: 2px; }
         .tm-version { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 9px 11px; border: 1px solid var(--vtx-border); border-radius: 9px; background: var(--vtx-surface); color: var(--vtx-muted); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
         .tm-version:hover { border-color: var(--vtx-accent); color: var(--vtx-text); }
@@ -94,7 +98,7 @@
 <body data-vtx-widget="off" data-i18n-document-title="document.settings">
     <header class="vtx-topbar">
         <a class="vtx-brand" href="index.html">
-            <img src="XRingLogo-V.png?v=10.1.0-solid" alt="Vitual XRing" width="38" height="38">
+            <img src="XRingLogo-V.png?v=10.1.1-solid" alt="Vitual XRing" width="38" height="38">
             <span data-i18n="brand">Vitual XRing</span>
         </a>
         <nav class="vtx-nav">
@@ -219,6 +223,10 @@
             <div class="settings-card-head">
                 <div><h2>时光回溯机 <span class="tm-beta">Beta</span></h2><p>查看 Vitual XRing 以前的版本。文件目录里只显示 HTML 文件，点击后可以在站内预览。</p></div>
             </div>
+            <div class="tm-toolbar">
+                <label>版本 <select id="tm-version-select" aria-label="选择历史版本"><option value="">正在读取…</option></select></label>
+                <span class="tm-toolbar-count" id="tm-version-count"></span>
+            </div>
             <div class="tm-grid">
                 <div class="tm-versions" id="tm-versions"><div class="tm-empty">正在读取历史版本…</div></div>
                 <div class="tm-files">
@@ -241,7 +249,7 @@
         <iframe id="tm-frame" title="历史版本预览" src="about:blank" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-downloads"></iframe>
     </div>
 
-    <script src="vtx-pwa.js?v=10.1.0" defer></script>
+    <script src="vtx-pwa.js?v=10.1.1" defer></script>
     <script>
         (function () {
             "use strict";
@@ -356,7 +364,7 @@
             syncGlass();
             syncOpening();
 
-            /* 10.1.0：时光回溯机。manifest 只提供 HTML 文件，文件目录也只渲染 .html。 */
+            /* 10.1.1：时光回溯机。manifest 只提供 HTML 文件，文件目录也只渲染 .html。 */
             (function timeMachine() {
                 const versionBox = document.getElementById("tm-versions");
                 const fileBox = document.getElementById("tm-file-list");
@@ -366,9 +374,15 @@
                 const modalVersion = document.getElementById("tm-modal-version");
                 const modalFile = document.getElementById("tm-modal-file");
                 const modalOpen = document.getElementById("tm-modal-open");
+                const versionSelect = document.getElementById("tm-version-select");
+                const versionCount = document.getElementById("tm-version-count");
                 let versions = [];
                 let selected = "";
                 const onlyHtml = (file) => /\.html?$/i.test(file);
+                const shortVersion = (version) => {
+                    const parts = String(version).split(".");
+                    return parts.length === 3 && parts[2] === "0" ? parts.slice(0, 2).join(".") : String(version);
+                };
 
                 function fileUrl(version, file) {
                     const parts = String(file).split("/").map(encodeURIComponent).join("/");
@@ -379,7 +393,7 @@
                     const url = fileUrl(version, file);
                     frame.src = url;
                     modalOpen.href = url;
-                    modalVersion.textContent = version;
+                    modalVersion.textContent = shortVersion(version);
                     modalFile.textContent = file;
                     modal.hidden = false;
                 }
@@ -397,7 +411,7 @@
                         fileBox.innerHTML = '<div class="tm-empty">从左侧选择版本。</div>';
                         return;
                     }
-                    label.textContent = entry.version + (entry.date ? " · " + entry.date : "");
+                    label.textContent = shortVersion(entry.version) + (entry.date ? " · " + entry.date : "");
                     const files = (entry.files || []).filter(onlyHtml).sort((a, b) => a.localeCompare(b, "zh-CN"));
                     if (!files.length) {
                         fileBox.innerHTML = '<div class="tm-empty">这个版本没有 HTML 文件。</div>';
@@ -415,21 +429,40 @@
 
                 function renderVersions() {
                     versionBox.textContent = "";
+                    if (versionSelect) versionSelect.textContent = "";
                     if (!versions.length) {
                         versionBox.innerHTML = '<div class="tm-empty">没有可用的历史版本。</div>';
+                        if (versionCount) versionCount.textContent = "";
                         return;
                     }
+                    if (versionCount) versionCount.textContent = `共 ${versions.length} 个版本 · ${shortVersion(versions[versions.length - 1].version)} 起`;
                     versions.forEach((entry) => {
+                        if (versionSelect) {
+                            const option = document.createElement("option");
+                            option.value = entry.version;
+                            option.textContent = `${shortVersion(entry.version)} · ${entry.date || ""}`;
+                            option.selected = entry.version === selected;
+                            versionSelect.appendChild(option);
+                        }
                         const button = document.createElement("button");
                         button.type = "button";
                         button.className = "tm-version" + (entry.version === selected ? " active" : "");
-                        button.innerHTML = '<span>' + entry.version + '</span><small>' + (entry.files || []).filter(onlyHtml).length + ' 个 HTML</small>';
+                        button.innerHTML = '<span>' + shortVersion(entry.version) + '</span><small>' + (entry.files || []).filter(onlyHtml).length + ' 个 HTML</small>';
                         button.addEventListener("click", () => {
                             selected = entry.version;
                             renderVersions();
                             renderFiles();
                         });
                         versionBox.appendChild(button);
+                    });
+                }
+
+                if (versionSelect) {
+                    versionSelect.addEventListener("change", () => {
+                        if (!versionSelect.value) return;
+                        selected = versionSelect.value;
+                        renderVersions();
+                        renderFiles();
                     });
                 }
 
