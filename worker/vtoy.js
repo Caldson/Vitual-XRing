@@ -1,7 +1,7 @@
-/* Vitual XRing 11.0.0：Vtoy 小程序托管。
+/* Vitual XRing 12.0.0：Vtoy 小程序托管。
    应用代码存 ACCOUNTS_KV 的 vtoy:app:<name>，运行在 vtoy.html?app=... 的沙箱 iframe 中。 */
 
-const VTOY_VERSION = "11.0.0";
+const VTOY_VERSION = "12.0.0";
 const VTOY_PREFIX = "vtoy:app:";
 const VTOY_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const VTOY_LIMIT = 256 * 1024;

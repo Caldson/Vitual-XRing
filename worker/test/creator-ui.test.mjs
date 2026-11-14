@@ -5,7 +5,7 @@ import fs from "node:fs";
 const root = new URL("../../", import.meta.url);
 const read = (name) => fs.readFileSync(new URL(name, root), "utf8");
 
-test("11.0.0：Vtoy 页面包含应用编辑、权限弹窗与 VTX bridge", () => {
+test("12.0.0：Vtoy 页面包含应用编辑、权限弹窗与 VTX bridge", () => {
     const page = read("vtoy.html");
     assert.match(page, /vtoy\.html\?app=/);
     assert.match(page, /申请登录您的账户/);
@@ -15,7 +15,7 @@ test("11.0.0：Vtoy 页面包含应用编辑、权限弹窗与 VTX bridge", () =
     assert.match(page, /allow-scripts/);
 });
 
-test("11.0.0：VDEX 页面包含全部套餐与企业版入口", () => {
+test("12.0.0：VDEX 页面包含全部套餐与企业版入口", () => {
     const page = read("vdex.html");
     assert.match(page, /VDEX\.HTML/);
     assert.match(page, /vdex\.html\?name=/);
@@ -27,7 +27,7 @@ test("11.0.0：VDEX 页面包含全部套餐与企业版入口", () => {
     assert.match(read("worker/vdex.js"), /storageBytes: size \* 1024 \* 1024/);
 });
 
-test("11.0.0：首页与账户页有 Vtoy / VDEX 入口", () => {
+test("12.0.0：首页与账户页有 Vtoy / VDEX 入口", () => {
     assert.match(read("index.html"), /href="vtoy\.html"/);
     assert.match(read("index.html"), /href="vdex\.html"/);
     assert.match(read("manager.html"), /href="vtoy\.html"/);

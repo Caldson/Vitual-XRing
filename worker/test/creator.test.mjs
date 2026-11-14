@@ -45,7 +45,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("11.0.0：VDEX 套餐、注册扣费、保存与公开访问", async () => {
+test("12.0.0：VDEX 套餐、注册扣费、保存与公开访问", async () => {
     const { env, token } = await prepare();
     const plans = await api(env, "GET", "/api/vdex/plans");
     assert.equal(plans.status, 200);
@@ -57,6 +57,9 @@ test("11.0.0：VDEX 套餐、注册扣费、保存与公开访问", async () => 
 
     const created = await api(env, "POST", "/api/vdex/register", { token, body: { name: "alice-site", gb: 1, tier: "standard" } });
     assert.equal(created.status, 201, JSON.stringify(created.data));
+    assert.equal(created.data.site.server.host, "ssh.vdex.caldson.us.ci");
+    assert.equal(created.data.site.server.username, "alice-site");
+    assert.ok(created.data.site.server.password.length >= 12);
     const account = JSON.parse(await env.ACCOUNTS_KV.get("accounts"));
     assert.equal(account.Alice.money, "950.00");
     assert.ok(account.Alice.trades.some((trade) => trade.name === "VDEX" && trade.price === "-50.00"));
@@ -68,11 +71,16 @@ test("11.0.0：VDEX 套餐、注册扣费、保存与公开访问", async () => 
     assert.equal(publicSite.data.site.html, "<h1>Hello</h1>");
     assert.equal(publicSite.data.site.owner, "Alice");
 
+    const free = await api(env, "POST", "/api/vdex/register", { token, body: { name: "free-site", gb: 0.1, tier: "free" } });
+    assert.equal(free.status, 201, JSON.stringify(free.data));
+    const freeSite = await api(env, "GET", "/api/vdex/site?name=free-site");
+    assert.equal(freeSite.status, 200);
+    assert.equal(freeSite.data.site.plan, "free");
     const poor = await api(env, "POST", "/api/vdex/register", { token, body: { name: "too-big", gb: 100, tier: "enterprise" } });
     assert.equal(poor.status, 400);
 });
 
-test("11.0.0：Vtoy 保存应用与公开读取", async () => {
+test("12.0.0：Vtoy 保存应用与公开读取", async () => {
     const { env, token } = await prepare();
     const bad = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "Bad_App", html: "x" } });
     assert.equal(bad.status, 400);

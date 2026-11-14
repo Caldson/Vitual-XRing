@@ -1,7 +1,7 @@
-/* Vitual XRing 11.0.0：VDEX 网站托管。
+/* Vitual XRing 12.0.0：VDEX 网站托管。
    数据保存在 ACCOUNTS_KV 的 vdex:site:<name>，购买时在 accounts 锁内扣 VTX。 */
 
-const VDEX_VERSION = "11.0.0";
+const VDEX_VERSION = "12.0.0";
 const VDEX_PREFIX = "vdex:site:";
 const VDEX_DATA_PREFIX = "vdex:data:";
 const VDEX_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -57,6 +57,7 @@ function vdexMeta(record) {
     delete out.html;
     delete out.css;
     delete out.js;
+    out.server = record.server || null;
     return out;
 }
 
@@ -66,6 +67,21 @@ function vdexText(value, limit) {
 
 function vdexTime() {
     return new Date().toISOString();
+}
+
+function vdexServer(name) {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    const bytes = new Uint8Array(18);
+    crypto.getRandomValues(bytes);
+    let password = "";
+    for (const byte of bytes) password += alphabet[byte % alphabet.length];
+    return {
+        host: "ssh.vdex.caldson.us.ci",
+        port: 22,
+        username: name,
+        password,
+        status: "online"
+    };
 }
 
 export { VDEX_VERSION, vdexPlans };
@@ -143,7 +159,8 @@ export async function routeVdex(request, env, cors, deps) {
             js: "",
             createdAt: now,
             updatedAt: now,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            server: vdexServer(name)
         };
         await env.ACCOUNTS_KV.put(VDEX_PREFIX + name, JSON.stringify(record));
         return deps.jsonResponse({ ok: true, site: vdexMeta(record) }, 201, cors);
@@ -157,7 +174,13 @@ export async function routeVdex(request, env, cors, deps) {
         const sites = [];
         for (const key of listed.keys || []) {
             const record = await env.ACCOUNTS_KV.get(key.name, "json");
-            if (record && record.owner === login) sites.push(vdexMeta(record));
+            if (record && record.owner === login) {
+                if (!record.server) {
+                    record.server = vdexServer(record.name);
+                    await env.ACCOUNTS_KV.put(key.name, JSON.stringify(record));
+                }
+                sites.push(vdexMeta(record));
+            }
         }
         sites.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
         return deps.jsonResponse({ ok: true, sites }, 200, cors);

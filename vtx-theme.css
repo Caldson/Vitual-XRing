@@ -322,10 +322,10 @@ body[data-vtx-widget="off"] .vtx-theme-widget { display: none; }
 }
 
 /* 9.6.0：全站品牌 V 图标统一为原始纯色蓝底白字，移除各页面的渐变覆盖。 */
+/* 12.0.0：全站左上角统一使用 XRingLogo.png，而不是 XRingLogo-V.png。 */
 .brand-mark {
-    background: #3867e8 !important;
-    background-image: none !important;
-    color: #ffffff !important;
+    background: url("XRingLogo.png?v=12.0.0") center / cover no-repeat !important;
+    color: transparent !important;
+    text-shadow: none !important;
     box-shadow: 0 6px 18px rgba(56, 103, 232, .24) !important;
 }
-
