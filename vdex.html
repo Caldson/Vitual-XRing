@@ -125,6 +125,7 @@
             let mine = [];
             let current = null;
 
+            function api() { return window.VTXApi; }
             function token() { try { return sessionStorage.getItem("vtxToken") || ""; } catch (error) { return ""; } }
             function loggedIn() { return Boolean(token()); }
             function escapeHtml(value) { return String(value == null ? "" : value).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
