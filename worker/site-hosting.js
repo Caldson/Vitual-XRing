@@ -38,13 +38,14 @@ function vtoyBridge() {
             getUser:function(){return call("user");},
             getBalance:function(){return call("balance");},
             getData:function(game){return call("getData",{game:game});},
-            setData:function(game,values){return call("setData",{game:game,values:values});}
+            setData:function(game,values){return call("setData",{game:game,values:values});},
+            receive:function(options){return call("receive",options||{});}
         };
         function call(method,payload){
             return new Promise(function(resolve,reject){
                 var id="r"+(++seq);
                 pending[id]={resolve:resolve,reject:reject};
-                parent.postMessage({source:"vtoy-app",id:id,method:method,game:payload&&payload.game,values:payload&&payload.values},"*");
+                parent.postMessage({source:"vtoy-app",id:id,method:method,game:payload&&payload.game,values:payload&&payload.values,amount:payload&&payload.amount,party:payload&&payload.party,description:payload&&payload.description,name:payload&&payload.name},"*");
                 setTimeout(function(){if(pending[id]){delete pending[id];reject(new Error("请求超时"));}},20000);
             });
         }
