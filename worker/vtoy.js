@@ -1,7 +1,7 @@
-/* Vitual XRing 12.1.3：Vtoy 小程序托管。
+/* Vitual XRing 12.2.0：Vtoy 小程序托管。
    应用代码存 ACCOUNTS_KV 的 vtoy:app:<name>，运行在 vtoy.html?app=... 的沙箱 iframe 中。 */
 
-const VTOY_VERSION = "12.1.3";
+const VTOY_VERSION = "12.2.0";
 import { documentTitle } from "./html-title.js";
 const VTOY_PREFIX = "vtoy:app:";
 function validVtoyName(value) {
@@ -35,6 +35,10 @@ function vtoyMeta(record) {
         description: record.description || "",
         owner: record.owner,
         permissions: Array.isArray(record.permissions) ? record.permissions : [],
+        status: record.status || "approved",
+        uses: Number(record.uses || 0),
+        publishedAt: record.publishedAt || null,
+        reviewMessage: record.reviewMessage || "",
         createdAt: record.createdAt,
         updatedAt: record.updatedAt
     };
@@ -119,6 +123,10 @@ export async function routeVtoy(request, env, cors, deps) {
             html: indexHtml,
             pages,
             css,            js,
+            status: existing ? (existing.status || "approved") : "draft",
+            uses: existing ? Number(existing.uses || 0) : 0,
+            publishedAt: existing ? existing.publishedAt || null : null,
+            reviewMessage: existing ? existing.reviewMessage || "" : "",
             createdAt: existing ? existing.createdAt : now,
             updatedAt: now
         };
@@ -126,5 +134,71 @@ export async function routeVtoy(request, env, cors, deps) {
         return deps.jsonResponse({ ok: true, app: vtoyMeta(record) }, existing ? 200 : 201, cors);
     }
 
+    if (path === "plaza" && request.method === "GET") {
+        const listed = await env.ACCOUNTS_KV.list({ prefix: VTOY_PREFIX, limit: 1000 });
+        const apps = [];
+        for (const key of listed.keys || []) {
+            const record = await env.ACCOUNTS_KV.get(key.name, "json");
+            if (record && (record.status || "approved") === "approved") apps.push(vtoyMeta(record));
+        }
+        apps.sort((a, b) => (b.uses - a.uses) || String(b.publishedAt || b.updatedAt || "").localeCompare(String(a.publishedAt || a.updatedAt || "")));
+        return deps.jsonResponse({ ok: true, apps }, 200, cors);
+    }
+
+    if (path === "pending" && request.method === "GET") {
+        const session = await deps.requireAdmin(request, env, cors);
+        if (session.error) return session.error;
+        const listed = await env.ACCOUNTS_KV.list({ prefix: VTOY_PREFIX, limit: 1000 });
+        const apps = [];
+        for (const key of listed.keys || []) {
+            const record = await env.ACCOUNTS_KV.get(key.name, "json");
+            if (record && record.status === "pending") apps.push(vtoyMeta(record));
+        }
+        apps.sort((a, b) => String(a.updatedAt).localeCompare(String(b.updatedAt)));
+        return deps.jsonResponse({ ok: true, apps }, 200, cors);
+    }
+
+    if (path === "publish" && request.method === "POST") {
+        const session = await deps.requireSession(request, env, cors);
+        if (session.error) return session.error;
+        const body = deps.plainObject(await deps.readJsonBody(request));
+        const name = String(body.name || "").trim();
+        const record = await env.ACCOUNTS_KV.get(VTOY_PREFIX + name, "json");
+        if (!record) return deps.jsonResponse({ error: "not_found", message: "Vtoy 应用不存在" }, 404, cors);
+        if (record.owner !== session.payload.sub) return deps.jsonResponse({ error: "forbidden", message: "只能发布自己的 Vtoy" }, 403, cors);
+        record.status = "pending";
+        record.reviewMessage = "";
+        record.updatedAt = new Date().toISOString();
+        await env.ACCOUNTS_KV.put(VTOY_PREFIX + name, JSON.stringify(record));
+        return deps.jsonResponse({ ok: true, app: vtoyMeta(record) }, 200, cors);
+    }
+
+    if (path === "review" && request.method === "POST") {
+        const session = await deps.requireAdmin(request, env, cors);
+        if (session.error) return session.error;
+        const body = deps.plainObject(await deps.readJsonBody(request));
+        const name = String(body.name || "").trim();
+        const record = await env.ACCOUNTS_KV.get(VTOY_PREFIX + name, "json");
+        if (!record) return deps.jsonResponse({ error: "not_found", message: "Vtoy 应用不存在" }, 404, cors);
+        const approve = body.approve === true || body.approve === "true" || body.approve === 1;
+        record.status = approve ? "approved" : "rejected";
+        record.reviewMessage = deps.text ? deps.text(body.message, 200) : String(body.message || "").slice(0, 200);
+        record.reviewedAt = new Date().toISOString();
+        record.reviewedBy = session.payload.sub;
+        if (approve && !record.publishedAt) record.publishedAt = record.reviewedAt;
+        record.updatedAt = record.reviewedAt;
+        await env.ACCOUNTS_KV.put(VTOY_PREFIX + name, JSON.stringify(record));
+        return deps.jsonResponse({ ok: true, app: vtoyMeta(record) }, 200, cors);
+    }
+
+    if (path === "use" && request.method === "POST") {
+        const body = deps.plainObject(await deps.readJsonBody(request));
+        const name = String(body.name || "").trim();
+        const record = await env.ACCOUNTS_KV.get(VTOY_PREFIX + name, "json");
+        if (!record || (record.status || "approved") !== "approved") return deps.jsonResponse({ error: "not_found", message: "Vtoy 应用不存在" }, 404, cors);
+        record.uses = Number(record.uses || 0) + 1;
+        await env.ACCOUNTS_KV.put(VTOY_PREFIX + name, JSON.stringify(record));
+        return deps.jsonResponse({ ok: true, uses: record.uses }, 200, cors);
+    }
     return deps.jsonResponse({ error: "not_found", message: "Vtoy 接口不存在" }, 404, cors);
 }

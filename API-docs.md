@@ -5955,3 +5955,42 @@ window.open("second.html");
 
 - 全站 `12.1.3`。
 - VS Code 扩展 `0.2.5`。
+---
+
+## 112. 12.2.0 Vtoy 广场
+
+### 112.1 页面
+
+新增 `vtoy-square.html`：
+
+- Bilibili Toys 风格卡片网格；
+- 支持搜索、按最热门 / 最新 / 名称排序；
+- 卡片显示标题、作者、简介、权限标签、使用次数；
+- 点「使用」打开 `vtoy.html?app=名称`。
+
+### 112.2 发布与审核
+
+- Vtoy 记录新增：
+  - `status`：`draft` / `pending` / `approved` / `rejected`
+  - `uses`：使用次数
+  - `publishedAt`、`reviewMessage`
+- 新推送的 Vtoy 默认 `draft`，不会直接出现在广场。
+- 作者在广场「我的 Vtoy」中点「发布」，状态变为 `pending`。
+- 站主（`ADMIN_ACCOUNT`）在广场「站主审核」中通过或拒绝。
+- 通过后写入 `publishedAt`，进入广场；拒绝会记录原因，作者可以修改后重新发布。
+- 旧记录没有 `status` 时按 `approved` 兼容。
+
+### 112.3 接口
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| GET | `/api/vtoy/plaza` | 公开 | 已通过审核的 Vtoy |
+| GET | `/api/vtoy/pending` | 站主 | 待审核 Vtoy |
+| POST | `/api/vtoy/publish` | 登录 | 作者提交审核 |
+| POST | `/api/vtoy/review` | 站主 | 通过 / 拒绝 |
+| POST | `/api/vtoy/use` | 公开 | 使用次数 +1 |
+
+### 112.4 版本
+
+- 全站 `12.2.0`。
+- VS Code 扩展仍为 `0.2.5`；推送后到广场发布并等待审核。

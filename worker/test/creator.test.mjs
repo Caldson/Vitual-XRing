@@ -45,7 +45,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("12.1.3：VDEX 套餐、注册扣费、保存与公开访问", async () => {
+test("12.2.0：VDEX 套餐、注册扣费、保存与公开访问", async () => {
     const { env, token } = await prepare();
     const plans = await api(env, "GET", "/api/vdex/plans");
     assert.equal(plans.status, 200);
@@ -86,7 +86,7 @@ test("12.1.3：VDEX 套餐、注册扣费、保存与公开访问", async () => 
     assert.equal(poor.status, 400);
 });
 
-test("12.1.3：Vtoy 保存应用与公开读取", async () => {
+test("12.2.0：Vtoy 保存应用与公开读取", async () => {
     const { env, token } = await prepare();
     const bad = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "Bad/App", html: "x" } });
     assert.equal(bad.status, 400);
@@ -109,4 +109,29 @@ test("12.1.3：Vtoy 保存应用与公开读取", async () => {
     const mine = await api(env, "GET", "/api/vtoy/mine", { token });
     assert.equal(mine.status, 200);
     assert.equal(mine.data.apps.length, 2);
+});
+
+test("12.2.0：Vtoy 广场发布、审核与使用计数", async () => {
+    const { env, token } = await prepare();
+    const admin = await api(env, "POST", "/api/login", { body: { login: "Kitawaga", password: "password1" } });
+    const made = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "plaza-toy", description: "广场测试", html: "<h1>Plaza</h1>" } });
+    assert.equal(made.status, 201);
+    assert.equal(made.data.app.status, "draft");
+
+    const before = await api(env, "GET", "/api/vtoy/plaza");
+    assert.ok(!before.data.apps.some((app) => app.name === "plaza-toy"));
+
+    const published = await api(env, "POST", "/api/vtoy/publish", { token, body: { name: "plaza-toy" } });
+    assert.equal(published.data.app.status, "pending");
+    const pending = await api(env, "GET", "/api/vtoy/pending", { token: admin.data.token });
+    assert.ok(pending.data.apps.some((app) => app.name === "plaza-toy"));
+
+    const reviewed = await api(env, "POST", "/api/vtoy/review", { token: admin.data.token, body: { name: "plaza-toy", approve: true } });
+    assert.equal(reviewed.data.app.status, "approved");
+    const after = await api(env, "GET", "/api/vtoy/plaza");
+    assert.ok(after.data.apps.some((app) => app.name === "plaza-toy"));
+
+    const used = await api(env, "POST", "/api/vtoy/use", { body: { name: "plaza-toy" } });
+    assert.equal(used.status, 200);
+    assert.equal(used.data.uses, 1);
 });

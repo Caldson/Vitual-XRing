@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>Vtoy 广场 · Vitual XRing</title>
+    <link rel="icon" href="XRingLogo.png?v=12.2.0">
+    <link rel="stylesheet" href="vtx-theme.css?v=12.2.0">
+    <script src="vtx-theme.js?v=12.2.0"></script>
+    <style>
+        :root { --toy: #e85d3f; --toy-2: #f2a33c; --toy-soft: #fff1e9; --toy-dark: #a9341c; }
+        body { background: radial-gradient(circle at 12% 0%, #fff0e3 0, transparent 32%), radial-gradient(circle at 90% 20%, #eef0ff 0, transparent 30%), var(--vtx-bg); }
+        .shell { width: min(100% - 36px, 1180px); margin: 0 auto; padding: 26px 0 70px; }
+        .vtx-topbar .top-links { display: flex; gap: 16px; margin-left: auto; align-items: center; font-size: 13px; font-weight: 800; }
+        .vtx-topbar .top-links a { color: var(--vtx-muted); text-decoration: none; }
+        .vtx-topbar .top-links a.is-active, .vtx-topbar .top-links a:hover { color: var(--vtx-text); }
+        .vtx-topbar .top-links a.is-active { background: var(--toy-soft); color: var(--toy-dark); padding: 6px 10px; border-radius: 999px; }
+        .banner { position: relative; overflow: hidden; padding: 28px; border-radius: 22px; background: linear-gradient(120deg, #ffd8c2 0%, #fff0df 42%, #f1eaff 100%); border: 1px solid rgba(232,93,63,.22); box-shadow: var(--vtx-shadow-soft); }
+        .banner:after { content: "V"; position: absolute; right: 22px; top: -34px; font-size: 220px; font-weight: 950; line-height: 1; color: rgba(255,255,255,.45); transform: rotate(-8deg); pointer-events: none; }
+        .banner h1 { position: relative; margin: 0 0 8px; font-size: clamp(32px, 5vw, 56px); letter-spacing: -.06em; }
+        .banner p { position: relative; margin: 0; max-width: 650px; color: #7c5147; font-size: 13.5px; line-height: 1.7; }
+        .banner .pill { display: inline-flex; margin-top: 14px; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.6); color: #8b3b27; font-size: 11px; font-weight: 800; }
+        .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 18px 0; }
+        .search { flex: 1 1 280px; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--vtx-border); border-radius: 11px; background: var(--vtx-surface); }
+        .search input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--vtx-text); font: inherit; }
+        select { padding: 9px 12px; border: 1px solid var(--vtx-border); border-radius: 11px; background: var(--vtx-surface); color: var(--vtx-text); font: inherit; font-size: 12px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 13px; }
+        .toy-card { display: flex; flex-direction: column; padding: 15px; border: 1px solid var(--vtx-border); border-radius: 16px; background: var(--vtx-surface); box-shadow: var(--vtx-shadow-soft); transition: transform .16s ease, box-shadow .16s ease; }
+        .toy-card:hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(15,23,42,.12); }
+        .toy-top { display: flex; align-items: center; gap: 10px; }
+        .toy-icon { width: 46px; height: 46px; flex: 0 0 46px; display: grid; place-items: center; border-radius: 13px; color: #fff; font-size: 21px; font-weight: 900; background: linear-gradient(135deg, var(--toy), var(--toy-2)); }
+        .toy-title { min-width: 0; }
+        .toy-title b { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .toy-title span { color: var(--vtx-muted); font-size: 10.5px; }
+        .toy-desc { min-height: 52px; margin: 10px 0; color: var(--vtx-muted); font-size: 12px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .badges { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+        .badge { padding: 3px 7px; border-radius: 999px; background: var(--vtx-surface-soft); color: var(--vtx-muted); font-size: 9.5px; font-weight: 800; }
+        .badge.hot { background: var(--toy-soft); color: var(--toy-dark); }
+        .toy-foot { display: flex; align-items: center; gap: 8px; margin-top: auto; }
+        .meta { color: var(--vtx-faint); font-size: 10.5px; }
+        .use { margin-left: auto; padding: 7px 13px; border: 0; border-radius: 9px; background: var(--toy); color: #fff; font: inherit; font-size: 11.5px; font-weight: 850; cursor: pointer; }
+        .use:hover { filter: brightness(1.06); }
+        .empty { padding: 32px; text-align: center; color: var(--vtx-muted); font-size: 12px; border: 1px dashed var(--vtx-border); border-radius: 14px; }
+        .section { margin-top: 24px; padding: 16px; border: 1px solid var(--vtx-border); border-radius: 16px; background: var(--vtx-surface); }
+        .section h2 { margin: 0 0 4px; font-size: 17px; letter-spacing: -.02em; }
+        .section .sub { margin: 0 0 12px; color: var(--vtx-muted); font-size: 11.5px; line-height: 1.6; }
+        .mine-list { display: grid; gap: 8px; }
+        .mine-row { display: flex; align-items: center; gap: 10px; padding: 10px 11px; border: 1px solid var(--vtx-border); border-radius: 11px; background: var(--vtx-surface-soft); }
+        .mine-row b { font-size: 12.5px; }
+        .mine-row .status { font-size: 10px; font-weight: 800; padding: 3px 7px; border-radius: 999px; background: var(--vtx-surface); color: var(--vtx-muted); }
+        .mine-row .status.pending { color: #a16a00; background: #fff3d9; }
+        .mine-row .status.approved { color: #0f7a64; background: #ddf7ee; }
+        .mine-row .status.rejected { color: #a92d2d; background: #ffe4e4; }
+        .mine-row .actions { margin-left: auto; display: flex; gap: 6px; }
+        .mini { padding: 6px 10px; border: 1px solid var(--vtx-border-strong); border-radius: 8px; background: var(--vtx-surface); color: var(--vtx-text); font: inherit; font-size: 10.5px; font-weight: 800; cursor: pointer; }
+        .mini.main { border-color: var(--toy); background: var(--toy); color: #fff; }
+        .mini:disabled { opacity: .45; cursor: default; }
+        .admin { display: none; }
+        .admin.show { display: block; }
+        .review-row { display: grid; gap: 6px; padding: 11px; border: 1px solid var(--vtx-border); border-radius: 11px; margin-bottom: 7px; background: var(--vtx-surface-soft); }
+        .review-row .top { display: flex; align-items: center; gap: 8px; }
+        .review-row .top b { font-size: 12.5px; }
+        .review-row .top .actions { margin-left: auto; display: flex; gap: 6px; }
+        .review-row p { margin: 0; color: var(--vtx-muted); font-size: 11px; line-height: 1.5; }
+        .status-line { min-height: 19px; margin-top: 10px; color: #0f7a64; font-size: 11.5px; font-weight: 700; }
+        .status-line.error { color: var(--vtx-danger); }
+        .login-tip { padding: 13px; border: 1px dashed var(--vtx-border); border-radius: 11px; color: var(--vtx-muted); font-size: 12px; }
+        .login-tip a { color: var(--toy-dark); font-weight: 800; }
+        @media (max-width: 650px) { .banner { padding: 20px; } .banner:after { font-size: 150px; right: -10px; } .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="vtx-topbar">
+        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.2.0" alt="Vitual XRing" width="38" height="38"></a>
+        <nav class="top-links">
+            <a href="index.html">首页</a>
+            <a href="vtoy.html">Vtoy</a>
+            <a href="vtoy-square.html" class="is-active">Vtoy 广场</a>
+            <a href="vdex.html">VDEX</a>
+            <a href="settings.html">设置</a>
+        </nav>
+    </header>
+
+    <main class="shell">
+        <section class="banner">
+            <h1>Vtoy 广场</h1>
+            <p>发现、发布和使用 Vtoy 小程序。像逛玩具店一样，挑一个玩玩。</p>
+            <span class="pill">Bilibili Toys 风格 · 站主审核后展示</span>
+        </section>
+
+        <div class="toolbar">
+            <label class="search">🔍 <input id="search" placeholder="搜索 Vtoy 名称、标题、作者"></label>
+            <select id="sort"><option value="hot">最热门</option><option value="new">最新发布</option><option value="name">名称</option></select>
+            <button class="mini" id="refresh">刷新</button>
+        </div>
+
+        <div id="grid" class="grid"><div class="empty">正在加载…</div></div>
+        <div id="status" class="status-line"></div>
+
+        <section class="section">
+            <h2>我的 Vtoy</h2>
+            <p class="sub">发布后进入站主审核；审核通过后才会出现在广场。</p>
+            <div id="mine" class="mine-list"><div class="login-tip">登录后可以发布自己的 Vtoy。</div></div>
+        </section>
+
+        <section class="section admin" id="admin">
+            <h2>站主审核</h2>
+            <p class="sub">待审核的 Vtoy。</p>
+            <div id="pending"></div>
+        </section>
+    </main>
+
+    <script src="vtx-api.js?v=12.2.0"></script>
+    <script>
+        (function () {
+            "use strict";
+            const el = (id) => document.getElementById(id);
+            const api = () => window.VTXApi;
+            let apps = [];
+            let mine = [];
+            let admin = false;
+            let statusTimer = 0;
+
+            const STATUS_LABEL = { draft: "未发布", pending: "审核中", approved: "已发布", rejected: "未通过" };
+
+            function escapeHtml(value) {
+                return String(value == null ? "" : value).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+            }
+            function showStatus(message, error) {
+                const node = el("status");
+                node.textContent = message || "";
+                node.className = "status-line" + (error ? " error" : "");
+                clearTimeout(statusTimer);
+                statusTimer = setTimeout(() => { node.textContent = ""; }, 5000);
+            }
+            function iconFor(name) {
+                const chars = Array.from(String(name || "?"));
+                return (chars[0] || "?").toUpperCase();
+            }
+            function hue(name) {
+                let total = 0;
+                for (const char of String(name)) total = (total * 31 + char.codePointAt(0)) % 360;
+                return total;
+            }
+            function filtered() {
+                const query = el("search").value.trim().toLowerCase();
+                let list = apps.filter((app) => !query || [app.name, app.title, app.owner].some((value) => String(value || "").toLowerCase().includes(query)));
+                if (el("sort").value === "new") list.sort((a, b) => String(b.publishedAt || b.updatedAt || "").localeCompare(String(a.publishedAt || a.updatedAt || "")));
+                else if (el("sort").value === "name") list.sort((a, b) => String(a.title || a.name).localeCompare(String(b.title || b.name), "zh-CN"));
+                else list.sort((a, b) => (b.uses || 0) - (a.uses || 0));
+                return list;
+            }
+            function renderGrid() {
+                const list = filtered();
+                if (!list.length) {
+                    el("grid").innerHTML = '<div class="empty">还没有已发布的 Vtoy，去发布第一个吧。</div>';
+                    return;
+                }
+                el("grid").innerHTML = "";
+                list.forEach((app) => {
+                    const card = document.createElement("article");
+                    card.className = "toy-card";
+                    const badges = (app.permissions || []).map((permission) => `<span class="badge">${permission === "login" ? "可登录" : permission === "wallet" ? "可读余额" : escapeHtml(permission)}</span>`).join("");
+                    card.innerHTML = `<div class="toy-top"><div class="toy-icon" style="background:linear-gradient(135deg,hsl(${hue(app.name)} 72% 52%),hsl(${(hue(app.name) + 38) % 360} 78% 60%))">${escapeHtml(iconFor(app.title || app.name))}</div><div class="toy-title"><b>${escapeHtml(app.title || app.name)}</b><span>@${escapeHtml(app.owner || "unknown")}</span></div></div><p class="toy-desc">${escapeHtml(app.description || "这个 Vtoy 还没有简介。")}</p><div class="badges">${badges}<span class="badge hot">🔥 ${Number(app.uses || 0)} 次使用</span></div><div class="toy-foot"><span class="meta">${escapeHtml(app.name)}</span><button class="use">使用</button></div>`;
+                    card.querySelector(".use").addEventListener("click", () => useApp(app.name));
+                    el("grid").appendChild(card);
+                });
+            }
+            async function useApp(name) {
+                try { await api().request("/vtoy/use", { method: "POST", body: { name, auth: false } }); } catch (error) { /* count is best effort */ }
+                location.href = "vtoy.html?app=" + encodeURIComponent(name);
+            }
+            async function loadPlaza() {
+                try {
+                    const data = await api().request("/vtoy/plaza");
+                    apps = data.apps || [];
+                    renderGrid();
+                } catch (error) {
+                    el("grid").innerHTML = '<div class="empty">' + escapeHtml(error.message) + '</div>';
+                }
+            }
+            function renderMine() {
+                if (!api().hasSession()) {
+                    el("mine").innerHTML = `<div class="login-tip">登录后可以发布自己的 Vtoy。<a href="login.html?next=${encodeURIComponent(location.href)}">去登录</a></div>`;
+                    return;
+                }
+                if (!mine.length) {
+                    el("mine").innerHTML = '<div class="login-tip">还没有 Vtoy。去 VS Code 扩展新建并推送一个。</div>';
+                    return;
+                }
+                el("mine").innerHTML = "";
+                mine.forEach((app) => {
+                    const row = document.createElement("div");
+                    row.className = "mine-row";
+                    const status = app.status || "draft";
+                    row.innerHTML = `<b>${escapeHtml(app.title || app.name)}</b><span class="status ${status}">${STATUS_LABEL[status] || status}</span><div class="actions"></div>`;
+                    const actions = row.querySelector(".actions");
+                    if (status === "draft" || status === "rejected") {
+                        const button = document.createElement("button");
+                        button.className = "mini main";
+                        button.textContent = "发布";
+                        button.addEventListener("click", async () => {
+                            button.disabled = true;
+                            try {
+                                await api().request("/vtoy/publish", { method: "POST", body: { name: app.name } });
+                                showStatus("已提交审核");
+                                await loadAll();
+                            } catch (error) { showStatus(error.message, true); button.disabled = false; }
+                        });
+                        actions.appendChild(button);
+                    }
+                    if (status === "approved") {
+                        const open = document.createElement("button");
+                        open.className = "mini";
+                        open.textContent = "打开";
+                        open.addEventListener("click", () => { location.href = "vtoy.html?app=" + encodeURIComponent(app.name); });
+                        actions.appendChild(open);
+                    }
+                    el("mine").appendChild(row);
+                });
+            }
+            async function loadMine() {
+                if (!api().hasSession()) { renderMine(); return; }
+                try {
+                    const data = await api().request("/vtoy/mine");
+                    mine = data.apps || [];
+                } catch (error) { mine = []; }
+                renderMine();
+            }
+            async function loadPending() {
+                try {
+                    const data = await api().request("/vtoy/pending");
+                    admin = true;
+                    el("admin").classList.add("show");
+                    const pending = data.apps || [];
+                    if (!pending.length) { el("pending").innerHTML = '<div class="empty">没有待审核的 Vtoy。</div>'; return; }
+                    el("pending").innerHTML = "";
+                    pending.forEach((app) => {
+                        const row = document.createElement("div");
+                        row.className = "review-row";
+                        row.innerHTML = `<div class="top"><b>${escapeHtml(app.title || app.name)}</b><span class="meta">@${escapeHtml(app.owner)} · ${escapeHtml(app.name)}</span><div class="actions"></div></div><p>${escapeHtml(app.description || "无简介")}</p>`;
+                        const actions = row.querySelector(".actions");
+                        const approve = document.createElement("button");
+                        approve.className = "mini main"; approve.textContent = "通过";
+                        const reject = document.createElement("button");
+                        reject.className = "mini"; reject.textContent = "拒绝";
+                        approve.addEventListener("click", () => review(app.name, true, "", approve));
+                        reject.addEventListener("click", () => {
+                            const message = prompt("拒绝原因（可留空）") || "";
+                            review(app.name, false, message, reject);
+                        });
+                        actions.appendChild(approve); actions.appendChild(reject);
+                        el("pending").appendChild(row);
+                    });
+                } catch (error) {
+                    admin = false;
+                    el("admin").classList.remove("show");
+                }
+            }
+            async function review(name, approve, message, button) {
+                button.disabled = true;
+                try {
+                    await api().request("/vtoy/review", { method: "POST", body: { name, approve, message } });
+                    showStatus(approve ? "已通过" : "已拒绝");
+                    await loadAll();
+                } catch (error) { showStatus(error.message, true); button.disabled = false; }
+            }
+            async function loadAll() {
+                await Promise.all([loadPlaza(), loadMine(), loadPending()]);
+            }
+            el("search").addEventListener("input", renderGrid);
+            el("sort").addEventListener("change", renderGrid);
+            el("refresh").addEventListener("click", loadAll);
+            loadAll();
+        })();
+    </script>
+</body>
+</html>

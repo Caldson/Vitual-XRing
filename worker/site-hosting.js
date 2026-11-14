@@ -1,4 +1,4 @@
-/* 12.1.3：Vtoy / VDEX 多页文件托管。 */
+/* 12.2.0：Vtoy / VDEX 多页文件托管。 */
 const VTOY_PREFIX = "vtoy:app:";
 const VDEX_PREFIX = "vdex:site:";
 
