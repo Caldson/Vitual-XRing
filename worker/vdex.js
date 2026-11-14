@@ -1,7 +1,8 @@
-/* Vitual XRing 12.0.2：VDEX 网站托管。
+/* Vitual XRing 12.1.0：VDEX 网站托管。
    数据保存在 ACCOUNTS_KV 的 vdex:site:<name>，购买时在 accounts 锁内扣 VTX。 */
 
-const VDEX_VERSION = "12.0.2";
+const VDEX_VERSION = "12.1.0";
+import { documentTitle } from "./html-title.js";
 const VDEX_PREFIX = "vdex:site:";
 const VDEX_DATA_PREFIX = "vdex:data:";
 const VDEX_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -41,7 +42,7 @@ function vdexPublic(record) {
         owner: record.owner,
         plan: record.plan,
         gb: record.gb,
-        title: record.title || record.name,
+        title: documentTitle(record.html),
         html: record.html || "",
         css: record.css || "",
         js: record.js || "",
@@ -149,7 +150,7 @@ export async function routeVdex(request, env, cors, deps) {
             price: plan.price,
             storageBytes: plan.storageBytes,
             title: name,
-            html: "<!doctype html><html><head><meta charset=\"utf-8\"><title>" + name + "</title></head><body><h1>" + name + "</h1><p>Hello from VDEX.HTML.</p></body></html>",
+            html: "<!doctype html><html><head><meta charset=\"utf-8\"></head><body><h1>" + name + "</h1><p>Hello from VDEX.HTML.</p></body></html>",
             css: "",
             js: "",
             createdAt: now,
@@ -225,7 +226,7 @@ export async function routeVdex(request, env, cors, deps) {
         if (total > record.storageBytes) {
             return deps.jsonResponse({ error: "too_large", message: `内容超过套餐容量（${record.gb}GB）` }, 400, cors);
         }
-        record.title = vdexText(body.title, 80) || name;
+        record.title = documentTitle(html);
         record.html = html;
         record.css = css;
         record.js = js;

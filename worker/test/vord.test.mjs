@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import worker from "../index.js";
 
-/* 12.0.2：Vord 文档、6 档分享权限与编辑记录 */
+/* 12.1.0：Vord 文档、6 档分享权限与编辑记录 */
 
 class MockKV {
     constructor() {
@@ -103,7 +103,7 @@ async function share(env, tokens, id, body) {
     return result.data.share;
 }
 
-test("12.0.2：Vord 文档可以新建、列出、读取、编辑和删除", async () => {
+test("12.1.0：Vord 文档可以新建、列出、读取、编辑和删除", async () => {
     const { env, tokens } = await prepare();
     const doc = await createDoc(env, tokens);
     assert.equal(doc.title, "项目计划");
@@ -135,7 +135,7 @@ test("12.0.2：Vord 文档可以新建、列出、读取、编辑和删除", asy
     assert.equal(after.data.documents.length, 0);
 });
 
-test("12.0.2：仅预览链接任何人可看，但不能编辑", async () => {
+test("12.1.0：仅预览链接任何人可看，但不能编辑", async () => {
     const { env, tokens } = await prepare();
     const doc = await createDoc(env, tokens);
     const info = await share(env, tokens, doc.id, { permission: 1 });
@@ -152,7 +152,7 @@ test("12.0.2：仅预览链接任何人可看，但不能编辑", async () => {
     assert.equal(denied.data.error, "read_only");
 });
 
-test("12.0.2：可编辑链接允许匿名编辑并记为匿名用户", async () => {
+test("12.1.0：可编辑链接允许匿名编辑并记为匿名用户", async () => {
     const { env, tokens } = await prepare();
     const doc = await createDoc(env, tokens);
     const info = await share(env, tokens, doc.id, { permission: 4 });
@@ -172,7 +172,7 @@ test("12.0.2：可编辑链接允许匿名编辑并记为匿名用户", async ()
     assert.equal(windows.data.document.content, "Windows 访客改的");
 });
 
-test("12.0.2：仅登录账号可预览 / 可编辑", async () => {
+test("12.1.0：仅登录账号可预览 / 可编辑", async () => {
     const { env, tokens } = await prepare();
     const doc = await createDoc(env, tokens);
 
@@ -196,7 +196,7 @@ test("12.0.2：仅登录账号可预览 / 可编辑", async () => {
     assert.equal(bobEdit.data.document.history[0].name, "鲍勃");
 });
 
-test("12.0.2：仅受邀账号可预览 / 可编辑", async () => {
+test("12.1.0：仅受邀账号可预览 / 可编辑", async () => {
     const { env, tokens } = await prepare();
     const doc = await createDoc(env, tokens);
 
@@ -227,7 +227,7 @@ test("12.0.2：仅受邀账号可预览 / 可编辑", async () => {
     assert.equal(invitedEdit.data.document.history[0].name, "鲍勃");
 });
 
-test("12.0.2：关闭分享链接后原链接立即失效", async () => {
+test("12.1.0：关闭分享链接后原链接立即失效", async () => {
     const { env, tokens } = await prepare();
     const doc = await createDoc(env, tokens);
     const info = await share(env, tokens, doc.id, { permission: 1 });
@@ -238,7 +238,7 @@ test("12.0.2：关闭分享链接后原链接立即失效", async () => {
     assert.equal(gone.status, 404);
 });
 
-test("12.0.2：文档大小、权限和受邀账号做基本校验", async () => {
+test("12.1.0：文档大小、权限和受邀账号做基本校验", async () => {
     const { env, tokens } = await prepare();
     const doc = await createDoc(env, tokens);
 

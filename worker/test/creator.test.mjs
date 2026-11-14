@@ -45,7 +45,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("12.0.2：VDEX 套餐、注册扣费、保存与公开访问", async () => {
+test("12.1.0：VDEX 套餐、注册扣费、保存与公开访问", async () => {
     const { env, token } = await prepare();
     const plans = await api(env, "GET", "/api/vdex/plans");
     assert.equal(plans.status, 200);
@@ -68,6 +68,9 @@ test("12.0.2：VDEX 套餐、注册扣费、保存与公开访问", async () => 
     const publicSite = await api(env, "GET", "/api/vdex/site?name=alice-site");
     assert.equal(publicSite.status, 200);
     assert.equal(publicSite.data.site.html, "<h1>Hello</h1>");
+    assert.equal(publicSite.data.site.title, "Document");
+    const titled = await api(env, "PUT", "/api/vdex/save", { token, body: { name: "alice-site", html: "<!doctype html><html><head><title>Alice 站点</title></head><body>Hi</body></html>" } });
+    assert.equal(titled.data.site.title, "Alice 站点");
     assert.equal(publicSite.data.site.owner, "Alice");
 
     const free = await api(env, "POST", "/api/vdex/register", { token, body: { name: "free-site", gb: 0.1, tier: "light" } });
@@ -82,7 +85,7 @@ test("12.0.2：VDEX 套餐、注册扣费、保存与公开访问", async () => 
     assert.equal(poor.status, 400);
 });
 
-test("12.0.2：Vtoy 保存应用与公开读取", async () => {
+test("12.1.0：Vtoy 保存应用与公开读取", async () => {
     const { env, token } = await prepare();
     const bad = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "Bad_App", html: "x" } });
     assert.equal(bad.status, 400);
@@ -90,8 +93,9 @@ test("12.0.2：Vtoy 保存应用与公开读取", async () => {
     assert.equal(saved.status, 201, JSON.stringify(saved.data));
     const pub = await api(env, "GET", "/api/vtoy/apps?name=hello-toy");
     assert.equal(pub.status, 200);
-    assert.equal(pub.data.app.title, "Hello");
+    assert.equal(pub.data.app.title, "Document");
     assert.deepEqual(pub.data.app.permissions, ["login"]);
+    assert.equal(pub.data.app.title, "Document");
     const mine = await api(env, "GET", "/api/vtoy/mine", { token });
     assert.equal(mine.status, 200);
     assert.equal(mine.data.apps.length, 1);

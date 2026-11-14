@@ -1,7 +1,8 @@
-/* Vitual XRing 12.0.2：Vtoy 小程序托管。
+/* Vitual XRing 12.1.0：Vtoy 小程序托管。
    应用代码存 ACCOUNTS_KV 的 vtoy:app:<name>，运行在 vtoy.html?app=... 的沙箱 iframe 中。 */
 
-const VTOY_VERSION = "12.0.2";
+const VTOY_VERSION = "12.1.0";
+import { documentTitle } from "./html-title.js";
 const VTOY_PREFIX = "vtoy:app:";
 const VTOY_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const VTOY_LIMIT = 256 * 1024;
@@ -13,7 +14,7 @@ function vtoyText(value, limit) {
 function vtoyMeta(record) {
     return {
         name: record.name,
-        title: record.title || record.name,
+        title: documentTitle(record.html),
         description: record.description || "",
         owner: record.owner,
         permissions: Array.isArray(record.permissions) ? record.permissions : [],
@@ -90,7 +91,7 @@ export async function routeVtoy(request, env, cors, deps) {
         const record = {
             name,
             owner: login,
-            title: vtoyText(body.title, 60) || name,
+            title: documentTitle(html),
             description: vtoyText(body.description, 160),
             permissions: Array.isArray(body.permissions)
                 ? body.permissions.filter((item) => item === "login" || item === "wallet")
