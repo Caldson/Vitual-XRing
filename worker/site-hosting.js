@@ -36,13 +36,15 @@ function vtoyBridge() {
         window.VTX={
             login:function(){return call("login");},
             getUser:function(){return call("user");},
-            getBalance:function(){return call("balance");}
+            getBalance:function(){return call("balance");},
+            getData:function(game){return call("getData",{game:game});},
+            setData:function(game,values){return call("setData",{game:game,values:values});}
         };
-        function call(method){
+        function call(method,payload){
             return new Promise(function(resolve,reject){
                 var id="r"+(++seq);
                 pending[id]={resolve:resolve,reject:reject};
-                parent.postMessage({source:"vtoy-app",id:id,method:method},"*");
+                parent.postMessage({source:"vtoy-app",id:id,method:method,game:payload&&payload.game,values:payload&&payload.values},"*");
                 setTimeout(function(){if(pending[id]){delete pending[id];reject(new Error("请求超时"));}},20000);
             });
         }

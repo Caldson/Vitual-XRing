@@ -120,8 +120,8 @@
             function bridgeCode() {
                 return `<script>(function(){
                     var pending={},seq=0;
-                    window.VTX={login:function(){return call("login");},getUser:function(){return call("user");},getBalance:function(){return call("balance");}};
-                    function call(method){return new Promise(function(resolve,reject){var id="r"+(++seq);pending[id]={resolve:resolve,reject:reject};parent.postMessage({source:"vtoy-app",id:id,method:method},"*");setTimeout(function(){if(pending[id]){delete pending[id];reject(new Error("请求超时"));}},20000);});}
+                    window.VTX={login:function(){return call("login");},getUser:function(){return call("user");},getBalance:function(){return call("balance");},getData:function(game){return call("getData",{game:game});},setData:function(game,values){return call("setData",{game:game,values:values});}};
+                    function call(method,payload){return new Promise(function(resolve,reject){var id="r"+(++seq);pending[id]={resolve:resolve,reject:reject};parent.postMessage({source:"vtoy-app",id:id,method:method,game:payload&&payload.game,values:payload&&payload.values},"*");setTimeout(function(){if(pending[id]){delete pending[id];reject(new Error("请求超时"));}},20000);});}
                     window.addEventListener("message",function(event){var data=event.data||{};if(data.source!=="vtoy-host"||!data.id||!pending[data.id])return;var item=pending[data.id];delete pending[data.id];if(data.ok)item.resolve(data.result);else{var err=new Error(data.error||"请求被拒绝");err.status=data.status||0;err.code=data.code||"";item.reject(err);}});
                 })();<\/script>`;
             }
@@ -176,6 +176,14 @@
                 const denied = permission(data.method);
                 if (denied) { reply(false, null, denied, 403, "permission_denied"); return; }
                 if (data.method === "login" || data.method === "user") askLogin().then((user) => reply(true, user), (error) => reply(false, null, error.message, error.status, error.code));
+                else if (data.method === "getData" || data.method === "setData") {
+                    if (!loggedIn()) { reply(false, null, "请先登录 VTX 账户", 401, "login_required"); return; }
+                    const game = String(data.game || "").trim();
+                    if (!game) { reply(false, null, "缺少游戏名称", 400, "bad_request"); return; }
+                    api().request(`/me/data/${encodeURIComponent(game)}`, { method: data.method === "setData" ? "PUT" : "GET", body: data.method === "setData" ? (data.values || {}) : undefined })
+                        .then((result) => reply(true, data.method === "getData" ? (result.data == null ? null : result.data) : result))
+                        .catch((error) => reply(false, null, error.message, error.status, error.code));
+                }
                 else if (data.method === "balance") {
                     if (!loggedIn()) { reply(false, null, "请先登录 VTX 账户", 401, "login_required"); return; }
                     api().me().then((account) => reply(true, { money: account.money, login: account.login }), (error) => reply(false, null, error.message));

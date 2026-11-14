@@ -5841,6 +5841,8 @@ Vtoy 应用运行在沙箱 iframe 中，父页面提供的 `VTX` **不是完整 
 | `VTX.login()` | 无 | 弹出父页面确认框；同意后返回 `{ login, username, uid }`，不返回 token。需要 `login` 权限。 |
 | `VTX.getUser()` | 无 | 与 `VTX.login()` 相同的用户信息。 |
 | `VTX.getBalance()` | 无 | 返回 `{ money, login }`。需要 `wallet` 权限。 |
+| `VTX.getData(game)` | 游戏名 | 读取当前账户的 Vtoy 游戏数据。 |
+| `VTX.setData(game, values)` | 游戏名、对象 | 合并写入当前账户的 Vtoy 游戏数据。 |
 
 ```js
 const user = await VTX.login();
