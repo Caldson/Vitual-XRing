@@ -5834,7 +5834,7 @@ await VTX.receive({ amount: "5.00", party: "活动奖励", description: "签到"
 
 ### 109.6 Vtoy 专用 VTX 桥接
 
-Vtoy 应用运行在沙箱 iframe 中，父页面提供的 `VTX` **不是完整 SDK**，只有以下三个函数：
+Vtoy 应用运行在沙箱 iframe 中，父页面提供的 `VTX` **不是完整 SDK**，只有以下函数：
 
 | 函数 | 参数 | 返回 / 说明 |
 | --- | --- | --- |
@@ -5843,6 +5843,7 @@ Vtoy 应用运行在沙箱 iframe 中，父页面提供的 `VTX` **不是完整 
 | `VTX.getBalance()` | 无 | 返回 `{ money, login }`。需要 `wallet` 权限。 |
 | `VTX.getData(game)` | 游戏名 | 读取当前账户的 Vtoy 游戏数据。 |
 | `VTX.setData(game, values)` | 游戏名、对象 | 合并写入当前账户的 Vtoy 游戏数据。 |
+| `VTX.receive(options)` | `{ amount, party, description?, name? }` | 给当前账户记一笔收款（红包提现）；需要 `wallet` 权限。 |
 
 ```js
 const user = await VTX.login();
