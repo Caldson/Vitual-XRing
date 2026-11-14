@@ -5801,7 +5801,7 @@ await VTX.deleteData("MyGame", "coins");
 
 | 函数 | 参数 | 返回 / 说明 |
 | --- | --- | --- |
-| `VTX.trade(options)` | `{ type: "payment"|"receipt", amount, party, description?, name?, password? }` | 通用记账。`payment` 扣余额，必须带密码；`receipt` 加余额，不需要密码。 |
+| `VTX.trade(options)` | `{ type: "payment" / "receipt", amount, party, description?, name?, password? }` | 通用记账。`payment` 扣余额，必须带密码；`receipt` 加余额，不需要密码。 |
 | `VTX.pay(options)` | `{ amount, party, description?, name?, password }` | `trade({ ...options, type: "payment" })` 的快捷方式。 |
 | `VTX.receive(options)` | `{ amount, party, description?, name? }` | `trade({ ...options, type: "receipt" })` 的快捷方式。 |
 | `VTX.createReceiptCode(amount?)` | 可选金额 | 生成新的收款码；旧码立即失效。不传金额则由付款方填写。 |
