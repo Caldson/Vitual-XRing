@@ -5736,6 +5736,8 @@ function openPay() {
 </button>
 ```
 
+`VDEX.login()` 返回 Promise，成功时解析为用户信息；用户关闭登录窗口或拒绝登录时，Promise 拒绝，错误对象带 `status = 402`、`code = "login_rejected"`。
+
 注意：`target="_blank"` 在现代浏览器中通常等价于 `noopener`，`API_LOGIN` 找不到 `window.opener`，只能依赖 `redirect`。因此推荐用 `window.open(...)` 并保留 opener，或显式传 `redirect`。
 
 ### 108.5 检查清单
@@ -5844,6 +5846,8 @@ Vtoy 应用运行在沙箱 iframe 中，父页面提供的 `VTX` **不是完整 
 const user = await VTX.login();
 const balance = await VTX.getBalance();
 ```
+
+用户拒绝登录时，`VTX.login()` 返回的 Promise 会拒绝，错误对象带 `status = 402`、`code = "login_rejected"`。其它错误按 `status` / `code` 区分，例如未申请权限是 `403 permission_denied`。
 
 Vtoy 中不要调用 `VTX.configure`、`VTX.login("用户名", "密码")`、`VTX.pay` 等完整 SDK 方法；这些属于独立网站 / 后端场景。
 

@@ -107,7 +107,7 @@
                     var pending={},seq=0;
                     window.VTX={login:function(){return call("login");},getUser:function(){return call("user");},getBalance:function(){return call("balance");}};
                     function call(method){return new Promise(function(resolve,reject){var id="r"+(++seq);pending[id]={resolve:resolve,reject:reject};parent.postMessage({source:"vtoy-app",id:id,method:method},"*");setTimeout(function(){if(pending[id]){delete pending[id];reject(new Error("请求超时"));}},20000);});}
-                    window.addEventListener("message",function(event){var data=event.data||{};if(data.source!=="vtoy-host"||!data.id||!pending[data.id])return;var item=pending[data.id];delete pending[data.id];if(data.ok)item.resolve(data.result);else item.reject(new Error(data.error||"请求被拒绝"));});
+                    window.addEventListener("message",function(event){var data=event.data||{};if(data.source!=="vtoy-host"||!data.id||!pending[data.id])return;var item=pending[data.id];delete pending[data.id];if(data.ok)item.resolve(data.result);else{var err=new Error(data.error||"请求被拒绝");err.status=data.status||0;err.code=data.code||"";item.reject(err);}});
                 })();<\/script>`;
             }
 
@@ -145,8 +145,8 @@
                 el("vtoy-modal").hidden = true;
                 if (!invite) return;
                 const current = invite; invite = null;
-                if (!allow) { current.reject(new Error("用户取消了登录")); return; }
-                if (current.redirect) { current.reject(new Error("正在前往登录页")); location.href = "login.html?next=" + encodeURIComponent(location.href); return; }
+                if (!allow) { const error = new Error("用户拒绝登录"); error.status = 402; error.code = "login_rejected"; current.reject(error); return; }
+                if (current.redirect) { const error = new Error("需要先登录 VTX"); error.status = 401; error.code = "login_required"; current.reject(error); location.href = "login.html?next=" + encodeURIComponent(location.href); return; }
                 api().me().then((account) => current.resolve({ login: account.login, username: account.username, uid: account.uid }), current.reject);
             }
 
@@ -156,12 +156,12 @@
             window.addEventListener("message", (event) => {
                 const data = event.data || {};
                 if (data.source !== "vtoy-app" || !currentApp || event.source !== el("vtoy-app-frame").contentWindow) return;
-                const reply = (ok, result, error) => { try { event.source.postMessage({ source: "vtoy-host", id: data.id, ok, result, error }, "*"); } catch (error) { /* ignore */ } };
+                const reply = (ok, result, error, status, code) => { try { event.source.postMessage({ source: "vtoy-host", id: data.id, ok, result, error, status, code }, "*"); } catch (error) { /* ignore */ } };
                 const denied = permission(data.method);
-                if (denied) { reply(false, null, denied); return; }
-                if (data.method === "login" || data.method === "user") askLogin().then((user) => reply(true, user), (error) => reply(false, null, error.message));
+                if (denied) { reply(false, null, denied, 403, "permission_denied"); return; }
+                if (data.method === "login" || data.method === "user") askLogin().then((user) => reply(true, user), (error) => reply(false, null, error.message, error.status, error.code));
                 else if (data.method === "balance") {
-                    if (!loggedIn()) { reply(false, null, "请先登录 VTX 账户"); return; }
+                    if (!loggedIn()) { reply(false, null, "请先登录 VTX 账户", 401, "login_required"); return; }
                     api().me().then((account) => reply(true, { money: account.money, login: account.login }), (error) => reply(false, null, error.message));
                 } else reply(false, null, "不支持的 VTX 方法");
             });
