@@ -1,7 +1,7 @@
-/* Vitual XRing 12.1.2：VDEX 网站托管。
+/* Vitual XRing 12.1.3：VDEX 网站托管。
    数据保存在 ACCOUNTS_KV 的 vdex:site:<name>，购买时在 accounts 锁内扣 VTX。 */
 
-const VDEX_VERSION = "12.1.2";
+const VDEX_VERSION = "12.1.3";
 import { documentTitle } from "./html-title.js";
 const VDEX_PREFIX = "vdex:site:";
 const VDEX_DATA_PREFIX = "vdex:data:";
@@ -46,12 +46,24 @@ function vdexPublic(record) {
         html: record.html || "",
         css: record.css || "",
         js: record.js || "",
+        pages: Object.keys(record.pages || {}),
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,
         expiresAt: record.expiresAt
     };
 }
 
+function vdexPages(value, fallbackHtml, limit) {
+    const pages = {};
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+        for (const [name, content] of Object.entries(value)) {
+            if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\.html$/.test(name)) continue;
+            pages[name] = vdexText(content, limit);
+        }
+    }
+    if (!pages["index.html"] && fallbackHtml !== undefined) pages["index.html"] = vdexText(fallbackHtml, limit);
+    return pages;
+}
 function vdexMeta(record) {
     const out = vdexPublic(record);
     delete out.html;
@@ -222,12 +234,15 @@ export async function routeVdex(request, env, cors, deps) {
         const html = vdexText(body.html, record.storageBytes);
         const css = vdexText(body.css, record.storageBytes);
         const js = vdexText(body.js, record.storageBytes);
-        const total = new TextEncoder().encode(html + css + js).byteLength;
+        const pages = vdexPages(body.pages, html, record.storageBytes);
+        const indexHtml = pages["index.html"] || html;
+        const total = new TextEncoder().encode(indexHtml + css + js + Object.values(pages).join("")).byteLength;
         if (total > record.storageBytes) {
             return deps.jsonResponse({ error: "too_large", message: `内容超过套餐容量（${record.gb}GB）` }, 400, cors);
         }
-        record.title = documentTitle(html);
-        record.html = html;
+        record.title = documentTitle(indexHtml);
+        record.html = indexHtml;
+        record.pages = pages;
         record.css = css;
         record.js = js;
         record.updatedAt = vdexTime();

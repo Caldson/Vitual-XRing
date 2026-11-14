@@ -1,7 +1,7 @@
-/* Vitual XRing 12.1.2：Vtoy 小程序托管。
+/* Vitual XRing 12.1.3：Vtoy 小程序托管。
    应用代码存 ACCOUNTS_KV 的 vtoy:app:<name>，运行在 vtoy.html?app=... 的沙箱 iframe 中。 */
 
-const VTOY_VERSION = "12.1.2";
+const VTOY_VERSION = "12.1.3";
 import { documentTitle } from "./html-title.js";
 const VTOY_PREFIX = "vtoy:app:";
 function validVtoyName(value) {
@@ -17,6 +17,17 @@ function vtoyText(value, limit) {
     return String(value == null ? "" : value).slice(0, limit);
 }
 
+function vtoyPages(value, fallbackHtml) {
+    const pages = {};
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+        for (const [name, content] of Object.entries(value)) {
+            if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\.html$/.test(name)) continue;
+            pages[name] = vtoyText(content, VTOY_LIMIT);
+        }
+    }
+    if (!pages["index.html"] && fallbackHtml !== undefined) pages["index.html"] = vtoyText(fallbackHtml, VTOY_LIMIT);
+    return pages;
+}
 function vtoyMeta(record) {
     return {
         name: record.name,
@@ -34,6 +45,7 @@ function vtoyPublic(record) {
     out.html = record.html || "";
     out.css = record.css || "";
     out.js = record.js || "";
+    out.pages = Object.keys(record.pages || {});
     return out;
 }
 
@@ -88,7 +100,9 @@ export async function routeVtoy(request, env, cors, deps) {
         const html = vtoyText(body.html, VTOY_LIMIT);
         const css = vtoyText(body.css, VTOY_LIMIT);
         const js = vtoyText(body.js, VTOY_LIMIT);
-        const total = new TextEncoder().encode(html + css + js).byteLength;
+        const pages = vtoyPages(body.pages, html);
+        const indexHtml = pages["index.html"] || html;
+        const total = new TextEncoder().encode(indexHtml + css + js + Object.values(pages).join("")).byteLength;
         if (total > VTOY_LIMIT) return deps.jsonResponse({ error: "too_large", message: "应用代码不能超过 256KB" }, 400, cors);
         const login = session.payload.sub;
         const existing = await env.ACCOUNTS_KV.get(VTOY_PREFIX + name, "json");
@@ -97,14 +111,14 @@ export async function routeVtoy(request, env, cors, deps) {
         const record = {
             name,
             owner: login,
-            title: documentTitle(html),
+            title: documentTitle(indexHtml),
             description: vtoyText(body.description, 160),
             permissions: Array.isArray(body.permissions)
                 ? body.permissions.filter((item) => item === "login" || item === "wallet")
                 : existing ? existing.permissions || [] : [],
-            html,
-            css,
-            js,
+            html: indexHtml,
+            pages,
+            css,            js,
             createdAt: existing ? existing.createdAt : now,
             updatedAt: now
         };

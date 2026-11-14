@@ -1,6 +1,6 @@
 {
-    "version": "12.1.2",
-    "updatedAt": "2026-11-14T21:09:45+08:00",
-    "notes": "Vtoy/VDEX owner panel: set Vtoy permissions and open websites",
-    "download": "https://xsmmc.caldson.us.ci/downloads/VitualXRing-12.1.2-portable.exe"
+    "version": "12.1.3",
+    "updatedAt": "2026-11-14T21:20:55+08:00",
+    "notes": "Vtoy/VDEX multi-page routing: second.html and relative links work",
+    "download": "https://xsmmc.caldson.us.ci/downloads/VitualXRing-12.1.3-portable.exe"
 }

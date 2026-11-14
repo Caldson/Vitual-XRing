@@ -45,7 +45,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("12.1.2：VDEX 套餐、注册扣费、保存与公开访问", async () => {
+test("12.1.3：VDEX 套餐、注册扣费、保存与公开访问", async () => {
     const { env, token } = await prepare();
     const plans = await api(env, "GET", "/api/vdex/plans");
     assert.equal(plans.status, 200);
@@ -63,12 +63,13 @@ test("12.1.2：VDEX 套餐、注册扣费、保存与公开访问", async () => 
     assert.equal(account.Alice.money, "950.00");
     assert.ok(account.Alice.trades.some((trade) => trade.name === "VDEX" && trade.price === "-50.00"));
 
-    const saved = await api(env, "PUT", "/api/vdex/save", { token, body: { name: "alice-site", title: "Alice 的站点", html: "<h1>Hello</h1>", css: "h1{color:red}", js: "console.log(1)" } });
+    const saved = await api(env, "PUT", "/api/vdex/save", { token, body: { name: "alice-site", title: "Alice 的站点", html: "<h1>Hello</h1>", css: "h1{color:red}", js: "console.log(1)", pages: { "index.html": "<h1>Hello</h1>", "second.html": "<h1>Second</h1>" } } });
     assert.equal(saved.status, 200, JSON.stringify(saved.data));
     const publicSite = await api(env, "GET", "/api/vdex/site?name=alice-site");
     assert.equal(publicSite.status, 200);
     assert.equal(publicSite.data.site.html, "<h1>Hello</h1>");
     assert.equal(publicSite.data.site.title, "Document");
+    assert.ok(publicSite.data.site.pages.includes("second.html"));
     const titled = await api(env, "PUT", "/api/vdex/save", { token, body: { name: "alice-site", html: "<!doctype html><html><head><title>Alice 站点</title></head><body>Hi</body></html>" } });
     assert.equal(titled.data.site.title, "Alice 站点");
     assert.equal(publicSite.data.site.owner, "Alice");
@@ -85,11 +86,11 @@ test("12.1.2：VDEX 套餐、注册扣费、保存与公开访问", async () => 
     assert.equal(poor.status, 400);
 });
 
-test("12.1.2：Vtoy 保存应用与公开读取", async () => {
+test("12.1.3：Vtoy 保存应用与公开读取", async () => {
     const { env, token } = await prepare();
     const bad = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "Bad/App", html: "x" } });
     assert.equal(bad.status, 400);
-    const saved = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "hello-toy", title: "Hello", description: "测试", html: "<h1>Hi</h1>", css: "", js: "", permissions: ["login"] } });
+    const saved = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "hello-toy", title: "Hello", description: "测试", html: "<h1>Hi</h1>", css: "", js: "", permissions: ["login"], pages: { "index.html": "<h1>Hi</h1>", "second.html": "<h1>Toy second</h1>" } } });
     assert.equal(saved.status, 201, JSON.stringify(saved.data));
     const named = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "中文 App_01", html: "<h1>宽松名称</h1>" } });
     assert.equal(named.status, 201, JSON.stringify(named.data));
@@ -101,8 +102,10 @@ test("12.1.2：Vtoy 保存应用与公开读取", async () => {
     const pub = await api(env, "GET", "/api/vtoy/apps?name=hello-toy");
     assert.equal(pub.status, 200);
     assert.equal(pub.data.app.title, "Document");
+    assert.ok(pub.data.app.pages.includes("second.html"));
     assert.deepEqual(pub.data.app.permissions, ["login"]);
     assert.equal(pub.data.app.title, "Document");
+    assert.ok(pub.data.app.pages.includes("second.html"));
     const mine = await api(env, "GET", "/api/vtoy/mine", { token });
     assert.equal(mine.status, 200);
     assert.equal(mine.data.apps.length, 2);

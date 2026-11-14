@@ -5908,3 +5908,47 @@ try {
 ### 110.4 版本
 
 - 全站版本 `12.1.2`，Service Worker 缓存 `xring-v12.1.2`。
+---
+
+## 111. 12.1.3 Vtoy / VDEX 多页文件
+
+### 111.1 问题
+
+Vtoy / VDEX 页面运行在 `vtoy.html?app=名称` / `vdex.html?name=名称` 的 iframe 中。以前只保存 `index.html`，所以：
+
+```html
+<a href="second.html">第二页</a>
+```
+
+或：
+
+```js
+window.location.href = "second.html";
+window.open("second.html");
+```
+
+会跳到 GitHub Pages 根目录的 `/second.html`，返回 404。
+
+### 111.2 修复
+
+- Vtoy / VDEX 记录新增 `pages` 对象，保存所有 `*.html` 文件（`index.html`、`second.html` 等）。
+- 新增虚拟目录：
+  - `/vtoy-app/<名称>/`
+  - `/vdex-site/<名称>/`
+- 公开页面的 iframe 加入 `<base>`，相对路径会解析到虚拟目录：
+  - `second.html` → `/vtoy-app/<名称>/second.html`
+  - 样式和脚本相对路径也会走虚拟目录。
+- Worker 从 KV 读取页面并返回，不再落到 GitHub Pages 404。
+- 扩展 0.2.5 推送时会扫描应用/站点文件夹下所有 `.html`，一起上传到 `pages`。
+
+### 111.3 限制
+
+- 只托管 `.html`、`style.css`、`app.js` / `script.js`、`data.json`。
+- 页面文件名只能使用字母、数字、点、下划线、连字符，且必须以 `.html` 结尾。
+- 子目录（如 `sub/second.html`）暂不支持；请把页面放在同一层。
+- 旧的单页应用仍然兼容；重新推送一次即可写入 `pages`。
+
+### 111.4 版本
+
+- 全站 `12.1.3`。
+- VS Code 扩展 `0.2.5`。

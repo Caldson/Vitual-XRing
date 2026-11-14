@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f4f7fb">
     <title>Vtoy · Vitual XRing</title>
-    <link rel="icon" href="XRingLogo.png?v=12.1.2">
-    <link rel="stylesheet" href="vtx-theme.css?v=12.1.2">
-    <script src="vtx-theme.js?v=12.1.2"></script>
+    <link rel="icon" href="XRingLogo.png?v=12.1.3">
+    <link rel="stylesheet" href="vtx-theme.css?v=12.1.3">
+    <script src="vtx-theme.js?v=12.1.3"></script>
     <style>
         :root { --vtoy: #e85d3f; --vtoy-soft: #fff0ea; --vtoy-dark: #a9341c; }
         body { background: radial-gradient(circle at 15% 0%, #fff3ed 0, transparent 34%), var(--vtx-bg); }
@@ -57,7 +57,7 @@
 </head>
 <body>
     <header class="vtx-topbar">
-        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.1.2" alt="Vitual XRing" width="38" height="38"></a>
+        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.1.3" alt="Vitual XRing" width="38" height="38"></a>
         <nav class="top-links"><a href="index.html">首页</a><a href="vtoy.html" class="is-active">Vtoy</a><a href="vdex.html">VDEX</a><a href="settings.html">设置</a></nav>
     </header>
 
@@ -72,7 +72,7 @@
         <section class="card">
             <h2>Vtoy / VDEX VS Code 扩展</h2>
             <p>在 VS Code 左侧活动栏打开 Vtoy / VDEX，登录后点「准备Git文件夹」，在本地编辑 HTML / CSS / JS，再推送更新。</p>
-            <a class="download" href="downloads/vtoy-vdex-editor-0.2.4.vsix" download>下载 VSIX 扩展</a>
+            <a class="download" href="downloads/vtoy-vdex-editor-0.2.5.vsix" download>下载 VSIX 扩展</a>
             <div class="steps">
                 <div class="step"><b>1. 下载并安装</b><span>VS Code → 扩展 → ... → Install from VSIX。</span></div>
                 <div class="step"><b>2. 登录 VTX</b><span>左侧 Vtoy / VDEX 图标，登录账户。</span></div>
@@ -96,7 +96,7 @@
         </div>
     </div>
 
-    <script src="vtx-api.js?v=12.1.2"></script>
+    <script src="vtx-api.js?v=12.1.3"></script>
     <script>
         (function () {
             "use strict";
@@ -128,14 +128,15 @@
 
             function buildDocument(app) {
                 const css = `<style>${app.css || ""}</style>`;
+                const base = `<base href="/vtoy-app/${encodeURIComponent(app.name)}/">`;
                 const js = bridgeCode() + `<script>${app.js || ""}<\/script>`;
                 if (/<html[\s>]/i.test(app.html || "")) {
                     let html = app.html;
-                    if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, css + "</head>"); else html = css + html;
+                    if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, base + css + "</head>"); else html = base + css + html;
                     if (/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, js + "</body>"); else html += js;
                     return html;
                 }
-                return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${css}</head><body>${app.html || ""}${js}</body></html>`;
+                return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${base}${css}</head><body>${app.html || ""}${js}</body></html>`;
             }
 
             function permission(method) {

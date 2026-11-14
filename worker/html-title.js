@@ -1,4 +1,4 @@
-/* 12.1.2：Vtoy / VDEX 的标题只从 HTML 的 <title> 读取，默认 Document。 */
+/* 12.1.3：Vtoy / VDEX 的标题只从 HTML 的 <title> 读取，默认 Document。 */
 export function documentTitle(html, fallback = "Document") {
     const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(String(html || ""));
     if (!match) return fallback;
