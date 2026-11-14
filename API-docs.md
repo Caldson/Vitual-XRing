@@ -5747,3 +5747,126 @@ function openPay() {
 - [ ] `vtx-pay` 只是前端确认，发货/记账必须由后端校验。
 - [ ] Vtoy 使用 `VTX.login()` / `VTX.getBalance()` 并只申请需要的权限。
 - [ ] VDEX 只有 pro / enterprise 使用 `VDEX.login()` / `VDEX.pay()`。
+---
+
+## 109. VTX JavaScript SDK 函数总表
+
+`vtx-sdk.js` 在浏览器里暴露全局对象 `VTX`。下面按用途列出**所有可直接调用的函数**。除特别注明外，调用前需要先：
+
+```html
+<script src="https://xsmmc.caldson.us.ci/vtx-sdk.js"></script>
+<script>
+VTX.configure({ baseUrl: "https://xsmmc.caldson.us.ci" });
+</script>
+```
+
+### 109.1 初始化与会话
+
+| 函数 | 参数 | 返回 / 说明 |
+| --- | --- | --- |
+| `VTX.configure(options)` | `{ baseUrl }` | 设置 API 地址并写入 localStorage，返回地址字符串。未传 `baseUrl` 会抛错。 |
+| `VTX.login(login, password)` | 登录名、密码 | 登录并自动保存 token，返回 `{ token, expiresAt, login, account }`。 |
+| `VTX.register(options)` | `{ login, password, username? }` | 注册账户；成功时自动登录，返回结构与 `login` 相同，并带 `created: true`。 |
+| `VTX.setToken(token)` | token 字符串 | 采纳外部（如 `API_LOGIN.html` 弹窗）拿到的 token；传空字符串等于退出。 |
+| `VTX.logout()` | 无 | 清除内存和 localStorage 里的 token。 |
+| `VTX.isLoggedIn()` | 无 | 返回布尔值，只检查本地是否有 token。 |
+| `VTX.getToken()` | 无 | 返回当前 token 字符串；没有则返回空字符串。 |
+| `VTX.baseUrl` | 属性，不是函数 | 当前 API 地址。 |
+
+### 109.2 账户
+
+| 函数 | 参数 | 返回 / 说明 |
+| --- | --- | --- |
+| `VTX.me()` | 无 | 当前登录账户信息。 |
+| `VTX.accounts()` | 无 | 全部账户列表；**管理员接口**，普通账户会返回 403。 |
+| `VTX.account(loginName)` | 登录名 | 指定账户信息；**管理员接口**。 |
+
+### 109.3 游戏数据
+
+| 函数 | 参数 | 返回 / 说明 |
+| --- | --- | --- |
+| `VTX.setData(game, values)` | 游戏名、对象 | 合并写入该游戏的数据，不覆盖其它键。 |
+| `VTX.getData(game)` | 游戏名 | 读取该游戏的数据。 |
+| `VTX.deleteData(game, key?)` | 游戏名、可选键 | 不传 `key` 删除整个游戏命名空间；传 `key` 只删一个键。 |
+
+```js
+await VTX.setData("MyGame", { level: 3, coins: 120 });
+const data = await VTX.getData("MyGame");
+await VTX.deleteData("MyGame", "coins");
+```
+
+### 109.4 交易与收款
+
+| 函数 | 参数 | 返回 / 说明 |
+| --- | --- | --- |
+| `VTX.trade(options)` | `{ type: "payment"|"receipt", amount, party, description?, name?, password? }` | 通用记账。`payment` 扣余额，必须带密码；`receipt` 加余额，不需要密码。 |
+| `VTX.pay(options)` | `{ amount, party, description?, name?, password }` | `trade({ ...options, type: "payment" })` 的快捷方式。 |
+| `VTX.receive(options)` | `{ amount, party, description?, name? }` | `trade({ ...options, type: "receipt" })` 的快捷方式。 |
+| `VTX.createReceiptCode(amount?)` | 可选金额 | 生成新的收款码；旧码立即失效。不传金额则由付款方填写。 |
+| `VTX.receiptCode()` | 无 | 读取当前收款码，不会重新生成。 |
+| `VTX.revokeReceiptCode()` | 无 | 撤销当前收款码。 |
+| `VTX.receiptCodeInfo(code)` | 收款码 | 解析收款码内容；**公开接口，不需要登录**。 |
+| `VTX.payReceiptCode(code, options)` | 收款码、`{ password, amount?, description? }` | 用收款码付款，需要密码。 |
+
+```js
+await VTX.pay({
+    amount: "10.00",
+    party: "我的网站",
+    description: "购买道具",
+    password: "账户密码"
+});
+
+await VTX.receive({ amount: "5.00", party: "活动奖励", description: "签到" });
+```
+
+### 109.5 社交
+
+| 函数 | 参数 | 返回 / 说明 |
+| --- | --- | --- |
+| `VTX.social.resolve(url)` | 分享链接 | 解析链接对应的分享内容。 |
+| `VTX.social.list(kind, options?)` | 类型、`{ q, owner, sort, before, limit }` | 列出某类分享内容。 |
+| `VTX.social.get(kind, id)` | 类型、ID | 读取单条分享内容。 |
+| `VTX.social.share(payload)` | 分享对象 | 创建分享卡片，通常需要登录。 |
+| `VTX.social.shareGet(id)` | 分享 ID | 读取分享卡片。 |
+| `VTX.social.meeting(no)` | 会议号 | 读取会议信息。 |
+
+### 109.6 Vtoy 专用 VTX 桥接
+
+Vtoy 应用运行在沙箱 iframe 中，父页面提供的 `VTX` **不是完整 SDK**，只有以下三个函数：
+
+| 函数 | 参数 | 返回 / 说明 |
+| --- | --- | --- |
+| `VTX.login()` | 无 | 弹出父页面确认框；同意后返回 `{ login, username, uid }`，不返回 token。需要 `login` 权限。 |
+| `VTX.getUser()` | 无 | 与 `VTX.login()` 相同的用户信息。 |
+| `VTX.getBalance()` | 无 | 返回 `{ money, login }`。需要 `wallet` 权限。 |
+
+```js
+const user = await VTX.login();
+const balance = await VTX.getBalance();
+```
+
+Vtoy 中不要调用 `VTX.configure`、`VTX.login("用户名", "密码")`、`VTX.pay` 等完整 SDK 方法；这些属于独立网站 / 后端场景。
+
+### 109.7 错误格式
+
+`vtx-sdk.js` 的请求失败会抛出 `Error`，并附带：
+
+```js
+error.status // HTTP 状态码，例如 401 / 403 / 400
+error.code   // Worker 返回的 error，例如 invalid_credentials / insufficient_funds
+error.message
+```
+
+常见处理：
+
+```js
+try {
+    await VTX.login("账户", "密码");
+} catch (error) {
+    if (error.status === 401) {
+        console.log("登录名或密码错误");
+    } else {
+        console.log(error.code, error.message);
+    }
+}
+```
