@@ -5455,3 +5455,295 @@ VTXApi.xos.removeFile(id)
   - Vtoy 新建/文件夹/推送使用宽松校验；
   - VDEX 新建/文件夹/推送仍使用严格校验。
 - 全站版本同步为 `12.1.1`，Service Worker 缓存 `xring-v12.1.1`。
+
+---
+
+## 108. 在自己的网站 / Vtoy / VDEX 中使用 API_LOGIN.html 与 API_VTXPAY.html
+
+`API_LOGIN.html` 和 `API_VTXPAY.html` 是 VTX 提供的**独立登录 / 付款页面**。你自己的网站、Vtoy 应用或 VDEX 站点只需打开它们，再通过 `postMessage` 或 `redirect` 接收结果，不需要自己实现密码输入和付款表单。
+
+- 登录页：`https://xsmmc.caldson.us.ci/API_LOGIN.html`
+- 付款页：`https://xsmmc.caldson.us.ci/API_VTXPAY.html`
+- 两个页面都允许用 `?api=https://...` 覆盖 API 地址；生产环境不要传，默认同源。
+
+> 安全提示：`API_LOGIN` 的结果里包含 VTX token。token 等同于账户密码，不要写进日志、URL、截图或公开仓库。能用 `postMessage` 就不要用 `redirect`。
+
+### 108.1 API_LOGIN.html
+
+#### 参数
+
+| 参数 | 必填 | 说明 |
+| --- | --- | --- |
+| `redirect` | 否 | 登录成功后跳回的网址。适合无法使用 `window.opener` 的场景。 |
+| `api` | 否 | 覆盖 API 基础地址，主要用于本地预览。 |
+
+#### 打开方式
+
+```js
+const popup = window.open(
+    "https://xsmmc.caldson.us.ci/API_LOGIN.html",
+    "vtx-login",
+    "width=480,height=680"
+);
+```
+
+登录成功后，页面会向 `window.opener` 和 `window.parent` 发送：
+
+```js
+{
+    type: "vtx-login",
+    ok: true,
+    result: {
+        token: "...",
+        expiresAt: "...",
+        login: "账户名",
+        account: {
+            username: "显示名",
+            money: "100.00",
+            trades: []
+        }
+    }
+}
+```
+
+接收示例：
+
+```html
+<button id="vtx-login-button">登录 VTX</button>
+<script>
+const VTX_ORIGIN = "https://xsmmc.caldson.us.ci";
+
+window.addEventListener("message", (event) => {
+    if (event.origin !== VTX_ORIGIN) return;
+    const data = event.data || {};
+    if (data.type !== "vtx-login" || !data.ok) return;
+
+    const { token, login, account } = data.result;
+    // 建议：把 token 交给自己的后端换取 session，不要直接写入页面 URL。
+    console.log(login, account.username, account.money);
+});
+
+document.getElementById("vtx-login-button").addEventListener("click", () => {
+    window.open(
+        `${VTX_ORIGIN}/API_LOGIN.html`,
+        "vtx-login",
+        "width=480,height=680"
+    );
+});
+</script>
+```
+
+#### 使用 redirect
+
+```js
+const redirect = `${location.origin}/auth/callback`;
+window.open(
+    `https://xsmmc.caldson.us.ci/API_LOGIN.html?redirect=${encodeURIComponent(redirect)}`,
+    "vtx-login",
+    "width=480,height=680"
+);
+```
+
+回调页会收到：
+
+- `?vtx_result=<URL 编码的 JSON>`：结果较小时的完整 JSON；
+- 或 `?vtx_login=...&vtx_token=...&vtx_money=...`：JSON 较大时拆成字段。
+
+读取后应立刻清理地址栏：
+
+```js
+const url = new URL(location.href);
+const raw = url.searchParams.get("vtx_result");
+if (raw) {
+    const result = JSON.parse(raw);
+    // 保存结果
+    url.searchParams.delete("vtx_result");
+    history.replaceState(null, "", url);
+}
+```
+
+`redirect` 会经过你的站点，token 可能留在浏览器历史或 Referer 中。优先使用 `postMessage`；必须用 redirect 时，回调页不要引用第三方资源，并尽快用 `history.replaceState` 清掉参数。
+
+#### 已登录时
+
+如果浏览器里已有 VTX 登录状态，`API_LOGIN.html` 会尝试自动完成并直接返回结果，不需要再次输入密码。
+
+### 108.2 API_VTXPAY.html
+
+#### 参数
+
+| 参数 | 必填 | 说明 |
+| --- | --- | --- |
+| `type` | 否 | `payment`（默认，付款）、`receipt`（收款）、`code`（生成收款码）。 |
+| `party` | 否 | 付款对象 / 收款来源。付款时填收款方显示名或网站名，收款时填来源。 |
+| `amount` | 否 | 金额，字符串或数字，例如 `10.00`。 |
+| `description` | 否 | 描述，例如「购买道具」。 |
+| `lock` | 否 | `1` 表示锁定类型和金额/对象/描述，适合固定商品。 |
+| `close` | 否 | `1` 表示成功后自动关闭窗口。 |
+| `rc` | 否 | 收款码 ID，用于扫码付款。 |
+| `api` | 否 | 覆盖 API 基础地址，主要用于本地预览。 |
+
+#### 固定商品付款示例
+
+```js
+const params = new URLSearchParams({
+    type: "payment",
+    party: "我的网站",
+    amount: "10.00",
+    description: "购买道具",
+    lock: "1",
+    close: "1"
+});
+
+const popup = window.open(
+    `https://xsmmc.caldson.us.ci/API_VTXPAY.html?${params}`,
+    "vtx-pay",
+    "width=480,height=720"
+);
+```
+
+付款成功后，`API_VTXPAY.html` 会发送：
+
+```js
+{
+    type: "vtx-pay",
+    ok: true,
+    kind: "payment", // payment / receipt
+    trade: {
+        name: "购买道具",
+        description: "购买道具",
+        time: "2026-11-14 20:00:00",
+        from: "付款账户显示名",
+        to: "我的网站",
+        price: "-10.00"
+    },
+    account: {
+        username: "付款账户显示名",
+        money: "90.00"
+    }
+}
+```
+
+接收示例：
+
+```js
+window.addEventListener("message", (event) => {
+    if (event.origin !== "https://xsmmc.caldson.us.ci") return;
+    const data = event.data || {};
+    if (data.type !== "vtx-pay" || !data.ok) return;
+
+    // 注意：这是前端确认结果，真正的发货/记账仍应由你的后端校验。
+    console.log(data.kind, data.trade, data.account);
+});
+```
+
+#### 收款 / 收款码
+
+```js
+// 让用户输入金额后收款
+const receipt = new URL("https://xsmmc.caldson.us.ci/API_VTXPAY.html");
+receipt.searchParams.set("type", "receipt");
+receipt.searchParams.set("party", "我的网站");
+receipt.searchParams.set("description", "网站收款");
+
+// 生成固定金额的收款码
+const code = new URL("https://xsmmc.caldson.us.ci/API_VTXPAY.html");
+code.searchParams.set("type", "code");
+code.searchParams.set("amount", "10.00");
+```
+
+`type=receipt` 是收款（对方余额减少、你的账户增加），不需要付款密码；`type=payment` 是付款，需要付款账户密码。
+
+#### 重要限制
+
+- `API_VTXPAY.html` 是**用户确认界面**，不是服务端授权。任何人都能修改 URL 中的 `amount` / `party` / `description` 后再打开页面；`lock=1` 只锁 UI，不防止 URL 被改。
+- 真正发货前，后端必须校验交易记录、金额、收款方和订单状态，不能只相信前端 `postMessage`。
+- 不要把 `vtx-pay` 消息当作「已到账」的唯一凭证。
+- 不要在 iframe 中直接嵌入 `API_LOGIN` / `API_VTXPAY` 作为隐蔽登录；应让用户看到地址栏和页面来源。
+
+### 108.3 在 Vtoy 中使用
+
+Vtoy 运行在 `vtoy.html?app=名称` 的沙箱 iframe 中。父页面已经提供了安全的桥接，**优先使用桥接**，不要让应用自己保存 token。
+
+```js
+// Vtoy 应用内
+const user = await VTX.login();      // { login, username, uid }
+const balance = await VTX.getBalance(); // { money, login }
+```
+
+- 需要在 `vtoy.json` 中申请权限：
+  - `login`：允许 `VTX.login()` / `VTX.getUser()`；
+  - `wallet`：允许 `VTX.getBalance()`。
+- 父页面会弹出「申请登录您的账户」确认框；用户同意后才返回账户信息，**不会把 token 交给应用**。
+- 如果确实需要直接打开 `API_LOGIN.html`，Vtoy iframe 已带 `allow-popups`，可以：
+
+```js
+const popup = window.open(
+    "https://xsmmc.caldson.us.ci/API_LOGIN.html",
+    "vtx-login",
+    "width=480,height=680"
+);
+
+window.addEventListener("message", (event) => {
+    if (event.origin !== "https://xsmmc.caldson.us.ci") return;
+    if (event.data?.type === "vtx-login" && event.data.ok) {
+        // 这里会收到完整 token；Vtoy 应用通常不需要，建议改用 VTX.login()
+    }
+});
+```
+
+但直接拿 token 会让应用拥有账户完整权限；除非你有明确的后端交换流程，否则不要这样做。
+
+### 108.4 在 VDEX 中使用
+
+VDEX 的 `pro` / `enterprise` 套餐支持 VTX 桥接：
+
+```js
+// VDEX 页面内
+VDEX.login();    // 打开 API_LOGIN.html
+VDEX.pay();      // 打开 API_VTXPAY.html
+VDEX.getData();  // 读取该站点的游戏数据
+```
+
+桥接方法打开的是新窗口，不会把 token 注入 VDEX 页面。固定商品付款可以直接打开：
+
+```html
+<button onclick="openPay()">购买 10 VTX 道具</button>
+<script>
+function openPay() {
+    const params = new URLSearchParams({
+        type: "payment",
+        party: "我的 VDEX 站点",
+        amount: "10.00",
+        description: "购买道具",
+        lock: "1",
+        close: "1"
+    });
+    window.open(
+        `https://xsmmc.caldson.us.ci/API_VTXPAY.html?${params}`,
+        "vtx-pay",
+        "width=480,height=720"
+    );
+}
+</script>
+```
+
+登录同理：
+
+```html
+<button onclick="window.open('https://xsmmc.caldson.us.ci/API_LOGIN.html', 'vtx-login', 'width=480,height=680')">
+    登录 VTX
+</button>
+```
+
+注意：`target="_blank"` 在现代浏览器中通常等价于 `noopener`，`API_LOGIN` 找不到 `window.opener`，只能依赖 `redirect`。因此推荐用 `window.open(...)` 并保留 opener，或显式传 `redirect`。
+
+### 108.5 检查清单
+
+- [ ] 只使用 `https://xsmmc.caldson.us.ci` 上的官方页面，不复制密码表单。
+- [ ] 监听 `message` 时校验 `event.origin`。
+- [ ] 优先用 `postMessage`，必须用 `redirect` 时立即清理 token 参数。
+- [ ] 不把 token 写进 localStorage 之外的公开位置；不要写日志。
+- [ ] `vtx-pay` 只是前端确认，发货/记账必须由后端校验。
+- [ ] Vtoy 使用 `VTX.login()` / `VTX.getBalance()` 并只申请需要的权限。
+- [ ] VDEX 只有 pro / enterprise 使用 `VDEX.login()` / `VDEX.pay()`。
