@@ -3,6 +3,7 @@
 
 const VDEX_VERSION = "11.0.0";
 const VDEX_PREFIX = "vdex:site:";
+const VDEX_DATA_PREFIX = "vdex:data:";
 const VDEX_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const VDEX_RESERVED = new Set(["www", "api", "admin", "vdex", "vitual", "xring", "mail", "ftp", "root", "support"]);
 const VDEX_TIERS = ["free", "standard", "pro", "enterprise"];
@@ -160,6 +161,30 @@ export async function routeVdex(request, env, cors, deps) {
         }
         sites.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
         return deps.jsonResponse({ ok: true, sites }, 200, cors);
+    }
+
+    if (path === "data" && request.method === "GET") {
+        const name = String(url.searchParams.get("name") || "").trim().toLowerCase();
+        if (!VDEX_NAME_RE.test(name)) return deps.jsonResponse({ error: "bad_name", message: "无效的站点名称" }, 400, cors);
+        const data = await env.ACCOUNTS_KV.get(VDEX_DATA_PREFIX + name, "json");
+        return deps.jsonResponse({ ok: true, data: data || null }, 200, cors);
+    }
+
+    if (path === "data" && (request.method === "PUT" || request.method === "POST")) {
+        const session = await deps.requireSession(request, env, cors);
+        if (session.error) return session.error;
+        const body = deps.plainObject(await deps.readJsonBody(request));
+        const name = String(body.name || "").trim().toLowerCase();
+        const record = await env.ACCOUNTS_KV.get(VDEX_PREFIX + name, "json");
+        if (!record) return deps.jsonResponse({ error: "not_found", message: "VDEX 站点不存在" }, 404, cors);
+        if (record.owner !== session.payload.sub) return deps.jsonResponse({ error: "forbidden", message: "只有站点所有者可以修改数据" }, 403, cors);
+        if (record.plan !== "pro" && record.plan !== "enterprise") {
+            return deps.jsonResponse({ error: "plan_required", message: "只有专业版 / 企业版支持游戏数据" }, 403, cors);
+        }
+        const encoded = JSON.stringify(body.data == null ? null : body.data);
+        if (encoded.length > 256 * 1024) return deps.jsonResponse({ error: "too_large", message: "游戏数据不能超过 256KB" }, 400, cors);
+        await env.ACCOUNTS_KV.put(VDEX_DATA_PREFIX + name, encoded);
+        return deps.jsonResponse({ ok: true }, 200, cors);
     }
 
     if (path === "save" && (request.method === "PUT" || request.method === "POST")) {

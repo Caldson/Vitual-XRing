@@ -97,7 +97,8 @@
                         <label>CSS<textarea id="vdex-css" placeholder="body { font-family: sans-serif; }"></textarea></label>
                     </div>
                     <label>JavaScript<textarea id="vdex-js" placeholder="console.log('Hello')"></textarea></label>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="vdex-btn primary" id="vdex-save">保存内容</button><span class="vdex-status" id="vdex-save-status"></span></div>
+                    <label>游戏数据 JSON（专业版 / 企业版）<textarea id="vdex-data" placeholder='{"score": 0}'></textarea></label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="vdex-btn primary" id="vdex-save">保存内容</button><button class="vdex-btn" id="vdex-save-data">保存游戏数据</button><span class="vdex-status" id="vdex-save-status"></span></div>
                     <p class="vdex-note">内容会存到 KV，公开地址为 <code>vdex.html?name=名称</code>。容量按套餐限制。</p>
                 </div>
             </div>
@@ -179,6 +180,12 @@
                 el("vdex-html").value = current.html || "";
                 el("vdex-css").value = current.css || "";
                 el("vdex-js").value = current.js || "";
+                try {
+                    const stored = await api().request(`/vdex/data?name=${encodeURIComponent(name)}`);
+                    el("vdex-data").value = stored.data == null ? "" : JSON.stringify(stored.data, null, 2);
+                } catch (error) {
+                    el("vdex-data").value = "";
+                }
                 const select = el("vdex-plan");
                 for (const option of select.options) if (option.value.startsWith(`${current.gb}|`)) { option.selected = true; break; }
                 el("vdex-public-link").hidden = false;
@@ -211,11 +218,22 @@
                 } catch (error) { status(error.message, el("vdex-save-status")); }
             }
 
+            async function saveData() {
+                if (!current) { status("先注册或载入一个站点。", el("vdex-save-status")); return; }
+                let data;
+                try { data = el("vdex-data").value.trim() ? JSON.parse(el("vdex-data").value) : null; }
+                catch (error) { status("游戏数据不是有效 JSON。", el("vdex-save-status")); return; }
+                try {
+                    await api().request("/vdex/data", { method: "PUT", body: { name: current.name, data } });
+                    status("游戏数据已保存。", el("vdex-save-status"));
+                } catch (error) { status(error.message, el("vdex-save-status")); }
+            }
+
             function buildDocument(site) {
                 const css = `<style>${site.css || ""}</style>`;
                 let bridge = "";
                 if (site.plan === "pro" || site.plan === "enterprise") {
-                    bridge = `<script>window.VDEX={plan:${JSON.stringify(site.plan)},login:function(){window.open("API_LOGIN.html","_blank");}${site.plan === "enterprise" ? ',pay:function(){window.open("API_VTXPAY.html","_blank");}' : ""}};<\/script>`;
+                    bridge = `<script>window.VDEX={plan:${JSON.stringify(site.plan)},login:function(){window.open("API_LOGIN.html","_blank");},getData:function(){return fetch("/api/vdex/data?name=${encodeURIComponent(site.name)}").then(function(r){return r.json();}).then(function(r){return r.data;});}${site.plan === "enterprise" ? ',pay:function(){window.open("API_VTXPAY.html","_blank");}' : ""}};<\/script>`;
                 }
                 const script = bridge + `<script>${site.js || ""}<\/script>`;
                 if (/<html[\s>]/i.test(site.html || "")) {
@@ -253,6 +271,7 @@
             document.querySelectorAll(".vdex-tab").forEach((button) => button.addEventListener("click", () => switchTab(button.dataset.tab)));
             el("vdex-register").addEventListener("click", register);
             el("vdex-save").addEventListener("click", save);
+            el("vdex-save-data").addEventListener("click", saveData);
 
             if (publicName) {
                 if (!NAME_RE.test(publicName)) {
