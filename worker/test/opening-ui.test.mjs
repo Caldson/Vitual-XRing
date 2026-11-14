@@ -35,6 +35,6 @@ test("12.0.0：账户页顶部栏移除 VPAN / Vord，品牌 V 图标为纯色",
     assert.doesNotMatch(topbar, /href="vord\.html"/);
     const css = read("vtx-theme.css");
     assert.match(css, /\.brand-mark\s*\{/);
-    assert.match(css, /background: #3867e8 !important/);
-    assert.match(css, /background-image: none !important/);
+    assert.match(css, /XRingLogo\.png/);
+    assert.match(css, /background: url\("XRingLogo\.png/);
 });

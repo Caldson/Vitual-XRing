@@ -443,9 +443,9 @@ test("12.0.0：XOS 页面、商店分类和版本号齐全", () => {
     assert.match(home, /v12\.0\.0/);
     assert.match(home, /Vitual XRing/);
     assert.doesNotMatch(home, /Virtual XRing/);
-    assert.match(home, /XRingLogo-V\.png\?v=12\.0\.0/);
-    assert.doesNotMatch(home, /<img src="XRingLogo\.png"/);
-    assert.equal(fs.existsSync(new URL("../../XRingLogo-V.png", import.meta.url)), true);
+    assert.match(home, /XRingLogo\.png\?v=12\.0\.0/);
+    assert.doesNotMatch(home, /XRingLogo-V\.png/);
+    assert.equal(fs.existsSync(new URL("../../XRingLogo.png", import.meta.url)), true);
     assert.match(manager, /href="xos\.html"/);
     assert.match(page, /top: var\(--xos-shell-top\) !important;/);
     assert.match(page, /height: calc\(100% - 166px\) !important;/);
