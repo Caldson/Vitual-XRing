@@ -1,5 +1,5 @@
-/* Vitual XRing 12.0.0 — page cache / offline shell */
-const CACHE_NAME = "xring-v12.0.0-tm4";
+/* Vitual XRing 12.0.1 — page cache / offline shell */
+const CACHE_NAME = "xring-v12.0.1-tm4";
 const CORE = [
     "./",
     "index.html",
@@ -17,11 +17,11 @@ const CORE = [
     "vtx-theme.css",
     "vtx-theme.js",
     "vtx-bgm.js",
-    "vtx-theme.css?v=12.0.0",
-    "vtx-theme.js?v=12.0.0",
+    "vtx-theme.css?v=12.0.1",
+    "vtx-theme.js?v=12.0.1",
     "vtx-api.js",
     "vtx-pwa.js",
-    "vtx-pwa.js?v=12.0.0",
+    "vtx-pwa.js?v=12.0.1",
     "XRingLogo.png"
 ];
 
@@ -47,7 +47,7 @@ self.addEventListener("message", (event) => {
 
 async function networkAndCache(request) {
     const response = await fetch(request);
-    /* 12.0.0：206 Partial Content（音频 / 视频 Range）不能写进 Cache API，
+    /* 12.0.1：206 Partial Content（音频 / 视频 Range）不能写进 Cache API，
        否则 cache.put 会抛错，播放器会收到一个 504 空响应而卡在 0 秒。 */
     if (response && response.ok && response.status === 200) {
         const cache = await caches.open(CACHE_NAME);
@@ -63,7 +63,7 @@ self.addEventListener("fetch", (event) => {
     if (url.origin !== self.location.origin) return;
     if (url.pathname.startsWith("/api/") || url.pathname.endsWith("/vtx-closed.js") || url.pathname.endsWith("/version.json")) return;
 
-    /* 12.0.0：音频 / 视频交给浏览器直接处理。媒体会发 Range 或分段请求，
+    /* 12.0.1：音频 / 视频交给浏览器直接处理。媒体会发 Range 或分段请求，
        经过 Service Worker 时一旦上游截断就可能得到空的 504，播放器会卡在 0 秒。 */
     if (request.destination === "audio" || request.destination === "video" || request.destination === "track") return;
     if (/\.(mp3|wav|ogg|m4a|flac|mp4|webm|mkv)$/i.test(url.pathname)) return;
@@ -74,7 +74,7 @@ self.addEventListener("fetch", (event) => {
     if (request.mode === "navigate") {
         event.respondWith((async () => {
             const cache = await caches.open(CACHE_NAME);
-            /* 12.0.0：不要忽略查询串。版本更新时会带着 ?v=9.x.x&t=... 跳转，
+            /* 12.0.1：不要忽略查询串。版本更新时会带着 ?v=9.x.x&t=... 跳转，
                如果 ignoreSearch 仍命中旧页面，就会永久停留在旧版本。 */
             const cached = await cache.match(request);
             if (cached) {

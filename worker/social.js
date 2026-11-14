@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 12.0.0：分享生态 API（视频卡片 / 聊天记录分享）。
+ * Vitual XRing 12.0.1：分享生态 API（视频卡片 / 聊天记录分享）。
  *
  * 挂载点：/api/social/*
  * 页面：Vimidi、VMusic、Viratch、AUDIV、ViStyle、VClang、Vitx 动态、share.html
@@ -89,7 +89,7 @@ function fromCents(cents) {
     return (Math.round(Number(cents) || 0) / 100).toFixed(2);
 }
 
-/* 12.0.0：兼容历史账户里的 1e+40 科学计数法余额，避免解析失败后写成 0。 */
+/* 12.0.1：兼容历史账户里的 1e+40 科学计数法余额，避免解析失败后写成 0。 */
 function moneyText(value) {
     let text = String(value == null ? "" : value).trim().replace(/,/g, "");
     if (!text) return "";

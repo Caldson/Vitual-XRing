@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f4f7fb">
     <title>VDEX · Vitual XRing</title>
-    <link rel="icon" href="XRingLogo.png?v=12.0.0">
-    <link rel="stylesheet" href="vtx-theme.css?v=12.0.0">
-    <script src="vtx-theme.js?v=12.0.0"></script>
+    <link rel="icon" href="XRingLogo.png?v=12.0.1">
+    <link rel="stylesheet" href="vtx-theme.css?v=12.0.1">
+    <script src="vtx-theme.js?v=12.0.1"></script>
     <style>
         :root { --vdex: #5b4bdb; --vdex-soft: #efedff; --vdex-dark: #372a9e; }
         body { background: radial-gradient(circle at 85% 0%, #f0edff 0, transparent 30%), var(--vtx-bg, #f4f7fb); }
@@ -58,7 +58,7 @@
 </head>
 <body>
     <header class="vtx-topbar">
-        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.0.0" alt="Vitual XRing" width="38" height="38"></a>
+        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.0.1" alt="Vitual XRing" width="38" height="38"></a>
         <nav class="top-links"><a href="index.html">首页</a><a href="vtoy.html">Vtoy</a><a href="vdex.html" class="is-active">VDEX</a><a href="settings.html">设置</a></nav>
     </header>
 
@@ -133,7 +133,7 @@
         <iframe id="vdex-public-frame" sandbox="allow-scripts allow-forms allow-popups" title="VDEX 站点"></iframe>
     </div>
 
-    <script src="vtx-api.js?v=12.0.0"></script>
+    <script src="vtx-api.js?v=12.0.1"></script>
     <script>
         (function () {
             "use strict";
@@ -157,10 +157,10 @@
                 const rows = el("vdex-plan-rows");
                 rows.textContent = "";
                 plans.forEach((plan) => {
-                    const price = plan.price ? `${plan.price} VTX/月` : "Free";
-                    const capability = plan.tier === "standard" ? "静态托管" : plan.tier === "pro" ? "支持登录 + 游戏数据" : plan.tier === "enterprise" ? "完整 VTX 调用" : "标准版 Free";
+                    const price = `${plan.price} VTX/月`;
+                    const capability = plan.tier === "light" ? "轻量静态托管" : plan.tier === "standard" ? "静态托管" : plan.tier === "pro" ? "支持登录 + 游戏数据" : "完整 VTX 调用";
                     const tr = document.createElement("tr");
-                    tr.innerHTML = `<td>${escapeHtml(plan.label)}</td><td>${plan.gb >= 1 ? plan.gb + "GB" : "100MB"}</td><td class="vdex-price">${price}</td><td>${capability}</td><td><button class="vdex-btn" data-plan="${plan.gb}|${plan.tier}">${plan.price ? "选择" : "免费注册"}</button></td>`;
+                    tr.innerHTML = `<td>${escapeHtml(plan.label)}</td><td>${plan.gb >= 1 ? plan.gb + "GB" : "100MB"}</td><td class="vdex-price">${price}</td><td>${capability}</td><td><button class="vdex-btn" data-plan="${plan.gb}|${plan.tier}">选择</button></td>`;
                     tr.querySelector("[data-plan]").addEventListener("click", () => {
                         el("vdex-plan").value = `${plan.gb}|${plan.tier}`;
                         switchTab("create");
@@ -173,7 +173,7 @@
                 plans.forEach((plan) => {
                     const option = document.createElement("option");
                     option.value = `${plan.gb}|${plan.tier}`;
-                    option.textContent = `${plan.label} · ${plan.gb >= 1 ? plan.gb + "GB" : "100MB"} · ${plan.price ? plan.price + " VTX/月" : "Free"}`;
+                    option.textContent = `${plan.label} · ${plan.gb >= 1 ? plan.gb + "GB" : "100MB"} · ${plan.price} VTX/月`;
                     select.appendChild(option);
                 });
             }
@@ -238,7 +238,7 @@
                 const [gb, tier] = el("vdex-plan").value.split("|");
                 const plan = plans.find((item) => item.gb === Number(gb) && item.tier === tier);
                 if (!plan) { status("套餐无效。"); return; }
-                if (!confirm(`注册 ${name}，${plan.label}，${plan.price ? plan.price + " VTX/月" : "Free"}？`)) return;
+                if (!confirm(`注册 ${name}，${plan.label}，${plan.price} VTX/月？`)) return;
                 try {
                     await api().request("/vdex/register", { method: "POST", body: { name, gb: Number(gb), tier } });
                     status("注册成功，可以编辑内容了。");

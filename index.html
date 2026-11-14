@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f3f6fb">
     <title>Vitual XRing · 虚拟云电脑与作品社区</title>
-    <link rel="stylesheet" href="vtx-theme.css?v=12.0.0">
-    <script src="vtx-theme.js?v=12.0.0"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=12.0.1">
+    <script src="vtx-theme.js?v=12.0.1"></script>
     <style>
         .home-hero { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(320px, .82fr); gap: 28px; align-items: stretch; padding: 46px 0 18px; }
         .hero-copy-wrap { padding: 18px 0; }
@@ -26,7 +26,7 @@
         .store-notice strong { color: var(--vtx-accent); font-size: 11px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
         .store-notice[data-visible="true"] { animation: store-notice-in 150ms ease-out; }
         @keyframes store-notice-in { from { opacity: 0; transform: translateY(-4px); } }
-        /* 12.0.0：首页顶部活动轮播。图片和容器都是 16:9，标题在 events.json 里配置。 */
+        /* 12.0.1：首页顶部活动轮播。图片和容器都是 16:9，标题在 events.json 里配置。 */
         .events { position: relative; margin: 20px 0 8px; }
         .events-viewport { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; border: 1px solid var(--vtx-border); border-radius: 24px; background: #0b1220; box-shadow: 0 24px 60px rgba(20, 36, 70, .18); }
         .events-track { display: flex; height: 100%; transition: transform 420ms cubic-bezier(.22, .8, .28, 1); will-change: transform; }
@@ -94,7 +94,7 @@
 <body data-i18n-document-title="document.index">
     <header class="vtx-topbar">
         <a class="vtx-brand" href="index.html">
-            <img src="XRingLogo.png?v=12.0.0" alt="Vitual XRing" width="38" height="38">
+            <img src="XRingLogo.png?v=12.0.1" alt="Vitual XRing" width="38" height="38">
             <span data-i18n="brand">Vitual XRing</span>
         </a>
         <nav class="vtx-nav" aria-label="Main navigation">
@@ -107,7 +107,7 @@
             <a href="settings.html" data-i18n="nav.settings">设置</a>
         </nav>
         <div class="vtx-top-actions">
-            <a class="vtx-chip" href="settings.html"><strong>v12.0.0</strong></a>
+            <a class="vtx-chip" href="settings.html"><strong>v12.0.1</strong></a>
             <a class="vtx-btn ghost" id="account-link" href="login.html" data-i18n="action.login">登录</a>
         </div>
     </header>
@@ -191,7 +191,7 @@
         </section>
 
         <footer class="home-footer">
-            <span data-i18n="footer">Vitual XRing 12.0.0 · XOS 是浏览器端虚拟桌面与云手机，不是真实远程虚拟机。</span>
+            <span data-i18n="footer">Vitual XRing 12.0.1 · XOS 是浏览器端虚拟桌面与云手机，不是真实远程虚拟机。</span>
             <span><a href="settings.html" data-i18n="nav.settings">设置</a> · <a href="login.html" data-i18n="action.login">登录</a></span>
         </footer>
     </main>
@@ -310,7 +310,7 @@
                 go(index + (diff < 0 ? 1 : -1), true);
             }, { passive: true });
 
-            fetch("events.json?v=12.0.0&t=" + Date.now(), { cache: "no-store" })
+            fetch("events.json?v=12.0.1&t=" + Date.now(), { cache: "no-store" })
                 .then(function (response) { return response.ok ? response.json() : null; })
                 .then(function (data) { render(data); })
                 .catch(function () { /* 活动加载失败不影响首页其它内容 */ });
@@ -349,6 +349,6 @@
         })();
     </script>
     <script type="module" src="https://get.microsoft.com/badge/ms-store-badge.bundled.js"></script>
-    <script src="vtx-pwa.js?v=12.0.0" defer></script>
+    <script src="vtx-pwa.js?v=12.0.1" defer></script>
 </body>
 </html>

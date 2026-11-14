@@ -1,21 +1,21 @@
-/* Vitual XRing 12.0.0：VDEX 网站托管。
+/* Vitual XRing 12.0.1：VDEX 网站托管。
    数据保存在 ACCOUNTS_KV 的 vdex:site:<name>，购买时在 accounts 锁内扣 VTX。 */
 
-const VDEX_VERSION = "12.0.0";
+const VDEX_VERSION = "12.0.1";
 const VDEX_PREFIX = "vdex:site:";
 const VDEX_DATA_PREFIX = "vdex:data:";
 const VDEX_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const VDEX_RESERVED = new Set(["www", "api", "admin", "vdex", "vitual", "xring", "mail", "ftp", "root", "support"]);
-const VDEX_TIERS = ["free", "standard", "pro", "enterprise"];
+const VDEX_TIERS = ["light", "standard", "pro", "enterprise"];
 const VDEX_Gb = [1, 2, 5, 10, 20, 50, 100];
 const VDEX_BASE_PRICE = { 1: 50, 2: 100, 5: 200, 10: 400, 20: 800, 50: 1600, 100: 3200 };
 
 function vdexPlan(gb, tier) {
-    if (tier === "free") {
-        return { id: "free", tier: "free", label: "VDEX.HTML Free", gb: 0.1, price: 0, storageBytes: 100 * 1024 * 1024 };
+    if (tier === "light") {
+        return { id: "light", tier: "light", label: "VDEX.HTML 轻量版", gb: 0.1, price: 10, storageBytes: 100 * 1024 * 1024 };
     }
     const size = Number(gb);
-    if (!VDEX_Gb.includes(size) || !VDEX_TIERS.includes(tier) || tier === "free") return null;
+    if (!VDEX_Gb.includes(size) || !VDEX_TIERS.includes(tier)) return null;
     const multiplier = tier === "standard" ? 1 : tier === "pro" ? 2 : 4;
     const label = tier === "standard" ? "标准版" : tier === "pro" ? "专业版" : "企业版";
     return {
@@ -29,10 +29,9 @@ function vdexPlan(gb, tier) {
 }
 
 function vdexPlans() {
-    const list = [vdexPlan(0, "free")];
+    const list = [vdexPlan(0, "light")];
     for (const gb of VDEX_Gb) {
-        for (const tier of ["standard", "pro", "enterprise"]) list.push(vdexPlan(gb, tier));
-    }
+        for (const tier of ["standard", "pro", "enterprise"]) list.push(vdexPlan(gb, tier));    }
     return list;
 }
 
@@ -102,6 +101,12 @@ export async function routeVdex(request, env, cors, deps) {
         const record = await env.ACCOUNTS_KV.get(VDEX_PREFIX + name, "json");
         if (!record) {
             return deps.jsonResponse({ error: "not_found", message: "这个 VDEX 站点还不存在" }, 404, cors);
+        }
+        if (record.plan === "free") {
+            record.plan = "light";
+            record.gb = 0.1;
+            record.price = 10;
+            await env.ACCOUNTS_KV.put(VDEX_PREFIX + name, JSON.stringify(record));
         }
         return deps.jsonResponse({ ok: true, site: vdexPublic(record) }, 200, cors);
     }
@@ -175,6 +180,12 @@ export async function routeVdex(request, env, cors, deps) {
         for (const key of listed.keys || []) {
             const record = await env.ACCOUNTS_KV.get(key.name, "json");
             if (record && record.owner === login) {
+                if (record.plan === "free") {
+                    record.plan = "light";
+                    record.gb = 0.1;
+                    record.price = 10;
+                    await env.ACCOUNTS_KV.put(key.name, JSON.stringify(record));
+                }
                 if (!record.server) {
                     record.server = vdexServer(record.name);
                     await env.ACCOUNTS_KV.put(key.name, JSON.stringify(record));

@@ -45,12 +45,13 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("12.0.0：VDEX 套餐、注册扣费、保存与公开访问", async () => {
+test("12.0.1：VDEX 套餐、注册扣费、保存与公开访问", async () => {
     const { env, token } = await prepare();
     const plans = await api(env, "GET", "/api/vdex/plans");
     assert.equal(plans.status, 200);
     assert.ok(plans.data.plans.some((plan) => plan.gb === 1 && plan.tier === "standard" && plan.price === 50));
     assert.ok(plans.data.plans.some((plan) => plan.gb === 100 && plan.tier === "enterprise" && plan.price === 12800));
+    assert.ok(plans.data.plans.some((plan) => plan.tier === "light" && plan.price === 10));
 
     const bad = await api(env, "POST", "/api/vdex/register", { token, body: { name: "Bad_Name", gb: 1, tier: "standard" } });
     assert.equal(bad.status, 400);
@@ -71,16 +72,19 @@ test("12.0.0：VDEX 套餐、注册扣费、保存与公开访问", async () => 
     assert.equal(publicSite.data.site.html, "<h1>Hello</h1>");
     assert.equal(publicSite.data.site.owner, "Alice");
 
-    const free = await api(env, "POST", "/api/vdex/register", { token, body: { name: "free-site", gb: 0.1, tier: "free" } });
+    const free = await api(env, "POST", "/api/vdex/register", { token, body: { name: "free-site", gb: 0.1, tier: "light" } });
     assert.equal(free.status, 201, JSON.stringify(free.data));
     const freeSite = await api(env, "GET", "/api/vdex/site?name=free-site");
     assert.equal(freeSite.status, 200);
-    assert.equal(freeSite.data.site.plan, "free");
+    assert.equal(freeSite.data.site.plan, "light");
+    const afterLight = JSON.parse(await env.ACCOUNTS_KV.get("accounts"));
+    assert.equal(afterLight.Alice.money, "940.00");
+    assert.ok(afterLight.Alice.trades.some((trade) => trade.name === "VDEX" && trade.price === "-10.00"));
     const poor = await api(env, "POST", "/api/vdex/register", { token, body: { name: "too-big", gb: 100, tier: "enterprise" } });
     assert.equal(poor.status, 400);
 });
 
-test("12.0.0：Vtoy 保存应用与公开读取", async () => {
+test("12.0.1：Vtoy 保存应用与公开读取", async () => {
     const { env, token } = await prepare();
     const bad = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "Bad_App", html: "x" } });
     assert.equal(bad.status, 400);
