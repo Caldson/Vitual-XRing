@@ -1,5 +1,5 @@
 /*
- * Vitual XRing 10.1.1：AUDIV 语音会议的 WebSocket 中转。
+ * Vitual XRing 10.1.3：AUDIV 语音会议的 WebSocket 中转。
  *
  * 每个会议号对应一个 Durable Object 实例；它只负责把 WebRTC 的 offer / answer /
  * ICE 候选和成员状态在同一个会议内广播，不接触音视频流。音频本身是浏览器之间

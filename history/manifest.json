@@ -3,6 +3,43 @@
     "updatedAt":  "2026-11-14",
     "versions":  [
                      {
+                         "version":  "10.1.1",
+                         "commit":  "bd2120a675bcc62510bd1b9f0f72e8532fb1d6c9",
+                         "date":  "2026-11-14",
+                         "files":  [
+                                       "accounts-admin.html",
+                                       "API_LOGIN.html",
+                                       "API_VTXPAY.html",
+                                       "audiv.html",
+                                       "chat.html",
+                                       "chat-record.html",
+                                       "chatroom.html",
+                                       "image.html",
+                                       "index.html",
+                                       "login.html",
+                                       "loginplaces.html",
+                                       "manager.html",
+                                       "offline.html",
+                                       "settings.html",
+                                       "share.html",
+                                       "shop.html",
+                                       "vclang.html",
+                                       "vimidi.html",
+                                       "viratch.html",
+                                       "vistyle.html",
+                                       "vitualgit.html",
+                                       "vitx-dynamic.html",
+                                       "vitxvideo.html",
+                                       "vitxvideopublish.html",
+                                       "vmusic.html",
+                                       "vord.html",
+                                       "vpan.html",
+                                       "vuolingo.html",
+                                       "WebsiteClose.html",
+                                       "xos.html"
+                                   ]
+                     },
+                     {
                          "version":  "10.1.0",
                          "commit":  "c617eb93723191b4bacbf8396810154fdad7801e",
                          "date":  "2026-11-13",
@@ -995,6 +1032,41 @@
                                    ]
                      },
                      {
+                         "version":  "7.0",
+                         "commit":  "d9bc1d1054fbe09c4f290cf12e3af765cb31b2ac",
+                         "date":  "2026-11-05",
+                         "files":  [
+                                       "accounts-admin.html",
+                                       "admin.html",
+                                       "API_LOGIN.html",
+                                       "API_VTXPAY.html",
+                                       "audiv.html",
+                                       "chat.html",
+                                       "chat-record.html",
+                                       "chatroom.html",
+                                       "image.html",
+                                       "index.html",
+                                       "login.html",
+                                       "loginplaces.html",
+                                       "manager.html",
+                                       "offline.html",
+                                       "share.html",
+                                       "shop.html",
+                                       "vclang.html",
+                                       "vimidi.html",
+                                       "viratch.html",
+                                       "vistyle.html",
+                                       "vitualgit.html",
+                                       "vitx-dynamic.html",
+                                       "vitxvideo.html",
+                                       "vitxvideopublish.html",
+                                       "vmusic.html",
+                                       "vuolingo.html",
+                                       "WebsiteClose.html",
+                                       "xos.html"
+                                   ]
+                     },
+                     {
                          "version":  "6.3",
                          "commit":  "cadce5692411ed4189bbbd60040d40ba974cfbde",
                          "date":  "2026-10-21",
@@ -1500,6 +1572,21 @@
                      {
                          "version":  "5.1",
                          "commit":  "dd9ed69db0d55f4379b4b16e689bb32dfbc8988d",
+                         "date":  "2026-10-19",
+                         "files":  [
+                                       "API_LOGIN.html",
+                                       "API_VTXPAY.html",
+                                       "chat.html",
+                                       "crypto.html",
+                                       "image.html",
+                                       "index.html",
+                                       "login.html",
+                                       "manager.html"
+                                   ]
+                     },
+                     {
+                         "version":  "5.0",
+                         "commit":  "74c73d1c134f60b9661bef33cb6b497c06ee1de2",
                          "date":  "2026-10-19",
                          "files":  [
                                        "API_LOGIN.html",

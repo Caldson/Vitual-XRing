@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><script src="../api-bridge.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#58cc02">
+    <title>Vuolingo | Vitual XRing</title>
+    <script src="vtx-api.js?v=7.0.0"></script>
+    <style>
+        :root { color-scheme: light; font-family: "Nunito", "Segoe UI", "Microsoft YaHei", sans-serif; --green: #58cc02; --green-dark: #46a302; --blue: #1cb0f6; --ink: #3c3c3c; --muted: #777; --line: #e5e5e5; --bg: #fff; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #fff; color: var(--ink); }
+        a { color: inherit; text-decoration: none; }
+        button { font: inherit; cursor: pointer; }
+        .topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 18px; padding: 12px 22px; border-bottom: 2px solid var(--line); background: #fff; }
+        .brand { display: flex; align-items: center; gap: 8px; color: var(--green-dark); font-size: 21px; font-weight: 900; letter-spacing: -0.04em; }
+        .mascot { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 12px; background: var(--green); color: #fff; font-size: 19px; }
+        .top-links { display: flex; gap: 16px; margin-left: auto; color: #777; font-size: 13px; font-weight: 800; }
+        .top-links a:hover { color: var(--green-dark); }
+        .preview { padding: 9px 16px; background: #e8f8d8; color: #3d6b16; text-align: center; font-size: 12.5px; font-weight: 700; }
+        main { width: min(100% - 32px, 960px); margin: 0 auto; padding: 38px 0 60px; }
+        .hero { display: flex; align-items: center; gap: 32px; padding: 18px 10px 30px; }
+        .hero-copy { flex: 1; }
+        .hero h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 44px); line-height: 1.15; letter-spacing: -0.04em; }
+        .hero p { margin: 0; color: var(--muted); line-height: 1.7; font-size: 15px; }
+        .hero-mascot { width: 150px; height: 150px; display: grid; place-items: center; border-radius: 48px; background: #e8f8d8; font-size: 72px; transform: rotate(-3deg); }
+        .course-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .course-card { display: flex; align-items: center; gap: 14px; padding: 18px; border: 2px solid var(--line); border-radius: 18px; background: #fff; text-align: left; transition: transform 160ms, border-color 160ms; }
+        .course-card:hover { border-color: #b8e986; transform: translateY(-2px); }
+        .flag { width: 54px; height: 54px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 16px; background: #f5f9ff; font-size: 28px; }
+        .course-card b { display: block; font-size: 16px; }
+        .course-card span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+        .unit-strip { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 26px 0 12px; padding: 14px 18px; border: 2px solid #d7f0b8; border-radius: 16px; background: #f7ffe9; }
+        .unit-strip b { color: #3d6b16; }
+        .unit-strip span { color: #6f8e4d; font-size: 12px; }
+        .lesson-button { border: 0; border-bottom: 4px solid var(--green-dark); border-radius: 12px; padding: 10px 16px; background: var(--green); color: #fff; font-weight: 900; font-size: 13px; }
+        .lesson-button:active { transform: translateY(2px); border-bottom-width: 2px; }
+        .lesson { display: none; padding: 8px 0; }
+        .lesson-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+        .back-button { border: 0; background: transparent; color: var(--blue); font-size: 22px; font-weight: 900; }
+        .progress { flex: 1; height: 12px; border-radius: 999px; background: #e5e5e5; overflow: hidden; }
+        .progress > i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--green); transition: width 220ms; }
+        .lesson h2 { margin: 0 0 4px; font-size: 24px; }
+        .lesson-sub { margin: 0 0 20px; color: var(--muted); font-size: 13px; }
+        .word-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .word-card { border: 2px solid var(--line); border-radius: 14px; padding: 14px; background: #fff; text-align: left; }
+        .word-card:hover { border-color: var(--blue); background: #f5fbff; }
+        .word-card b { display: block; font-size: 18px; }
+        .word-card span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+        .translation { margin-top: 14px; padding: 14px 16px; border: 2px solid #cfe9ff; border-radius: 14px; background: #f3faff; color: #286184; font-size: 14px; line-height: 1.6; }
+        .exercise { margin-top: 18px; padding: 18px; border: 2px solid var(--line); border-radius: 16px; background: #fff; }
+        .exercise h3 { margin: 0 0 12px; font-size: 16px; }
+        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .option { border: 2px solid var(--line); border-radius: 11px; padding: 10px; background: #fff; text-align: left; font-size: 13px; font-weight: 700; }
+        .option:hover { border-color: var(--blue); }
+        .option.correct { border-color: var(--green); background: #f3ffe9; }
+        .option.wrong { border-color: #ff4b4b; background: #fff0f0; }
+        .lesson-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 16px; }
+        .lesson-note { color: var(--muted); font-size: 12px; }
+        .complete { margin-top: 18px; padding: 20px; border: 2px solid #b8e986; border-radius: 16px; background: #f7ffe9; text-align: center; }
+        .complete b { display: block; color: #3d6b16; font-size: 22px; }
+        .complete span { display: block; margin-top: 6px; color: #6f8e4d; font-size: 13px; }
+        @media (max-width: 680px) { .hero { display: block; } .hero-mascot { width: 100px; height: 100px; font-size: 48px; margin-top: 18px; } .course-grid, .word-grid, .options { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="topbar"><script src="../api-bridge.js"></script>
+        <a class="brand" href="vuolingo.html"><span class="mascot">🦉</span> Vuolingo</a>
+        <nav class="top-links"><a href="index.html">首页</a><a href="vuolingo.html">课程</a><a href="manager.html">账户</a></nav>
+    </header>
+    <div class="preview">Vuolingo Preview · 当前只有英语和日语各一节「打招呼」预览课 · 点击词汇即可查看翻译</div>
+
+    <main>
+        <section id="home-view">
+            <div class="hero"><div class="hero-copy"><h1>用一点点时间，<br>学会打招呼。</h1><p>Vuolingo 是一个轻量的语言学习平台。当前预览版提供英语和日语的第一阶段第 1 单元，点击课程中的词汇即可查看翻译。</p></div><div class="hero-mascot">🦉</div></div>
+            <div class="course-grid">
+                <button class="course-card" data-course="en"><span class="flag">🇬🇧</span><span><b>英语 · English</b><span>第一阶段第 1 单元 · 打招呼</span></span></button>
+                <button class="course-card" data-course="ja"><span class="flag">🇯🇵</span><span><b>日语 · 日本語</b><span>第一阶段第 1 单元 · 打招呼</span></span></button>
+            </div>
+            <div class="unit-strip"><span><b>第一阶段第 1 单元</b><br><span>每个语言只有一节预览课：打招呼。</span></span><button class="lesson-button" data-start="en">开始英语课</button></div>
+        </section>
+
+        <section class="lesson" id="lesson-view">
+            <div class="lesson-head"><button class="back-button" id="back-button" aria-label="返回课程">←</button><div class="progress"><i id="lesson-progress"></i></div></div>
+            <h2 id="lesson-title">打招呼</h2>
+            <p class="lesson-sub" id="lesson-sub">第一阶段第 1 单元 · 点击词汇查看翻译</p>
+            <div class="word-grid" id="word-grid"></div>
+            <div class="translation" id="word-translation">点击上面的词汇，查看中文翻译。</div>
+            <div class="exercise" id="exercise" hidden>
+                <h3 id="exercise-title">选择正确的翻译</h3>
+                <div class="options" id="options"></div>
+                <div class="lesson-note" id="exercise-note"></div>
+            </div>
+            <div class="complete" id="complete" hidden><b>🎉 课程完成</b><span>你已经学完这一节「打招呼」。</span></div>
+            <div class="lesson-actions"><span class="lesson-note">点击词汇 → 查看翻译 → 做题</span><button class="lesson-button" id="next-button">开始练习</button></div>
+        </section>
+    </main>
+
+    
+    <script>
+        (function () {
+            "use strict";
+            const courses = {
+                en: {
+                    name: "英语 · English",
+                    title: "打招呼",
+                    unit: "第一阶段第 1 单元",
+                    words: [
+                        { word: "Hello", translation: "你好" },
+                        { word: "Goodbye", translation: "再见" },
+                        { word: "Good morning", translation: "早上好" },
+                        { word: "Good afternoon", translation: "下午好" }
+                    ]
+                },
+                ja: {
+                    name: "日语 · 日本語",
+                    title: "打招呼",
+                    unit: "第一阶段第 1 单元",
+                    words: [
+                        { word: "こんにちは", translation: "你好" },
+                        { word: "おはよう", translation: "早上好" },
+                        { word: "こんばんは", translation: "晚上好" },
+                        { word: "またあした", translation: "明天见" }
+                    ]
+                }
+            };
+            const homeView = document.getElementById("home-view");
+            const lessonView = document.getElementById("lesson-view");
+            const wordGrid = document.getElementById("word-grid");
+            const translation = document.getElementById("word-translation");
+            const exercise = document.getElementById("exercise");
+            const options = document.getElementById("options");
+            const exerciseTitle = document.getElementById("exercise-title");
+            const exerciseNote = document.getElementById("exercise-note");
+            const progress = document.getElementById("lesson-progress");
+            const complete = document.getElementById("complete");
+            const nextButton = document.getElementById("next-button");
+            let activeCourse = null;
+            let exerciseIndex = 0;
+            let correctCount = 0;
+
+            function showTranslation(entry) {
+                translation.textContent = `${entry.word} = ${entry.translation}`;
+            }
+
+            function openCourse(key) {
+                activeCourse = courses[key];
+                if (!activeCourse) return;
+                homeView.style.display = "none";
+                lessonView.style.display = "block";
+                document.getElementById("lesson-title").textContent = activeCourse.title;
+                document.getElementById("lesson-sub").textContent = `${activeCourse.unit} · ${activeCourse.name} · 点击词汇查看翻译`;
+                translation.textContent = "点击上面的词汇，查看中文翻译。";
+                complete.hidden = true;
+                exercise.hidden = true;
+                exerciseIndex = 0;
+                correctCount = 0;
+                progress.style.width = "0%";
+                nextButton.textContent = "开始练习";
+                wordGrid.textContent = "";
+                for (const entry of activeCourse.words) {
+                    const card = document.createElement("button");
+                    card.type = "button";
+                    card.className = "word-card";
+                    card.innerHTML = `<b>${entry.word}</b><span>点击查看翻译</span>`;
+                    card.addEventListener("click", () => showTranslation(entry));
+                    wordGrid.appendChild(card);
+                }
+            }
+
+            function startExercise() {
+                exercise.hidden = false;
+                complete.hidden = true;
+                exerciseIndex = 0;
+                correctCount = 0;
+                nextButton.textContent = "下一题";
+                renderExercise();
+            }
+
+            function renderExercise() {
+                if (exerciseIndex >= activeCourse.words.length) {
+                    exercise.hidden = true;
+                    complete.hidden = false;
+                    progress.style.width = "100%";
+                    nextButton.textContent = "重新开始";
+                    exerciseIndex = 0;
+                    return;
+                }
+                const entry = activeCourse.words[exerciseIndex];
+                exerciseTitle.textContent = `「${entry.word}」是什么意思？`;
+                exerciseNote.textContent = `${exerciseIndex + 1} / ${activeCourse.words.length}`;
+                progress.style.width = `${(exerciseIndex / activeCourse.words.length) * 100}%`;
+                const choices = [entry.translation, ...activeCourse.words.filter((item) => item !== entry).map((item) => item.translation)]
+                    .slice(0, 4)
+                    .sort(() => Math.random() - 0.5);
+                options.textContent = "";
+                for (const choice of choices) {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "option";
+                    button.textContent = choice;
+                    button.addEventListener("click", () => {
+                        if (button.classList.contains("correct") || button.classList.contains("wrong")) return;
+                        if (choice === entry.translation) {
+                            button.classList.add("correct");
+                            correctCount += 1;
+                            setTimeout(() => {
+                                exerciseIndex += 1;
+                                renderExercise();
+                            }, 350);
+                        } else {
+                            button.classList.add("wrong");
+                            exerciseNote.textContent = `再试一次：${entry.word} 的意思是「${entry.translation}」`;
+                        }
+                    });
+                    options.appendChild(button);
+                }
+            }
+
+            document.querySelectorAll("[data-course]").forEach((button) => {
+                button.addEventListener("click", () => openCourse(button.dataset.course));
+            });
+            document.querySelectorAll("[data-start]").forEach((button) => {
+                button.addEventListener("click", () => openCourse(button.dataset.start));
+            });
+            document.getElementById("back-button").addEventListener("click", () => {
+                lessonView.style.display = "none";
+                homeView.style.display = "block";
+            });
+            nextButton.addEventListener("click", () => {
+                if (nextButton.textContent === "重新开始") {
+                    openCourse(activeCourse === courses.en ? "en" : "ja");
+                    return;
+                }
+                if (exercise.hidden) startExercise();
+                else {
+                    exerciseIndex += 1;
+                    renderExercise();
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

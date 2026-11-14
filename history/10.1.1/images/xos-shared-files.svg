@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d2440"/>
+      <stop offset="0.5" stop-color="#2560b8"/>
+      <stop offset="1" stop-color="#4ec9b0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <circle cx="1020" cy="130" r="240" fill="#ffffff" opacity="0.1"/>
+  <text x="80" y="170" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="80" font-weight="700">共享文件</text>
+  <text x="84" y="228" fill="#d5e8ff" font-family="Segoe UI, Arial, sans-serif" font-size="28" letter-spacing="5">XOS FILE SHARING SERVICE</text>
+  <text x="84" y="330" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="30">XPhone 1 Pro ⇄ XOS PC V4 26H4</text>
+  <text x="84" y="378" fill="#d5e8ff" font-family="Segoe UI, Arial, sans-serif" font-size="22">双方同时打开「共享文件」即可发送 / 接收文件</text>
+  <g transform="translate(120 470)">
+    <rect x="0" y="0" width="120" height="120" rx="26" fill="#ffffff" opacity="0.16"/>
+    <text x="60" y="76" text-anchor="middle" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="52">📱</text>
+    <path d="M180 60 h120" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/>
+    <path d="M272 38 l24 22 -24 22" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M330 60 h120" stroke="#ffffff" stroke-width="9" stroke-linecap="round" opacity="0.5"/>
+    <path d="M238 82 l-24 22 24 22" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+    <rect x="480" y="0" width="150" height="120" rx="18" fill="#ffffff" opacity="0.16"/>
+    <text x="555" y="76" text-anchor="middle" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="48">🖥</text>
+  </g>
+  <rect x="820" y="586" width="300" height="54" rx="27" fill="#ffffff" opacity="0.16"/>
+  <text x="852" y="621" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="22">Vitual Store · 免费获取</text>
+</svg>
