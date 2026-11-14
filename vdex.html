@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>VDEX · Vitual XRing</title>
+    <link rel="icon" href="XRingLogo-V.png?v=11.0.0">
+    <link rel="stylesheet" href="vtx-theme.css?v=11.0.0">
+    <script src="vtx-theme.js?v=11.0.0"></script>
+    <style>
+        :root { --vdex: #5b4bdb; --vdex-soft: #efedff; --vdex-dark: #372a9e; }
+        body { background: radial-gradient(circle at 85% 0%, #f0edff 0, transparent 30%), var(--vtx-bg, #f4f7fb); }
+        .vdex-shell { max-width: 1180px; margin: 0 auto; padding: 24px 18px 80px; }
+        .vdex-hero { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+        .vdex-hero h1 { margin: 0 0 7px; font-size: clamp(28px, 4vw, 46px); letter-spacing: -.05em; }
+        .vdex-hero p { margin: 0; max-width: 640px; color: var(--vtx-muted); font-size: 13.5px; line-height: 1.7; }
+        .vdex-logo { width: 86px; height: 86px; border-radius: 24px; display: grid; place-items: center; background: var(--vdex); color: #fff; font-size: 42px; box-shadow: 0 16px 36px rgba(91,75,219,.3); }
+        .vdex-tabs { display: flex; gap: 7px; flex-wrap: wrap; margin: 0 0 18px; }
+        .vdex-tab { padding: 8px 14px; border: 1px solid var(--vtx-border); border-radius: 999px; background: var(--vtx-surface); color: var(--vtx-muted); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+        .vdex-tab.active { border-color: var(--vdex); background: var(--vdex-soft); color: var(--vdex-dark); }
+        .vdex-panel { border: 1px solid var(--vtx-border); border-radius: 16px; background: var(--vtx-surface); padding: 18px; box-shadow: var(--vtx-shadow-soft); }
+        .vdex-form { display: grid; gap: 10px; }
+        .vdex-form label { display: grid; gap: 5px; font-size: 12px; font-weight: 800; }
+        .vdex-form input, .vdex-form select, .vdex-form textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--vtx-border-strong); border-radius: 9px; background: var(--vtx-surface); color: var(--vtx-text); font: inherit; font-size: 12.5px; }
+        .vdex-form textarea { min-height: 130px; resize: vertical; font-family: ui-monospace, Consolas, monospace; line-height: 1.5; }
+        .vdex-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .vdex-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 13px; border: 1px solid var(--vtx-border-strong); border-radius: 9px; background: var(--vtx-surface); color: var(--vtx-text); font: inherit; font-size: 12px; font-weight: 800; text-decoration: none; cursor: pointer; }
+        .vdex-btn.primary { border-color: var(--vdex); background: var(--vdex); color: #fff; }
+        .vdex-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .vdex-table th, .vdex-table td { padding: 8px 7px; border-bottom: 1px solid var(--vtx-border); text-align: left; }
+        .vdex-table th { color: var(--vtx-muted); font-size: 11px; }
+        .vdex-table tr:hover td { background: var(--vtx-surface-soft); }
+        .vdex-price { color: var(--vdex-dark); font-weight: 850; }
+        .vdex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(245px, 1fr)); gap: 10px; }
+        .vdex-site { padding: 14px; border: 1px solid var(--vtx-border); border-radius: 13px; background: var(--vtx-surface); }
+        .vdex-site h3 { margin: 0 0 4px; font-size: 14px; }
+        .vdex-site p { margin: 0 0 9px; color: var(--vtx-muted); font-size: 11.5px; }
+        .vdex-note { color: var(--vtx-faint); font-size: 11px; line-height: 1.6; }
+        .vdex-status { min-height: 18px; color: var(--vdex-dark); font-size: 12px; font-weight: 700; }
+        .vdex-code-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        #vdex-public { position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column; background: #0b1020; }
+        #vdex-public[hidden] { display: none; }
+        .vdex-public-bar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; color: #fff; background: #121a33; font-size: 12px; }
+        .vdex-public-bar b { font-size: 13px; }
+        .vdex-public-bar .spacer { flex: 1; }
+        .vdex-public-bar a { color: #c7d2fe; text-decoration: none; font-weight: 800; }
+        #vdex-public-frame { flex: 1; width: 100%; border: 0; background: #fff; }
+        @media (max-width: 700px) { .vdex-code-grid, .vdex-form .row { grid-template-columns: 1fr; } .vdex-hero { align-items: flex-start; } .vdex-logo { width: 62px; height: 62px; font-size: 30px; } }
+    </style>
+</head>
+<body>
+    <header class="vtx-topbar">
+        <a class="vtx-brand" href="index.html"><img src="XRingLogo-V.png?v=11.0.0" alt="Vitual XRing" width="38" height="38"></a>
+        <nav class="top-links"><a href="index.html">首页</a><a href="vtoy.html">Vtoy</a><a href="vdex.html" class="is-active">VDEX</a><a href="settings.html">设置</a></nav>
+    </header>
+
+    <main class="vdex-shell" id="vdex-dashboard">
+        <section class="vdex-hero">
+            <div>
+                <h1>VDEX.HTML</h1>
+                <p>把你的 HTML、CSS、JS 放到 VDEX，得到一个 <code>vdex.html?name=名称</code> 的网站。名称必须是小写字母、数字和 <code>-</code>，不能使用下划线。</p>
+            </div>
+            <div class="vdex-logo">🌐</div>
+        </section>
+        <div class="vdex-tabs">
+            <button class="vdex-tab active" data-tab="plans">套餐</button>
+            <button class="vdex-tab" data-tab="create">注册 / 编辑</button>
+            <button class="vdex-tab" data-tab="mine">我的站点</button>
+        </div>
+
+        <section id="vdex-plans">
+            <div class="vdex-panel">
+                <h2 style="margin:0 0 4px;font-size:18px;">选择套餐</h2>
+                <p class="vdex-note" style="margin:0 0 12px;">标准版 = 纯静态托管；专业版 = 支持登录 + 游戏数据；企业版 = 完整 VTX 调用（登录跳转 API_LOGIN，付款/收款跳转 API_VTXPAY）。</p>
+                <div style="max-height:420px;overflow:auto;"><table class="vdex-table"><thead><tr><th>版本</th><th>容量</th><th>价格</th><th>能力</th></tr></thead><tbody id="vdex-plan-rows"></tbody></table></div>
+            </div>
+        </section>
+
+        <section id="vdex-create" hidden>
+            <div class="vdex-panel">
+                <div class="vdex-form">
+                    <div class="row">
+                        <label>站点名称（小写、数字、-）<input id="vdex-name" placeholder="my-site" maxlength="32"></label>
+                        <label>选择套餐<select id="vdex-plan"></select></label>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="vdex-btn primary" id="vdex-register">注册并支付</button><a class="vdex-btn" id="vdex-public-link" href="#" target="_blank" rel="noopener" hidden>打开站点</a><span class="vdex-status" id="vdex-status"></span></div>
+                    <p class="vdex-note">名称注册后不能修改；标准版不需要登录能力，专业版支持登录与游戏数据，企业版支持完整 VTX 调用。购买后 30 天内有效。</p>
+                </div>
+            </div>
+            <div class="vdex-panel" style="margin-top:12px;">
+                <h3 style="margin:0 0 10px;font-size:15px;">站点内容</h3>
+                <div class="vdex-form">
+                    <label>网页标题<input id="vdex-title" maxlength="80" placeholder="My VDEX Site"></label>
+                    <div class="vdex-code-grid">
+                        <label>HTML<textarea id="vdex-html" placeholder="<h1>Hello VDEX</h1>"></textarea></label>
+                        <label>CSS<textarea id="vdex-css" placeholder="body { font-family: sans-serif; }"></textarea></label>
+                    </div>
+                    <label>JavaScript<textarea id="vdex-js" placeholder="console.log('Hello')"></textarea></label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="vdex-btn primary" id="vdex-save">保存内容</button><span class="vdex-status" id="vdex-save-status"></span></div>
+                    <p class="vdex-note">内容会存到 KV，公开地址为 <code>vdex.html?name=名称</code>。容量按套餐限制。</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="vdex-mine" hidden>
+            <div class="vdex-grid" id="vdex-mine-list"><div class="vdex-note">登录后查看自己的站点。</div></div>
+        </section>
+    </main>
+
+    <div id="vdex-public" hidden>
+        <div class="vdex-public-bar"><b id="vdex-public-title">VDEX</b><span id="vdex-public-plan"></span><span class="spacer"></span><a id="vdex-public-login" href="#" target="_blank" rel="noopener" hidden>登录</a><a id="vdex-public-pay" href="#" target="_blank" rel="noopener" hidden>付款/收款</a><a href="vdex.html">← VDEX</a></div>
+        <iframe id="vdex-public-frame" sandbox="allow-scripts allow-forms allow-popups" title="VDEX 站点"></iframe>
+    </div>
+
+    <script src="vtx-api.js?v=11.0.0"></script>
+    <script>
+        (function () {
+            "use strict";
+            const el = (id) => document.getElementById(id);
+            const params = new URLSearchParams(location.search);
+            const publicName = String(params.get("name") || "").trim().toLowerCase();
+            const NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+            let plans = [];
+            let mine = [];
+            let current = null;
+
+            function token() { try { return sessionStorage.getItem("vtxToken") || ""; } catch (error) { return ""; } }
+            function loggedIn() { return Boolean(token()); }
+            function escapeHtml(value) { return String(value == null ? "" : value).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+            function status(text, box) { (box || el("vdex-status")).textContent = text || ""; }
+
+            async function loadPlans() {
+                const data = await api().request("/vdex/plans");
+                plans = data.plans || [];
+                const rows = el("vdex-plan-rows");
+                rows.textContent = "";
+                plans.forEach((plan) => {
+                    const price = plan.price ? `${plan.price} VTX/月` : "Free";
+                    const capability = plan.tier === "standard" ? "静态托管" : plan.tier === "pro" ? "支持登录 + 游戏数据" : plan.tier === "enterprise" ? "完整 VTX 调用" : "标准版 Free";
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `<td>${escapeHtml(plan.label)}</td><td>${plan.gb >= 1 ? plan.gb + "GB" : "100MB"}</td><td class="vdex-price">${price}</td><td>${capability}</td>`;
+                    rows.appendChild(tr);
+                });
+                const select = el("vdex-plan");
+                select.textContent = "";
+                plans.forEach((plan) => {
+                    const option = document.createElement("option");
+                    option.value = `${plan.gb}|${plan.tier}`;
+                    option.textContent = `${plan.label} · ${plan.gb >= 1 ? plan.gb + "GB" : "100MB"} · ${plan.price ? plan.price + " VTX/月" : "Free"}`;
+                    select.appendChild(option);
+                });
+            }
+
+            async function loadMine() {
+                const box = el("vdex-mine-list");
+                if (!loggedIn()) { box.innerHTML = '<div class="vdex-note">登录后查看自己的站点。</div>'; return; }
+                try {
+                    const data = await api().request("/vdex/mine");
+                    mine = data.sites || [];
+                    box.textContent = "";
+                    if (!mine.length) box.innerHTML = '<div class="vdex-note">你还没有 VDEX 站点。</div>';
+                    mine.forEach((site) => {
+                        const card = document.createElement("article");
+                        card.className = "vdex-site";
+                        card.innerHTML = `<h3>${escapeHtml(site.title || site.name)}</h3><p><code>vdex.html?name=${escapeHtml(site.name)}</code> · ${site.gb}GB · ${site.plan}</p><div style="display:flex;gap:7px;"><a class="vdex-btn primary" href="vdex.html?name=${encodeURIComponent(site.name)}" target="_blank" rel="noopener">打开</a><button class="vdex-btn" data-edit="${escapeHtml(site.name)}">编辑</button></div>`;
+                        card.querySelector("[data-edit]").addEventListener("click", () => editSite(site.name));
+                        box.appendChild(card);
+                    });
+                } catch (error) { box.innerHTML = '<div class="vdex-note">读取失败。</div>'; }
+            }
+
+            async function editSite(name) {
+                const data = await api().request(`/vdex/site?name=${encodeURIComponent(name)}`);
+                current = data.site;
+                el("vdex-name").value = current.name;
+                el("vdex-title").value = current.title || "";
+                el("vdex-html").value = current.html || "";
+                el("vdex-css").value = current.css || "";
+                el("vdex-js").value = current.js || "";
+                const select = el("vdex-plan");
+                for (const option of select.options) if (option.value.startsWith(`${current.gb}|`)) { option.selected = true; break; }
+                el("vdex-public-link").hidden = false;
+                el("vdex-public-link").href = `vdex.html?name=${encodeURIComponent(current.name)}`;
+                switchTab("create");
+                status("已载入 " + current.name);
+            }
+
+            async function register() {
+                if (!loggedIn()) { status("请先登录 Vitual XRing 账户。"); return; }
+                const name = el("vdex-name").value.trim().toLowerCase();
+                if (!NAME_RE.test(name) || name.length < 2) { status("名称必须为 2–32 位小写字母、数字，连字符只能出现在中间。"); return; }
+                const [gb, tier] = el("vdex-plan").value.split("|");
+                const plan = plans.find((item) => item.gb === Number(gb) && item.tier === tier);
+                if (!plan) { status("套餐无效。"); return; }
+                if (!confirm(`注册 ${name}，${plan.label}，${plan.price ? plan.price + " VTX/月" : "Free"}？`)) return;
+                try {
+                    await api().request("/vdex/register", { method: "POST", body: { name, gb: Number(gb), tier } });
+                    status("注册成功，可以编辑内容了。");
+                    await editSite(name); await loadMine();
+                } catch (error) { status(error.message); }
+            }
+
+            async function save() {
+                if (!current) { status("先注册或从「我的站点」载入一个站点。", el("vdex-save-status")); return; }
+                try {
+                    const data = await api().request("/vdex/save", { method: "PUT", body: { name: current.name, title: el("vdex-title").value, html: el("vdex-html").value, css: el("vdex-css").value, js: el("vdex-js").value } });
+                    status("内容已保存。", el("vdex-save-status"));
+                    current = data.site;
+                } catch (error) { status(error.message, el("vdex-save-status")); }
+            }
+
+            function buildDocument(site) {
+                const css = `<style>${site.css || ""}</style>`;
+                let bridge = "";
+                if (site.plan === "pro" || site.plan === "enterprise") {
+                    bridge = `<script>window.VDEX={plan:${JSON.stringify(site.plan)},login:function(){window.open("API_LOGIN.html","_blank");}${site.plan === "enterprise" ? ',pay:function(){window.open("API_VTXPAY.html","_blank");}' : ""}};<\/script>`;
+                }
+                const script = bridge + `<script>${site.js || ""}<\/script>`;
+                if (/<html[\s>]/i.test(site.html || "")) {
+                    let html = site.html;
+                    if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, css + "</head>");
+                    else html = css + html;
+                    if (/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, script + "</body>");
+                    else html += script;
+                    return html;
+                }
+                return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${css}</head><body>${site.html || ""}${script}</body></html>`;
+            }
+
+            function openPublic(site) {
+                el("vdex-dashboard").hidden = true;
+                el("vdex-public").hidden = false;
+                el("vdex-public-title").textContent = site.title || site.name;
+                el("vdex-public-plan").textContent = `${site.gb}GB · ${site.plan}`;
+                const supportsLogin = site.plan === "pro" || site.plan === "enterprise";
+                const enterprise = site.plan === "enterprise";
+                el("vdex-public-login").hidden = !supportsLogin;
+                el("vdex-public-pay").hidden = !enterprise;
+                el("vdex-public-login").href = "API_LOGIN.html";
+                el("vdex-public-pay").href = "API_VTXPAY.html";
+                el("vdex-public-frame").srcdoc = buildDocument(site);
+                document.title = `${site.title || site.name} · VDEX`;
+            }
+
+            function switchTab(tab) {
+                ["plans", "create", "mine"].forEach((key) => { el("vdex-" + key).hidden = key !== tab; });
+                document.querySelectorAll(".vdex-tab").forEach((button) => button.classList.toggle("active", button.dataset.tab === tab));
+                if (tab === "mine") loadMine();
+            }
+
+            document.querySelectorAll(".vdex-tab").forEach((button) => button.addEventListener("click", () => switchTab(button.dataset.tab)));
+            el("vdex-register").addEventListener("click", register);
+            el("vdex-save").addEventListener("click", save);
+
+            if (publicName) {
+                if (!NAME_RE.test(publicName)) {
+                    el("vdex-dashboard").innerHTML = '<div class="vdex-note">无效的站点名称。</div>';
+                } else {
+                    api().request(`/vdex/site?name=${encodeURIComponent(publicName)}`)
+                        .then((data) => openPublic(data.site))
+                        .catch((error) => { el("vdex-dashboard").innerHTML = '<div class="vdex-note">' + escapeHtml(error.message) + '</div>'; });
+                }
+            } else {
+                loadPlans();
+                loadMine();
+            }
+        })();
+    </script>
+</body>
+</html>

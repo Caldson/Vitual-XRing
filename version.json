@@ -1,5 +1,6 @@
 {
-    "version": "10.1.3",
-    "updatedAt": "2026-11-14T15:35:24+08:00",
-    "notes": "Time Machine includes exactly the 84 listed versions from 1.0 to 10.1.1"
+    "version": "11.0.0",
+    "updatedAt": "2026-11-14T15:54:30+08:00",
+    "notes": "Vtoy, VDEX.HTML, Windows update check, Time Machine admin preview",
+    "download": "https://xsmmc.caldson.us.ci/downloads/VitualXRing-11.0.0-portable.exe"
 }

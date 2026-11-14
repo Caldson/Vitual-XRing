@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-/* 10.1.3：VPAN 页面、首页活动与入口检查 */
+/* 11.0.0：VPAN 页面、首页活动与入口检查 */
 
 const root = new URL("../../", import.meta.url);
 const read = (name) => fs.readFileSync(new URL(name, root), "utf8");
 
-test("10.1.3：VPAN 页面包含上传、套餐、分享和配额 UI", () => {
+test("11.0.0：VPAN 页面包含上传、套餐、分享和配额 UI", () => {
     const page = read("vpan.html");
     assert.match(page, /vpan\.files/);
     assert.match(page, /vpan\.uploadChunk/);
@@ -21,7 +21,7 @@ test("10.1.3：VPAN 页面包含上传、套餐、分享和配额 UI", () => {
     assert.match(page, /dragenter/);
 });
 
-test("10.1.3：首页活动使用 events.json 与 16:9 图片", () => {
+test("11.0.0：首页活动使用 events.json 与 16:9 图片", () => {
     const events = JSON.parse(read("events.json"));
     assert.equal(events.items.length, 10);
     for (const item of events.items) {
@@ -45,7 +45,7 @@ test("10.1.3：首页活动使用 events.json 与 16:9 图片", () => {
     assert.match(home, /aspect-ratio: 16 \/ 9/);
 });
 
-test("10.1.3：首页 / 账户页 / XOS 都有 VPAN 入口", () => {
+test("11.0.0：首页 / 账户页 / XOS 都有 VPAN 入口", () => {
     assert.match(read("index.html"), /href="vpan\.html"/);
     assert.match(read("manager.html"), /href="vpan\.html"/);
     const xos = read("xos.html");
@@ -54,10 +54,10 @@ test("10.1.3：首页 / 账户页 / XOS 都有 VPAN 入口", () => {
     assert.match(xos, /src="vpan\.html"/);
 });
 
-test("10.1.3：版本号与 Service Worker 缓存同步", () => {
+test("11.0.0：版本号与 Service Worker 缓存同步", () => {
     const version = JSON.parse(read("version.json"));
-    assert.equal(version.version, "10.1.3");
-    assert.match(read("vtx-sw.js"), /xring-v10\.1\.3/);
-    assert.match(read("vtx-api.js"), /API_VERSION = "10\.1\.3"/);
-    assert.match(read("index.html"), /v10\.1\.3/);
+    assert.equal(version.version, "11.0.0");
+    assert.match(read("vtx-sw.js"), /xring-v11\.0\.0/);
+    assert.match(read("vtx-api.js"), /API_VERSION = "11\.0\.0"/);
+    assert.match(read("index.html"), /v11\.0\.0/);
 });

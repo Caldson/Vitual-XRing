@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>Vtoy · Vitual XRing</title>
+    <link rel="icon" href="XRingLogo-V.png?v=11.0.0">
+    <link rel="stylesheet" href="vtx-theme.css?v=11.0.0">
+    <script src="vtx-theme.js?v=11.0.0"></script>
+    <style>
+        :root { --vtoy: #e85d3f; --vtoy-soft: #fff0ea; --vtoy-dark: #a9341c; }
+        body { background: radial-gradient(circle at 15% 0%, #fff3ed 0, transparent 32%), var(--vtx-bg, #f4f7fb); }
+        .vtoy-shell { max-width: 1160px; margin: 0 auto; padding: 24px 18px 80px; }
+        .vtoy-hero { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 8px 0 22px; }
+        .vtoy-hero h1 { margin: 0 0 7px; font-size: clamp(28px, 4vw, 46px); letter-spacing: -.045em; }
+        .vtoy-hero p { margin: 0; max-width: 650px; color: var(--vtx-muted); line-height: 1.7; font-size: 13.5px; }
+        .vtoy-logo { width: 86px; height: 86px; border-radius: 24px; display: grid; place-items: center; background: var(--vtoy); color: #fff; font-size: 44px; box-shadow: 0 16px 36px rgba(232,93,63,.28); }
+        .vtoy-tabs { display: flex; gap: 7px; flex-wrap: wrap; margin: 0 0 18px; }
+        .vtoy-tab { padding: 8px 14px; border: 1px solid var(--vtx-border); border-radius: 999px; background: var(--vtx-surface); color: var(--vtx-muted); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+        .vtoy-tab.active { border-color: var(--vtoy); background: var(--vtoy-soft); color: var(--vtoy-dark); }
+        .vtoy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+        .vtoy-card { padding: 16px; border: 1px solid var(--vtx-border); border-radius: 15px; background: var(--vtx-surface); box-shadow: var(--vtx-shadow-soft); }
+        .vtoy-card h3 { margin: 0 0 5px; font-size: 15px; }
+        .vtoy-card p { margin: 0; min-height: 38px; color: var(--vtx-muted); font-size: 12px; line-height: 1.55; }
+        .vtoy-card .vtoy-actions { display: flex; gap: 7px; margin-top: 12px; }
+        .vtoy-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 12px; border: 1px solid var(--vtx-border-strong); border-radius: 9px; background: var(--vtx-surface); color: var(--vtx-text); font: inherit; font-size: 12px; font-weight: 800; text-decoration: none; cursor: pointer; }
+        .vtoy-btn.primary { border-color: var(--vtoy); background: var(--vtoy); color: #fff; }
+        .vtoy-btn.danger { color: #b42318; border-color: #f1b8b2; }
+        .vtoy-panel { border: 1px solid var(--vtx-border); border-radius: 16px; background: var(--vtx-surface); padding: 18px; box-shadow: var(--vtx-shadow-soft); }
+        .vtoy-form { display: grid; gap: 10px; }
+        .vtoy-form label { display: grid; gap: 5px; font-size: 12px; font-weight: 800; }
+        .vtoy-form input, .vtoy-form textarea, .vtoy-form select { width: 100%; padding: 9px 10px; border: 1px solid var(--vtx-border-strong); border-radius: 9px; background: var(--vtx-surface); color: var(--vtx-text); font: inherit; font-size: 12.5px; }
+        .vtoy-form textarea { min-height: 110px; resize: vertical; font-family: ui-monospace, Consolas, monospace; line-height: 1.5; }
+        .vtoy-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .vtoy-code-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .vtoy-check { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+        .vtoy-note { color: var(--vtx-faint); font-size: 11px; line-height: 1.6; }
+        .vtoy-preview { width: 100%; min-height: 320px; border: 1px solid var(--vtx-border); border-radius: 12px; background: #fff; }
+        .vtoy-empty { padding: 36px 16px; text-align: center; color: var(--vtx-muted); font-size: 12.5px; }
+        .vtoy-status { min-height: 18px; color: var(--vtoy-dark); font-size: 12px; font-weight: 700; }
+        #vtoy-modal { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; padding: 20px; background: rgba(15,23,42,.48); backdrop-filter: blur(5px); }
+        #vtoy-modal[hidden] { display: none; }
+        .vtoy-dialog { width: min(420px, 100%); padding: 22px; border-radius: 18px; background: var(--vtx-surface); box-shadow: 0 30px 80px rgba(15,23,42,.3); }
+        .vtoy-dialog h3 { margin: 0 0 8px; font-size: 18px; }
+        .vtoy-dialog p { margin: 0 0 18px; color: var(--vtx-muted); font-size: 12.5px; line-height: 1.65; }
+        .vtoy-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .vtoy-appbar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: #111827; color: #fff; font-size: 12px; }
+        .vtoy-appbar b { font-size: 13px; }
+        .vtoy-appbar .spacer { flex: 1; }
+        .vtoy-appbar a { color: #c7d2fe; text-decoration: none; font-weight: 800; }
+        #vtoy-app-frame { width: 100%; height: calc(100vh - 45px); border: 0; background: #fff; }
+        .vtoy-app-page { height: 100vh; display: flex; flex-direction: column; background: #111827; }
+        @media (max-width: 700px) { .vtoy-code-grid, .vtoy-form .row { grid-template-columns: 1fr; } .vtoy-hero { align-items: flex-start; } .vtoy-logo { width: 62px; height: 62px; font-size: 30px; } }
+    </style>
+</head>
+<body>
+    <header class="vtx-topbar">
+        <a class="vtx-brand" href="index.html"><img src="XRingLogo-V.png?v=11.0.0" alt="Vitual XRing" width="38" height="38"></a>
+        <nav class="top-links">
+            <a href="index.html">首页</a>
+            <a href="vtoy.html" class="is-active">Vtoy</a>
+            <a href="vdex.html">VDEX</a>
+            <a href="settings.html">设置</a>
+        </nav>
+    </header>
+
+    <main class="vtoy-shell" id="vtoy-dashboard">
+        <section class="vtoy-hero">
+            <div>
+                <h1>Vtoy 小程序</h1>
+                <p>用 HTML、JS、CSS 做一个小程序。应用可以申请登录与 VTX 余额权限，运行在沙箱里；发布后通过 <code>vtoy.html?app=名称</code> 打开。</p>
+            </div>
+            <div class="vtoy-logo">🧸</div>
+        </section>
+        <div class="vtoy-tabs" id="vtoy-tabs">
+            <button class="vtoy-tab active" data-tab="store">应用广场</button>
+            <button class="vtoy-tab" data-tab="mine">我的应用</button>
+            <button class="vtoy-tab" data-tab="create">创建 / 编辑</button>
+        </div>
+        <section id="vtoy-store"><div class="vtoy-grid" id="vtoy-apps"><div class="vtoy-empty">正在加载应用…</div></div></section>
+        <section id="vtoy-mine" hidden><div class="vtoy-grid" id="vtoy-mine-list"><div class="vtoy-empty">登录后查看自己的应用。</div></div></section>
+        <section id="vtoy-create" hidden>
+            <div class="vtoy-panel">
+                <div class="vtoy-form">
+                    <div class="row">
+                        <label>应用名称（小写、数字、-）<input id="vtoy-name" placeholder="my-first-app" maxlength="32"></label>
+                        <label>标题<input id="vtoy-title" placeholder="我的第一个 Vtoy 应用" maxlength="60"></label>
+                    </div>
+                    <label>简介<textarea id="vtoy-desc" placeholder="一句话介绍这个应用…" maxlength="160" style="min-height:60px;"></textarea></label>
+                    <div class="row">
+                        <label class="vtoy-check"><input type="checkbox" id="vtoy-perm-login"> 申请登录权限</label>
+                        <label class="vtoy-check"><input type="checkbox" id="vtoy-perm-wallet"> 申请 VTX 余额权限</label>
+                    </div>
+                    <div class="vtoy-code-grid">
+                        <label>HTML<textarea id="vtoy-html" placeholder="<h1>Hello</h1>"></textarea></label>
+                        <label>CSS<textarea id="vtoy-css" placeholder="h1 { color: #e85d3f; }"></textarea></label>
+                    </div>
+                    <label>JavaScript<textarea id="vtoy-js" placeholder="VTX.getUser().then(user => ...)"></textarea></label>
+                    <p class="vtoy-note">在代码里可以用 <code>VTX.login()</code>、<code>VTX.getUser()</code>、<code>VTX.getBalance()</code>。登录会弹出「应用 申请登录您的账户」的确认框。应用代码不能读取站点 token。</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="vtoy-btn primary" id="vtoy-save">保存应用</button><button class="vtoy-btn" id="vtoy-preview">刷新预览</button><button class="vtoy-btn" id="vtoy-new">新建</button><span class="vtoy-status" id="vtoy-status"></span></div>
+                </div>
+            </div>
+            <iframe class="vtoy-preview" id="vtoy-preview-frame" sandbox="allow-scripts allow-forms" title="Vtoy 预览"></iframe>
+        </section>
+    </main>
+
+    <div id="vtoy-app-page" class="vtoy-app-page" hidden>
+        <div class="vtoy-appbar"><b id="vtoy-app-title">Vtoy</b><span id="vtoy-app-owner"></span><span class="spacer"></span><a href="vtoy.html">← Vtoy</a></div>
+        <iframe id="vtoy-app-frame" sandbox="allow-scripts allow-forms allow-popups" title="Vtoy 应用"></iframe>
+    </div>
+
+    <div id="vtoy-modal" hidden>
+        <div class="vtoy-dialog" role="dialog" aria-modal="true" aria-labelledby="vtoy-modal-title">
+            <h3 id="vtoy-modal-title">应用申请权限</h3>
+            <p id="vtoy-modal-text"></p>
+            <div class="vtoy-dialog-actions"><button class="vtoy-btn" id="vtoy-deny">取消</button><button class="vtoy-btn primary" id="vtoy-allow">登录</button></div>
+        </div>
+    </div>
+
+    <script src="vtx-api.js?v=11.0.0"></script>
+    <script>
+        (function () {
+            "use strict";
+            const el = (id) => document.getElementById(id);
+            const params = new URLSearchParams(location.search);
+            const publicName = String(params.get("app") || "").trim().toLowerCase();
+            const NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+            let apps = [];
+            let mine = [];
+            let editing = "";
+            let currentApp = null;
+            let inviteResolve = null;
+
+            function api() { return window.VTXApi; }
+            function loggedIn() { return Boolean(api() && api().hasSession && api().hasSession()); }
+            function showStatus(text) { el("vtoy-status").textContent = text || ""; }
+            function escapeHtml(value) { return String(value == null ? "" : value).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+            function appUrl(name) { return `vtoy.html?app=${encodeURIComponent(name)}`; }
+
+            function bridgeCode(app) {
+                return `<script>(function(){
+                    var pending = {}, seq = 0;
+                    window.VTX = {
+                        login: function(){ return call("login"); },
+                        getUser: function(){ return call("user"); },
+                        getBalance: function(){ return call("balance"); }
+                    };
+                    function call(method){
+                        return new Promise(function(resolve, reject){
+                            var id = "r" + (++seq);
+                            pending[id] = { resolve: resolve, reject: reject };
+                            parent.postMessage({ source: "vtoy-app", id: id, method: method }, "*");
+                            setTimeout(function(){ if (pending[id]) { delete pending[id]; reject(new Error("请求超时")); } }, 20000);
+                        });
+                    }
+                    window.addEventListener("message", function(event){
+                        var data = event.data || {};
+                        if (data.source !== "vtoy-host" || !data.id || !pending[data.id]) return;
+                        var item = pending[data.id]; delete pending[data.id];
+                        if (data.ok) item.resolve(data.result); else item.reject(new Error(data.error || "请求被拒绝"));
+                    });
+                })();<\/script>`;
+            }
+
+            function buildDocument(app) {
+                const css = `<style>${app.css || ""}</style>`;
+                const js = bridgeCode(app) + `<script>${app.js || ""}<\/script>`;
+                if (/<html[\s>]/i.test(app.html || "")) {
+                    let html = app.html;
+                    if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, css + "</head>");
+                    else html = css + html;
+                    if (/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, js + "</body>");
+                    else html += js;
+                    return html;
+                }
+                return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${css}</head><body>${app.html || ""}${js}</body></html>`;
+            }
+
+            function openApp(app) {
+                currentApp = app;
+                el("vtoy-dashboard").hidden = true;
+                el("vtoy-app-page").hidden = false;
+                el("vtoy-app-title").textContent = app.title || app.name;
+                el("vtoy-app-owner").textContent = app.owner ? "by " + app.owner : "";
+                const frame = el("vtoy-app-frame");
+                frame.srcdoc = buildDocument(app);
+                document.title = `${app.title || app.name} · Vtoy`;
+            }
+
+            function requirePermission(method) {
+                if (!currentApp) return "没有打开应用";
+                const permissions = currentApp.permissions || [];
+                if (method === "login" || method === "user") {
+                    if (!permissions.includes("login")) return "这个应用没有申请登录权限";
+                }
+                if (method === "balance") {
+                    if (!permissions.includes("wallet")) return "这个应用没有申请 VTX 余额权限";
+                }
+                return "";
+            }
+
+            function askLogin() {
+                return new Promise((resolve, reject) => {
+                    const signedIn = loggedIn();
+                    el("vtoy-modal-title").textContent = `${currentApp.title || currentApp.name} 申请登录您的账户`;
+                    el("vtoy-modal-text").textContent = signedIn
+                        ? "登录后会向应用提供你的账户名、UID 和公开资料；不会提供密码或 token。"
+                        : "你还没有登录 Vitual XRing。点击「登录」会打开站点登录页，登录后回来再试。";
+                    el("vtoy-modal").hidden = false;
+                    el("vtoy-allow").textContent = "登录";
+                    inviteResolve = { resolve, reject, redirect: !signedIn };
+                });
+            }
+
+            function closeInvite(allow) {
+                el("vtoy-modal").hidden = true;
+                if (!inviteResolve) return;
+                const current = inviteResolve;
+                inviteResolve = null;
+                if (!allow) { current.reject(new Error("用户取消了登录")); return; }
+                if (current.redirect) {
+                    current.reject(new Error("正在前往登录页"));
+                    location.href = "login.html?next=" + encodeURIComponent(location.href);
+                    return;
+                }
+                api().me().then((account) => current.resolve({
+                    login: account.login,
+                    username: account.username,
+                    uid: account.uid
+                })).catch(current.reject);
+            }
+
+            window.addEventListener("message", (event) => {
+                const data = event.data || {};
+                if (data.source !== "vtoy-app") return;
+                if (!currentApp || event.source !== el("vtoy-app-frame").contentWindow) return;
+                const reply = (ok, result, error) => {
+                    try { event.source.postMessage({ source: "vtoy-host", id: data.id, ok, result, error }, "*"); } catch (error) { /* ignore */ }
+                };
+                const denied = requirePermission(data.method);
+                if (denied) { reply(false, null, denied); return; }
+                if (data.method === "login" || data.method === "user") {
+                    askLogin().then((user) => reply(true, user), (error) => reply(false, null, error.message));
+                } else if (data.method === "balance") {
+                    if (!loggedIn()) { reply(false, null, "请先登录 Vitual XRing 账户"); return; }
+                    api().me().then((account) => reply(true, { money: account.money, login: account.login }), (error) => reply(false, null, error.message));
+                } else {
+                    reply(false, null, "不支持的 VTX 方法");
+                }
+            });
+
+            el("vtoy-allow").addEventListener("click", () => closeInvite(true));
+            el("vtoy-deny").addEventListener("click", () => closeInvite(false));
+
+            function card(app, editable) {
+                const box = document.createElement("article");
+                box.className = "vtoy-card";
+                box.innerHTML = `<h3>${escapeHtml(app.title || app.name)}</h3><p>${escapeHtml(app.description || "暂无简介")}</p><div class="vtoy-actions"><a class="vtoy-btn primary" href="${appUrl(app.name)}" target="_blank" rel="noopener">打开</a>${editable ? '<button class="vtoy-btn" data-edit="' + escapeHtml(app.name) + '">编辑</button>' : ""}</div>`;
+                if (editable) box.querySelector("[data-edit]").addEventListener("click", () => editApp(app.name));
+                return box;
+            }
+
+            async function loadStore() {
+                const box = el("vtoy-apps");
+                try {
+                    const data = await api().request("/vtoy/apps");
+                    apps = data.apps || [];
+                    box.textContent = "";
+                    if (!apps.length) box.innerHTML = '<div class="vtoy-empty">还没有应用，去「创建 / 编辑」发布第一个吧。</div>';
+                    else apps.forEach((app) => box.appendChild(card(app, false)));
+                } catch (error) {
+                    box.innerHTML = '<div class="vtoy-empty">应用列表加载失败。</div>';
+                }
+            }
+
+            async function loadMine() {
+                const box = el("vtoy-mine-list");
+                if (!loggedIn()) { box.innerHTML = '<div class="vtoy-empty">登录后查看自己的应用。</div>'; return; }
+                try {
+                    const result = await api().request("/vtoy/mine");
+                    mine = result.apps || [];
+                    box.textContent = "";
+                    if (!mine.length) box.innerHTML = '<div class="vtoy-empty">你还没有发布应用。</div>';
+                    else mine.forEach((app) => box.appendChild(card(app, true)));
+                } catch (error) {
+                    box.innerHTML = '<div class="vtoy-empty">读取失败，请确认已登录。</div>';
+                }
+            }
+
+            function editApp(name) {
+                const app = mine.find((item) => item.name === name) || apps.find((item) => item.name === name);
+                if (!app) return;
+                editing = name;
+                el("vtoy-name").value = app.name;
+                el("vtoy-title").value = app.title || "";
+                el("vtoy-desc").value = app.description || "";
+                el("vtoy-perm-login").checked = (app.permissions || []).includes("login");
+                el("vtoy-perm-wallet").checked = (app.permissions || []).includes("wallet");
+                showStatus("已载入，修改后点保存。");
+                switchTab("create");
+            }
+
+            async function loadFullApp(name) {
+                const data = await api().request(`/vtoy/apps?name=${encodeURIComponent(name)}`);
+                return data.app;
+            }
+
+            async function editAppFull(name) {
+                try {
+                    const app = await loadFullApp(name);
+                    if (!mine.some((item) => item.name === name)) mine.push(app);
+                    const existing = mine.find((item) => item.name === name);
+                    if (existing) Object.assign(existing, app);
+                    editing = name;
+                    el("vtoy-name").value = app.name;
+                    el("vtoy-title").value = app.title || "";
+                    el("vtoy-desc").value = app.description || "";
+                    el("vtoy-html").value = app.html || "";
+                    el("vtoy-css").value = app.css || "";
+                    el("vtoy-js").value = app.js || "";
+                    el("vtoy-perm-login").checked = (app.permissions || []).includes("login");
+                    el("vtoy-perm-wallet").checked = (app.permissions || []).includes("wallet");
+                    showStatus("已载入完整代码。");
+                    switchTab("create");
+                    preview();
+                } catch (error) { showStatus(error.message); }
+            }
+
+            function preview() {
+                const doc = buildDocument({
+                    name: el("vtoy-name").value || "preview",
+                    title: el("vtoy-title").value || "预览",
+                    html: el("vtoy-html").value,
+                    css: el("vtoy-css").value,
+                    js: el("vtoy-js").value
+                });
+                el("vtoy-preview-frame").srcdoc = doc;
+            }
+
+            async function save() {
+                if (!loggedIn()) { showStatus("请先登录后再保存。"); return; }
+                const name = el("vtoy-name").value.trim().toLowerCase();
+                if (!NAME_RE.test(name) || name.length < 2) { showStatus("名称只能使用小写字母、数字和 - 连字符，至少 2 位。"); return; }
+                const body = {
+                    name,
+                    title: el("vtoy-title").value.trim(),
+                    description: el("vtoy-desc").value.trim(),
+                    html: el("vtoy-html").value,
+                    css: el("vtoy-css").value,
+                    js: el("vtoy-js").value,
+                    permissions: [el("vtoy-perm-login").checked ? "login" : "", el("vtoy-perm-wallet").checked ? "wallet" : ""].filter(Boolean)
+                };
+                try {
+                    await api().request("/vtoy/apps", { method: "POST", body });
+                    showStatus("已保存：" + name);
+                    editing = name;
+                    await loadMine(); await loadStore(); preview();
+                } catch (error) { showStatus(error.message); }
+            }
+
+            function switchTab(tab) {
+                ["store", "mine", "create"].forEach((key) => { el("vtoy-" + key).hidden = key !== tab; });
+                document.querySelectorAll(".vtoy-tab").forEach((button) => button.classList.toggle("active", button.dataset.tab === tab));
+                if (tab === "mine") loadMine();
+                if (tab === "create" && !el("vtoy-html").value) preview();
+            }
+
+            document.querySelectorAll(".vtoy-tab").forEach((button) => button.addEventListener("click", () => switchTab(button.dataset.tab)));
+            el("vtoy-save").addEventListener("click", save);
+            el("vtoy-preview").addEventListener("click", preview);
+            el("vtoy-new").addEventListener("click", () => { editing = ""; ["name", "title", "desc", "html", "css", "js"].forEach((key) => el("vtoy-" + key).value = ""); el("vtoy-perm-login").checked = false; el("vtoy-perm-wallet").checked = false; showStatus("已清空。"); preview(); });
+            el("vtoy-mine-list").addEventListener("click", (event) => {
+                const button = event.target.closest("[data-edit]");
+                if (button) editAppFull(button.dataset.edit);
+            });
+
+            if (publicName) {
+                if (!NAME_RE.test(publicName)) {
+                    el("vtoy-dashboard").innerHTML = '<div class="vtoy-empty">无效的应用名称。</div>';
+                } else {
+                    loadFullApp(publicName).then(openApp).catch((error) => {
+                        el("vtoy-dashboard").innerHTML = '<div class="vtoy-empty">' + escapeHtml(error.message) + '</div>';
+                    });
+                }
+            } else {
+                loadStore();
+                loadMine();
+                preview();
+            }
+        })();
+    </script>
+</body>
+</html>

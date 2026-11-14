@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import worker from "../index.js";
 
-/* 10.1.3：VPAN 云盘套餐、上传、下载、分享与配额 */
+/* 11.0.0：VPAN 云盘套餐、上传、下载、分享与配额 */
 
 class MockKV {
     constructor() {
@@ -95,7 +95,7 @@ async function uploadInline(env, token, name, content, type = "text/plain") {
     return create.data.file;
 }
 
-test("10.1.3：套餐价格与 10GB 首月优惠", async () => {
+test("11.0.0：套餐价格与 10GB 首月优惠", async () => {
     const { env, token } = await prepare();
     const plans = await api(env, "GET", "/api/vpan/plans");
     assert.equal(plans.status, 200);
@@ -121,7 +121,7 @@ test("10.1.3：套餐价格与 10GB 首月优惠", async () => {
     assert.equal(renew.data.account.money, "9750.01");
 });
 
-test("10.1.3：小文件上传、列表、下载、重命名与删除", async () => {
+test("11.0.0：小文件上传、列表、下载、重命名与删除", async () => {
     const { env, token } = await prepare();
     const file = await uploadInline(env, token, "你好.txt", "hello VPAN");
     assert.equal(file.name, "你好.txt");
@@ -146,7 +146,7 @@ test("10.1.3：小文件上传、列表、下载、重命名与删除", async ()
     assert.equal(after.data.files.length, 0);
 });
 
-test("10.1.3：分享链接、密码与公开下载", async () => {
+test("11.0.0：分享链接、密码与公开下载", async () => {
     const { env, token } = await prepare();
     const file = await uploadInline(env, token, "分享.txt", "shared data");
     const created = await api(env, "POST", `/api/vpan/files/${file.id}/share`, {
@@ -168,7 +168,7 @@ test("10.1.3：分享链接、密码与公开下载", async () => {
     assert.equal(new TextDecoder().decode(download.data), "shared data");
 });
 
-test("10.1.3：超过 5GB 免费配额时拒绝上传", async () => {
+test("11.0.0：超过 5GB 免费配额时拒绝上传", async () => {
     const { env, token } = await prepare();
     const rejected = await api(env, "POST", "/api/vpan/files", {
         token,

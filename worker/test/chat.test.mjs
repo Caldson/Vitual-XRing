@@ -127,7 +127,7 @@ let prepareCount = 0;
 async function prepare() {
     const env = createEnv();
     prepareCount += 1;
-    env.__ip = `10.1.3.${prepareCount}`;
+    env.__ip = `11.0.0.${prepareCount}`;
     await env.ACCOUNTS_KV.put("accounts", JSON.stringify(SEED));
     const tokens = {};
     for (const name of Object.keys(SEED)) {
@@ -153,7 +153,7 @@ test("聊天室状态开放，并暴露实时通道与媒体 TTL", async () => {
     const { env } = await prepare();
     const status = await api(env, "GET", "/api/chat/status");
     assert.equal(status.status, 200);
-    assert.equal(status.data.version, "10.1.3");
+    assert.equal(status.data.version, "11.0.0");
     assert.equal(status.data.enabled, true);
     assert.equal(status.data.realtime, "websocket");
     assert.equal(status.data.mediaTtlSeconds, 14 * 24 * 60 * 60);
