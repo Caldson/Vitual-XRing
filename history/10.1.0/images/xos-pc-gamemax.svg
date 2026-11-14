@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b0606"/>
+      <stop offset="0.55" stop-color="#c21f1f"/>
+      <stop offset="1" stop-color="#ffcf4d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <circle cx="980" cy="120" r="250" fill="#ffffff" opacity="0.1"/>
+  <circle cx="120" cy="640" r="320" fill="#ffffff" opacity="0.07"/>
+  <text x="80" y="170" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="92" font-weight="700">XOS</text>
+  <text x="84" y="230" fill="#fff0cf" font-family="Segoe UI, Arial, sans-serif" font-size="30" letter-spacing="8">GAME MAX · 26H2</text>
+  <text x="84" y="520" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="700">XOS PC GameMAX 26H2</text>
+  <text x="86" y="575" fill="#fff0cf" font-family="Segoe UI, Arial, sans-serif" font-size="27">1440 × 900 · ULTRA V4 · 15–30000fps</text>
+  <rect x="84" y="610" width="320" height="52" rx="26" fill="#ffffff" opacity="0.18"/>
+  <text x="112" y="644" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="23">高性能 · 10TB 预留内存</text>
+</svg>

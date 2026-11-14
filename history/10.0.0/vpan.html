@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><script src="../api-bridge.js"></script>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f3f6fb">
+    <title>VPAN 云盘 | Vitual XRing</title>
+    <link rel="stylesheet" href="vtx-theme.css?v=10.0.0">
+    <script src="vtx-theme.js?v=10.0.0"></script>
+    <style>
+        :root {
+            --vp-blue: #2f6bff;
+            --vp-blue-deep: #1d4ed8;
+            --vp-cyan: #0fb9b1;
+            --vp-line: #e3e9f4;
+            --vp-soft: #f5f8fd;
+            --vp-ink: #1a2436;
+            --vp-muted: #697892;
+        }
+        [data-theme="dark"] {
+            --vp-blue: #7c95ff;
+            --vp-blue-deep: #6d86ff;
+            --vp-line: #2a3648;
+            --vp-soft: #1a2434;
+            --vp-ink: #e8eefb;
+            --vp-muted: #9aa8bd;
+        }
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+        html, body { height: 100%; margin: 0; }
+        body { overflow: hidden; overscroll-behavior: none; }
+        button, input, select { font: inherit; color: inherit; }
+        button { cursor: pointer; }
+        .vp-app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+        .vp-top { flex: 0 0 auto; display: flex; align-items: center; gap: 14px; padding: 12px 20px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); border-bottom: 1px solid var(--vp-line); background: color-mix(in srgb, var(--vtx-surface) 90%, transparent); backdrop-filter: blur(16px); }
+        .vp-brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--vtx-text); font-weight: 850; }
+        .vp-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: linear-gradient(135deg, #2f6bff, #0fb9b1); color: #fff; font-size: 17px; }
+        .vp-brand small { display: block; color: var(--vp-muted); font-size: 11px; font-weight: 650; }
+        .vp-badge { padding: 3px 9px; border-radius: 999px; background: var(--vtx-accent-soft); color: var(--vtx-accent); font-size: 12px; font-weight: 800; }
+        .vp-top-spacer { flex: 1; }
+        .vp-top a.vp-link { color: var(--vp-muted); font-size: 13px; font-weight: 650; text-decoration: none; }
+        .vp-top a.vp-link:hover { color: var(--vtx-accent); }
+        .vp-account { color: var(--vp-muted); font-size: 12.5px; }
+        .vp-account b { color: var(--vtx-text); }
+        .vp-body { flex: 1; min-height: 0; display: flex; }
+        .vp-side { width: 236px; flex: 0 0 236px; padding: 16px 12px; border-right: 1px solid var(--vp-line); background: color-mix(in srgb, var(--vtx-surface) 74%, transparent); display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+        .vp-side-title { margin: 2px 8px 4px; color: var(--vp-muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+        .vp-nav { display: flex; flex-direction: column; gap: 3px; }
+        .vp-nav button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 11px; border: 0; border-radius: 10px; background: transparent; color: var(--vp-muted); font-size: 13.5px; font-weight: 650; text-align: left; }
+        .vp-nav button:hover { background: var(--vtx-surface-soft); color: var(--vtx-text); }
+        .vp-nav button.active { background: var(--vtx-accent-soft); color: var(--vtx-accent); font-weight: 800; }
+        .vp-nav .glyph { width: 20px; text-align: center; }
+        .vp-storage { margin-top: auto; padding: 14px; border: 1px solid var(--vp-line); border-radius: 16px; background: linear-gradient(160deg, color-mix(in srgb, var(--vtx-accent) 12%, transparent), var(--vtx-surface)); }
+        .vp-storage b { font-size: 14px; }
+        .vp-storage small { display: block; margin-top: 3px; color: var(--vp-muted); font-size: 11.5px; line-height: 1.5; }
+        .vp-bar { height: 7px; margin: 10px 0 7px; border-radius: 999px; background: var(--vtx-surface-strong); overflow: hidden; }
+        .vp-bar i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--vp-blue), var(--vp-cyan)); transition: width 300ms; }
+        .vp-upgrade { width: 100%; margin-top: 9px; padding: 8px 10px; border: 0; border-radius: 9px; background: linear-gradient(135deg, var(--vp-blue), var(--vp-cyan)); color: #fff; font-size: 12.5px; font-weight: 800; }
+        .vp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .vp-toolbar { flex: 0 0 auto; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 12px 18px; border-bottom: 1px solid var(--vp-line); background: color-mix(in srgb, var(--vtx-surface) 82%, transparent); }
+        .vp-toolbar h1 { margin: 0 10px 0 0; font-size: 17px; letter-spacing: -.02em; }
+        .vp-search { flex: 1 1 180px; max-width: 330px; height: 36px; border: 1px solid var(--vp-line); border-radius: 10px; background: var(--vp-soft); padding: 0 12px; outline: none; font-size: 13px; }
+        .vp-search:focus { border-color: color-mix(in srgb, var(--vp-blue) 46%, transparent); background: var(--vtx-surface); }
+        .vp-btn { height: 36px; padding: 0 13px; border: 1px solid var(--vp-line); border-radius: 10px; background: var(--vtx-surface); color: var(--vtx-text); font-size: 13px; font-weight: 750; white-space: nowrap; }
+        .vp-btn:hover { border-color: color-mix(in srgb, var(--vp-blue) 40%, transparent); color: var(--vp-blue); }
+        .vp-btn.primary { border-color: transparent; background: var(--vp-blue); color: #fff; box-shadow: 0 8px 18px color-mix(in srgb, var(--vp-blue) 26%, transparent); }
+        .vp-btn.primary:hover { color: #fff; }
+        .vp-btn.ghost { background: transparent; }
+        .vp-btn:disabled { opacity: .55; cursor: not-allowed; }
+        .vp-content { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px 40px; }
+        .vp-drop { border: 1.5px dashed color-mix(in srgb, var(--vp-blue) 34%, var(--vp-line)); border-radius: 16px; padding: 16px; text-align: center; color: var(--vp-muted); font-size: 13px; background: color-mix(in srgb, var(--vtx-accent) 5%, transparent); margin-bottom: 14px; transition: background 160ms, border-color 160ms; }
+        .vp-drop.dragging { border-color: var(--vp-blue); background: color-mix(in srgb, var(--vtx-accent) 12%, transparent); }
+        .vp-drop b { color: var(--vtx-text); }
+        .vp-files { display: flex; flex-direction: column; gap: 6px; }
+        .vp-file { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border: 1px solid transparent; border-radius: 12px; background: transparent; }
+        .vp-file:hover { background: var(--vtx-surface-soft); border-color: var(--vp-line); }
+        .vp-icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 10px; background: var(--vtx-surface-strong); font-size: 19px; }
+        .vp-file-main { flex: 1; min-width: 0; }
+        .vp-file-main b { display: block; font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .vp-file-main small { display: block; margin-top: 2px; color: var(--vp-muted); font-size: 11.5px; }
+        .vp-file-actions { display: flex; gap: 4px; flex: 0 0 auto; }
+        .vp-file-actions button { border: 0; border-radius: 8px; background: transparent; color: var(--vp-muted); padding: 6px 8px; font-size: 12px; }
+        .vp-file-actions button:hover { background: var(--vtx-surface-strong); color: var(--vtx-text); }
+        .vp-empty { padding: 70px 20px; text-align: center; color: var(--vp-muted); }
+        .vp-empty .big { font-size: 44px; }
+        .vp-empty h2 { margin: 10px 0 6px; color: var(--vtx-text); font-size: 18px; }
+        .vp-empty p { margin: 0; font-size: 13px; line-height: 1.7; }
+        .vp-upload-panel { position: fixed; right: 20px; bottom: 20px; z-index: 70; width: min(360px, calc(100vw - 32px)); max-height: 300px; overflow: auto; padding: 12px; border: 1px solid var(--vp-line); border-radius: 14px; background: var(--vtx-surface); box-shadow: var(--vtx-shadow); }
+        .vp-upload-panel h3 { margin: 0 0 8px; font-size: 13px; }
+        .vp-upload-row { padding: 7px 0; border-top: 1px dashed var(--vp-line); font-size: 12.5px; }
+        .vp-upload-row .line { display: flex; gap: 8px; align-items: center; }
+        .vp-upload-row .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .vp-upload-row small { color: var(--vp-muted); }
+        .vp-mini-bar { height: 4px; margin-top: 5px; border-radius: 999px; background: var(--vtx-surface-strong); overflow: hidden; }
+        .vp-mini-bar i { display: block; height: 100%; width: 0; background: var(--vp-blue); transition: width 200ms; }
+        .vp-modal-backdrop { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 18px; background: rgba(15, 23, 42, .48); }
+        .vp-modal { width: min(680px, 100%); max-height: min(88vh, 780px); overflow: auto; padding: 20px; border: 1px solid var(--vp-line); border-radius: 18px; background: var(--vtx-surface); box-shadow: 0 30px 80px rgba(15, 23, 42, .28); }
+        .vp-modal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .vp-modal-head h2 { margin: 0; font-size: 17px; }
+        .vp-modal-head .grow { flex: 1; }
+        .vp-close { border: 0; background: transparent; color: var(--vp-muted); font-size: 23px; line-height: 1; }
+        .vp-plans { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+        .vp-plan { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 13px; border: 1px solid var(--vp-line); border-radius: 13px; background: var(--vtx-surface); }
+        .vp-plan.current { border-color: var(--vp-blue); box-shadow: 0 0 0 2px color-mix(in srgb, var(--vp-blue) 18%, transparent); }
+        .vp-plan b { font-size: 16px; }
+        .vp-plan .price { color: var(--vp-blue); font-size: 14px; font-weight: 850; }
+        .vp-plan .price small { color: var(--vp-muted); font-size: 11px; font-weight: 600; }
+        .vp-plan .tag { position: absolute; right: 10px; top: 10px; padding: 2px 6px; border-radius: 999px; background: #fff1e6; color: #c05621; font-size: 10px; font-weight: 800; }
+        .vp-plan button { margin-top: 6px; height: 32px; border: 1px solid var(--vp-line); border-radius: 8px; background: var(--vtx-surface-soft); font-size: 12px; font-weight: 750; }
+        .vp-plan button:hover { border-color: var(--vp-blue); color: var(--vp-blue); }
+        .vp-plan.current button { background: var(--vp-blue); color: #fff; border-color: transparent; }
+        .vp-field { display: flex; flex-direction: column; gap: 5px; margin-top: 12px; font-size: 12.5px; }
+        .vp-field input, .vp-field select { height: 38px; border: 1px solid var(--vp-line); border-radius: 9px; background: var(--vp-soft); padding: 0 10px; }
+        .vp-share-link { display: flex; gap: 8px; margin-top: 12px; }
+        .vp-share-link input { flex: 1; min-width: 0; height: 38px; border: 1px solid var(--vp-line); border-radius: 9px; background: var(--vp-soft); padding: 0 10px; font-size: 12px; }
+        .vp-hint { color: var(--vp-muted); font-size: 12px; line-height: 1.6; }
+        .vp-share-view { flex: 1; min-height: 0; overflow: auto; padding: 34px 16px 60px; }
+        .vp-share-card { max-width: 520px; margin: 0 auto; padding: 26px; border: 1px solid var(--vp-line); border-radius: 20px; background: var(--vtx-surface); box-shadow: var(--vtx-shadow); text-align: center; }
+        .vp-share-card .vp-icon { width: 64px; height: 64px; margin: 0 auto 12px; font-size: 30px; border-radius: 18px; }
+        .vp-share-card h1 { margin: 0 0 6px; font-size: 20px; word-break: break-all; }
+        .vp-share-card p { color: var(--vp-muted); font-size: 12.5px; }
+        .vp-gate { flex: 1; display: grid; place-items: center; padding: 30px; }
+        .vp-gate-card { max-width: 420px; width: 100%; padding: 28px; border: 1px solid var(--vp-line); border-radius: 20px; background: var(--vtx-surface); box-shadow: var(--vtx-shadow); text-align: center; }
+        .vp-gate-card h1 { margin: 0 0 8px; font-size: 22px; }
+        .vp-gate-card p { color: var(--vp-muted); line-height: 1.65; font-size: 13.5px; }
+        .vp-toast { position: fixed; left: 50%; bottom: 24px; z-index: 200; transform: translateX(-50%); padding: 10px 16px; border-radius: 11px; background: rgba(23, 32, 51, .95); color: #fff; font-size: 13px; max-width: min(92vw, 460px); text-align: center; }
+        .vp-spin { opacity: .6; }
+        .vp-mobile-side { display: none; }
+        @media (max-width: 780px) {
+            .vp-side { position: fixed; z-index: 45; left: 0; top: 0; bottom: 0; transform: translateX(-105%); transition: transform 180ms ease; box-shadow: 24px 0 60px rgba(15, 23, 42, .2); }
+            .vp-side.open { transform: none; }
+            .vp-mobile-side { display: inline-flex; }
+            .vp-plans { grid-template-columns: 1fr; }
+            .vp-toolbar h1 { font-size: 15px; }
+            .vp-file-actions button { padding: 6px; }
+        }
+    </style>
+</head>
+<body data-vtx-widget="off">
+<div class="vp-app">
+    <header class="vp-top"><script src="../api-bridge.js"></script>
+        <a class="vp-brand" href="vpan.html">
+            <span class="vp-mark">☁</span>
+            <span>VPAN<small>云盘 · 上传即分享</small></span>
+        </a>
+        <span class="vp-badge">v10.0.0</span>
+        <span class="vp-top-spacer"></span>
+        <a class="vp-link" href="vord.html">Vord</a>
+        <a class="vp-link" href="xos.html">XOS</a>
+        <a class="vp-link" href="manager.html">返回账户</a>
+        <span class="vp-account" id="vp-account"></span>
+        <button type="button" class="vp-btn ghost vp-mobile-side" id="vp-side-toggle">目录</button>
+    </header>
+
+    <div class="vp-body" id="vp-owner" hidden>
+        <aside class="vp-side" id="vp-side">
+            <div class="vp-side-title">文件</div>
+            <div class="vp-nav" id="vp-nav">
+                <button type="button" data-filter="all" class="active"><span class="glyph">📁</span>全部文件</button>
+                <button type="button" data-filter="image"><span class="glyph">🖼</span>图片</button>
+                <button type="button" data-filter="document"><span class="glyph">📄</span>文档</button>
+                <button type="button" data-filter="video"><span class="glyph">🎬</span>视频</button>
+                <button type="button" data-filter="audio"><span class="glyph">🎵</span>音频</button>
+                <button type="button" data-filter="archive"><span class="glyph">📦</span>压缩包</button>
+                <button type="button" data-filter="other"><span class="glyph">🗂</span>其它</button>
+            </div>
+            <div class="vp-storage">
+                <b id="vp-plan-name">5 GB 免费</b>
+                <small id="vp-plan-detail">永久免费 · 单文件最大 2 GB</small>
+                <div class="vp-bar"><i id="vp-quota-bar"></i></div>
+                <small id="vp-quota-text">0 B / 5 GB</small>
+                <button type="button" class="vp-upgrade" id="vp-upgrade">升级 / 续费套餐</button>
+            </div>
+        </aside>
+        <section class="vp-main">
+            <div class="vp-toolbar">
+                <h1 id="vp-list-title">全部文件</h1>
+                <input class="vp-search" id="vp-search" type="search" placeholder="搜索文件名" autocomplete="off">
+                <button type="button" class="vp-btn primary" id="vp-upload">上传文件</button>
+                <button type="button" class="vp-btn" id="vp-refresh">刷新</button>
+                <span class="vp-top-spacer"></span>
+                <span class="vp-hint" id="vp-count"></span>
+            </div>
+            <div class="vp-content" id="vp-content">
+                <div class="vp-drop" id="vp-drop">把文件拖到这里，或点上方 <b>上传文件</b>；小文件直接上传，大文件自动分片。</div>
+                <div class="vp-files" id="vp-files"></div>
+                <div class="vp-empty" id="vp-empty" hidden>
+                    <div class="big">☁️</div>
+                    <h2>还没有文件</h2>
+                    <p>上传第一个文件吧。免费空间 5 GB，单文件最大 2 GB。</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="vp-gate" id="vp-login" hidden>
+        <div class="vp-gate-card">
+            <div class="vp-icon" style="margin:0 auto 12px;width:58px;height:58px;font-size:28px;">☁</div>
+            <h1>登录后使用 VPAN</h1>
+            <p>5 GB 永久免费；上传、下载和分享都不限速，也不要求安装客户端。</p>
+            <p><a class="vp-btn primary" id="vp-login-link" href="login.html?next=vpan.html">前往登录</a></p>
+        </div>
+    </div>
+
+    <div class="vp-share-view" id="vp-share" hidden>
+        <div class="vp-share-card" id="vp-share-card">
+            <div class="vp-icon">☁</div>
+            <h1 id="vp-share-name">加载中…</h1>
+            <p id="vp-share-meta">正在读取分享文件</p>
+            <div id="vp-share-password-box" hidden>
+                <p class="vp-hint">这个分享需要密码。</p>
+                <div class="vp-share-link">
+                    <input id="vp-share-password" placeholder="请输入分享密码" autocomplete="off">
+                    <button type="button" class="vp-btn primary" id="vp-share-open">打开</button>
+                </div>
+            </div>
+            <div id="vp-share-download-box" hidden>
+                <button type="button" class="vp-btn primary" id="vp-share-download">下载文件</button>
+            </div>
+            <p class="vp-hint" style="margin-top:16px;"><a href="vpan.html">我也要使用 VPAN →</a></p>
+        </div>
+        <div class="vp-gate" id="vp-share-error" hidden>
+            <div class="vp-gate-card">
+                <h1 id="vp-share-error-title">分享不可用</h1>
+                <p id="vp-share-error-text"></p>
+                <a class="vp-btn" href="vpan.html">返回 VPAN</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="vp-upload-panel" id="vp-upload-panel" hidden>
+    <h3>上传队列</h3>
+    <div id="vp-upload-list"></div>
+</div>
+
+<div class="vp-modal-backdrop" id="vp-plan-modal" hidden>
+    <div class="vp-modal" role="dialog" aria-modal="true" aria-labelledby="vp-plan-heading">
+        <div class="vp-modal-head">
+            <h2 id="vp-plan-heading">升级 VPAN 空间</h2>
+            <span class="grow"></span>
+            <button type="button" class="vp-close" id="vp-plan-close">×</button>
+        </div>
+        <p class="vp-hint" id="vp-plan-current"></p>
+        <div class="vp-plans" id="vp-plans"></div>
+        <label class="vp-field">支付密码
+            <input type="password" id="vp-plan-password" placeholder="输入账户密码确认购买" autocomplete="current-password">
+        </label>
+        <p class="vp-hint" id="vp-plan-message">购买后 30 天内有效；10 GB 套餐仅首次购买享 49.99 VTX 首月价。</p>
+    </div>
+</div>
+
+<div class="vp-modal-backdrop" id="vp-share-modal" hidden>
+    <div class="vp-modal" role="dialog" aria-modal="true" aria-labelledby="vp-share-heading" style="max-width:520px;">
+        <div class="vp-modal-head">
+            <h2 id="vp-share-heading">分享文件</h2>
+            <span class="grow"></span>
+            <button type="button" class="vp-close" id="vp-share-close">×</button>
+        </div>
+        <p class="vp-hint" id="vp-share-file-name"></p>
+        <label class="vp-field">分享密码（可选，4–8 位字母数字）
+            <input id="vp-share-pass" maxlength="8" placeholder="留空则无需密码" autocomplete="off">
+        </label>
+        <label class="vp-field">有效期
+            <select id="vp-share-days">
+                <option value="1">1 天</option>
+                <option value="7" selected>7 天</option>
+                <option value="30">30 天</option>
+            </select>
+        </label>
+        <p><button type="button" class="vp-btn primary" id="vp-share-create">生成分享链接</button></p>
+        <div id="vp-share-result" hidden>
+            <div class="vp-share-link">
+                <input id="vp-share-link" readonly>
+                <button type="button" class="vp-btn" id="vp-share-copy">复制</button>
+            </div>
+            <p class="vp-hint" id="vp-share-info"></p>
+            <button type="button" class="vp-btn ghost" id="vp-share-unshare">取消分享</button>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="vp-file-input" multiple hidden>
+<script src="vtx-api.js?v=10.0.0"></script>
+<script>
+(function () {
+    "use strict";
+    const api = window.VTXApi;
+    const params = new URLSearchParams(location.search);
+    const shareToken = params.get("share") || "";
+    const sharePassword = params.get("password") || "";
+    const el = (id) => document.getElementById(id);
+    const state = {
+        me: null,
+        files: [],
+        plan: null,
+        used: 0,
+        quota: 5 * 1024 ** 3,
+        filter: "all",
+        query: "",
+        shareFile: null,
+        plans: [],
+        uploading: 0,
+        shared: null,
+        sharedPassword: sharePassword
+    };
+
+    function escapeHtml(value) {
+        return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
+    function toast(text) {
+        const node = document.createElement("div");
+        node.className = "vp-toast";
+        node.textContent = text;
+        document.body.appendChild(node);
+        setTimeout(() => node.remove(), 2600);
+    }
+
+    function sizeText(bytes) {
+        const value = Number(bytes) || 0;
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let index = 0;
+        let size = value;
+        while (size >= 1024 && index < units.length - 1) { size /= 1024; index += 1; }
+        return `${size >= 100 || index === 0 ? Math.round(size) : size.toFixed(1)} ${units[index]}`;
+    }
+
+    function timeText(ts) {
+        const value = Number(ts);
+        if (!value) return "";
+        try {
+            return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+        } catch (error) { return new Date(value).toLocaleString(); }
+    }
+
+    function kindOf(file) {
+        const type = String(file.type || "").toLowerCase();
+        const name = String(file.name || "").toLowerCase();
+        if (type.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(name)) return "image";
+        if (type.startsWith("video/") || /\.(mp4|webm|mkv|mov|avi)$/.test(name)) return "video";
+        if (type.startsWith("audio/") || /\.(mp3|flac|wav|ogg|m4a|aac)$/.test(name)) return "audio";
+        if (/\.(zip|rar|7z|tar|gz|bz2|xz)$/.test(name)) return "archive";
+        if (/\.(txt|md|markdown|pdf|docx?|xlsx?|pptx?|csv|json|js|ts|html|css|cpp|c|h|py|java)$/.test(name)) return "document";
+        return "other";
+    }
+
+    function glyph(kind) {
+        return { image: "🖼", video: "🎬", audio: "🎵", archive: "📦", document: "📄", all: "📁", other: "🗂" }[kind] || "📄";
+    }
+
+    function renderQuota() {
+        const percent = state.quota ? Math.min(100, state.used / state.quota * 100) : 0;
+        el("vp-quota-bar").style.width = percent.toFixed(2) + "%";
+        el("vp-quota-text").textContent = `${sizeText(state.used)} / ${sizeText(state.quota)}`;
+        el("vp-plan-name").textContent = state.plan ? state.plan.name : "5 GB 免费";
+        el("vp-plan-detail").textContent = state.plan && state.plan.active
+            ? `有效期至 ${timeText(state.plan.expiresAt)}`
+            : "永久免费 · 单文件最大 2 GB";
+        el("vp-plan-detail").textContent += ` · 单文件最大 ${sizeText(Math.min(2 * 1024 ** 3, state.quota))}`;
+    }
+
+    function filteredFiles() {
+        return state.files.filter((file) => {
+            if (state.filter !== "all" && kindOf(file) !== state.filter) return false;
+            if (state.query && !String(file.name).toLowerCase().includes(state.query.toLowerCase())) return false;
+            return true;
+        });
+    }
+
+    function renderFiles() {
+        const list = el("vp-files");
+        const files = filteredFiles();
+        el("vp-count").textContent = `${files.length} 个文件`;
+        el("vp-empty").hidden = files.length > 0;
+        list.innerHTML = files.map((file) => `
+            <div class="vp-file" data-id="${escapeHtml(file.id)}">
+                <span class="vp-icon">${glyph(kindOf(file))}</span>
+                <span class="vp-file-main">
+                    <b title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</b>
+                    <small>${sizeText(file.size)} · ${timeText(file.updated || file.at)}${file.share ? " · 🔗 已分享" : ""}${file.status !== "ready" ? " · 上传中" : ""}</small>
+                </span>
+                <span class="vp-file-actions">
+                    <button type="button" data-act="download" ${file.status !== "ready" ? "disabled" : ""}>下载</button>
+                    <button type="button" data-act="share" ${file.status !== "ready" ? "disabled" : ""}>分享</button>
+                    <button type="button" data-act="rename">重命名</button>
+                    <button type="button" data-act="delete">删除</button>
+                </span>
+            </div>`).join("");
+        list.querySelectorAll("[data-id]").forEach((row) => {
+            const file = state.files.find((item) => item.id === row.dataset.id);
+            row.querySelectorAll("[data-act]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const act = button.dataset.act;
+                    if (act === "download") downloadFile(file);
+                    else if (act === "share") openShare(file);
+                    else if (act === "rename") renameFile(file);
+                    else if (act === "delete") deleteFile(file);
+                });
+            });
+        });
+    }
+
+    async function load() {
+        try {
+            const me = await api.me();
+            state.me = me;
+            el("vp-account").innerHTML = `已登录 <b>${escapeHtml((me && (me.username || me.login)) || "")}</b>`;
+            const data = await api.vpan.files();
+            state.files = Array.isArray(data.files) ? data.files : [];
+            state.plan = data.plan;
+            state.used = Number(data.usedBytes) || 0;
+            state.quota = Number(data.quotaBytes) || 5 * 1024 ** 3;
+            renderQuota();
+            renderFiles();
+        } catch (error) {
+            if (error && error.status === 401) {
+                el("vp-owner").hidden = true;
+                el("vp-login").hidden = false;
+                return;
+            }
+            toast(error.message || "加载失败");
+        }
+    }
+
+    function openPlan() {
+        el("vp-plan-modal").hidden = false;
+        el("vp-plan-current").textContent = state.plan && state.plan.active
+            ? `当前：${state.plan.name}，有效期至 ${timeText(state.plan.expiresAt)}`
+            : "当前：5 GB 免费套餐";
+        renderPlans();
+    }
+
+    async function loadPlans() {
+        if (state.plans.length) return;
+        try {
+            const data = await api.vpan.plans();
+            state.plans = Array.isArray(data.plans) ? data.plans : [];
+        } catch (error) { /* 套餐加载失败时保留空列表 */ }
+    }
+
+    function renderPlans() {
+        const grid = el("vp-plans");
+        const current = state.plan && state.plan.planId;
+        grid.innerHTML = state.plans.map((plan) => {
+            const isCurrent = current === plan.id;
+            const first = plan.firstPrice && plan.id !== "free";
+            return `<div class="vp-plan${isCurrent ? " current" : ""}">
+                ${plan.tag ? `<span class="tag">${escapeHtml(plan.tag)}</span>` : ""}
+                <b>${escapeHtml(plan.name)}</b>
+                <span class="price">${plan.id === "free" ? "免费" : `${escapeHtml(first ? plan.firstPrice : plan.price)} VTX <small>/ 月</small>`}</span>
+                <small class="vp-hint">${plan.id === "free" ? "默认套餐" : `续费 ${escapeHtml(plan.price)} VTX / 月`}</small>
+                <button type="button" data-plan="${escapeHtml(plan.id)}" ${isCurrent || plan.id === "free" ? "disabled" : ""}>${isCurrent ? "当前套餐" : "购买"}</button>
+            </div>`;
+        }).join("");
+        grid.querySelectorAll("[data-plan]").forEach((button) => {
+            button.addEventListener("click", () => subscribe(button.dataset.plan));
+        });
+    }
+
+    async function subscribe(planId) {
+        const password = el("vp-plan-password").value;
+        if (!password) { toast("请输入支付密码"); el("vp-plan-password").focus(); return; }
+        el("vp-plan-message").textContent = "购买中…";
+        try {
+            const data = await api.vpan.subscribe(planId, password);
+            el("vp-plan-message").textContent = "购买成功，已更新套餐。";
+            state.plan = data.plan;
+            el("vp-plan-password").value = "";
+            await load();
+            renderPlans();
+            toast("套餐已更新");
+        } catch (error) {
+            el("vp-plan-message").textContent = error.message || "购买失败";
+        }
+    }
+
+    async function uploadOne(file) {
+        const create = await api.vpan.create({ name: file.name, size: file.size, type: file.type || "application/octet-stream" });
+        const meta = create.file;
+        if (create.mode === "inline") {
+            await api.vpan.uploadContent(meta.id, file);
+            await api.vpan.complete(meta.id);
+        } else {
+            const chunkBytes = Number(create.chunkBytes) || 32 * 1024 * 1024;
+            let number = 1;
+            for (let offset = 0; offset < file.size; offset += chunkBytes) {
+                const blob = file.slice(offset, Math.min(file.size, offset + chunkBytes));
+                await api.vpan.uploadChunk(meta.id, number, blob);
+                number += 1;
+            }
+            await api.vpan.complete(meta.id);
+        }
+        return meta;
+    }
+
+    async function uploadFiles(files) {
+        if (!files || !files.length) return;
+        if (!state.plan) await load();
+        const queue = el("vp-upload-list");
+        el("vp-upload-panel").hidden = false;
+        for (const file of files) {
+            if (!file.size) { toast(`${file.name} 是空文件`); continue; }
+            if (file.size > Math.min(2 * 1024 ** 3, state.quota)) { toast(`${file.name} 超过单文件上限`); continue; }
+            if (state.used + file.size > state.quota) { toast(`空间不足：${file.name}`); continue; }
+            const row = document.createElement("div");
+            row.className = "vp-upload-row";
+            row.innerHTML = `<div class="line"><span class="grow">${escapeHtml(file.name)}</span><small>等待</small></div><div class="vp-mini-bar"><i></i></div>`;
+            queue.appendChild(row);
+            const bar = row.querySelector(".vp-mini-bar i");
+            const status = row.querySelector("small");
+            state.uploading += 1;
+            try {
+                status.textContent = "上传中";
+                bar.style.width = "30%";
+                await uploadOne(file);
+                bar.style.width = "100%";
+                status.textContent = "完成";
+                state.used += file.size;
+                renderQuota();
+            } catch (error) {
+                status.textContent = "失败";
+                bar.style.background = "#d6455d";
+                toast(`${file.name}：${error.message || "上传失败"}`);
+            } finally {
+                state.uploading -= 1;
+            }
+        }
+        el("vp-upload-panel").hidden = false;
+        await load();
+        setTimeout(() => {
+            if (!state.uploading) el("vp-upload-panel").hidden = true;
+        }, 2600);
+    }
+
+    async function downloadFile(file) {
+        try {
+            const response = await api.vpan.download(file.id);
+            const blob = await response.blob();
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = file.name;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        } catch (error) {
+            toast(error.message || "下载失败");
+        }
+    }
+
+    async function renameFile(file) {
+        const name = prompt("重命名", file.name);
+        if (!name || name === file.name) return;
+        try {
+            await api.vpan.rename(file.id, name);
+            await load();
+        } catch (error) {
+            toast(error.message || "重命名失败");
+        }
+    }
+
+    async function deleteFile(file) {
+        if (!confirm(`删除「${file.name}」？分享链接也会失效。`)) return;
+        try {
+            await api.vpan.remove(file.id);
+            toast("已删除");
+            await load();
+        } catch (error) {
+            toast(error.message || "删除失败");
+        }
+    }
+
+    function shareUrl(token, password) {
+        const base = location.origin + location.pathname;
+        return `${base}?share=${encodeURIComponent(token)}${password ? `&password=${encodeURIComponent(password)}` : ""}`;
+    }
+
+    function openShare(file) {
+        state.shareFile = file;
+        el("vp-share-modal").hidden = false;
+        el("vp-share-file-name").textContent = file.name;
+        el("vp-share-result").hidden = true;
+        el("vp-share-pass").value = "";
+        if (file.share && file.share.token) {
+            el("vp-share-result").hidden = false;
+            el("vp-share-link").value = shareUrl(file.share.token, "");
+            el("vp-share-info").textContent = `已有分享，有效期至 ${timeText(file.share.expiresAt)}${file.share.password ? "（需要密码，密码不保存在页面上，请重新设置）" : ""}`;
+        }
+    }
+
+    async function createShare() {
+        if (!state.shareFile) return;
+        const password = el("vp-share-pass").value.replace(/[^A-Za-z0-9]/g, "").slice(0, 8);
+        const days = Number(el("vp-share-days").value) || 7;
+        try {
+            const data = await api.vpan.share(state.shareFile.id, { password, days });
+            el("vp-share-result").hidden = false;
+            const url = shareUrl(data.share.token, data.share.password);
+            el("vp-share-link").value = url;
+            el("vp-share-info").textContent = `有效期至 ${timeText(data.share.expiresAt)}${data.share.password ? ` · 密码 ${data.share.password}` : " · 无需密码"}`;
+            await load();
+        } catch (error) {
+            toast(error.message || "创建分享失败");
+        }
+    }
+
+    async function copyShare() {
+        const input = el("vp-share-link");
+        try {
+            await navigator.clipboard.writeText(input.value);
+            toast("分享链接已复制");
+        } catch (error) {
+            input.select();
+            document.execCommand("copy");
+            toast("分享链接已复制");
+        }
+    }
+
+    async function unshare() {
+        if (!state.shareFile) return;
+        try {
+            await api.vpan.unshare(state.shareFile.id);
+            el("vp-share-result").hidden = true;
+            toast("已取消分享");
+            await load();
+        } catch (error) {
+            toast(error.message || "取消分享失败");
+        }
+    }
+
+    function filterUI(kind, title) {
+        state.filter = kind;
+        el("vp-list-title").textContent = title;
+        document.querySelectorAll("#vp-nav button").forEach((button) => {
+            button.classList.toggle("active", button.dataset.filter === kind);
+        });
+        renderFiles();
+    }
+
+    function bindOwner() {
+        el("vp-login").hidden = true;
+        el("vp-share").hidden = true;
+        el("vp-owner").hidden = false;
+        el("vp-side-toggle").addEventListener("click", () => el("vp-side").classList.toggle("open"));
+        el("vp-nav").addEventListener("click", (event) => {
+            const button = event.target.closest("[data-filter]");
+            if (!button) return;
+            filterUI(button.dataset.filter, button.textContent.trim());
+            el("vp-side").classList.remove("open");
+        });
+        el("vp-search").addEventListener("input", () => { state.query = el("vp-search").value.trim(); renderFiles(); });
+        el("vp-upload").addEventListener("click", () => document.getElementById("vp-file-input").click());
+        el("vp-refresh").addEventListener("click", load);
+        el("vp-upgrade").addEventListener("click", async () => { await loadPlans(); openPlan(); });
+        el("vp-plan-close").addEventListener("click", () => { el("vp-plan-modal").hidden = true; });
+        el("vp-plan-modal").addEventListener("click", (event) => { if (event.target === el("vp-plan-modal")) el("vp-plan-modal").hidden = true; });
+        el("vp-share-close").addEventListener("click", () => { el("vp-share-modal").hidden = true; });
+        el("vp-share-modal").addEventListener("click", (event) => { if (event.target === el("vp-share-modal")) el("vp-share-modal").hidden = true; });
+        el("vp-share-create").addEventListener("click", createShare);
+        el("vp-share-copy").addEventListener("click", copyShare);
+        el("vp-share-unshare").addEventListener("click", unshare);
+
+        const input = document.getElementById("vp-file-input");
+        input.addEventListener("change", () => {
+            uploadFiles(Array.from(input.files || []));
+            input.value = "";
+        });
+        const drop = el("vp-drop");
+        ["dragenter", "dragover"].forEach((name) => drop.addEventListener(name, (event) => {
+            event.preventDefault();
+            drop.classList.add("dragging");
+        }));
+        ["dragleave", "drop"].forEach((name) => drop.addEventListener(name, (event) => {
+            event.preventDefault();
+            drop.classList.remove("dragging");
+        }));
+        drop.addEventListener("drop", (event) => {
+            const files = Array.from((event.dataTransfer && event.dataTransfer.files) || []);
+            uploadFiles(files);
+        });
+        document.addEventListener("dragover", (event) => event.preventDefault());
+        document.addEventListener("drop", (event) => {
+            if (el("vp-owner").hidden) return;
+            event.preventDefault();
+            uploadFiles(Array.from((event.dataTransfer && event.dataTransfer.files) || []));
+        });
+        load();
+    }
+
+    async function handleShared() {
+        el("vp-owner").hidden = true;
+        el("vp-login").hidden = true;
+        el("vp-share").hidden = false;
+        try {
+            const data = await api.vpan.shared(shareToken);
+            state.shared = data.file;
+            el("vp-share-name").textContent = data.file.name;
+            el("vp-share-meta").textContent = `${sizeText(data.file.size)} · 分享者 ${data.file.ownerName} · 有效期至 ${timeText(data.file.share.expiresAt)}`;
+            el("vp-share-download-box").hidden = false;
+            el("vp-share-password-box").hidden = true;
+        } catch (error) {
+            if (error.status === 401 && error.code === "password_required") {
+                el("vp-share-password-box").hidden = false;
+                el("vp-share-download-box").hidden = true;
+                el("vp-share-meta").textContent = "需要密码才能下载";
+                if (state.sharedPassword) el("vp-share-password").value = state.sharedPassword;
+                if (state.sharedPassword) openSharedWithPassword();
+            } else {
+                el("vp-share-card").hidden = true;
+                el("vp-share-error").hidden = false;
+                el("vp-share-error-title").textContent = "分享不可用";
+                el("vp-share-error-text").textContent = error.message || "链接不存在或已过期。";
+            }
+        }
+    }
+
+    async function openSharedWithPassword() {
+        state.sharedPassword = el("vp-share-password").value.trim();
+        if (!state.sharedPassword) { toast("请输入密码"); return; }
+        try {
+            const data = await api.vpan.shared(shareToken, state.sharedPassword);
+            state.shared = data.file;
+            el("vp-share-name").textContent = data.file.name;
+            el("vp-share-meta").textContent = `${sizeText(data.file.size)} · 分享者 ${data.file.ownerName} · 有效期至 ${timeText(data.file.share.expiresAt)}`;
+            el("vp-share-password-box").hidden = true;
+            el("vp-share-download-box").hidden = false;
+            toast("密码正确");
+        } catch (error) {
+            toast(error.message || "密码不正确");
+        }
+    }
+
+    async function downloadShared() {
+        try {
+            const response = await api.vpan.shareDownload(shareToken, state.sharedPassword || "");
+            const blob = await response.blob();
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = state.shared ? state.shared.name : "download";
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        } catch (error) {
+            toast(error.message || "下载失败");
+        }
+    }
+
+    function boot() {
+        el("vp-login-link").href = "login.html?next=" + encodeURIComponent("vpan.html" + location.search);
+        if (shareToken) {
+            document.title = "VPAN 分享 | Vitual XRing";
+            handleShared();
+            el("vp-share-open").addEventListener("click", openSharedWithPassword);
+            el("vp-share-download").addEventListener("click", async () => {
+                if (!state.shared) {
+                    await openSharedWithPassword();
+                    return;
+                }
+                await downloadShared();
+            });
+            return;
+        }
+        if (!api || !api.vpan) { el("vp-login").hidden = false; return; }
+        if (!api.hasSession || !api.hasSession()) { el("vp-login").hidden = false; return; }
+        bindOwner();
+    }
+
+    boot();
+})();
+</script>
+
+</body>
+</html>

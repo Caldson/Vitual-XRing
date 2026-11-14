@@ -1,0 +1,5 @@
+{
+    "version": "10.0.2",
+    "updatedAt": "2026-11-13T19:36:17+08:00",
+    "notes": "Fix Time Machine login 405 and add versions 1.0.0 through 8.1.2"
+}

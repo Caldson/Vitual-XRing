@@ -383,6 +383,10 @@
                     const parts = String(version).split(".");
                     return parts.length === 3 && parts[2] === "0" ? parts.slice(0, 2).join(".") : String(version);
                 };
+                const versionLabel = (version) => {
+                    const short = shortVersion(version);
+                    return short === version ? version : `${version}（${short}）`;
+                };
 
                 function fileUrl(version, file) {
                     const parts = String(file).split("/").map(encodeURIComponent).join("/");
@@ -393,7 +397,7 @@
                     const url = fileUrl(version, file);
                     frame.src = url;
                     modalOpen.href = url;
-                    modalVersion.textContent = shortVersion(version);
+                    modalVersion.textContent = versionLabel(version);
                     modalFile.textContent = file;
                     modal.hidden = false;
                 }
@@ -411,7 +415,7 @@
                         fileBox.innerHTML = '<div class="tm-empty">从左侧选择版本。</div>';
                         return;
                     }
-                    label.textContent = shortVersion(entry.version) + (entry.date ? " · " + entry.date : "");
+                    label.textContent = versionLabel(entry.version) + (entry.date ? " · " + entry.date : "");
                     const files = (entry.files || []).filter(onlyHtml).sort((a, b) => a.localeCompare(b, "zh-CN"));
                     if (!files.length) {
                         fileBox.innerHTML = '<div class="tm-empty">这个版本没有 HTML 文件。</div>';
@@ -440,14 +444,14 @@
                         if (versionSelect) {
                             const option = document.createElement("option");
                             option.value = entry.version;
-                            option.textContent = `${shortVersion(entry.version)} · ${entry.date || ""}`;
+                            option.textContent = `${versionLabel(entry.version)} · ${entry.date || ""}`;
                             option.selected = entry.version === selected;
                             versionSelect.appendChild(option);
                         }
                         const button = document.createElement("button");
                         button.type = "button";
                         button.className = "tm-version" + (entry.version === selected ? " active" : "");
-                        button.innerHTML = '<span>' + shortVersion(entry.version) + '</span><small>' + (entry.files || []).filter(onlyHtml).length + ' 个 HTML</small>';
+                        button.innerHTML = '<span>' + entry.version + '</span><small>' + shortVersion(entry.version) + ' · ' + (entry.files || []).filter(onlyHtml).length + ' 个 HTML</small>';
                         button.addEventListener("click", () => {
                             selected = entry.version;
                             renderVersions();

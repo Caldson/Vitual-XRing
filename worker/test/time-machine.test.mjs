@@ -7,10 +7,10 @@ import fs from "node:fs";
 const root = new URL("../../", import.meta.url);
 const read = (name) => fs.readFileSync(new URL(name, root), "utf8");
 
-test("10.1.1：时光回溯机清单包含 58 个历史版本，且只列 HTML", () => {
+test("10.1.1：时光回溯机清单包含 62 个历史版本，且只列 HTML", () => {
     const manifest = JSON.parse(read("history/manifest.json"));
     assert.equal(manifest.beta, true);
-    assert.equal(manifest.versions.length, 58);
+    assert.equal(manifest.versions.length, 62);
     for (const entry of manifest.versions) {
         assert.match(entry.version, /^\d+\.\d+\.\d+$/);
         assert.ok(entry.files.length > 0, `${entry.version} 没有文件`);
@@ -23,7 +23,7 @@ test("10.1.1：时光回溯机清单包含 58 个历史版本，且只列 HTML",
             );
         }
     }
-    for (const version of ["1.0.0", "8.1.2", "8.2.0", "9.0.0", "9.5.1", "9.6.0"]) {
+    for (const version of ["1.0.0", "8.1.2", "8.2.0", "9.0.0", "9.5.1", "9.6.0", "10.0.0", "10.1.0"]) {
         assert.ok(manifest.versions.some((entry) => entry.version === version), `缺少 ${version}`);
     }
 });

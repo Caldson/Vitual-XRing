@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><script src="../api-bridge.js"></script>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f3f6fb">
+    <title>Vitual XRing · 虚拟云电脑与作品社区</title>
+    <link rel="stylesheet" href="vtx-theme.css?v=10.0.0">
+    <script src="vtx-theme.js?v=10.0.0"></script>
+    <style>
+        .home-hero { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(320px, .82fr); gap: 28px; align-items: stretch; padding: 46px 0 18px; }
+        .hero-copy-wrap { padding: 18px 0; }
+        .hero-kicker { margin: 0 0 14px; color: var(--vtx-accent); font-size: 11.5px; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+        .hero-title { margin: 0; max-width: 720px; font-size: clamp(42px, 6.8vw, 78px); line-height: .99; letter-spacing: -.065em; }
+        .hero-title em { font-style: normal; color: transparent; background: linear-gradient(105deg, var(--vtx-accent), var(--vtx-accent-2)); -webkit-background-clip: text; background-clip: text; }
+        .hero-text { max-width: 610px; margin: 20px 0 24px; color: var(--vtx-muted); font-size: 15px; line-height: 1.85; }
+        .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+        .hero-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+        .hero-store { display: flex; align-items: center; min-height: 56px; margin-top: 20px; }
+        .store-badge-wrap { position: relative; display: inline-flex; flex-direction: column; align-items: flex-start; }
+        .hero-store ms-store-badge { display: block; }
+        .store-cover { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 10px; background: transparent; cursor: pointer; }
+        .store-cover:focus-visible { outline: 2px solid var(--vtx-accent); outline-offset: 3px; }
+        .store-notice { position: absolute; left: 0; top: calc(100% + 9px); z-index: 3; display: flex; flex-direction: column; gap: 3px; width: min(300px, calc(100vw - 48px)); padding: 11px 13px; border: 1px solid var(--vtx-border); border-radius: 12px; background: var(--vtx-surface); box-shadow: var(--vtx-shadow); color: var(--vtx-text); font-size: 12.5px; line-height: 1.6; }
+        .store-notice strong { color: var(--vtx-accent); font-size: 11px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+        .store-notice[data-visible="true"] { animation: store-notice-in 150ms ease-out; }
+        @keyframes store-notice-in { from { opacity: 0; transform: translateY(-4px); } }
+        /* 10.0.0：首页顶部活动轮播。图片和容器都是 16:9，标题在 events.json 里配置。 */
+        .events { position: relative; margin: 20px 0 8px; }
+        .events-viewport { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; border: 1px solid var(--vtx-border); border-radius: 24px; background: #0b1220; box-shadow: 0 24px 60px rgba(20, 36, 70, .18); }
+        .events-track { display: flex; height: 100%; transition: transform 420ms cubic-bezier(.22, .8, .28, 1); will-change: transform; }
+        .event-slide { position: relative; flex: 0 0 100%; display: block; height: 100%; color: #fff; text-decoration: none; }
+        .event-slide img { display: block; width: 100%; height: 100%; object-fit: cover; }
+        .event-slide::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 12, 24, .02) 38%, rgba(6, 12, 24, .86) 100%); }
+        .event-copy { position: absolute; z-index: 1; left: clamp(18px, 4.2vw, 48px); right: clamp(18px, 12vw, 140px); bottom: clamp(16px, 4vw, 44px); }
+        .event-kicker { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 7px; padding: 4px 9px; border: 1px solid rgba(255, 255, 255, .26); border-radius: 999px; background: rgba(255, 255, 255, .12); color: rgba(255, 255, 255, .86); font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; backdrop-filter: blur(8px); }
+        .event-copy h2 { margin: 0 0 6px; font-size: clamp(19px, 2.9vw, 38px); line-height: 1.12; letter-spacing: -.035em; text-shadow: 0 4px 24px rgba(0, 0, 0, .34); }
+        .event-copy p { margin: 0; max-width: 720px; color: rgba(233, 240, 255, .82); font-size: clamp(11.5px, 1.25vw, 14.5px); line-height: 1.6; }
+        .events-arrow { position: absolute; top: 50%; z-index: 2; display: grid; place-items: center; width: 40px; height: 40px; margin-top: -20px; border: 1px solid rgba(255, 255, 255, .28); border-radius: 50%; background: rgba(10, 18, 34, .32); color: #fff; font-size: 26px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 160ms, background 160ms; backdrop-filter: blur(10px); }
+        .events-arrow.prev { left: 14px; }
+        .events-arrow.next { right: 14px; }
+        .events-viewport:hover .events-arrow, .events-viewport:focus-within .events-arrow { opacity: .9; }
+        .events-arrow:hover { background: rgba(10, 18, 34, .56); }
+        .events-dots { display: flex; justify-content: center; gap: 6px; padding-top: 10px; }
+        .events-dot { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 999px; background: var(--vtx-border-strong); cursor: pointer; transition: width 160ms, background 160ms; }
+        .events-dot.active { width: 22px; background: var(--vtx-accent); }
+        @media (max-width: 620px) {
+            .events-viewport { border-radius: 16px; }
+            .event-copy { right: 16px; bottom: 14px; }
+            .event-copy p { display: none; }
+            .event-kicker { font-size: 9.5px; }
+            .events-arrow { display: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .events-track { transition: none; }
+        }
+        .stat-pill { display: flex; align-items: baseline; gap: 6px; padding: 8px 12px; border: 1px solid var(--vtx-border); border-radius: 999px; background: var(--vtx-surface); color: var(--vtx-muted); font-size: 11.5px; font-weight: 700; }
+        .stat-pill b { color: var(--vtx-text); font-size: 15px; }
+        .xos-preview { position: relative; display: flex; flex-direction: column; min-height: 390px; padding: 18px; overflow: hidden; border: 1px solid var(--vtx-border); border-radius: 24px; background: linear-gradient(150deg, #10192d, #0b1325 58%, #101e33); box-shadow: 0 30px 75px rgba(7, 15, 32, .32); color: #eaf1ff; text-decoration: none; }
+        .xos-preview::before { content: ""; position: absolute; inset: -30% -10% auto auto; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(70, 103, 240, .55), transparent 66%); }
+        .xos-preview::after { content: ""; position: absolute; inset: auto auto -30% -15%; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, rgba(25, 184, 166, .3), transparent 68%); }
+        .preview-top { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .preview-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid rgba(160, 185, 255, .22); border-radius: 999px; color: #c6d5ff; font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+        .preview-price { color: #8fe7d8; font-size: 11.5px; font-weight: 800; }
+        .preview-screen { position: relative; z-index: 1; flex: 1; margin: 18px 0 14px; padding: 12px; border: 1px solid rgba(156, 184, 255, .17); border-radius: 16px; background: linear-gradient(145deg, rgba(31, 51, 89, .88), rgba(14, 24, 45, .92)); }
+        .preview-menubar { display: flex; align-items: center; gap: 5px; }
+        .preview-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(190, 210, 255, .4); }
+        .preview-clock { margin-left: auto; color: #b7c7e8; font-size: 9px; }
+        .preview-window { margin-top: 14px; padding: 13px; min-height: 155px; border: 1px solid rgba(166, 190, 255, .16); border-radius: 11px; background: rgba(9, 17, 32, .72); }
+        .preview-window h3 { margin: 0 0 5px; font-size: 15px; color: #f2f6ff; }
+        .preview-window p { margin: 0; color: #93a6c8; font-size: 10.5px; line-height: 1.65; }
+        .preview-apps { display: flex; gap: 7px; margin-top: 14px; }
+        .preview-app { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid rgba(160, 190, 255, .18); border-radius: 8px; background: rgba(30, 48, 82, .8); font-size: 13px; }
+        .preview-dock { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid rgba(160, 190, 255, .17); border-radius: 14px; background: rgba(12, 21, 38, .7); }
+        .preview-dock span { color: #b6c5e2; font-size: 11px; }
+        .preview-dock b { color: #eaf1ff; font-size: 11.5px; }
+        .preview-enter { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; margin-top: 15px; color: #dfeaff; font-size: 12px; font-weight: 800; }
+        .platform-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        .platform-card { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 152px; padding: 18px; border: 1px solid var(--vtx-border); border-radius: var(--vtx-radius); background: var(--vtx-surface); box-shadow: var(--vtx-shadow-soft); color: var(--vtx-text); text-decoration: none; transition: transform 170ms, border-color 170ms, box-shadow 170ms; }
+        .platform-card:hover { transform: translateY(-2px); border-color: var(--vtx-border-strong); box-shadow: var(--vtx-shadow); }
+        .platform-card.featured { border-color: color-mix(in srgb, var(--vtx-accent) 35%, var(--vtx-border)); background: linear-gradient(140deg, var(--vtx-surface), color-mix(in srgb, var(--vtx-accent-soft) 65%, var(--vtx-surface))); }
+        .platform-icon { display: grid; place-items: center; width: 37px; height: 37px; border-radius: 11px; background: var(--vtx-surface-soft); font-size: 19px; }
+        .platform-card b { margin-top: 5px; font-size: 15px; letter-spacing: -.015em; }
+        .platform-card p { margin: 0; color: var(--vtx-muted); font-size: 12px; line-height: 1.6; }
+        .platform-arrow { position: absolute; top: 18px; right: 17px; color: var(--vtx-faint); font-size: 16px; }
+        .platform-card:hover .platform-arrow { color: var(--vtx-accent); transform: translateX(2px); }
+        .platform-card.vtx-glass { background: rgb(var(--vtx-glass-rgb) / var(--vtx-glass-alpha)); }\n        html[data-glass="off"] .platform-card.vtx-glass, html[data-glass="off"] .stat-pill.vtx-glass { background: var(--vtx-surface); }\n        .stat-pill.vtx-glass { background: rgb(var(--vtx-glass-rgb) / var(--vtx-glass-alpha)); }\n        .home-footer { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 38px; padding-top: 18px; border-top: 1px solid var(--vtx-border); color: var(--vtx-faint); font-size: 11.5px; line-height: 1.7; }
+        .home-footer a { color: var(--vtx-muted); text-decoration: none; font-weight: 700; }
+        @media (max-width: 980px) { .home-hero { grid-template-columns: 1fr; } .xos-preview { min-height: 320px; } .platform-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 620px) { .platform-grid { grid-template-columns: 1fr; } .home-hero { padding-top: 30px; } .hero-title { font-size: clamp(38px, 13vw, 60px); } .xos-preview { min-height: 300px; } }
+    </style>
+</head>
+<body data-i18n-document-title="document.index">
+    <header class="vtx-topbar"><script src="../api-bridge.js"></script>
+        <a class="vtx-brand" href="index.html">
+            <img src="XRingLogo-V.png?v=10.0.0-solid" alt="Vitual XRing" width="38" height="38">
+            <span data-i18n="brand">Vitual XRing</span>
+        </a>
+        <nav class="vtx-nav" aria-label="Main navigation">
+            <a href="index.html" class="is-active" data-i18n="nav.home">首页</a>
+            <a href="xos.html" data-i18n="nav.xos">XOS 云电脑</a>
+            <a href="shop.html" data-i18n="nav.shop">商店</a>
+            <a href="vitualgit.html" data-i18n="nav.vitualgit">VitualGit</a>
+            <a href="vuolingo.html" data-i18n="nav.vuolingo">Vuolingo</a>
+            <a href="chatroom.html" data-i18n="nav.chat">聊天室</a>
+            <a href="settings.html" data-i18n="nav.settings">设置</a>
+        </nav>
+        <div class="vtx-top-actions">
+            <a class="vtx-chip" href="settings.html"><strong>v10.0.0</strong></a>
+            <a class="vtx-btn ghost" id="account-link" href="login.html" data-i18n="action.login">登录</a>
+        </div>
+    </header>
+
+    <main class="vtx-shell">
+        <section class="events" id="events" hidden aria-roledescription="carousel" aria-label="活动">
+            <div class="events-viewport">
+                <div class="events-track" id="events-track"></div>
+                <button type="button" class="events-arrow prev" id="events-prev" aria-label="上一个活动">‹</button>
+                <button type="button" class="events-arrow next" id="events-next" aria-label="下一个活动">›</button>
+            </div>
+            <div class="events-dots" id="events-dots" role="tablist" aria-label="活动切换"></div>
+        </section>
+
+        <section class="home-hero">
+            <div class="hero-copy-wrap">
+                <p class="hero-kicker" data-i18n="hero.kicker">XRing Studios · 虚拟桌面与创作平台</p>
+                <h1 class="hero-title"><span data-i18n="hero.title1">把所有创作，</span><br><em data-i18n="hero.title2">装进一个浏览器。</em></h1>
+                <p class="hero-text" data-i18n="hero.copy">XOS 虚拟云电脑、XOS 云手机、VitualGit 仓库、Vuolingo 语言课和创作社区，共用一套账户与界面。现在也支持深色模式和六种界面语言。</p>
+                <div class="hero-actions">
+                    <a class="vtx-btn primary" href="xos.html" data-i18n="action.openXos">打开 XOS 云电脑</a>
+                    <a class="vtx-btn" href="vord.html">打开 Vord 文档</a>
+                    <a class="vtx-btn" href="vpan.html">打开 VPAN 云盘</a>
+                    <a class="vtx-btn" href="shop.html?category=XOS%E8%99%9A%E6%8B%9F%E4%BA%91%E7%94%B5%E8%84%91" data-i18n="action.viewXos">查看 XOS 版本</a>
+                    <a class="vtx-btn ghost" id="account-button" href="login.html" data-i18n="action.login">登录</a>
+                </div>
+                <div class="hero-stats">
+                    <span class="stat-pill vtx-glass"><b>22</b><span data-i18n="hero.stat1">XOS 应用</span></span>
+                    <span class="stat-pill vtx-glass"><b>8</b><span data-i18n="hero.stat2">语言课程</span></span>
+                    <span class="stat-pill vtx-glass"><b>⇣</b><span data-i18n="hero.stat3">离线可用</span></span>
+                </div>
+                <div class="hero-store">
+                    <div class="store-badge-wrap" id="store-wrap">
+                        <ms-store-badge
+                            productid="9nfw3xkxx6cd"
+                            window-mode="full"
+                            theme="auto"
+                            size="large"
+                            language="zh-cn"
+                            animation="off">
+                        </ms-store-badge>
+                        <button type="button" class="store-cover" id="store-cover" aria-label="Microsoft Store 打包说明" aria-expanded="false" aria-controls="store-notice"></button>
+                        <div class="store-notice" id="store-notice" role="status" hidden>
+                            <strong>Microsoft Store</strong>
+                            <span>近期我们会暂停打包，因为微软可能过于繁忙。</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <a class="xos-preview" href="xos.html" aria-label="XOS PC">
+                <div class="preview-top"><span class="preview-badge" data-i18n="xos.badge">旗舰平台</span><span class="preview-price" data-i18n="xos.price">1000 VTX 起</span></div>
+                <div class="preview-screen">
+                    <div class="preview-menubar"><i class="preview-dot"></i><i class="preview-dot"></i><i class="preview-dot"></i><span class="preview-clock" data-i18n="xos.title">XOS PC 26H3 V2.1</span></div>
+                    <div class="preview-window"><h3 data-i18n="xos.title">XOS PC 26H3 V2.1</h3><p data-i18n="xos.meta">1440×900 · 15–60fps · 最多 22 个应用</p><div class="preview-apps"><span class="preview-app">⌘</span><span class="preview-app">🌐</span><span class="preview-app">📁</span><span class="preview-app">⑂</span><span class="preview-app">🦉</span></div></div>
+                </div>
+                <div class="preview-dock"><span>XOS Dock</span><b>Home / CE / GameMAX</b></div>
+                <span class="preview-enter" data-i18n="xos.enter">进入虚拟桌面 →</span>
+            </a>
+        </section>
+
+        <div class="vtx-section-head">
+            <div><h2 data-i18n="section.platforms">探索平台</h2><p data-i18n="section.platformsDesc">一个账户，连接云电脑、仓库、课程和创作工具。</p></div>
+        </div>
+        <section class="platform-grid" aria-label="Platforms">
+            <a class="platform-card featured vtx-glass" href="xos.html"><span class="platform-icon">🖥</span><b data-i18n="card.xos.title">XOS 云电脑</b><p data-i18n="card.xos.desc">虚拟桌面 · 文件 · 浏览器 · 创作工具</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="shop.html?category=XOS%E4%BA%91%E6%89%8B%E6%9C%BA"><span class="platform-icon">📱</span><b data-i18n="card.xphone.title">XOS 云手机</b><p data-i18n="card.xphone.desc">手机形态 · 与 Home 26H3 V2.1 功能一致</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="shop.html"><span class="platform-icon">🛍</span><b data-i18n="card.shop.title">商店</b><p data-i18n="card.shop.desc">XOS 授权、同捆包与商家商品</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="viratch.html"><span class="platform-icon">🧩</span><b data-i18n="card.viratch.title">Viratch</b><p data-i18n="card.viratch.desc">TurboWarp 积木作品社区</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vitxvideo.html"><span class="platform-icon">▶</span><b data-i18n="card.vitxvideo.title">Vitx® 视频</b><p data-i18n="card.vitxvideo.desc">投稿、观看、评论与分享</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vitx-dynamic.html"><span class="platform-icon">📝</span><b data-i18n="card.vitxdynamic.title">Vitx 动态</b><p data-i18n="card.vitxdynamic.desc">图文动态与分享卡片</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="chatroom.html"><span class="platform-icon">💬</span><b data-i18n="card.chat.title">聊天室</b><p data-i18n="card.chat.desc">单聊、群聊、红包与实时消息</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vpan.html"><span class="platform-icon">☁️</span><b>VPAN 云盘</b><p>5GB 免费 · 上传即分享 · 不限速</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vord.html"><span class="platform-icon">📄</span><b data-i18n="card.vord.title">Vord</b><p data-i18n="card.vord.desc">txt / md 文档、分享与编辑记录</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="audiv.html"><span class="platform-icon">🎙</span><b data-i18n="card.audiv.title">AUDIV</b><p data-i18n="card.audiv.desc">浏览器语音会议</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="share.html?create=1"><span class="platform-icon">🔗</span><b data-i18n="card.share.title">分享</b><p data-i18n="card.share.desc">自定义分享卡片与站内识别</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vitualgit.html"><span class="platform-icon">⑂</span><b data-i18n="card.vitualgit.title">VitualGit</b><p data-i18n="card.vitualgit.desc">GitHub 风格仓库浏览 · Proxy 镜像</p><span class="platform-arrow">↗</span></a>
+            <a class="platform-card vtx-glass" href="vuolingo.html"><span class="platform-icon">🦉</span><b data-i18n="card.vuolingo.title">Vuolingo</b><p data-i18n="card.vuolingo.desc">英语 / 日语课程与 7 种题型</p><span class="platform-arrow">↗</span></a>
+        </section>
+
+        <footer class="home-footer">
+            <span data-i18n="footer">Vitual XRing 10.0.0 · XOS 是浏览器端虚拟桌面与云手机，不是真实远程虚拟机。</span>
+            <span><a href="settings.html" data-i18n="nav.settings">设置</a> · <a href="login.html" data-i18n="action.login">登录</a></span>
+        </footer>
+    </main>
+
+    <script>
+        (function () {
+            var account = "";
+            try { account = sessionStorage.getItem("vtxAccount") || ""; } catch (error) { account = ""; }
+            if (!account) return;
+            var link = document.getElementById("account-link");
+            var button = document.getElementById("account-button");
+            if (link) {
+                link.href = "manager.html";
+                link.dataset.i18n = "action.account";
+                link.textContent = window.VTXTheme ? VTXTheme.t("action.account") : "账户";
+            }
+            if (button) {
+                button.href = "manager.html";
+                button.dataset.i18n = "action.openAccount";
+                button.textContent = window.VTXTheme ? VTXTheme.t("action.openAccount") : "进入账户";
+            }
+        })();
+    </script>
+    <script>
+        (function () {
+            var root = document.getElementById("events");
+            var track = document.getElementById("events-track");
+            var dots = document.getElementById("events-dots");
+            if (!root || !track || !dots) return;
+            var index = 0;
+            var items = [];
+            var timer = 0;
+            var paused = false;
+
+            function slide(item) {
+                var link = document.createElement("a");
+                link.className = "event-slide";
+                link.href = item.href || "index.html";
+                var image = document.createElement("img");
+                image.src = item.image;
+                image.alt = item.title || "活动";
+                image.loading = "lazy";
+                image.decoding = "async";
+                var copy = document.createElement("div");
+                copy.className = "event-copy";
+                var kicker = document.createElement("span");
+                kicker.className = "event-kicker";
+                kicker.textContent = "活动";
+                var title = document.createElement("h2");
+                title.textContent = item.title || "";
+                var note = document.createElement("p");
+                note.textContent = item.subtitle || "";
+                copy.append(kicker, title, note);
+                link.append(image, copy);
+                return link;
+            }
+
+            function go(next, user) {
+                if (!items.length) return;
+                index = (next + items.length) % items.length;
+                track.style.transform = "translateX(-" + (index * 100) + "%)";
+                Array.prototype.forEach.call(dots.children, function (dot, i) {
+                    dot.classList.toggle("active", i === index);
+                    dot.setAttribute("aria-selected", i === index ? "true" : "false");
+                });
+                if (user) restart();
+            }
+
+            function restart() {
+                clearInterval(timer);
+                if (paused || items.length < 2) return;
+                timer = setInterval(function () { if (!document.hidden) go(index + 1, false); }, 6500);
+            }
+
+            function render(data) {
+                items = data && Array.isArray(data.items) ? data.items.filter(function (item) {
+                    return item && item.title && item.image;
+                }) : [];
+                if (!items.length) return;
+                track.textContent = "";
+                dots.textContent = "";
+                items.forEach(function (item, i) {
+                    track.appendChild(slide(item));
+                    var dot = document.createElement("button");
+                    dot.type = "button";
+                    dot.className = "events-dot" + (i === 0 ? " active" : "");
+                    dot.setAttribute("role", "tab");
+                    dot.setAttribute("aria-label", "切换到第 " + (i + 1) + " 个活动");
+                    dot.addEventListener("click", function () { go(i, true); });
+                    dots.appendChild(dot);
+                });
+                root.hidden = false;
+                go(0, false);
+                restart();
+            }
+
+            var prev = document.getElementById("events-prev");
+            var next = document.getElementById("events-next");
+            if (prev) prev.addEventListener("click", function () { go(index - 1, true); });
+            if (next) next.addEventListener("click", function () { go(index + 1, true); });
+            root.addEventListener("mouseenter", function () { paused = true; clearInterval(timer); });
+            root.addEventListener("mouseleave", function () { paused = false; restart(); });
+            root.addEventListener("focusin", function () { paused = true; clearInterval(timer); });
+            root.addEventListener("focusout", function () { paused = false; restart(); });
+            document.addEventListener("visibilitychange", restart);
+            var touchX = null;
+            root.addEventListener("touchstart", function (event) {
+                touchX = event.touches[0] ? event.touches[0].clientX : null;
+            }, { passive: true });
+            root.addEventListener("touchend", function (event) {
+                if (touchX === null) return;
+                var end = event.changedTouches[0] ? event.changedTouches[0].clientX : touchX;
+                var diff = end - touchX;
+                touchX = null;
+                if (Math.abs(diff) < 40) return;
+                go(index + (diff < 0 ? 1 : -1), true);
+            }, { passive: true });
+
+            fetch("events.json?v=10.0.0&t=" + Date.now(), { cache: "no-store" })
+                .then(function (response) { return response.ok ? response.json() : null; })
+                .then(function (data) { render(data); })
+                .catch(function () { /* 活动加载失败不影响首页其它内容 */ });
+        })();
+    </script>
+    <script>
+        (function () {
+            var wrap = document.getElementById("store-wrap");
+            var cover = document.getElementById("store-cover");
+            var notice = document.getElementById("store-notice");
+            if (!wrap || !cover || !notice) return;
+            function setOpen(open) {
+                notice.hidden = !open;
+                if (open) notice.dataset.visible = "true";
+                cover.setAttribute("aria-expanded", open ? "true" : "false");
+            }
+            cover.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                setOpen(notice.hidden);
+            });
+            /* 官方徽章内部是商店链接：鼠标点击由上面的透明按钮接管，
+               键盘 / 触屏落到徽章本体时也在捕获阶段拦下来，改成显示说明。 */
+            wrap.addEventListener("click", function (event) {
+                if (event.target === cover || notice.contains(event.target)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                setOpen(notice.hidden);
+            }, true);
+            document.addEventListener("click", function (event) {
+                if (!wrap.contains(event.target)) setOpen(false);
+            });
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") setOpen(false);
+            });
+        })();
+    </script>
+    <script type="module" src="https://get.microsoft.com/badge/ms-store-badge.bundled.js"></script>
+    
+</body>
+</html>

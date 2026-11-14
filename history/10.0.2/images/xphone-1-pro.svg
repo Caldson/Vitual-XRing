@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#141034"/>
+      <stop offset="0.5" stop-color="#4b3fc0"/>
+      <stop offset="1" stop-color="#3fc7c3"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4632a8"/>
+      <stop offset="1" stop-color="#101a3a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <circle cx="1030" cy="120" r="250" fill="#ffffff" opacity="0.12"/>
+  <circle cx="90" cy="650" r="300" fill="#ffffff" opacity="0.07"/>
+  <text x="80" y="170" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="92" font-weight="700">XOS</text>
+  <text x="84" y="232" fill="#d9d3ff" font-family="Segoe UI, Arial, sans-serif" font-size="30" letter-spacing="8">CLOUD PHONE</text>
+  <text x="84" y="520" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="64" font-weight="700">XPhone 1 Pro</text>
+  <text x="86" y="575" fill="#ded9ff" font-family="Segoe UI, Arial, sans-serif" font-size="27">1170 × 2532 · 支持与 XOS PC V4 26H4 共享文件</text>
+  <rect x="84" y="610" width="330" height="52" rx="26" fill="#ffffff" opacity="0.16"/>
+  <text x="112" y="644" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="23">XOS 云手机 · 支持共享文件</text>
+  <g transform="translate(760 90)">
+    <rect x="0" y="0" width="340" height="560" rx="46" fill="#0a1020" stroke="#e5ddff" stroke-opacity="0.7" stroke-width="4"/>
+    <rect x="14" y="14" width="312" height="532" rx="34" fill="url(#screen)"/>
+    <rect x="126" y="26" width="88" height="22" rx="11" fill="#070b16"/>
+    <g fill="#f2eeff" opacity="0.95">
+      <rect x="42" y="78" width="46" height="46" rx="13" fill="#6f5cff"/>
+      <rect x="102" y="78" width="46" height="46" rx="13" fill="#54c8bd"/>
+      <rect x="162" y="78" width="46" height="46" rx="13" fill="#a08cff"/>
+      <rect x="222" y="78" width="46" height="46" rx="13" fill="#ffc46b"/>
+      <rect x="42" y="146" width="46" height="46" rx="13" fill="#8a7bff" opacity="0.85"/>
+      <rect x="102" y="146" width="46" height="46" rx="13" fill="#63d0c0" opacity="0.85"/>
+      <rect x="162" y="146" width="46" height="46" rx="13" fill="#b3a3ff" opacity="0.85"/>
+      <rect x="222" y="146" width="46" height="46" rx="13" fill="#ffd08c" opacity="0.85"/>
+    </g>
+    <g transform="translate(78 300)">
+      <rect x="0" y="0" width="180" height="104" rx="18" fill="#ffffff" opacity="0.14"/>
+      <path d="M46 52 h88" stroke="#d9d3ff" stroke-width="8" stroke-linecap="round"/>
+      <path d="M118 36 l18 16 -18 16" fill="none" stroke="#d9d3ff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="90" y="86" text-anchor="middle" fill="#e9e4ff" font-family="Segoe UI, Arial, sans-serif" font-size="14">XOS File Sharing</text>
+    </g>
+    <rect x="42" y="470" width="256" height="58" rx="26" fill="#ffffff" opacity="0.16"/>
+    <circle cx="92" cy="499" r="15" fill="#6f5cff"/>
+    <circle cx="140" cy="499" r="15" fill="#54c8bd"/>
+    <circle cx="188" cy="499" r="15" fill="#a08cff"/>
+    <circle cx="236" cy="499" r="15" fill="#ffc46b"/>
+  </g>
+</svg>

@@ -1,5 +1,5 @@
 {
     "version": "10.1.1",
-    "updatedAt": "2026-11-13T22:44:08+08:00",
-    "notes": "Time Machine shows all versions including 1.0 and adds a version selector"
+    "updatedAt": "2026-11-14T13:29:17+08:00",
+    "notes": "Time Machine includes 62 versions from 1.0.0 to 10.1.0 with exact version labels"
 }
