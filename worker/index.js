@@ -85,11 +85,11 @@
  * 5.5.0：
  *   - XOS 顶栏和开始菜单增加「返回主页」入口。
  *
- * 12.1.1：
+ * 12.1.2：
  *   - 新增 GameVersion / GameULTRA / GameMAX 三台高性能 XOS；
  *   - GameMAX 1500–30000fps 极端刷新率提示。
  *
- * 12.1.1：
+ * 12.1.2：
  *   - 修复旧缓存页面把 GameMAX 识别成 Home；未知版本按 rank 回退 CE；
  *   - XOS 页面增加版本守卫与 no-cache meta。
  *
@@ -124,7 +124,7 @@ import { routeVpan, VPAN_VERSION } from "./vpan.js";
 import { routeVdex, VDEX_VERSION } from "./vdex.js";
 import { routeVtoy, VTOY_VERSION } from "./vtoy.js";
 
-const VERSION = "12.1.1";
+const VERSION = "12.1.2";
 const DEFAULT_REPO = "Caldson/Vitual-XRing";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "account.json";
@@ -148,7 +148,7 @@ const GIFT_REDEEM_WINDOW_MS = 60 * 1000;
 const GIFT_REDEEM_MAX_ATTEMPTS = 10;
 const MEMORY_TTL_MS = 5 * 1000;
 const LOGIN_HISTORY_LIMIT = 20;
-const CHAT_VERSION = "12.1.1";
+const CHAT_VERSION = "12.1.2";
 const CHAT_MESSAGE_LIMIT = 300;
 /* 1.7.3：取消 500 字限制。只保留 KV 单值的安全阈值：单条 256 KB、单个会话 6M 字符。 */
 const CHAT_TEXT_MAX_BYTES = 256 * 1024;
@@ -238,7 +238,7 @@ const MAX_TRADE_NAME_LENGTH = 20;
 const DEFAULT_SITE_ORIGIN = "https://xsmmc.caldson.us.ci";
 const SHOP_CACHE_TTL_MS = 30 * 1000;
 const SHOP_MAX_QUANTITY = 999;
-/* 12.1.1：同捆包与商铺申请 */
+/* 12.1.2：同捆包与商铺申请 */
 const SHOP_APPLICATIONS_KEY = "shop:applications";
 const SHOPS_KEY = "shops";
 const SHOP_APPLICATION_MAX = 500;
@@ -595,7 +595,7 @@ function loginHistoryOf(account) {
     return history.slice(-LOGIN_HISTORY_LIMIT);
 }
 
-// 12.1.1：XOS PC 第 5 代（V4 26H4）；云手机沿用 Home 26H3 V2.1 的第 3 代能力
+// 12.1.2：XOS PC 第 5 代（V4 26H4）；云手机沿用 Home 26H3 V2.1 的第 3 代能力
 function xosGenerationOf(value) {
     const generation = Number(value) || 1;
     if (generation >= 5) return 5;
@@ -1183,10 +1183,10 @@ function fromCents(cents) {
     return (cents / 100).toFixed(2);
 }
 
-/* 12.1.1：余额可能超过 Number.MAX_SAFE_INTEGER（例如 1,000,000,009,043,627,695.00），
+/* 12.1.2：余额可能超过 Number.MAX_SAFE_INTEGER（例如 1,000,000,009,043,627,695.00），
    toCents 用 Number 会把 +5.00 直接吃掉。这里用 BigInt 精确地按「分」做加减，
    只把最终结果写回两位小数字符串；普通余额的行为完全不变。 */
-/* 12.1.1：历史账户里可能把余额存成了 Number 的科学计数法（例如 1e+40）。
+/* 12.1.2：历史账户里可能把余额存成了 Number 的科学计数法（例如 1e+40）。
    先把 1e+40 / 1.5e-2 展开成普通十进制，再用 BigInt 按「分」计算，避免写成 0。 */
 function moneyPlainText(value) {
     let text = String(value == null ? "" : value).trim().replace(/,/g, "");
@@ -2411,7 +2411,7 @@ async function handleUpdatePassword(request, env, cors) {
     return jsonResponse({ ok: true, login }, 200, cors);
 }
 
-/* 12.1.1：BGM 听歌赚钱。服务端只按真实时间发奖，客户端每 20 秒调用一次。 */
+/* 12.1.2：BGM 听歌赚钱。服务端只按真实时间发奖，客户端每 20 秒调用一次。 */
 const BGM_REWARD_CENTS = 1;
 const BGM_REWARD_INTERVAL_MS = 20000;
 const BGM_MIN_ELAPSED_MS = 18500;
@@ -2904,7 +2904,7 @@ async function handlePurchase(request, env, cors) {
                 account.xosDeviceId = account.xos.id;
             }
         } else if (product.type === "xosapp") {
-            // 12.1.1：共享文件等 XOS 软件的免费获取 / 更新授权
+            // 12.1.2：共享文件等 XOS 软件的免费获取 / 更新授权
             const apps = Array.isArray(account.xosApps) ? account.xosApps : [];
             if (apps.some((entry) => entry && entry.productId === product.id)) {
                 throw new HttpError(400, "already_owned", "已经获取过这个软件，无需重复获取");
@@ -3187,7 +3187,7 @@ async function handleShopStock(request, env, cors) {
     return jsonResponse({ ok: true, version: VERSION, stock }, 200, cors);
 }
 
-/* ───────── 12.1.1：成为商铺 Beta ───────── */
+/* ───────── 12.1.2：成为商铺 Beta ───────── */
 
 function shopApplicationView(application, includeLogin) {
     const view = {
@@ -3369,7 +3369,7 @@ async function handleAdminShopReview(request, env, cors, id) {
     return jsonResponse({ ok: true, application: shopApplicationView(result.application, true) }, 200, cors);
 }
 
-/* ───────── 12.1.1：商家上架商品 Beta ───────── */
+/* ───────── 12.1.2：商家上架商品 Beta ───────── */
 
 function merchantProductView(product, includePrivate) {
     const view = {
@@ -9173,7 +9173,7 @@ async function handleChatSocket(request, env, cors) {
      video:comments:<id>    → [{ id, user, userName, text, at, likes: [] }]
    状态：draft（刚建 / 正在分片上传）→ pending（等审核）→ published / rejected。 */
 
-const VIDEO_VERSION = "12.1.1";
+const VIDEO_VERSION = "12.1.2";
 const VIDEO_MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const VIDEO_MAX_DURATION_SECONDS = 100 * 60 * 60;
 const VIDEO_CHUNK_BYTES = 20 * 1024 * 1024;

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import worker from "../index.js";
 
-/* 12.1.1：BGM 听歌赚钱 */
+/* 12.1.2：BGM 听歌赚钱 */
 
 class MockKV {
     constructor() {

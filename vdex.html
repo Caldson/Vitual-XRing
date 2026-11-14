@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f4f7fb">
     <title>VDEX · Vitual XRing</title>
-    <link rel="icon" href="XRingLogo.png?v=12.1.1">
-    <link rel="stylesheet" href="vtx-theme.css?v=12.1.1">
-    <script src="vtx-theme.js?v=12.1.1"></script>
+    <link rel="icon" href="XRingLogo.png?v=12.1.2">
+    <link rel="stylesheet" href="vtx-theme.css?v=12.1.2">
+    <script src="vtx-theme.js?v=12.1.2"></script>
     <style>
         :root { --vdex: #5b4bdb; --vdex-soft: #efedff; --vdex-dark: #372a9e; }
         body { background: radial-gradient(circle at 85% 0%, #f0edff 0, transparent 32%), var(--vtx-bg); }
@@ -31,6 +31,13 @@
         th { color: var(--vtx-muted); font-size: 11px; }
         .price { color: var(--vdex-dark); font-weight: 850; }
         .note { color: var(--vtx-faint); font-size: 11.5px; line-height: 1.7; margin-top: 14px; }
+        .manage { margin-top: 16px; }
+        .manage-list { display: grid; gap: 10px; }
+        .manage-item { padding: 14px; border: 1px solid var(--vtx-border); border-radius: 12px; background: var(--vtx-surface-soft); }
+        .manage-item h3 { margin: 0 0 2px; font-size: 14px; }
+        .manage-item .sub { color: var(--vtx-muted); font-size: 11px; margin-bottom: 9px; }
+        .manage-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .manage-actions .download { padding: 7px 11px; font-size: 11.5px; }
         #vdex-public { position: fixed; inset: 0; z-index: 300; background: #0b1020; }
         #vdex-public[hidden] { display: none; }
         #vdex-public-frame { width: 100%; height: 100%; border: 0; background: #fff; }
@@ -40,7 +47,7 @@
 </head>
 <body>
     <header class="vtx-topbar">
-        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.1.1" alt="Vitual XRing" width="38" height="38"></a>
+        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.1.2" alt="Vitual XRing" width="38" height="38"></a>
         <nav class="top-links"><a href="index.html">首页</a><a href="vtoy.html">Vtoy</a><a href="vdex.html" class="is-active">VDEX</a><a href="settings.html">设置</a></nav>
     </header>
 
@@ -59,11 +66,15 @@
             <div class="table-wrap"><table><thead><tr><th>版本</th><th>容量</th><th>价格</th><th>能力</th></tr></thead><tbody id="plan-rows"></tbody></table></div>
             <p class="note">网站标题只从 HTML 的 <code>&lt;title&gt;</code> 读取；没有 <code>&lt;title&gt;</code> 时默认显示 <b>Document</b>，网站不再提供标题输入框。</p>
         </section>
-    </main>
+        <section class="card manage" id="my-vdex-card" hidden>
+            <h2>我的 VDEX</h2>
+            <p>打开自己的 VDEX 网站。</p>
+            <div id="my-vdex-list" class="manage-list"></div>
+        </section>    </main>
 
     <div id="vdex-public" hidden><iframe id="vdex-public-frame" sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox" title="VDEX 站点"></iframe></div>
 
-    <script src="vtx-api.js?v=12.1.1"></script>
+    <script src="vtx-api.js?v=12.1.2"></script>
     <script>
         (function () {
             "use strict";
@@ -113,6 +124,53 @@
                 el("vdex-public-frame").srcdoc = buildDocument(site);
             }
 
+            const myVdexCard = el("my-vdex-card");
+            const myVdexList = el("my-vdex-list");
+
+            function renderMyVdex(sites) {
+                myVdexList.textContent = "";
+                if (!sites.length) {
+                    myVdexList.innerHTML = '<p class="note">还没有 VDEX 站点，去 VS Code 扩展新建一个。</p>';
+                    return;
+                }
+                sites.forEach((site) => {
+                    const card = document.createElement("div");
+                    card.className = "manage-item";
+                    const title = document.createElement("h3");
+                    title.textContent = site.title || site.name;
+                    const sub = document.createElement("div");
+                    sub.className = "sub";
+                    sub.textContent = `${site.name} · ${site.plan} · ${site.gb >= 1 ? site.gb + "GB" : "100MB"}`;
+                    const actions = document.createElement("div");
+                    actions.className = "manage-actions";
+                    const open = document.createElement("a");
+                    open.className = "download";
+                    open.href = `vdex.html?name=${encodeURIComponent(site.name)}`;
+                    open.target = "_blank";
+                    open.rel = "opener";
+                    open.textContent = "打开网站";
+                    actions.appendChild(open);
+                    card.appendChild(title);
+                    card.appendChild(sub);
+                    card.appendChild(actions);
+                    myVdexList.appendChild(card);
+                });
+            }
+
+            async function loadMyVdex() {
+                myVdexCard.hidden = false;
+                if (!api().hasSession()) {
+                    myVdexList.innerHTML = `<p class="note">请先 <a href="login.html?next=${encodeURIComponent(location.href)}">登录 VTX</a>，再打开网站。</p>`;
+                    return;
+                }
+                myVdexList.textContent = "加载中…";
+                try {
+                    const data = await api().request("/vdex/mine");
+                    renderMyVdex(data.sites || []);
+                } catch (error) {
+                    myVdexList.innerHTML = `<p class="note">${escapeHtml(error.message)}</p>`;
+                }
+            }
             if (publicName) {
                 if (!NAME_RE.test(publicName)) {
                     el("vdex-landing").innerHTML = '<div class="error">无效的站点名称。</div>';
@@ -123,6 +181,7 @@
                 }
             } else {
                 loadPlans();
+                loadMyVdex();
             }
         })();
     </script>

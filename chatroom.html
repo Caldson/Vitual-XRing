@@ -277,7 +277,7 @@
             letter-spacing: 0.04em;
         }
 
-        /* 12.1.1：周边的人 */
+        /* 12.1.2：周边的人 */
         .nearby-head {
             display: flex;
             align-items: center;
@@ -1343,7 +1343,7 @@
         .check-row .avatar { width: 30px; height: 30px; border-radius: 9px; font-size: 12px; }
         .check-row .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        /* 12.1.1：聊天记录分享 */
+        /* 12.1.2：聊天记录分享 */
         .record-tools {
             display: flex;
             align-items: center;
@@ -1593,9 +1593,9 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="vtx-uno.css?v=12.1.1">
-    <link rel="stylesheet" href="vtx-theme.css?v=12.1.1">
-    <script src="vtx-theme.js?v=12.1.1"></script>
+    <link rel="stylesheet" href="vtx-uno.css?v=12.1.2">
+    <link rel="stylesheet" href="vtx-theme.css?v=12.1.2">
+    <script src="vtx-theme.js?v=12.1.2"></script>
 </head>
 <body>
 <div class="app" id="app" hidden>
@@ -1603,7 +1603,7 @@
         <div class="brand">
             <span class="brand-mark">V</span>
             <span>Vitual XRing</span>
-            <span class="version-badge">v12.1.1 聊天室</span>
+            <span class="version-badge">v12.1.2 聊天室</span>
         </div>
         <div class="topbar-spacer"></div>
         <button type="button" class="uno-top-btn" id="uno-btn" title="打开 UNO（人机对战 / 普通房间 / 混合对战 / 随机匹配）">UNO</button>
@@ -1674,11 +1674,11 @@
 <div class="menu" id="menu"></div>
 <div class="toast" id="toast"></div>
 
-<script src="vtx-markdown.js?v=12.1.1"></script>
-<script src="vtx-qr.js?v=12.1.1"></script>
-<script src="vtx-api.js?v=12.1.1"></script>
-<script src="xring-social.js?v=12.1.1"></script>
-<script src="vtx-uno.js?v=12.1.1"></script>
+<script src="vtx-markdown.js?v=12.1.2"></script>
+<script src="vtx-qr.js?v=12.1.2"></script>
+<script src="vtx-api.js?v=12.1.2"></script>
+<script src="xring-social.js?v=12.1.2"></script>
+<script src="vtx-uno.js?v=12.1.2"></script>
 <script>
 (function () {
     "use strict";
@@ -1718,8 +1718,8 @@
     };
 
     let api = window.VTXApi;
-    const REQUIRED_API_VERSION = "12.1.1";
-    const PAGE_VERSION = "12.1.1";
+    const REQUIRED_API_VERSION = "12.1.2";
+    const PAGE_VERSION = "12.1.2";
     const SDK_URL = "vtx-api.js";
 
     /* 1.3.0：iPad / iPhone 视口高度修正（issue #2）
@@ -1743,7 +1743,7 @@
         syncThemeWidget();
     }
 
-    /* 12.1.1：主题悬浮球默认贴在右下角，会和聊天室的发送按钮重合。
+    /* 12.1.2：主题悬浮球默认贴在右下角，会和聊天室的发送按钮重合。
        vtx-theme.js 支持按 data-vtx-widget-avoid 的高度避让，输入区一变高
        （多行输入、回复条）就重新同步一次位置。 */
     function syncThemeWidget() {
@@ -2405,7 +2405,7 @@
         return value.length > limit ? `${value.slice(0, limit)}…` : value;
     }
 
-    /* 12.1.1：周边的人。只有用户主动点「附近」并允许定位时才会上报，
+    /* 12.1.2：周边的人。只有用户主动点「附近」并允许定位时才会上报，
        服务端只保存约 100 米精度并保留 30 分钟，返回 10km 内的账户。 */
     function nearbyErrorText(error) {
         const code = error && error.code ? Number(error.code) : 0;
@@ -2994,7 +2994,7 @@
         if (message.type === "redpacket" && message.packet) {
             return redPacketCard(message);
         }
-        /* 12.1.1：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态分享卡片 */
+        /* 12.1.2：Vimidi / VMusic / Viratch / AUDIV / ViStyle / VClang / 动态分享卡片 */
         if (message.card && window.XRSocial) {
             return `${window.XRSocial.cardHtml(message.card, { compact: true })}${message.text ? messageCaptionHtml(message) : ""}`;
         }
@@ -3491,7 +3491,7 @@
         });
     }
 
-    /* 12.1.1：群公告可以关闭；关闭的是当前这一条公告，公告更新后会重新显示。 */
+    /* 12.1.2：群公告可以关闭；关闭的是当前这一条公告，公告更新后会重新显示。 */
     async function setAnnouncementHidden(hidden) {
         const conv = state.current;
         if (!conv || !conv.announcement) {
@@ -3508,7 +3508,7 @@
         }
     }
 
-    /* 12.1.1：把选中的聊天消息做成只读快照，生成可分享的聊天记录页。 */
+    /* 12.1.2：把选中的聊天消息做成只读快照，生成可分享的聊天记录页。 */
     function chatRecordSummary(message) {
         if (message.card) {
             return `[${message.card.site || "分享"}] ${message.card.title || ""}`.trim();
@@ -5687,6 +5687,6 @@
     });
 })();
 </script>
-    <script src="vtx-pwa.js?v=12.1.1" defer></script>
+    <script src="vtx-pwa.js?v=12.1.2" defer></script>
 </body>
 </html>

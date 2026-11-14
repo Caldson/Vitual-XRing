@@ -45,7 +45,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("12.1.1：VDEX 套餐、注册扣费、保存与公开访问", async () => {
+test("12.1.2：VDEX 套餐、注册扣费、保存与公开访问", async () => {
     const { env, token } = await prepare();
     const plans = await api(env, "GET", "/api/vdex/plans");
     assert.equal(plans.status, 200);
@@ -85,7 +85,7 @@ test("12.1.1：VDEX 套餐、注册扣费、保存与公开访问", async () => 
     assert.equal(poor.status, 400);
 });
 
-test("12.1.1：Vtoy 保存应用与公开读取", async () => {
+test("12.1.2：Vtoy 保存应用与公开读取", async () => {
     const { env, token } = await prepare();
     const bad = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "Bad/App", html: "x" } });
     assert.equal(bad.status, 400);

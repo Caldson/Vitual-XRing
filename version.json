@@ -1,6 +1,6 @@
 {
-    "version": "12.1.1",
-    "updatedAt": "2026-11-14T19:35:47+08:00",
-    "notes": "Vtoy names can be any safe string; VDEX remains lowercase digits and hyphen",
-    "download": "https://xsmmc.caldson.us.ci/downloads/VitualXRing-12.1.1-portable.exe"
+    "version": "12.1.2",
+    "updatedAt": "2026-11-14T21:09:45+08:00",
+    "notes": "Vtoy/VDEX owner panel: set Vtoy permissions and open websites",
+    "download": "https://xsmmc.caldson.us.ci/downloads/VitualXRing-12.1.2-portable.exe"
 }

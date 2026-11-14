@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f4f7fb">
     <title>Vtoy · Vitual XRing</title>
-    <link rel="icon" href="XRingLogo.png?v=12.1.1">
-    <link rel="stylesheet" href="vtx-theme.css?v=12.1.1">
-    <script src="vtx-theme.js?v=12.1.1"></script>
+    <link rel="icon" href="XRingLogo.png?v=12.1.2">
+    <link rel="stylesheet" href="vtx-theme.css?v=12.1.2">
+    <script src="vtx-theme.js?v=12.1.2"></script>
     <style>
         :root { --vtoy: #e85d3f; --vtoy-soft: #fff0ea; --vtoy-dark: #a9341c; }
         body { background: radial-gradient(circle at 15% 0%, #fff3ed 0, transparent 34%), var(--vtx-bg); }
@@ -30,6 +30,17 @@
         .step b { display: block; font-size: 12px; margin-bottom: 4px; }
         .step span { color: var(--vtx-muted); font-size: 11.5px; line-height: 1.55; }
         .note { color: var(--vtx-faint); font-size: 11.5px; line-height: 1.7; margin-top: 14px; }
+        .manage { margin-top: 16px; }
+        .manage-list { display: grid; gap: 10px; }
+        .manage-item { padding: 14px; border: 1px solid var(--vtx-border); border-radius: 12px; background: var(--vtx-surface-soft); }
+        .manage-item h3 { margin: 0 0 2px; font-size: 14px; }
+        .manage-item .sub { color: var(--vtx-muted); font-size: 11px; margin-bottom: 9px; }
+        .manage-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .manage-actions .download { padding: 7px 11px; font-size: 11.5px; }
+        .perm { display: flex; align-items: center; gap: 6px; color: var(--vtx-muted); font-size: 11.5px; font-weight: 700; }
+        .perm input { width: auto; }
+        .manage-message { margin: 7px 0 0; color: var(--vtx-muted); font-size: 11px; min-height: 15px; }
+        .manage-message.ok { color: #16856f; }
         #vtoy-app-page { position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column; background: #0b1020; }
         #vtoy-app-page[hidden] { display: none; }
         #vtoy-app-frame { width: 100%; height: 100%; border: 0; background: #fff; }
@@ -46,7 +57,7 @@
 </head>
 <body>
     <header class="vtx-topbar">
-        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.1.1" alt="Vitual XRing" width="38" height="38"></a>
+        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.1.2" alt="Vitual XRing" width="38" height="38"></a>
         <nav class="top-links"><a href="index.html">首页</a><a href="vtoy.html" class="is-active">Vtoy</a><a href="vdex.html">VDEX</a><a href="settings.html">设置</a></nav>
     </header>
 
@@ -69,7 +80,11 @@
             </div>
             <p class="note">公开应用地址仍然是 <code>vtoy.html?app=名称</code>。网站不提供在线编辑。</p>
         </section>
-    </main>
+        <section class="card manage" id="my-vtoy-card" hidden>
+            <h2>我的 Vtoy</h2>
+            <p>设置 Vtoy 权限，或直接打开网站。</p>
+            <div id="my-vtoy-list" class="manage-list"></div>
+        </section>    </main>
 
     <div id="vtoy-app-page" hidden><iframe id="vtoy-app-frame" sandbox="allow-scripts allow-forms allow-popups" title="Vtoy 应用"></iframe></div>
 
@@ -81,7 +96,7 @@
         </div>
     </div>
 
-    <script src="vtx-api.js?v=12.1.1"></script>
+    <script src="vtx-api.js?v=12.1.2"></script>
     <script>
         (function () {
             "use strict";
@@ -174,6 +189,96 @@
                 el("vtoy-app-frame").srcdoc = buildDocument(app);
             }
 
+            const myVtoyCard = el("my-vtoy-card");
+            const myVtoyList = el("my-vtoy-list");
+
+            function myVtoyMessage(card, text, ok) {
+                const node = card.querySelector(".manage-message");
+                node.textContent = text || "";
+                node.className = "manage-message" + (ok ? " ok" : "");
+            }
+
+            function renderMyVtoy(apps) {
+                myVtoyList.textContent = "";
+                if (!apps.length) {
+                    myVtoyList.innerHTML = '<p class="note">还没有 Vtoy 应用，去 VS Code 扩展新建一个。</p>';
+                    return;
+                }
+                apps.forEach((app) => {
+                    const card = document.createElement("div");
+                    card.className = "manage-item";
+                    const title = document.createElement("h3");
+                    title.textContent = app.title || app.name;
+                    const sub = document.createElement("div");
+                    sub.className = "sub";
+                    sub.textContent = app.name;
+                    const actions = document.createElement("div");
+                    actions.className = "manage-actions";
+                    const selected = new Set(app.permissions || []);
+                    [["login", "登录权限 [login]"], ["wallet", "余额权限 [wallet]"]].forEach(([key, label]) => {
+                        const wrap = document.createElement("label");
+                        wrap.className = "perm";
+                        const input = document.createElement("input");
+                        input.type = "checkbox";
+                        input.checked = selected.has(key);
+                        input.addEventListener("change", () => { input.checked ? selected.add(key) : selected.delete(key); });
+                        wrap.appendChild(input);
+                        wrap.appendChild(document.createTextNode(label));
+                        actions.appendChild(wrap);
+                    });
+                    const save = document.createElement("button");
+                    save.className = "btn";
+                    save.type = "button";
+                    save.textContent = "保存权限";
+                    save.addEventListener("click", async () => {
+                        save.disabled = true;
+                        myVtoyMessage(card, "保存中…");
+                        try {
+                            const full = await api().request(`/vtoy/apps?name=${encodeURIComponent(app.name)}`);
+                            await api().request("/vtoy/apps", {
+                                method: "POST",
+                                body: { ...full.app, permissions: [...selected] }
+                            });
+                            app.permissions = [...selected];
+                            myVtoyMessage(card, "已保存", true);
+                        } catch (error) {
+                            myVtoyMessage(card, error.message || "保存失败");
+                        } finally {
+                            save.disabled = false;
+                        }
+                    });
+                    const open = document.createElement("a");
+                    open.className = "download";
+                    open.href = `vtoy.html?app=${encodeURIComponent(app.name)}`;
+                    open.target = "_blank";
+                    open.rel = "opener";
+                    open.textContent = "打开网站";
+                    actions.appendChild(save);
+                    actions.appendChild(open);
+                    const message = document.createElement("p");
+                    message.className = "manage-message";
+                    card.appendChild(title);
+                    card.appendChild(sub);
+                    card.appendChild(actions);
+                    card.appendChild(message);
+                    myVtoyList.appendChild(card);
+                });
+            }
+
+            async function loadMyVtoy() {
+                myVtoyCard.hidden = false;
+                if (!loggedIn()) {
+                    myVtoyList.innerHTML = `<p class="note">请先 <a href="login.html?next=${encodeURIComponent(location.href)}">登录 VTX</a>，再设置权限或打开网站。</p>`;
+                    return;
+                }
+                myVtoyList.textContent = "加载中…";
+                try {
+                    const data = await api().request("/vtoy/mine");
+                    renderMyVtoy(data.apps || []);
+                } catch (error) {
+                    myVtoyList.innerHTML = `<p class="note">${escapeHtml(error.message)}</p>`;
+                }
+            }
             if (publicName) {
                 if (!validVtoyName(publicName)) {
                     el("vtoy-landing").innerHTML = '<div class="card">无效的应用名称。</div>';
@@ -182,6 +287,8 @@
                         el("vtoy-landing").innerHTML = '<div class="card">' + escapeHtml(error.message) + '</div>';
                     });
                 }
+            } else {
+                loadMyVtoy();
             }
         })();
     </script>

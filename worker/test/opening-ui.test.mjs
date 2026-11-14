@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-/* 12.1.1：开场动画 / 音效限制、设置项、顶部栏与纯色 V 图标 */
+/* 12.1.2：开场动画 / 音效限制、设置项、顶部栏与纯色 V 图标 */
 
 const root = new URL("../../", import.meta.url);
 const read = (name) => fs.readFileSync(new URL(name, root), "utf8");
 
-test("12.1.1：开场动画只从站内跳转触发，每 2 小时最多一次，可跳过", () => {
+test("12.1.2：开场动画只从站内跳转触发，每 2 小时最多一次，可跳过", () => {
     const bgm = read("vtx-bgm.js");
     assert.match(bgm, /document\.referrer/);
     assert.match(bgm, /xsmmc\.caldson\.us\.ci/);
@@ -18,7 +18,7 @@ test("12.1.1：开场动画只从站内跳转触发，每 2 小时最多一次�
     assert.match(bgm, /vtx:opening:last/);
 });
 
-test("12.1.1：设置页提供开场音效 / 完整动画开关", () => {
+test("12.1.2：设置页提供开场音效 / 完整动画开关", () => {
     const settings = read("settings.html");
     assert.match(settings, /id="opening-enabled"/);
     assert.match(settings, /id="opening-short"/);
@@ -28,7 +28,7 @@ test("12.1.1：设置页提供开场音效 / 完整动画开关", () => {
     assert.match(read("vtx-bgm.js"), /vtx:opening:short/);
 });
 
-test("12.1.1：账户页顶部栏移除 VPAN / Vord，品牌 V 图标为纯色", () => {
+test("12.1.2：账户页顶部栏移除 VPAN / Vord，品牌 V 图标为纯色", () => {
     const manager = read("manager.html");
     const topbar = manager.split("</header>")[0];
     assert.doesNotMatch(topbar, /href="vpan\.html"/);
