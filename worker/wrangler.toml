@@ -14,6 +14,14 @@ workers_dev = true
 pattern = "xsmmc.caldson.us.ci/api/*"
 zone_name = "caldson.us.ci"
 
+[[routes]]
+pattern = "xsmmc.caldson.us.ci/vtoy-app/*"
+zone_name = "caldson.us.ci"
+
+[[routes]]
+pattern = "xsmmc.caldson.us.ci/vdex-site/*"
+zone_name = "caldson.us.ci"
+
 # 8.0 起账户数据（用户名、密码、余额、交易、游戏数据、登录 IP 记录、聊天消息）
 # 全部存进 Workers KV，仓库里不再保留可被任何人下载的 account.json。
 # 部署前先创建命名空间，然后把输出的 id 填到下面（wrangler dev 本地调试可以用占位 id）：
