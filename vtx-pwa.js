@@ -1,10 +1,10 @@
-/* Vitual XRing 12.0.1 — 页面缓存、版本检测与自动清缓存 */
+/* Vitual XRing 12.0.2 — 页面缓存、版本检测与自动清缓存 */
 (function () {
     "use strict";
     if (!("serviceWorker" in navigator)) return;
     if (location.protocol === "file:") return;
 
-    const CLIENT_VERSION = "12.0.1";
+    const CLIENT_VERSION = "12.0.2";
 
     async function clearPageCaches() {
         try {
@@ -38,7 +38,7 @@
             if (!response.ok) return false;
             const data = await response.json();
             if (!data || !data.version || !isNewerVersion(data.version, CLIENT_VERSION)) return false;
-            /* 12.0.1：旧版本原来只允许重置一次，一旦 Service Worker 又返回了缓存页面，
+            /* 12.0.2：旧版本原来只允许重置一次，一旦 Service Worker 又返回了缓存页面，
                就会永久停在旧版本。现在最多尝试 3 次，每次仍然清缓存 + 硬跳转。 */
             const key = "xring:cacheReset:" + data.version;
             const attempts = Number(sessionStorage.getItem(key) || 0);
@@ -74,7 +74,7 @@
         });
     });
 
-    /* 12.0.1：从往返缓存恢复的页面不会触发 load，单独再检查一次版本。 */
+    /* 12.0.2：从往返缓存恢复的页面不会触发 load，单独再检查一次版本。 */
     window.addEventListener("pageshow", function (event) {
         if (event.persisted) checkForNewVersion();
     });

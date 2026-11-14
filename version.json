@@ -1,6 +1,6 @@
 {
-    "version": "12.0.1",
-    "updatedAt": "2026-11-14T17:40:42+08:00",
-    "notes": "VDEX Free is now Light 10 VTX; logo/nav fixes",
-    "download": "https://xsmmc.caldson.us.ci/downloads/VitualXRing-12.0.1-portable.exe"
+    "version": "12.0.2",
+    "updatedAt": "2026-11-14T17:55:28+08:00",
+    "notes": "Remove VDEX public site top bar",
+    "download": "https://xsmmc.caldson.us.ci/downloads/VitualXRing-12.0.2-portable.exe"
 }

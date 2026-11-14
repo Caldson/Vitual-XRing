@@ -1,7 +1,7 @@
 /*!
- * Vitual XRing 12.0.1 — Discord 风格 Markdown 渲染器
+ * Vitual XRing 12.0.2 — Discord 风格 Markdown 渲染器
  *
- * 纯前端、零依赖，可以直接用 <script src="vtx-markdown.js?v=12.0.1"></script> 引入，
+ * 纯前端、零依赖，可以直接用 <script src="vtx-markdown.js?v=12.0.2"></script> 引入，
  * 也可以在 Node 里 require 后跑单元测试。
  *
  * 支持（尽量与 Discord 保持一致）：
@@ -441,7 +441,7 @@
     }
 
     return {
-        version: "12.0.1",
+        version: "12.0.2",
         escapeHtml,
         render,
         renderInline,
