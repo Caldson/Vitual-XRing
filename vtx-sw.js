@@ -1,5 +1,5 @@
 /* Vitual XRing 12.0.2 — page cache / offline shell */
-const CACHE_NAME = "xring-v12.0.2-tm4";
+const CACHE_NAME = "xring-v12.0.2-nossh-tm4";
 const CORE = [
     "./",
     "index.html",

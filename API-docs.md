@@ -5392,3 +5392,15 @@ VTXApi.xos.removeFile(id)
 - 公开站点现在直接使用全屏 iframe，不再显示站点名称、容量、套餐和返回 VDEX 的条。
 - 专业版 / 企业版的 `window.VDEX.login()` / `pay()` 仍可在站点内调用；可见的顶栏入口已移除。
 - 全站版本同步为 `12.0.2`，Service Worker 缓存 `xring-v12.0.2`。
+
+---
+
+## 105. 12.0.2 删除 VDEX SSH
+
+- 删除 VDEX 的 SSH 功能：
+  - 不再生成 host / port / username / password；
+  - 删除「远程 SSH 服务器」面板、我的站点 SSH 行和复制按钮；
+  - 公开站点 / mine / save 接口不再返回 `server` 字段。
+- 旧站点记录里的 `server` 字段在读取时自动删除，不会继续暴露密码。
+- 保留 VDEX 网站托管、编辑器、游戏数据与登录/付款入口；SSH 相关功能全部移除。
+- 全站版本仍为 `12.0.2`，Service Worker 缓存更新为 `xring-v12.0.2-nossh`，强制刷新旧资源。

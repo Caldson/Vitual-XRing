@@ -58,9 +58,7 @@ test("12.0.2：VDEX 套餐、注册扣费、保存与公开访问", async () => 
 
     const created = await api(env, "POST", "/api/vdex/register", { token, body: { name: "alice-site", gb: 1, tier: "standard" } });
     assert.equal(created.status, 201, JSON.stringify(created.data));
-    assert.equal(created.data.site.server.host, "ssh.vdex.caldson.us.ci");
-    assert.equal(created.data.site.server.username, "alice-site");
-    assert.ok(created.data.site.server.password.length >= 12);
+    assert.equal(created.data.site.server, undefined);
     const account = JSON.parse(await env.ACCOUNTS_KV.get("accounts"));
     assert.equal(account.Alice.money, "950.00");
     assert.ok(account.Alice.trades.some((trade) => trade.name === "VDEX" && trade.price === "-50.00"));

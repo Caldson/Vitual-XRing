@@ -43,9 +43,6 @@
         .vdex-note { color: var(--vtx-faint); font-size: 11px; line-height: 1.6; }
         .vdex-status { min-height: 18px; color: var(--vdex-dark); font-size: 12px; font-weight: 700; }
         .vdex-code-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .vdex-server-grid { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 7px 10px; font-size: 12px; }
-        .vdex-server-grid b { color: var(--vtx-muted); font-size: 11px; }
-        .vdex-server-grid code { word-break: break-all; }
         #vdex-public { position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column; background: #0b1020; }
         #vdex-public[hidden] { display: none; }
         .vdex-public-bar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; color: #fff; background: #121a33; font-size: 12px; }
@@ -110,20 +107,7 @@
                 </div>
             </div>
         </section>
-
-        <section class="vdex-panel" id="vdex-server-panel" style="margin-top:12px;" hidden>
-            <h3 style="margin:0 0 10px;font-size:15px;">远程 SSH 服务器</h3>
-            <div class="vdex-server-grid">
-                <b>地址</b><code id="vdex-server-host">—</code>
-                <b>端口</b><code id="vdex-server-port">—</code>
-                <b>用户名</b><code id="vdex-server-user">—</code>
-                <b>密码</b><code id="vdex-server-pass">—</code>
-                <b>状态</b><span id="vdex-server-status">—</span>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button class="vdex-btn" id="vdex-server-copy">复制 SSH 信息</button><span class="vdex-note">可用于 Code / VS Code Remote SSH 等客户端；凭据会长期保存在「我的站点」中。</span></div>
-        </section>
-
-        <section id="vdex-mine" hidden>
+<section id="vdex-mine" hidden>
             <div class="vdex-grid" id="vdex-mine-list"><div class="vdex-note">登录后查看自己的站点。</div></div>
         </section>
     </main>
@@ -189,28 +173,15 @@
                         const card = document.createElement("article");
                         card.className = "vdex-site";
                         card.innerHTML = `<h3>${escapeHtml(site.title || site.name)}</h3><p><code>vdex.html?name=${escapeHtml(site.name)}</code> · ${site.gb}GB · ${site.plan}</p><div style="display:flex;gap:7px;"><a class="vdex-btn primary" href="vdex.html?name=${encodeURIComponent(site.name)}" target="_blank" rel="noopener">打开</a><button class="vdex-btn" data-edit="${escapeHtml(site.name)}">编辑</button></div>`;
-                        if (site.server) card.insertAdjacentHTML("beforeend", `<p class="vdex-note" style="margin-top:8px;">SSH ${escapeHtml(site.server.host)}:${site.server.port} · ${escapeHtml(site.server.username)}</p>`);
                         card.querySelector("[data-edit]").addEventListener("click", () => editSite(site.name));
                         box.appendChild(card);
                     });
                 } catch (error) { box.innerHTML = '<div class="vdex-note">读取失败。</div>'; }
             }
 
-            function renderServer(server) {
-                el("vdex-server-panel").hidden = !server;
-                if (!server) return;
-                el("vdex-server-host").textContent = server.host;
-                el("vdex-server-port").textContent = server.port;
-                el("vdex-server-user").textContent = server.username;
-                el("vdex-server-pass").textContent = server.password;
-                el("vdex-server-status").textContent = server.status || "online";
-            }
-
             async function editSite(name) {
                 const data = await api().request(`/vdex/site?name=${encodeURIComponent(name)}`);
                 current = data.site;
-                current.server = (mine.find((item) => item.name === name) || {}).server || data.site.server || null;
-                renderServer(current.server);
                 el("vdex-name").value = current.name;
                 el("vdex-title").value = current.title || "";
                 el("vdex-html").value = current.html || "";
@@ -300,12 +271,6 @@
             el("vdex-register").addEventListener("click", register);
             el("vdex-save").addEventListener("click", save);
             el("vdex-save-data").addEventListener("click", saveData);
-            el("vdex-server-copy").addEventListener("click", async () => {
-                if (!current || !current.server) return;
-                const text = `ssh ${current.server.username}@${current.server.host} -p ${current.server.port}\npassword: ${current.server.password}`;
-                try { await navigator.clipboard.writeText(text); status("SSH 信息已复制。", el("vdex-save-status")); }
-                catch (error) { status("复制失败，请手动选择。", el("vdex-save-status")); }
-            });
 
             if (publicName) {
                 if (!NAME_RE.test(publicName)) {

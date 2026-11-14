@@ -56,7 +56,6 @@ function vdexMeta(record) {
     delete out.html;
     delete out.css;
     delete out.js;
-    out.server = record.server || null;
     return out;
 }
 
@@ -66,21 +65,6 @@ function vdexText(value, limit) {
 
 function vdexTime() {
     return new Date().toISOString();
-}
-
-function vdexServer(name) {
-    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-    const bytes = new Uint8Array(18);
-    crypto.getRandomValues(bytes);
-    let password = "";
-    for (const byte of bytes) password += alphabet[byte % alphabet.length];
-    return {
-        host: "ssh.vdex.caldson.us.ci",
-        port: 22,
-        username: name,
-        password,
-        status: "online"
-    };
 }
 
 export { VDEX_VERSION, vdexPlans };
@@ -102,12 +86,18 @@ export async function routeVdex(request, env, cors, deps) {
         if (!record) {
             return deps.jsonResponse({ error: "not_found", message: "这个 VDEX 站点还不存在" }, 404, cors);
         }
+        let migration = false;
         if (record.plan === "free") {
             record.plan = "light";
             record.gb = 0.1;
             record.price = 10;
-            await env.ACCOUNTS_KV.put(VDEX_PREFIX + name, JSON.stringify(record));
+            migration = true;
         }
+        if (record.server) {
+            delete record.server;
+            migration = true;
+        }
+        if (migration) await env.ACCOUNTS_KV.put(VDEX_PREFIX + name, JSON.stringify(record));
         return deps.jsonResponse({ ok: true, site: vdexPublic(record) }, 200, cors);
     }
 
@@ -164,8 +154,7 @@ export async function routeVdex(request, env, cors, deps) {
             js: "",
             createdAt: now,
             updatedAt: now,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            server: vdexServer(name)
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         };
         await env.ACCOUNTS_KV.put(VDEX_PREFIX + name, JSON.stringify(record));
         return deps.jsonResponse({ ok: true, site: vdexMeta(record) }, 201, cors);
@@ -186,8 +175,8 @@ export async function routeVdex(request, env, cors, deps) {
                     record.price = 10;
                     await env.ACCOUNTS_KV.put(key.name, JSON.stringify(record));
                 }
-                if (!record.server) {
-                    record.server = vdexServer(record.name);
+                if (record.server) {
+                    delete record.server;
                     await env.ACCOUNTS_KV.put(key.name, JSON.stringify(record));
                 }
                 sites.push(vdexMeta(record));
