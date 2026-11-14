@@ -45,7 +45,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("12.1.0：VDEX 套餐、注册扣费、保存与公开访问", async () => {
+test("12.1.1：VDEX 套餐、注册扣费、保存与公开访问", async () => {
     const { env, token } = await prepare();
     const plans = await api(env, "GET", "/api/vdex/plans");
     assert.equal(plans.status, 200);
@@ -85,12 +85,19 @@ test("12.1.0：VDEX 套餐、注册扣费、保存与公开访问", async () => 
     assert.equal(poor.status, 400);
 });
 
-test("12.1.0：Vtoy 保存应用与公开读取", async () => {
+test("12.1.1：Vtoy 保存应用与公开读取", async () => {
     const { env, token } = await prepare();
-    const bad = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "Bad_App", html: "x" } });
+    const bad = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "Bad/App", html: "x" } });
     assert.equal(bad.status, 400);
     const saved = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "hello-toy", title: "Hello", description: "测试", html: "<h1>Hi</h1>", css: "", js: "", permissions: ["login"] } });
     assert.equal(saved.status, 201, JSON.stringify(saved.data));
+    const named = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "中文 App_01", html: "<h1>宽松名称</h1>" } });
+    assert.equal(named.status, 201, JSON.stringify(named.data));
+    const namedPub = await api(env, "GET", `/api/vtoy/apps?name=${encodeURIComponent("中文 App_01")}`);
+    assert.equal(namedPub.status, 200);
+    assert.equal(namedPub.data.app.name, "中文 App_01");
+    const badVdex = await api(env, "POST", "/api/vdex/register", { token, body: { name: "Upper_Name", gb: 1, tier: "standard" } });
+    assert.equal(badVdex.status, 400);
     const pub = await api(env, "GET", "/api/vtoy/apps?name=hello-toy");
     assert.equal(pub.status, 200);
     assert.equal(pub.data.app.title, "Document");
@@ -98,5 +105,5 @@ test("12.1.0：Vtoy 保存应用与公开读取", async () => {
     assert.equal(pub.data.app.title, "Document");
     const mine = await api(env, "GET", "/api/vtoy/mine", { token });
     assert.equal(mine.status, 200);
-    assert.equal(mine.data.apps.length, 1);
+    assert.equal(mine.data.apps.length, 2);
 });

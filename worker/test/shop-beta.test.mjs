@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import worker from "../index.js";
 
-/* 12.1.0：同捆包与成为商铺 Beta */
+/* 12.1.1：同捆包与成为商铺 Beta */
 
 class MockKV {
     constructor() {
@@ -137,7 +137,7 @@ async function prepare() {
     return { env, tokens };
 }
 
-test("12.1.0：购买同捆包一次获得多个 XOS 授权", async () => {
+test("12.1.1：购买同捆包一次获得多个 XOS 授权", async () => {
     const { env, tokens } = await prepare();
     const result = await api(env, "POST", "/api/me/purchase", {
         token: tokens.Alice,
@@ -152,7 +152,7 @@ test("12.1.0：购买同捆包一次获得多个 XOS 授权", async () => {
     assert.match(result.data.receipt, /包含/);
 });
 
-test("12.1.0：同捆包有缺失商品时拒绝购买", async () => {
+test("12.1.1：同捆包有缺失商品时拒绝购买", async () => {
     const { env, tokens } = await prepare();
     const result = await api(env, "POST", "/api/me/purchase", {
         token: tokens.Alice,
@@ -162,7 +162,7 @@ test("12.1.0：同捆包有缺失商品时拒绝购买", async () => {
     assert.equal(result.data.error, "unsupported_bundle");
 });
 
-test("12.1.0：商铺申请由站主审核并通过", async () => {
+test("12.1.1：商铺申请由站主审核并通过", async () => {
     const { env, tokens } = await prepare();
     const submit = await api(env, "POST", "/api/shop/application", {
         token: tokens.Alice,
@@ -199,7 +199,7 @@ test("12.1.0：商铺申请由站主审核并通过", async () => {
     assert.equal(shops.data.shops[0].name, "爱丽丝工坊");
 });
 
-test("12.1.0：认证商铺上架商品，站主审核后可购买并结算给商家", async () => {
+test("12.1.1：认证商铺上架商品，站主审核后可购买并结算给商家", async () => {
     const { env, tokens } = await prepare();
     const application = await api(env, "POST", "/api/shop/application", {
         token: tokens.Alice,
@@ -266,7 +266,7 @@ test("12.1.0：认证商铺上架商品，站主审核后可购买并结算给�
     assert.equal(selfBuy.status, 400);
 });
 
-test("12.1.0：普通用户不能审核商铺，拒绝后可以重新申请", async () => {
+test("12.1.1：普通用户不能审核商铺，拒绝后可以重新申请", async () => {
     const { env, tokens } = await prepare();
     const submit = await api(env, "POST", "/api/shop/application", {
         token: tokens.Bob,

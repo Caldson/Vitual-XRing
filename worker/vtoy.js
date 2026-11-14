@@ -1,10 +1,16 @@
-/* Vitual XRing 12.1.0：Vtoy 小程序托管。
+/* Vitual XRing 12.1.1：Vtoy 小程序托管。
    应用代码存 ACCOUNTS_KV 的 vtoy:app:<name>，运行在 vtoy.html?app=... 的沙箱 iframe 中。 */
 
-const VTOY_VERSION = "12.1.0";
+const VTOY_VERSION = "12.1.1";
 import { documentTitle } from "./html-title.js";
 const VTOY_PREFIX = "vtoy:app:";
-const VTOY_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+function validVtoyName(value) {
+    const name = String(value == null ? "" : value).trim();
+    if (!name || name.length > 40 || name === "." || name === "..") return false;
+    if (/[\\/:*?"<>|\u0000-\u001f]/.test(name)) return false;
+    if (/[. ]$/.test(name)) return false;
+    return true;
+}
 const VTOY_LIMIT = 256 * 1024;
 
 function vtoyText(value, limit) {
@@ -38,7 +44,7 @@ export async function routeVtoy(request, env, cors, deps) {
     const path = url.pathname.replace(/^\/api\/vtoy\/?/, "");
 
     if (path === "apps" && request.method === "GET") {
-        const name = String(url.searchParams.get("name") || "").trim().toLowerCase();
+        const name = String(url.searchParams.get("name") || "").trim();
         if (!name) {
             const listed = await env.ACCOUNTS_KV.list({ prefix: VTOY_PREFIX, limit: 100 });
             const apps = [];
@@ -49,7 +55,7 @@ export async function routeVtoy(request, env, cors, deps) {
             apps.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
             return deps.jsonResponse({ ok: true, apps }, 200, cors);
         }
-        if (!VTOY_NAME_RE.test(name) || name.length > 32) {
+        if (!validVtoyName(name)) {
             return deps.jsonResponse({ error: "bad_name", message: "Vtoy 名称只能使用小写字母、数字和 - 连字符" }, 400, cors);
         }
         const record = await env.ACCOUNTS_KV.get(VTOY_PREFIX + name, "json");
@@ -75,8 +81,8 @@ export async function routeVtoy(request, env, cors, deps) {
         const session = await deps.requireSession(request, env, cors);
         if (session.error) return session.error;
         const body = deps.plainObject(await deps.readJsonBody(request));
-        const name = String(body.name || "").trim().toLowerCase();
-        if (!VTOY_NAME_RE.test(name) || name.length < 2 || name.length > 32) {
+        const name = String(body.name || "").trim();
+        if (!validVtoyName(name)) {
             return deps.jsonResponse({ error: "bad_name", message: "名称必须为 2–32 位小写字母、数字，连字符只能出现在中间" }, 400, cors);
         }
         const html = vtoyText(body.html, VTOY_LIMIT);

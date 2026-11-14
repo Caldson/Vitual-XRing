@@ -1,7 +1,7 @@
-/* Vitual XRing 12.1.0：VDEX 网站托管。
+/* Vitual XRing 12.1.1：VDEX 网站托管。
    数据保存在 ACCOUNTS_KV 的 vdex:site:<name>，购买时在 accounts 锁内扣 VTX。 */
 
-const VDEX_VERSION = "12.1.0";
+const VDEX_VERSION = "12.1.1";
 import { documentTitle } from "./html-title.js";
 const VDEX_PREFIX = "vdex:site:";
 const VDEX_DATA_PREFIX = "vdex:data:";
@@ -79,7 +79,7 @@ export async function routeVdex(request, env, cors, deps) {
     }
 
     if (path === "site" && request.method === "GET") {
-        const name = String(url.searchParams.get("name") || "").trim().toLowerCase();
+        const name = String(url.searchParams.get("name") || "").trim();
         if (!VDEX_NAME_RE.test(name) || name.length > 32) {
             return deps.jsonResponse({ error: "bad_name", message: "VDEX 名称只能使用小写字母、数字和 - 连字符" }, 400, cors);
         }
@@ -106,7 +106,7 @@ export async function routeVdex(request, env, cors, deps) {
         const session = await deps.requireSession(request, env, cors);
         if (session.error) return session.error;
         const body = deps.plainObject(await deps.readJsonBody(request));
-        const name = String(body.name || "").trim().toLowerCase();
+        const name = String(body.name || "").trim();
         if (!VDEX_NAME_RE.test(name) || name.length < 2 || name.length > 32) {
             return deps.jsonResponse({ error: "bad_name", message: "名称必须为 2–32 位小写字母、数字，连字符只能出现在中间" }, 400, cors);
         }
@@ -188,7 +188,7 @@ export async function routeVdex(request, env, cors, deps) {
     }
 
     if (path === "data" && request.method === "GET") {
-        const name = String(url.searchParams.get("name") || "").trim().toLowerCase();
+        const name = String(url.searchParams.get("name") || "").trim();
         if (!VDEX_NAME_RE.test(name)) return deps.jsonResponse({ error: "bad_name", message: "无效的站点名称" }, 400, cors);
         const data = await env.ACCOUNTS_KV.get(VDEX_DATA_PREFIX + name, "json");
         return deps.jsonResponse({ ok: true, data: data || null }, 200, cors);
@@ -198,7 +198,7 @@ export async function routeVdex(request, env, cors, deps) {
         const session = await deps.requireSession(request, env, cors);
         if (session.error) return session.error;
         const body = deps.plainObject(await deps.readJsonBody(request));
-        const name = String(body.name || "").trim().toLowerCase();
+        const name = String(body.name || "").trim();
         const record = await env.ACCOUNTS_KV.get(VDEX_PREFIX + name, "json");
         if (!record) return deps.jsonResponse({ error: "not_found", message: "VDEX 站点不存在" }, 404, cors);
         if (record.owner !== session.payload.sub) return deps.jsonResponse({ error: "forbidden", message: "只有站点所有者可以修改数据" }, 403, cors);
@@ -215,7 +215,7 @@ export async function routeVdex(request, env, cors, deps) {
         const session = await deps.requireSession(request, env, cors);
         if (session.error) return session.error;
         const body = deps.plainObject(await deps.readJsonBody(request));
-        const name = String(body.name || "").trim().toLowerCase();
+        const name = String(body.name || "").trim();
         const record = await env.ACCOUNTS_KV.get(VDEX_PREFIX + name, "json");
         if (!record) return deps.jsonResponse({ error: "not_found", message: "VDEX 站点不存在" }, 404, cors);
         if (record.owner !== session.payload.sub) return deps.jsonResponse({ error: "forbidden", message: "只有站点所有者可以修改" }, 403, cors);

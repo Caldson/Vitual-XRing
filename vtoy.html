@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f4f7fb">
     <title>Vtoy · Vitual XRing</title>
-    <link rel="icon" href="XRingLogo.png?v=12.1.0">
-    <link rel="stylesheet" href="vtx-theme.css?v=12.1.0">
-    <script src="vtx-theme.js?v=12.1.0"></script>
+    <link rel="icon" href="XRingLogo.png?v=12.1.1">
+    <link rel="stylesheet" href="vtx-theme.css?v=12.1.1">
+    <script src="vtx-theme.js?v=12.1.1"></script>
     <style>
         :root { --vtoy: #e85d3f; --vtoy-soft: #fff0ea; --vtoy-dark: #a9341c; }
         body { background: radial-gradient(circle at 15% 0%, #fff3ed 0, transparent 34%), var(--vtx-bg); }
@@ -46,7 +46,7 @@
 </head>
 <body>
     <header class="vtx-topbar">
-        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.1.0" alt="Vitual XRing" width="38" height="38"></a>
+        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.1.1" alt="Vitual XRing" width="38" height="38"></a>
         <nav class="top-links"><a href="index.html">首页</a><a href="vtoy.html" class="is-active">Vtoy</a><a href="vdex.html">VDEX</a><a href="settings.html">设置</a></nav>
     </header>
 
@@ -61,7 +61,7 @@
         <section class="card">
             <h2>Vtoy / VDEX VS Code 扩展</h2>
             <p>在 VS Code 左侧活动栏打开 Vtoy / VDEX，登录后点「准备Git文件夹」，在本地编辑 HTML / CSS / JS，再推送更新。</p>
-            <a class="download" href="downloads/vtoy-vdex-editor-0.2.3.vsix" download>下载 VSIX 扩展</a>
+            <a class="download" href="downloads/vtoy-vdex-editor-0.2.4.vsix" download>下载 VSIX 扩展</a>
             <div class="steps">
                 <div class="step"><b>1. 下载并安装</b><span>VS Code → 扩展 → ... → Install from VSIX。</span></div>
                 <div class="step"><b>2. 登录 VTX</b><span>左侧 Vtoy / VDEX 图标，登录账户。</span></div>
@@ -81,14 +81,20 @@
         </div>
     </div>
 
-    <script src="vtx-api.js?v=12.1.0"></script>
+    <script src="vtx-api.js?v=12.1.1"></script>
     <script>
         (function () {
             "use strict";
             const el = (id) => document.getElementById(id);
             const params = new URLSearchParams(location.search);
-            const publicName = String(params.get("app") || "").trim().toLowerCase();
-            const NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+            const publicName = String(params.get("app") || "").trim();
+            function validVtoyName(value) {
+                const name = String(value == null ? "" : value).trim();
+                if (!name || name.length > 40 || name === "." || name === "..") return false;
+                if (/[\\/:*?"<>|\u0000-\u001f]/.test(name)) return false;
+                if (/[. ]$/.test(name)) return false;
+                return true;
+            }
             let currentApp = null;
             let invite = null;
 
@@ -169,7 +175,7 @@
             }
 
             if (publicName) {
-                if (!NAME_RE.test(publicName)) {
+                if (!validVtoyName(publicName)) {
                     el("vtoy-landing").innerHTML = '<div class="card">无效的应用名称。</div>';
                 } else {
                     api().request(`/vtoy/apps?name=${encodeURIComponent(publicName)}`).then((data) => openApp(data.app)).catch((error) => {
