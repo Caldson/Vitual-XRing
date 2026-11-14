@@ -1,5 +1,5 @@
 /* Vitual XRing 10.1.1 — page cache / offline shell */
-const CACHE_NAME = "xring-v10.1.1-tm3";
+const CACHE_NAME = "xring-v10.1.1-tm4";
 const CORE = [
     "./",
     "index.html",

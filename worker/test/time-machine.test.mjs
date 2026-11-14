@@ -7,12 +7,12 @@ import fs from "node:fs";
 const root = new URL("../../", import.meta.url);
 const read = (name) => fs.readFileSync(new URL(name, root), "utf8");
 
-test("10.1.1：时光回溯机清单包含 62 个历史版本，且只列 HTML", () => {
+test("10.1.1：时光回溯机清单包含 81 个历史版本，且只列 HTML", () => {
     const manifest = JSON.parse(read("history/manifest.json"));
     assert.equal(manifest.beta, true);
-    assert.equal(manifest.versions.length, 62);
+    assert.equal(manifest.versions.length, 81);
     for (const entry of manifest.versions) {
-        assert.match(entry.version, /^\d+\.\d+\.\d+$/);
+        assert.match(entry.version, /^\d+\.\d+(?:\.\d+)?$/);
         assert.ok(entry.files.length > 0, `${entry.version} 没有文件`);
         for (const file of entry.files) {
             assert.match(file, /\.html?$/i, `${entry.version} 列出了非 HTML：${file}`);
@@ -23,7 +23,11 @@ test("10.1.1：时光回溯机清单包含 62 个历史版本，且只列 HTML",
             );
         }
     }
-    for (const version of ["1.0.0", "8.1.2", "8.2.0", "9.0.0", "9.5.1", "9.6.0", "10.0.0", "10.1.0"]) {
+    assert.equal(manifest.versions[0].version, "10.1.0");
+    assert.equal(manifest.versions[0].commit, "c617eb93723191b4bacbf8396810154fdad7801e");
+    assert.equal(manifest.versions[manifest.versions.length - 1].version, "1.0");
+    assert.equal(manifest.versions[manifest.versions.length - 1].commit, "7d5b39085b28959ea00a4df39ca99ee6c1aa1f4c");
+    for (const version of ["1.0", "1.0.0", "8.1.2", "8.2.0", "9.0.0", "9.3", "9.5.1", "9.6.0", "10.0.0", "10.1.0"]) {
         assert.ok(manifest.versions.some((entry) => entry.version === version), `缺少 ${version}`);
     }
 });
