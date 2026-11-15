@@ -6037,3 +6037,16 @@ window.open("second.html");
 ### 113.5 版本
 
 - 全站 `13.0.0`。
+---
+
+## 114. 13.0.1 VitualGit 更正
+
+- 上一版误把整个 VitualGit 网站删除了；13.0.1 恢复：
+  - `vitualgit.html` 页面；
+  - 首页导航、平台卡片、账户页入口、设置页快捷入口；
+  - VitualGit 的 Proxy 镜像与仓库浏览功能。
+- **只从 XOS 电脑中移除 VitualGit 应用**：
+  - XOS 应用列表不再包含 VitualGit；
+  - XOS 内不再提供 `APPS.vitualgit` 终端。
+- VitualGit 网站与 VS Code 的 Vitual Git 扩展是两个独立功能，均保留。
+- 全站版本 `13.0.1`。
