@@ -9,7 +9,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#0b1020">
     <title>XOS 虚拟云电脑与云手机 | Vitual XRing</title>
-    <script src="vtx-api.js?v=12.2.0"></script>
+    <script src="vtx-api.js?v=13.0.0"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -579,7 +579,7 @@
             .xos-gate-grid { grid-template-columns: 1fr; }
         }
 
-        /* ───────── 12.2.0：Aurora Glass 外壳 ───────── */
+        /* ───────── 13.0.0：Aurora Glass 外壳 ───────── */
 
         :root {
             --xos-accent: #6ea8ff;
@@ -996,7 +996,7 @@
         .xos-notify-wrap { right: 18px; bottom: 92px; }
         .xos-modal { border-radius: 18px; background: #101d35; box-shadow: 0 30px 90px rgba(0, 0, 0, 0.62); }
 
-        /* ───────── 12.2.0：XOS 云手机 ───────── */
+        /* ───────── 13.0.0：XOS 云手机 ───────── */
         .xos-screen.phone-mode .xos-desktop,
         .xos-screen.phone-mode .xos-windows,
         .xos-screen.phone-mode .xos-taskbar,
@@ -1260,8 +1260,8 @@
             *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
         }
     </style>
-    <link rel="stylesheet" href="vtx-theme.css?v=12.2.0">
-    <script src="vtx-theme.js?v=12.2.0"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=13.0.0">
+    <script src="vtx-theme.js?v=13.0.0"></script>
 </head>
 <body data-vtx-skip-text="true">
     <div class="xos-gate" id="xos-gate" hidden>
@@ -1351,7 +1351,7 @@
                                 <a class="xos-menu-item" role="menuitem" href="shop.html?category=XOS%E4%BA%91%E6%89%8B%E6%9C%BA">XOS 云手机</a>
                                 <a class="xos-menu-item" role="menuitem" href="manager.html">账户中心</a>
                                 <a class="xos-menu-item" role="menuitem" href="index.html">返回主页</a>
-                                <div class="xos-menu-meta">XOS v12.2.0 · 网页虚拟桌面</div>
+                                <div class="xos-menu-meta">XOS v13.0.0 · 网页虚拟桌面</div>
                             </div>
                         </div>
                     </div>
@@ -1405,7 +1405,7 @@
                     </div>
                     <div class="xos-start-footer">
                         <span id="xos-start-edition">XOS</span>
-                        <span>v12.2.0 · 浏览器虚拟桌面</span>
+                        <span>v13.0.0 · 浏览器虚拟桌面</span>
                     </div>
                 </div>
 
@@ -1460,7 +1460,7 @@
             "use strict";
 
             const API = window.VTXApi;
-            const PAGE_VERSION = "12.2.0";
+            const PAGE_VERSION = "13.0.0";
             const $ = (id) => document.getElementById(id);
             const SCREEN_W = 1440;
             const SCREEN_H = 900;
@@ -1505,7 +1505,14 @@
                 { edition: "ce", generation: 5, label: "CE (Community Edition) V4 26H4", price: 1875 },
                 { edition: "game", generation: 5, label: "GameVersion V4 26H4", price: 2100 },
                 { edition: "gameultra", generation: 5, label: "GameULTRA V4 26H4", price: 2850 },
-                { edition: "gamemax", generation: 5, label: "GameMAX V4 26H4", price: 3100 }
+                { edition: "gamemax", generation: 5, label: "GameMAX V4 26H4", price: 3100 },
+                { edition: "home", generation: 6, label: "Home V4.1 26H4 Snapshot 1", price: 1115 },
+                { edition: "personal", generation: 6, label: "Personal V4.1 26H4 Snapshot 1", price: 1365 },
+                { edition: "professional", generation: 6, label: "Professional V4.1 26H4 Snapshot 1", price: 1615 },
+                { edition: "ce", generation: 6, label: "CE (Community Edition) V4.1 26H4 Snapshot 1", price: 1865 },
+                { edition: "game", generation: 6, label: "GameVersion V4.1 26H4 Snapshot 1", price: 2090 },
+                { edition: "gameultra", generation: 6, label: "GameULTRA V4.1 26H4 Snapshot 1", price: 2840 },
+                { edition: "gamemax", generation: 6, label: "GameMAX V4.1 26H4 Snapshot 1", price: 3090 }
             ];
             const PHONES = [
                 { id: "xphone-1", name: "XPhone 1", price: 750, pro: false },
@@ -1514,7 +1521,7 @@
             const APP_ORDER = [
                 "taskmgr", "files", "browser", "shared", "paint", "txtpro", "vord", "vpan", "calc", "weather",
                 "todo", "mail", "screenshot", "vscode", "paint3d", "blender", "musescore",
-                "vitualgit", "blockbench", "midi", "timer", "pomodoro", "garageband",
+                "blockbench", "midi", "timer", "pomodoro", "garageband",
                 "devkit", "devkitce"
             ];
             const APPS = {};
@@ -1701,7 +1708,7 @@
                 removeCloudPath(path);
             }
 
-            /* ───────── 12.2.0：XOS 文件云端同步（Workers KV） ───────── */
+            /* ───────── 13.0.0：XOS 文件云端同步（Workers KV） ───────── */
 
             function setCloudStatus(kind, text) {
                 const node = $("xos-cloud-status");
@@ -1908,6 +1915,7 @@
 
             function generationOf(generation) {
                 const value = Number(generation) || 1;
+                if (value >= 6) return 6;
                 if (value >= 5) return 5;
                 if (value >= 4) return 4;
                 if (value === 3) return 3;
@@ -1917,6 +1925,7 @@
 
             function generationLabel(generation) {
                 const value = generationOf(generation);
+                if (value >= 6) return "26H4 V4.1";
                 if (value >= 5) return "26H4 V4";
                 if (value === 4) return "26H3 V3.1 Snapshot 1";
                 if (value === 3) return "26H3";
@@ -2398,7 +2407,7 @@
                 if (changed) saveFs();
             }
 
-            /* ───────── 12.2.0：XOS File Sharing Service ───────── */
+            /* ───────── 13.0.0：XOS File Sharing Service ───────── */
 
             const SHARE_APP = "shared-files";
             const SHARE_LINKS = {
@@ -2806,7 +2815,7 @@
                             <p class="tiny">部分网站禁止 iframe 嵌入；打不开时请点「新窗口」。</p>
                             <div class="row">
                                 <button class="xos-btn" data-site="https://example.com">example.com</button>
-                                <button class="xos-btn" data-site="https://xsmmc.caldson.us.ci/vitualgit.html">VitualGit</button>
+                                
                                 <button class="xos-btn" data-site="https://xsmmc.caldson.us.ci/shop.html">XRing 商店</button>
                                 <button class="xos-btn" data-site="https://xsmmc.caldson.us.ci/viratch.html">Viratch</button>
                             </div>
@@ -3121,52 +3130,6 @@
                         });
                     });
                     draw();
-                }
-            };
-
-            /* ───────── 应用：VitualGit ───────── */
-
-            function vitualGitState() { return readStore("git", { initialized: false, branch: "main", commits: [], files: {} }); }
-            function saveVitualGit(value) { writeStore("git", value); }
-
-            APPS.vitualgit = {
-                name: "VitualGit", icon: "⑂", minRank: 2, width: 820, height: 560,
-                mount(body) {
-                    body.innerHTML = `<div class="row"><a class="xos-btn primary" href="vitualgit.html" target="_blank" rel="noopener">打开 VitualGit 平台</a><span class="tiny">本地终端 · 仓库浏览请打开平台</span></div><div class="xos-terminal" data-term style="margin-top:12px"></div>`;
-                    const term = body.querySelector("[data-term]");
-                    const print = (text) => { const line = document.createElement("div"); line.textContent = text; term.appendChild(line); term.scrollTop = term.scrollHeight; };
-                    const input = document.createElement("input");
-                    input.placeholder = "输入 vitualgit 命令…";
-                    term.appendChild(input);
-                    const run = (line) => {
-                        const [cmd, ...args] = line.trim().split(/\s+/);
-                        const repo = vitualGitState();
-                        if (!line.trim()) return;
-                        if (cmd !== "vitualgit" && cmd !== "vg") { print("xos: 只支持 vitualgit 命令"); return; }
-                        const sub = args[0] || "status";
-                        if (sub === "init") { repo.initialized = true; saveVitualGit(repo); print("Initialized empty VitualGit repository in /XOS/.vitualgit/"); }
-                        else if (sub === "status") { print("On branch " + repo.branch); print("nothing to commit, working tree clean"); }
-                        else if (sub === "add") { print("已暂存：" + (args[1] || ".")); }
-                        else if (sub === "commit") {
-                            const message = args.slice(1).join(" ").replace(/^["']|["']$/g, "") || "update";
-                            repo.commits.unshift({ hash: Math.random().toString(16).slice(2, 9), message, at: Date.now() });
-                            saveVitualGit(repo); print(`[${repo.branch} ${repo.commits[0].hash}] ${message}`);
-                        } else if (sub === "log") { repo.commits.slice(0, 12).forEach((commit) => print(`${commit.hash} ${commit.message}`)); }
-                        else if (sub === "branch") { print("* " + repo.branch); }
-                        else if (sub === "help") { print("支持：init status add commit log branch checkout help"); }
-                        else print("vitualgit: 不支持的命令 " + sub);
-                    };
-                    print("VitualGit 2.1 — 输入 vitualgit help 查看命令");
-                    input.addEventListener("keydown", (event) => {
-                        if (event.key !== "Enter") return;
-                        const line = input.value;
-                        input.value = "";
-                        print("$ " + line);
-                        run(line);
-                        term.appendChild(input);
-                        input.focus();
-                    });
-                    setTimeout(() => input.focus(), 100);
                 }
             };
 
@@ -3583,7 +3546,7 @@
                 closeDeviceMenu();
             }
 
-            /* ───────── 12.2.0：云手机界面 ───────── */
+            /* ───────── 13.0.0：云手机界面 ───────── */
 
             function applyDeviceMode() {
                 const phone = state.formFactor === "phone";
@@ -3959,6 +3922,6 @@
             init();
         })();
     </script>
-    <script src="vtx-pwa.js?v=12.2.0" defer></script>
+    <script src="vtx-pwa.js?v=13.0.0" defer></script>
 </body>
 </html>

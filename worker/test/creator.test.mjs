@@ -45,7 +45,7 @@ async function prepare() {
     return { env, token: login.data.token };
 }
 
-test("12.2.0：VDEX 套餐、注册扣费、保存与公开访问", async () => {
+test("13.0.0：VDEX 套餐、注册扣费、保存与公开访问", async () => {
     const { env, token } = await prepare();
     const plans = await api(env, "GET", "/api/vdex/plans");
     assert.equal(plans.status, 200);
@@ -86,7 +86,7 @@ test("12.2.0：VDEX 套餐、注册扣费、保存与公开访问", async () => 
     assert.equal(poor.status, 400);
 });
 
-test("12.2.0：Vtoy 保存应用与公开读取", async () => {
+test("13.0.0：Vtoy 保存应用与公开读取", async () => {
     const { env, token } = await prepare();
     const bad = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "Bad/App", html: "x" } });
     assert.equal(bad.status, 400);
@@ -111,7 +111,7 @@ test("12.2.0：Vtoy 保存应用与公开读取", async () => {
     assert.equal(mine.data.apps.length, 2);
 });
 
-test("12.2.0：Vtoy 广场发布、审核与使用计数", async () => {
+test("13.0.0：Vtoy 广场发布、审核与使用计数", async () => {
     const { env, token } = await prepare();
     const admin = await api(env, "POST", "/api/login", { body: { login: "Kitawaga", password: "password1" } });
     const made = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "plaza-toy", description: "广场测试", html: "<h1>Plaza</h1>" } });
@@ -134,4 +134,21 @@ test("12.2.0：Vtoy 广场发布、审核与使用计数", async () => {
     const used = await api(env, "POST", "/api/vtoy/use", { body: { name: "plaza-toy" } });
     assert.equal(used.status, 200);
     assert.equal(used.data.uses, 1);
+});
+
+test("13.0.0：密码删除 Vtoy 与 VDEX", async () => {
+    const { env, token } = await prepare();
+    const made = await api(env, "POST", "/api/vtoy/apps", { token, body: { name: "delete-toy", html: "<h1>Delete</h1>" } });
+    assert.equal(made.status, 201);
+    const wrong = await api(env, "DELETE", "/api/vtoy/apps", { token, body: { name: "delete-toy", password: "wrong" } });
+    assert.equal(wrong.status, 400);
+    const deleted = await api(env, "DELETE", "/api/vtoy/apps", { token, body: { name: "delete-toy", password: "password1" } });
+    assert.equal(deleted.status, 200);
+
+    const site = await api(env, "POST", "/api/vdex/register", { token, body: { name: "delete-site", gb: 0.1, tier: "light" } });
+    assert.equal(site.status, 201);
+    const wrongSite = await api(env, "DELETE", "/api/vdex/site", { token, body: { name: "delete-site", password: "wrong" } });
+    assert.equal(wrongSite.status, 400);
+    const deletedSite = await api(env, "DELETE", "/api/vdex/site", { token, body: { name: "delete-site", password: "password1" } });
+    assert.equal(deletedSite.status, 200);
 });

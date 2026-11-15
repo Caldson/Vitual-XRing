@@ -1,7 +1,7 @@
-/* Vitual XRing 12.2.0：Vtoy 小程序托管。
+/* Vitual XRing 13.0.0：Vtoy 小程序托管。
    应用代码存 ACCOUNTS_KV 的 vtoy:app:<name>，运行在 vtoy.html?app=... 的沙箱 iframe 中。 */
 
-const VTOY_VERSION = "12.2.0";
+const VTOY_VERSION = "13.0.0";
 import { documentTitle } from "./html-title.js";
 const VTOY_PREFIX = "vtoy:app:";
 function validVtoyName(value) {
@@ -134,6 +134,19 @@ export async function routeVtoy(request, env, cors, deps) {
         return deps.jsonResponse({ ok: true, app: vtoyMeta(record) }, existing ? 200 : 201, cors);
     }
 
+    if (path === "apps" && request.method === "DELETE") {
+        const session = await deps.requireSession(request, env, cors);
+        if (session.error) return session.error;
+        const body = deps.plainObject(await deps.readJsonBody(request));
+        const name = String(body.name || "").trim();
+        const record = await env.ACCOUNTS_KV.get(VTOY_PREFIX + name, "json");
+        if (!record) return deps.jsonResponse({ error: "not_found", message: "Vtoy 应用不存在" }, 404, cors);
+        if (record.owner !== session.payload.sub) return deps.jsonResponse({ error: "forbidden", message: "只能删除自己的 Vtoy" }, 403, cors);
+        const accounts = await env.ACCOUNTS_KV.get("accounts", "json");
+        await deps.checkPassword(accounts[session.payload.sub], body.password);
+        await env.ACCOUNTS_KV.delete(VTOY_PREFIX + name);
+        return deps.jsonResponse({ ok: true }, 200, cors);
+    }
     if (path === "plaza" && request.method === "GET") {
         const listed = await env.ACCOUNTS_KV.list({ prefix: VTOY_PREFIX, limit: 1000 });
         const apps = [];

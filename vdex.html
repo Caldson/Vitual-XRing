@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f4f7fb">
     <title>VDEX · Vitual XRing</title>
-    <link rel="icon" href="XRingLogo.png?v=12.2.0">
-    <link rel="stylesheet" href="vtx-theme.css?v=12.2.0">
-    <script src="vtx-theme.js?v=12.2.0"></script>
+    <link rel="icon" href="XRingLogo.png?v=13.0.0">
+    <link rel="stylesheet" href="vtx-theme.css?v=13.0.0">
+    <script src="vtx-theme.js?v=13.0.0"></script>
     <style>
         :root { --vdex: #5b4bdb; --vdex-soft: #efedff; --vdex-dark: #372a9e; }
         body { background: radial-gradient(circle at 85% 0%, #f0edff 0, transparent 32%), var(--vtx-bg); }
@@ -47,7 +47,7 @@
 </head>
 <body>
     <header class="vtx-topbar">
-        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.2.0" alt="Vitual XRing" width="38" height="38"></a>
+        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=13.0.0" alt="Vitual XRing" width="38" height="38"></a>
         <nav class="top-links"><a href="index.html">首页</a><a href="vtoy.html">Vtoy</a><a href="vtoy-square.html">Vtoy 广场</a><a href="vdex.html" class="is-active">VDEX</a><a href="settings.html">设置</a></nav>
     </header>
 
@@ -74,7 +74,7 @@
 
     <div id="vdex-public" hidden><iframe id="vdex-public-frame" sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox" title="VDEX 站点"></iframe></div>
 
-    <script src="vtx-api.js?v=12.2.0"></script>
+    <script src="vtx-api.js?v=13.0.0"></script>
     <script>
         (function () {
             "use strict";
@@ -151,6 +151,28 @@
                     open.rel = "opener";
                     open.textContent = "打开网站";
                     actions.appendChild(open);
+                    const share = document.createElement("button");
+                    share.className = "download";
+                    share.type = "button";
+                    share.textContent = "分享";
+                    share.addEventListener("click", async () => {
+                        const url = location.origin + "/vdex.html?name=" + encodeURIComponent(site.name);
+                        try { if (navigator.share) { await navigator.share({ title: site.title || site.name, url }); return; } await navigator.clipboard.writeText(url); alert("链接已复制"); } catch (error) { prompt("复制链接", url); }
+                    });
+                    actions.appendChild(share);
+                    const remove = document.createElement("button");
+                    remove.className = "download";
+                    remove.type = "button";
+                    remove.textContent = "删除";
+                    remove.style.background = "#b42318";
+                    remove.addEventListener("click", async () => {
+                        const password = prompt("删除 VDEX 需要输入账户密码：");
+                        if (!password) return;
+                        if (!confirm(`确定删除 ${site.name}？此操作不可恢复。`)) return;
+                        try { await api().request("/vdex/site", { method: "DELETE", body: { name: site.name, password } }); alert("已删除"); await loadMyVdex(); }
+                        catch (error) { alert(error.message || "删除失败"); }
+                    });
+                    actions.appendChild(remove);
                     card.appendChild(title);
                     card.appendChild(sub);
                     card.appendChild(actions);

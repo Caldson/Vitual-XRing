@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f4f7fb">
     <title>Vtoy 广场 · Vitual XRing</title>
-    <link rel="icon" href="XRingLogo.png?v=12.2.0">
-    <link rel="stylesheet" href="vtx-theme.css?v=12.2.0">
-    <script src="vtx-theme.js?v=12.2.0"></script>
+    <link rel="icon" href="XRingLogo.png?v=13.0.0">
+    <link rel="stylesheet" href="vtx-theme.css?v=13.0.0">
+    <script src="vtx-theme.js?v=13.0.0"></script>
     <style>
         :root { --toy: #e85d3f; --toy-2: #f2a33c; --toy-soft: #fff1e9; --toy-dark: #a9341c; }
         body { background: radial-gradient(circle at 12% 0%, #fff0e3 0, transparent 32%), radial-gradient(circle at 90% 20%, #eef0ff 0, transparent 30%), var(--vtx-bg); }
@@ -72,7 +72,7 @@
 </head>
 <body>
     <header class="vtx-topbar">
-        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=12.2.0" alt="Vitual XRing" width="38" height="38"></a>
+        <a class="vtx-brand" href="index.html"><img src="XRingLogo.png?v=13.0.0" alt="Vitual XRing" width="38" height="38"></a>
         <nav class="top-links">
             <a href="index.html">首页</a>
             <a href="vtoy.html">Vtoy</a>
@@ -111,7 +111,7 @@
         </section>
     </main>
 
-    <script src="vtx-api.js?v=12.2.0"></script>
+    <script src="vtx-api.js?v=13.0.0"></script>
     <script>
         (function () {
             "use strict";
@@ -164,8 +164,21 @@
                     const badges = (app.permissions || []).map((permission) => `<span class="badge">${permission === "login" ? "可登录" : permission === "wallet" ? "可读余额" : escapeHtml(permission)}</span>`).join("");
                     card.innerHTML = `<div class="toy-top"><div class="toy-icon" style="background:linear-gradient(135deg,hsl(${hue(app.name)} 72% 52%),hsl(${(hue(app.name) + 38) % 360} 78% 60%))">${escapeHtml(iconFor(app.title || app.name))}</div><div class="toy-title"><b>${escapeHtml(app.title || app.name)}</b><span>@${escapeHtml(app.owner || "unknown")}</span></div></div><p class="toy-desc">${escapeHtml(app.description || "这个 Vtoy 还没有简介。")}</p><div class="badges">${badges}<span class="badge hot">🔥 ${Number(app.uses || 0)} 次使用</span></div><div class="toy-foot"><span class="meta">${escapeHtml(app.name)}</span><button class="use">使用</button></div>`;
                     card.querySelector(".use").addEventListener("click", () => useApp(app.name));
+                    const share = document.createElement("button");
+                    share.className = "mini";
+                    share.textContent = "分享";
+                    share.addEventListener("click", () => shareApp(app.name));
+                    card.querySelector(".toy-foot").insertBefore(share, card.querySelector(".use"));
                     el("grid").appendChild(card);
                 });
+            }
+            async function shareApp(name) {
+                const url = location.origin + "/vtoy.html?app=" + encodeURIComponent(name);
+                try {
+                    if (navigator.share) { await navigator.share({ title: "Vtoy", url }); return; }
+                    await navigator.clipboard.writeText(url);
+                    showStatus("链接已复制");
+                } catch (error) { prompt("复制链接", url); }
             }
             async function useApp(name) {
                 try { await api().request("/vtoy/use", { method: "POST", body: { name, auth: false } }); } catch (error) { /* count is best effort */ }
@@ -210,6 +223,20 @@
                         });
                         actions.appendChild(button);
                     }
+                    const remove = document.createElement("button");
+                    remove.className = "mini";
+                    remove.textContent = "删除";
+                    remove.addEventListener("click", async () => {
+                        const password = prompt("删除 Vtoy 需要输入账户密码：");
+                        if (!password) return;
+                        if (!confirm(`确定删除 ${app.name}？此操作不可恢复。`)) return;
+                        try {
+                            await api().request("/vtoy/apps", { method: "DELETE", body: { name: app.name, password } });
+                            showStatus("已删除");
+                            await loadAll();
+                        } catch (error) { showStatus(error.message, true); }
+                    });
+                    actions.appendChild(remove);
                     if (status === "approved") {
                         const open = document.createElement("button");
                         open.className = "mini";

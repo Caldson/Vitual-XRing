@@ -1,7 +1,7 @@
-/* Vitual XRing 12.2.0：VDEX 网站托管。
+/* Vitual XRing 13.0.0：VDEX 网站托管。
    数据保存在 ACCOUNTS_KV 的 vdex:site:<name>，购买时在 accounts 锁内扣 VTX。 */
 
-const VDEX_VERSION = "12.2.0";
+const VDEX_VERSION = "13.0.0";
 import { documentTitle } from "./html-title.js";
 const VDEX_PREFIX = "vdex:site:";
 const VDEX_DATA_PREFIX = "vdex:data:";
@@ -223,6 +223,21 @@ export async function routeVdex(request, env, cors, deps) {
         return deps.jsonResponse({ ok: true }, 200, cors);
     }
 
+    if (path === "site" && request.method === "DELETE") {
+        const session = await deps.requireSession(request, env, cors);
+        if (session.error) return session.error;
+        const body = deps.plainObject(await deps.readJsonBody(request));
+        const name = String(body.name || "").trim();
+        if (!VDEX_NAME_RE.test(name)) return deps.jsonResponse({ error: "bad_name", message: "无效的站点名称" }, 400, cors);
+        const record = await env.ACCOUNTS_KV.get(VDEX_PREFIX + name, "json");
+        if (!record) return deps.jsonResponse({ error: "not_found", message: "VDEX 站点不存在" }, 404, cors);
+        if (record.owner !== session.payload.sub) return deps.jsonResponse({ error: "forbidden", message: "只能删除自己的 VDEX" }, 403, cors);
+        const accounts = await env.ACCOUNTS_KV.get("accounts", "json");
+        await deps.checkPassword(accounts[session.payload.sub], body.password);
+        await env.ACCOUNTS_KV.delete(VDEX_PREFIX + name);
+        await env.ACCOUNTS_KV.delete(VDEX_DATA_PREFIX + name);
+        return deps.jsonResponse({ ok: true }, 200, cors);
+    }
     if (path === "save" && (request.method === "PUT" || request.method === "POST")) {
         const session = await deps.requireSession(request, env, cors);
         if (session.error) return session.error;
