@@ -12035,6 +12035,11 @@ export default {
         }
 
         try {
+            if (url.hostname === "bank-xsmmc.caldson.us.ci") {
+                const page = await fetch("https://xsmmc.caldson.us.ci/bank.html", { cf: { cacheTtl: 0 } });
+                return new Response(await page.text(), { status: page.status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" } });
+            }
+
             if (url.pathname === "/" || url.pathname === "/api" || url.pathname === "/api/health") {
                 return jsonResponse({
                     name: "Vitual XRing API",
@@ -12356,11 +12361,6 @@ export default {
             }
             if (url.pathname.startsWith("/vdex-site/")) {
                 return await serveVdexPage(request, env, url);
-            }
-
-            if (url.hostname === "bank-xsmmc.caldson.us.ci") {
-                const page = await fetch("https://xsmmc.caldson.us.ci/bank.html", { cf: { cacheTtl: 0 } });
-                return new Response(await page.text(), { status: page.status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" } });
             }
 
             if (url.pathname === "/api/bank" || url.pathname.startsWith("/api/bank/")) {
