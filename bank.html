@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vitual XRing Bank</title>
+<style>
+:root{--bg:#07111f;--panel:#0d1b2f;--line:rgba(160,190,230,.18);--text:#eef5ff;--muted:#8ea6c4;--gold:#e8b45a;--blue:#3d7dff}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 78% 8%,#17335c 0,transparent 32%),radial-gradient(circle at 12% 90%,#193e3a 0,transparent 32%),var(--bg);color:var(--text);font-family:Inter,"Microsoft YaHei",sans-serif}
+.shell{width:min(100% - 32px,980px);margin:0 auto;padding:28px 0 60px}
+header{display:flex;align-items:center;gap:10px}.brand{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--gold),#b97921);display:grid;place-items:center;font-weight:950;color:#1f1607}
+h1{font-size:22px;margin:0}.who{margin-left:auto;color:var(--muted);font-size:12px}
+.card{margin-top:22px;padding:22px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(145deg,rgba(20,40,70,.92),rgba(9,20,37,.96));box-shadow:0 24px 70px rgba(0,0,0,.35)}
+.credit{position:relative;overflow:hidden;max-width:430px;padding:22px;border-radius:18px;background:linear-gradient(135deg,#d7a84f,#8e5d1d 55%,#3b2a12);color:#fff;box-shadow:0 18px 40px rgba(0,0,0,.3)}
+.credit:after{content:"";position:absolute;width:180px;height:180px;border-radius:50%;right:-60px;top:-80px;border:1px solid rgba(255,255,255,.25)}
+.credit .num{font-size:20px;letter-spacing:.12em;margin:34px 0 18px;font-weight:800}.credit .sub{display:flex;justify-content:space-between;font-size:10px;opacity:.8;letter-spacing:.1em}
+.balance{font-size:30px;font-weight:900;margin:16px 0 4px}.muted{color:var(--muted);font-size:12px}
+input,button,select{font:inherit}.field{width:100%;padding:10px 12px;margin:6px 0;border:1px solid var(--line);border-radius:9px;background:rgba(8,18,32,.8);color:var(--text)}
+button{padding:10px 15px;border:0;border-radius:9px;background:var(--blue);color:#fff;font-weight:800;cursor:pointer}button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+h2{font-size:14px;margin:0 0 8px}.history{display:grid;gap:6px;max-height:260px;overflow:auto}.tx{display:flex;justify-content:space-between;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:12px;background:rgba(8,18,32,.55)}
+.tx b{font-size:12px}.tx small{color:var(--muted)}.status{min-height:18px;color:#72ddb1;font-size:12px;margin-top:8px}.error{color:#ff8d8d}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="shell">
+<header><div class="brand">V</div><h1>Vitual XRing Bank</h1><span class="who" id="who">未登录</span></header>
+<div id="login" class="card" style="max-width:430px"><h2>登录 VTX 账户</h2><input class="field" id="user" placeholder="登录名"><input class="field" id="pass" type="password" placeholder="密码"><button id="do-login">登录</button><p class="muted">银行卡余额与 VTX 账户余额分开管理。</p><div id="status" class="status"></div></div>
+<div id="main" hidden>
+ <div class="card"><div class="credit" id="credit"><div class="num" id="card-num">•••• •••• •••• ••••</div><div class="sub"><span>VITUAL XRING BANK</span><span id="card-exp">••/••</span></div></div><div class="balance" id="card-balance">0.00 VTX</div><div class="muted" id="card-cvv">CVV •••</div><div class="actions"><button id="create-card">创建银行卡</button><button class="ghost" id="open-main">返回主站</button><button class="ghost" id="logout">退出</button></div><div id="status" class="status"></div></div>
+ <div class="grid">
+  <div class="card"><h2>充值</h2><p class="muted">从 VTX 余额转入银行卡</p><input class="field" id="recharge-amount" placeholder="金额，例如 10.00"><input class="field" id="recharge-pass" type="password" placeholder="账户密码"><button id="recharge">充值</button></div>
+  <div class="card"><h2>提现</h2><p class="muted">从银行卡转回 VTX 余额</p><input class="field" id="withdraw-amount" placeholder="金额，例如 10.00"><input class="field" id="withdraw-pass" type="password" placeholder="账户密码"><button id="withdraw">提现</button></div>
+ </div>
+ <div class="card"><h2>交易记录</h2><div class="history" id="history"><div class="muted">暂无记录</div></div></div>
+</div>
+</div>
+<script>
+const API="https://xsmmc.caldson.us.ci/api";const $=id=>document.getElementById(id);let token=sessionStorage.getItem("vtxBankToken")||"";
+const esc=v=>String(v==null?"":v).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+async function req(path,opt={}){const h={"accept":"application/json"};if(opt.body!==undefined)h["content-type"]="application/json";if(token)h.authorization="Bearer "+token;const r=await fetch(API+path,{method:opt.method||"GET",headers:h,body:opt.body===undefined?undefined:JSON.stringify(opt.body)});const d=await r.json().catch(()=>null);if(!r.ok)throw new Error((d&&d.message)||("HTTP "+r.status));return d}
+function status(t,e){const n=$("status");if(n){n.textContent=t||"";n.className="status"+(e?" error":"")}}
+function show(login){$("login").hidden=!login;$("main").hidden=login;$("who").textContent=login?"已登录":"未登录"}
+function render(card){if(!card){$("card-num").textContent="•••• •••• •••• ••••";$("card-balance").textContent="0.00 VTX";$("card-cvv").textContent="CVV •••";$("history").innerHTML='<div class="muted">还没有银行卡</div>';return}$("card-num").textContent=card.number;$("card-exp").textContent=card.expiry;$("card-balance").textContent=card.balance+" VTX";$("card-cvv").textContent="CVV "+card.cvv;const h=$("history");h.innerHTML=(card.transactions||[]).map(t=>`<div class="tx"><div><b>${t.type==="recharge"?"充值":"提现"} ${esc(t.amount)} VTX</b><br><small>${esc(new Date(t.time).toLocaleString("zh-CN"))}</small></div><small>余额 ${esc(t.balance)}</small></div>`).join("")||'<div class="muted">暂无记录</div>'}
+async function load(){if(!token){show(false);return}try{const d=await req("/bank/card");show(true);render(d.card)}catch(e){if(/登录|401/.test(e.message)){token="";sessionStorage.removeItem("vtxBankToken");show(false)}else status(e.message,true)}}
+$("do-login").onclick=async()=>{try{const d=await req("/login",{method:"POST",body:{login:$("user").value.trim(),password:$("pass").value}});token=d.token;sessionStorage.setItem("vtxBankToken",token);await load()}catch(e){status(e.message,true)}};
+$("create-card").onclick=async()=>{try{const d=await req("/bank/card",{method:"POST"});render(d.card);status("银行卡已创建")}catch(e){status(e.message,true)}};
+async function move(kind){const pass=$(kind+"-pass").value;const amount=$(kind+"-amount").value;try{const d=await req("/bank/"+kind,{method:"POST",body:{amount,password:pass}});render(d.card);status(kind==="recharge"?"充值成功":"提现成功")}catch(e){status(e.message,true)}}
+$("recharge").onclick=()=>move("recharge");$("withdraw").onclick=()=>move("withdraw");
+$("open-main").onclick=()=>location.href="https://xsmmc.caldson.us.ci/";$("logout").onclick=()=>{token="";sessionStorage.removeItem("vtxBankToken");show(false)};
+load();
+</script></body></html>

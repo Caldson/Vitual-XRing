@@ -1,6 +1,6 @@
 {
-    "version": "13.0.1",
-    "updatedAt": "2026-11-15T12:47:08+08:00",
-    "notes": "Keep VitualGit website; remove VitualGit only from XOS computers",
-    "download": "https://xsmmc.caldson.us.ci/downloads/VitualXRing-13.0.1-portable.exe"
+    "version": "14.0.0",
+    "updatedAt": "2026-11-20T22:25:25+08:00",
+    "notes": "Vitual XRing Bank, personalized themes, API 14, Python SDK",
+    "download": "https://xsmmc.caldson.us.ci/downloads/VitualXRing-14.0.0-portable.exe"
 }

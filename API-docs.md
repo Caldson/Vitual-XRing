@@ -6050,3 +6050,51 @@ window.open("second.html");
   - XOS 内不再提供 `APPS.vitualgit` 终端。
 - VitualGit 网站与 VS Code 的 Vitual Git 扩展是两个独立功能，均保留。
 - 全站版本 `13.0.1`。
+---
+
+## 115. 14.0.0 Bank、个性化主题与 API 14
+
+### 115.1 Vitual XRing Bank 0.1.0
+
+- 新域：`https://bank-xsmmc.caldson.us.ci`
+- 登录 VTX 后可创建银行卡：
+  - 卡号格式 `XXXX-XXXX-XXXX-XXXX`
+  - CVV、有效期、卡余额
+- 支持：
+  - 充值：VTX 余额 → 银行卡
+  - 提现：银行卡 → VTX 余额
+  - 交易记录
+- 充值和提现都需要账户密码。
+- 银行卡余额与账户 VTX 余额分开保存。
+- 首页已增加 Bank 入口。
+
+### 115.2 主页与聊天室
+
+- 首页增加 `bank-xsmmc.caldson.us.ci` 入口。
+- 聊天室顶部增加「下载聊天室插件」。
+- AI 聊天暂时关闭，`chat.html` 显示维护页。
+
+### 115.3 收款码安全修复
+
+- 禁止直接调用 `/api/me/trades` 的 `receipt` 类型给账户加余额（返回 403）。
+- 收款必须通过有效收款码：付款方输入密码，收款方不需要密码。
+- 避免退出收款码后直接“收款”刷钱。
+
+### 115.4 个性化主题
+
+设置页新增：
+- 主题色
+- 背景：液态玻璃 / 跟随主题色 / 雨水 / 根据天气与时间 / 随机壁纸 / 选取颜色壁纸
+- 悬浮按钮位置：右下角 / 左下角
+
+### 115.5 API 14.0.0
+
+- API 版本同步 `14.0.0`。
+- 新增 `vtx-sdk.py`，Python 版 VTX SDK。
+
+### 115.6 EVENT 2
+
+首页活动 2 改为：
+
+- 标题：`Vitual XRing, your vitual.`
+- 描述：`Vitual XRing 14.0.0版本为您提供了个性化服务。`

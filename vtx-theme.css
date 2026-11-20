@@ -329,3 +329,14 @@ body[data-vtx-widget="off"] .vtx-theme-widget { display: none; }
     text-shadow: none !important;
     box-shadow: 0 6px 18px rgba(56, 103, 232, .24) !important;
 }
+
+/* 14.0.0 personalized theme */
+body[data-vtx-bg="theme"] { background: radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--vtx-accent) 22%, transparent), transparent 38%), var(--vtx-bg) !important; }
+body[data-vtx-bg="color"] { background: linear-gradient(145deg, color-mix(in srgb, var(--vtx-accent) 22%, #0b1020), var(--vtx-bg)) !important; }
+body[data-vtx-bg="rain"] { background: linear-gradient(160deg, #0a1526, #10263b 55%, #09111f) !important; background-size: 100% 100% !important; animation: vtx-rain 9s linear infinite; }
+body[data-vtx-bg="weather"] { background: linear-gradient(150deg, #1b2b46, #3b5874 50%, #111b2e) !important; }
+body[data-vtx-bg="random"] { background: radial-gradient(circle at 25% 20%, rgba(91,75,219,.35), transparent 35%), radial-gradient(circle at 80% 70%, rgba(25,184,166,.28), transparent 35%), #0b1020 !important; }
+body[data-vtx-bg="rain"]::before { content: ""; position: fixed; inset: 0; pointer-events: none; background-image: repeating-linear-gradient(115deg, transparent 0 16px, rgba(180,210,255,.12) 17px, transparent 19px); animation: vtx-rain-move 1.2s linear infinite; }
+@keyframes vtx-rain-move { from { transform: translateY(-20px); } to { transform: translateY(20px); } }
+@keyframes vtx-rain { 50% { filter: brightness(1.08); } }
+body[data-vtx-toolbar="left"] .vtx-theme-widget { left: 16px; right: auto; }

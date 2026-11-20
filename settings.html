@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#f3f6fb">
     <title>设置 · Vitual XRing</title>
-    <link rel="stylesheet" href="vtx-theme.css?v=13.0.1">
-    <script src="vtx-theme.js?v=13.0.1"></script>
+    <link rel="stylesheet" href="vtx-theme.css?v=14.0.0">
+    <script src="vtx-theme.js?v=14.0.0"></script>
     <style>
         .settings-shell { width: min(100% - 40px, 900px); margin: 0 auto; padding: 34px 0 80px; }
         .settings-kicker { margin: 0 0 8px; color: var(--vtx-accent); font-size: 11.5px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
@@ -98,7 +98,7 @@
 <body data-vtx-widget="off" data-i18n-document-title="document.settings">
     <header class="vtx-topbar">
         <a class="vtx-brand" href="index.html">
-            <img src="XRingLogo.png?v=13.0.1" alt="Vitual XRing" width="38" height="38">
+            <img src="XRingLogo.png?v=14.0.0" alt="Vitual XRing" width="38" height="38">
             <span data-i18n="brand">Vitual XRing</span>
         </a>
         <nav class="vtx-nav">
@@ -236,6 +236,23 @@
             </div>
             <p class="settings-note">历史页面是只读快照；部分依赖当前账户 / API 的功能可能与当时行为不同。</p>
         </section>
+        <section class="settings-card vtx-glass" id="personalization">
+            <div><h2>个性化主题</h2><p>主题色、背景和悬浮按钮位置会保存在本机。</p></div>
+            <label>主题色 <input type="color" id="accent-color" value="#4667f0"></label>
+            <label>背景
+                <select id="background-mode">
+                    <option value="glass">液态玻璃</option>
+                    <option value="theme">跟随主题色</option>
+                    <option value="rain">雨水</option>
+                    <option value="weather">根据天气与时间</option>
+                    <option value="random">随机壁纸</option>
+                    <option value="color">选取颜色壁纸</option>
+                </select>
+            </label>
+            <label>悬浮按钮位置
+                <select id="toolbar-position"><option value="right">右下角</option><option value="left">左下角</option></select>
+            </label>
+        </section>
     </main>
 
     <div class="tm-modal" id="tm-modal" hidden>
@@ -249,7 +266,7 @@
         <iframe id="tm-frame" title="历史版本预览" src="about:blank" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-downloads"></iframe>
     </div>
 
-    <script src="vtx-pwa.js?v=13.0.1" defer></script>
+    <script src="vtx-pwa.js?v=14.0.0" defer></script>
     <script>
         (function () {
             "use strict";
@@ -364,7 +381,7 @@
             syncGlass();
             syncOpening();
 
-            /* 13.0.1：时光回溯机。manifest 只提供 HTML 文件，文件目录也只渲染 .html。 */
+            /* 14.0.0：时光回溯机。manifest 只提供 HTML 文件，文件目录也只渲染 .html。 */
             (function timeMachine() {
                 const versionBox = document.getElementById("tm-versions");
                 const fileBox = document.getElementById("tm-file-list");
@@ -492,5 +509,9 @@
             })();
         })();
     </script>
+<script>
+(function(){const $=id=>document.getElementById(id);const accent=$("accent-color"),bg=$("background-mode"),toolbar=$("toolbar-position");try{accent.value=localStorage.getItem("xring:accent")||"#4667f0";bg.value=localStorage.getItem("xring:background")||"glass";toolbar.value=localStorage.getItem("xring:toolbar")||"right"}catch(e){}
+accent.addEventListener("input",()=>window.VTXTheme&&window.VTXTheme.setAccent(accent.value));bg.addEventListener("change",()=>window.VTXTheme&&window.VTXTheme.setBackground(bg.value));toolbar.addEventListener("change",()=>window.VTXTheme&&window.VTXTheme.setToolbar(toolbar.value));})();
+</script>
 </body>
 </html>
