@@ -6098,3 +6098,19 @@ window.open("second.html");
 
 - 标题：`Vitual XRing, your vitual.`
 - 描述：`Vitual XRing 14.0.0版本为您提供了个性化服务。`
+---
+
+## 116. 15.0.0 VShop 0.1.0
+
+- VShop APP 从 0.0.4 升级到 **0.1.0**，Steam 风格桌面游戏平台：
+  - VTX 账户登录
+  - 商店游戏卡片
+  - VTX 购买
+  - 我的游戏库
+  - 启动游戏
+- 下载页：`https://xsmmc.caldson.us.ci/vshop.html`
+- 客户端：`downloads/VShop-0.1.0.py`
+- 游戏目录：`downloads/VShop-games.json`
+- 版本检查：`vshop_app_latest.txt`
+- 首页新增 VShop 入口。
+- 全站 `15.0.0`。

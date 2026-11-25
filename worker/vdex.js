@@ -1,7 +1,7 @@
-/* Vitual XRing 14.0.0：VDEX 网站托管。
+/* Vitual XRing 15.0.0：VDEX 网站托管。
    数据保存在 ACCOUNTS_KV 的 vdex:site:<name>，购买时在 accounts 锁内扣 VTX。 */
 
-const VDEX_VERSION = "14.0.0";
+const VDEX_VERSION = "15.0.0";
 import { documentTitle } from "./html-title.js";
 const VDEX_PREFIX = "vdex:site:";
 const VDEX_DATA_PREFIX = "vdex:data:";

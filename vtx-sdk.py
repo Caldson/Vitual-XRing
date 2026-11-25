@@ -1,4 +1,4 @@
-"""Vitual XRing Python SDK 14.0.0
+"""Vitual XRing Python SDK 15.0.0
 与 vtx-sdk.js 对齐的轻量 Python 移植。
 用法：
     from vtx_sdk import VTX

@@ -1,5 +1,5 @@
 {
-  "version": "14.0.0",
+  "version": "15.0.0",
   "updatedAt": "2026-11-11T20:30:00+08:00",
   "items": [
     {
@@ -12,7 +12,7 @@
     {
       "id": "2",
       "title": "Vitual XRing, your vitual.",
-      "subtitle": "Vitual XRing 14.0.0版本为您提供了个性化服务。",
+      "subtitle": "Vitual XRing 15.0.0版本为您提供了个性化服务。",
       "image": "EventPhoto2.svg",
       "href": "settings.html"
     },

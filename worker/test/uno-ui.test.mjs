@@ -282,7 +282,7 @@ function prepare() {
     vm.runInThisContext(fs.readFileSync(new URL("../../vtx-uno.js", import.meta.url), "utf8"), {
         filename: "vtx-uno.js"
     });
-    assert.equal(window.VTXUno.version, "14.0.0");
+    assert.equal(window.VTXUno.version, "15.0.0");
     window.VTXUno.init({
         api,
         toast: () => {},
