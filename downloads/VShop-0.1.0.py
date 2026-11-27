@@ -53,8 +53,13 @@ class VShopApp:
         self.root.geometry("1120x720")
         self.root.minsize(900, 600)
         self.root.configure(bg="#101318")
-        self.games = load_json(GAMES_FILE, FALLBACK_GAMES)
+        loaded = load_json(GAMES_FILE, FALLBACK_GAMES)
+        self.games = loaded.get("items", []) if isinstance(loaded, dict) else loaded
+        if not isinstance(self.games, list):
+            self.games = FALLBACK_GAMES
         self.library = load_json(LIBRARY_FILE, [])
+        if not isinstance(self.library, list):
+            self.library = []
         self.vtx = None
         self.account = None
         self.user = ""
