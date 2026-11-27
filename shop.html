@@ -1034,7 +1034,7 @@
                 return false;
             }
             return Boolean(item && item.virtual
-                && target >= 2 && target <= 6
+                && target >= 2 && target <= 7
                 && ownedXosDevices().some((owned) => (Number(owned.generation) || 1) === target - 1
                     && owned.formFactor !== "phone"
                     && owned.edition === item.xosEdition));
