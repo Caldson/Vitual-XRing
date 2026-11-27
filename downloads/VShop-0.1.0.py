@@ -13,14 +13,7 @@ from pathlib import Path
 from tkinter import messagebox, simpledialog, ttk
 
 try:
-    import importlib
-
-    vtx_sdk = importlib.import_module("vtx-sdk")
-    VTX = vtx_sdk.VTX
-    VTXError = vtx_sdk.VTXError
-
-    # 调用示例
-    # vtx_sdk.函数名()
+    from vtx_sdk import VTX, VTXError
 except Exception as e:
     print(str(e))
     VTX = None
@@ -175,8 +168,18 @@ class VShopApp:
         if not url:
             return False
         target = self._install_dir(str(game.get("id")))
-        archive = target / "package.zip"
+        suffix = Path(url.split("?")[0]).suffix.lower()
         try:
+            if suffix == ".msi":
+                installer = target / "setup.msi"
+                urllib.request.urlretrieve(url, installer)
+                subprocess.Popen(["msiexec", "/i", str(installer)])
+                return True
+            if suffix == ".exe":
+                game_exe = target / "game.exe"
+                urllib.request.urlretrieve(url, game_exe)
+                return True
+            archive = target / "package.zip"
             urllib.request.urlretrieve(url, archive)
             with zipfile.ZipFile(archive) as zf:
                 zf.extractall(target)

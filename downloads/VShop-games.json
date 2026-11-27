@@ -20,7 +20,7 @@
       "color": "#e85d3f",
       "description": "用积木搭出你的世界，作品可分享到社区。",
       "url": "https://xsmmc.caldson.us.ci/vtoy-square.html",
-      "download": "https://xsmmc.caldson.us.ci/downloads/games/block-studio.zip"
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/VShopDemoGame.exe"
     },
     {
       "id": "pixel-farm",
@@ -31,7 +31,7 @@
       "color": "#2f9e62",
       "description": "经营一座像素农场，种植、交易、扩建。",
       "url": "https://xsmmc.caldson.us.ci/",
-      "download": "https://xsmmc.caldson.us.ci/downloads/games/pixel-farm.zip"
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/VShopDemoGame.exe"
     },
     {
       "id": "space-miner",
@@ -42,7 +42,7 @@
       "color": "#7a5cff",
       "description": "在深空小行星带开采资源并升级飞船。",
       "url": "https://xsmmc.caldson.us.ci/",
-      "download": "https://xsmmc.caldson.us.ci/downloads/games/space-miner.zip"
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/VShopDemoGame.exe"
     },
     {
       "id": "rhythm-lab",
@@ -53,7 +53,7 @@
       "color": "#d946ef",
       "description": "跟着节拍敲击，支持自定义曲目。",
       "url": "https://xsmmc.caldson.us.ci/vmuzic.html",
-      "download": "https://xsmmc.caldson.us.ci/downloads/games/rhythm-lab.zip"
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/VShopDemoGame.exe"
     },
     {
       "id": "tower-guard",
@@ -64,7 +64,7 @@
       "color": "#f59e0b",
       "description": "布置防线，守住高塔。",
       "url": "https://xsmmc.caldson.us.ci/",
-      "download": "https://xsmmc.caldson.us.ci/downloads/games/tower-guard.zip"
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/VShopDemoGame.exe"
     },
     {
       "id": "vitual-uno",
@@ -85,7 +85,7 @@
       "color": "#0ea5e9",
       "description": "在 XOS 虚拟桌面里自由实验。",
       "url": "https://xsmmc.caldson.us.ci/xos.html",
-      "download": "https://xsmmc.caldson.us.ci/downloads/games/xos-sandbox.zip"
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/VShopDemoGame.exe"
     }
   ]
 }
