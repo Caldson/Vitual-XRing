@@ -1512,7 +1512,14 @@
                 { edition: "ce", generation: 6, label: "CE (Community Edition) V4.1 26H4 Snapshot 1", price: 1865 },
                 { edition: "game", generation: 6, label: "GameVersion V4.1 26H4 Snapshot 1", price: 2090 },
                 { edition: "gameultra", generation: 6, label: "GameULTRA V4.1 26H4 Snapshot 1", price: 2840 },
-                { edition: "gamemax", generation: 6, label: "GameMAX V4.1 26H4 Snapshot 1", price: 3090 }
+                { edition: "gamemax", generation: 6, label: "GameMAX V4.1 26H4 Snapshot 1", price: 3090 },
+                { edition: "home", generation: 7, label: "Home V5 26H5", price: 1115 },
+                { edition: "personal", generation: 7, label: "Personal V5 26H5", price: 1365 },
+                { edition: "professional", generation: 7, label: "Professional V5 26H5", price: 1615 },
+                { edition: "ce", generation: 7, label: "CE (Community Edition) V5 26H5", price: 1865 },
+                { edition: "game", generation: 7, label: "GameVersion V5 26H5", price: 2090 },
+                { edition: "gameultra", generation: 7, label: "GameULTRA V5 26H5", price: 2840 },
+                { edition: "gamemax", generation: 7, label: "GameMAX V5 26H5", price: 3090 }
             ];
             const PHONES = [
                 { id: "xphone-1", name: "XPhone 1", price: 750, pro: false },
@@ -1915,6 +1922,7 @@
 
             function generationOf(generation) {
                 const value = Number(generation) || 1;
+                if (value >= 7) return 7;
                 if (value >= 6) return 6;
                 if (value >= 5) return 5;
                 if (value >= 4) return 4;
@@ -1925,6 +1933,7 @@
 
             function generationLabel(generation) {
                 const value = generationOf(generation);
+                if (value >= 7) return "26H5 V5";
                 if (value >= 6) return "26H4 V4.1";
                 if (value >= 5) return "26H4 V4";
                 if (value === 4) return "26H3 V3.1 Snapshot 1";

@@ -600,6 +600,7 @@ function loginHistoryOf(account) {
 // 15.0.0：XOS PC 第 5 代（V4 26H4）；云手机沿用 Home 26H3 V2.1 的第 3 代能力
 function xosGenerationOf(value) {
     const generation = Number(value) || 1;
+    if (generation >= 7) return 7;
     if (generation >= 6) return 6;
     if (generation >= 5) return 5;
     if (generation >= 4) return 4;
@@ -2828,7 +2829,7 @@ async function handlePurchase(request, env, cors) {
         if (product.virtual && product.xosEdition && product.xosFormFactor !== "phone") {
             const devices = xosDevicesOf(account);
             const targetGeneration = Number(product.xosGeneration) || 1;
-            if (targetGeneration === 2 || targetGeneration === 3 || targetGeneration === 5 || targetGeneration === 6) {
+            if (targetGeneration === 2 || targetGeneration === 3 || targetGeneration === 5 || targetGeneration === 6 || targetGeneration === 7) {
                 const upgradeFrom = targetGeneration - 1;
                 xosUpgradeIndex = devices.findIndex((device) => Number(device.generation) === upgradeFrom
                     && device.formFactor !== "phone"
