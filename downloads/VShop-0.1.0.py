@@ -10,8 +10,16 @@ from pathlib import Path
 from tkinter import messagebox, simpledialog, ttk
 
 try:
-    from vtx_sdk import VTX, VTXError
-except Exception:
+    import importlib
+
+    vtx_sdk = importlib.import_module("vtx-sdk")
+    VTX = vtx_sdk.VTX
+    VTXError = vtx_sdk.VTXError
+
+    # 调用示例
+    # vtx_sdk.函数名()
+except Exception as e:
+    print(str(e))
     VTX = None
     VTXError = Exception
 
