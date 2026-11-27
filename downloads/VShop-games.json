@@ -1,13 +1,90 @@
-﻿{
+{
   "version": "0.1.0",
   "items": [
-    {"id":"neon-drift","title":"Neon Drift","genre":"竞速","price":"0.00","emoji":"🏎️","color":"#2b6cff","description":"霓虹赛道上的高速漂移，支持键盘操控。","url":"https://xsmmc.caldson.us.ci/"},
-    {"id":"block-studio","title":"Block Studio","genre":"创作","price":"5.00","emoji":"🧱","color":"#e85d3f","description":"用积木搭出你的世界，作品可分享到社区。","url":"https://xsmmc.caldson.us.ci/vtoy-square.html"},
-    {"id":"pixel-farm","title":"Pixel Farm","genre":"模拟","price":"10.00","emoji":"🌾","color":"#2f9e62","description":"经营一座像素农场，种植、交易、扩建。","url":"https://xsmmc.caldson.us.ci/"},
-    {"id":"space-miner","title":"Space Miner","genre":"冒险","price":"15.00","emoji":"🪐","color":"#7a5cff","description":"在深空小行星带开采资源并升级飞船。","url":"https://xsmmc.caldson.us.ci/"},
-    {"id":"rhythm-lab","title":"Rhythm Lab","genre":"音乐","price":"8.00","emoji":"🎵","color":"#d946ef","description":"跟着节拍敲击，支持自定义曲目。","url":"https://xsmmc.caldson.us.ci/vmuzic.html"},
-    {"id":"tower-guard","title":"Tower Guard","genre":"策略","price":"12.00","emoji":"🏰","color":"#f59e0b","description":"布置防线，守住高塔。","url":"https://xsmmc.caldson.us.ci/"},
-    {"id":"vitual-uno","title":"Vitual UNO","genre":"桌游","price":"0.00","emoji":"🃏","color":"#ef4444","description":"在聊天室里和朋友来一局 UNO。","url":"https://xsmmc.caldson.us.ci/chatroom.html"},
-    {"id":"xos-sandbox","title":"XOS Sandbox","genre":"沙盒","price":"20.00","emoji":"🖥️","color":"#0ea5e9","description":"在 XOS 虚拟桌面里自由实验。","url":"https://xsmmc.caldson.us.ci/xos.html"}
+    {
+      "id": "neon-drift",
+      "title": "Neon Drift",
+      "genre": "竞速",
+      "price": "0.00",
+      "emoji": "🏎️",
+      "color": "#2b6cff",
+      "description": "霓虹赛道上的高速漂移，支持键盘操控。",
+      "url": "https://xsmmc.caldson.us.ci/"
+    },
+    {
+      "id": "block-studio",
+      "title": "Block Studio",
+      "genre": "创作",
+      "price": "5.00",
+      "emoji": "🧱",
+      "color": "#e85d3f",
+      "description": "用积木搭出你的世界，作品可分享到社区。",
+      "url": "https://xsmmc.caldson.us.ci/vtoy-square.html",
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/block-studio.zip"
+    },
+    {
+      "id": "pixel-farm",
+      "title": "Pixel Farm",
+      "genre": "模拟",
+      "price": "10.00",
+      "emoji": "🌾",
+      "color": "#2f9e62",
+      "description": "经营一座像素农场，种植、交易、扩建。",
+      "url": "https://xsmmc.caldson.us.ci/",
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/pixel-farm.zip"
+    },
+    {
+      "id": "space-miner",
+      "title": "Space Miner",
+      "genre": "冒险",
+      "price": "15.00",
+      "emoji": "🪐",
+      "color": "#7a5cff",
+      "description": "在深空小行星带开采资源并升级飞船。",
+      "url": "https://xsmmc.caldson.us.ci/"
+    },
+    {
+      "id": "rhythm-lab",
+      "title": "Rhythm Lab",
+      "genre": "音乐",
+      "price": "8.00",
+      "emoji": "🎵",
+      "color": "#d946ef",
+      "description": "跟着节拍敲击，支持自定义曲目。",
+      "url": "https://xsmmc.caldson.us.ci/vmuzic.html",
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/rhythm-lab.zip"
+    },
+    {
+      "id": "tower-guard",
+      "title": "Tower Guard",
+      "genre": "策略",
+      "price": "12.00",
+      "emoji": "🏰",
+      "color": "#f59e0b",
+      "description": "布置防线，守住高塔。",
+      "url": "https://xsmmc.caldson.us.ci/",
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/tower-guard.zip"
+    },
+    {
+      "id": "vitual-uno",
+      "title": "Vitual UNO",
+      "genre": "桌游",
+      "price": "0.00",
+      "emoji": "🃏",
+      "color": "#ef4444",
+      "description": "在聊天室里和朋友来一局 UNO。",
+      "url": "https://xsmmc.caldson.us.ci/chatroom.html"
+    },
+    {
+      "id": "xos-sandbox",
+      "title": "XOS Sandbox",
+      "genre": "沙盒",
+      "price": "20.00",
+      "emoji": "🖥️",
+      "color": "#0ea5e9",
+      "description": "在 XOS 虚拟桌面里自由实验。",
+      "url": "https://xsmmc.caldson.us.ci/xos.html",
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/xos-sandbox.zip"
+    }
   ]
 }

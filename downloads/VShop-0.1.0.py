@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
+import urllib.request
+import zipfile
 import tkinter as tk
 import webbrowser
 from pathlib import Path
@@ -162,6 +165,27 @@ class VShopApp:
             owned = game.get("id") in self.library
             tk.Button(card, text="已在库中" if owned else "购买", command=lambda g=game: self._buy(g), bg="#2a475e" if owned else "#1a9fff", fg="#fff", relief="flat", font=("Microsoft YaHei", 9, "bold"), padx=16, pady=5).pack(anchor="w")
 
+    def _install_dir(self, gid: str):
+        path = BASE / "library" / gid
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _install(self, game: dict) -> bool:
+        url = str(game.get("download") or "")
+        if not url:
+            return False
+        target = self._install_dir(str(game.get("id")))
+        archive = target / "package.zip"
+        try:
+            urllib.request.urlretrieve(url, archive)
+            with zipfile.ZipFile(archive) as zf:
+                zf.extractall(target)
+            archive.unlink(missing_ok=True)
+            return True
+        except Exception as error:
+            messagebox.showerror("安装失败", str(error))
+            return False
+
     def _buy(self, game: dict) -> None:
         gid = game.get("id")
         if gid in self.library:
@@ -183,8 +207,14 @@ class VShopApp:
                 return
         self.library.append(gid)
         save_json(LIBRARY_FILE, self.library)
+        if game.get("download"):
+            if self._install(game):
+                messagebox.showinfo("VShop", f"已安装：{game['title']}")
+            else:
+                messagebox.showwarning("VShop", "已加入库，但安装包下载失败，请稍后重试")
+        else:
+            messagebox.showinfo("VShop", f"已加入库：{game['title']}")
         self._render()
-        messagebox.showinfo("VShop", f"已加入库：{game['title']}")
 
     def _library(self) -> None:
         self._section("我的库")
@@ -197,9 +227,24 @@ class VShopApp:
             row.pack(fill="x", pady=4)
             tk.Label(row, text=game.get("emoji", "🎮"), bg="#16202d", font=("Segoe UI Emoji", 18)).pack(side="left")
             tk.Label(row, text=game.get("title", ""), bg="#16202d", fg="#fff", font=("Microsoft YaHei", 11, "bold")).pack(side="left", padx=10)
-            tk.Button(row, text="启动", command=lambda g=game: self._launch(g), bg="#1a9fff", fg="#fff", relief="flat").pack(side="right")
+            installed = (BASE / "library" / str(game.get("id"))).exists()
+            tk.Button(row, text="启动" if installed else "安装", command=lambda g=game: self._launch(g), bg="#1a9fff", fg="#fff", relief="flat").pack(side="right")
 
     def _launch(self, game: dict) -> None:
+        folder = BASE / "library" / str(game.get("id"))
+        if not folder.exists() and game.get("download"):
+            if not self._install(game):
+                return
+        if folder.exists():
+            for name in ("game.exe", "game.py", "main.py"):
+                path = folder / name
+                if path.exists():
+                    if path.suffix.lower() == ".exe":
+                        os.startfile(str(path))
+                    else:
+                        subprocess.Popen([sys.executable, str(path)])
+                    messagebox.showinfo("VShop", f"正在启动 {game.get('title', '游戏')}")
+                    return
         url = game.get("url") or "https://xsmmc.caldson.us.ci/"
         webbrowser.open(url)
         messagebox.showinfo("VShop", f"正在启动 {game.get('title', '游戏')}")
