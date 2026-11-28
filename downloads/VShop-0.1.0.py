@@ -30,7 +30,7 @@ FALLBACK_GAMES = [
     {"id": "block-studio", "title": "Block Studio", "genre": "创作", "price": "5.00", "emoji": "🧱", "color": "#e85d3f", "description": "用积木搭出你的世界。", "url": "https://xsmmc.caldson.us.ci/"},
     {"id": "pixel-farm", "title": "Pixel Farm", "genre": "模拟", "price": "10.00", "emoji": "🌾", "color": "#2f9e62", "description": "经营一座像素农场。", "url": "https://xsmmc.caldson.us.ci/"},
     {"id": "space-miner", "title": "Space Miner", "genre": "冒险", "price": "15.00", "emoji": "🪐", "color": "#7a5cff", "description": "在深空小行星带开采资源。", "url": "https://xsmmc.caldson.us.ci/"},
-    {"id": "rhythm-lab", "title": "Rhythm Lab", "genre": "音乐", "price": "8.00", "emoji": "🎵", "color": "#d946ef", "description": "跟着节拍敲击。", "url": "https://xsmmc.caldson.us.ci/"},
+    {"id": "rhythm-lab", "title": "Rhythm Lab", "genre": "音乐", "price": "8.00", "emoji": "🎵", "color": "#d946ef", "description": "跟着节拍敲击。", "url": "https://play.decrive.us.ci/"},
     {"id": "tower-guard", "title": "Tower Guard", "genre": "策略", "price": "12.00", "emoji": "🏰", "color": "#f59e0b", "description": "布置防线，守住高塔。", "url": "https://xsmmc.caldson.us.ci/"},
 ]
 
@@ -209,7 +209,7 @@ class VShopApp:
             if not password:
                 return
             try:
-                self.vtx.pay(price, "VShop", f"购买 {game['title']}", password=password)
+                self.vtx.pay(price, "VShop", f"购买 {game['title']}", "VShop", password)
             except Exception as error:
                 messagebox.showerror("购买失败", str(error))
                 return
