@@ -1,6 +1,145 @@
 {
   "version": "15.0",
   "items": [],
+  "游戏": [
+    {
+      "id": "arica-kingdom",
+      "name": "Arica Kingdom",
+      "price": "750.00",
+      "description": "自由3D第三人称城市生存游戏。154平方公里开放城市「伊吾市术枯区」：可进入的商店与地铁、真实时间与真实天气、血量与饱食度、打工与买房。0.3.2v：1-9 物品栏、大街 60% 刷新空瓶子、每 10 km 一座废品回收站、P 键小地图。需登录 Vitual XRing 账号，存档绑定账号。支持低/中/顶配三档画质。 0.3.2v：1号线5站全部开通；2–6号线DLC上架（集合2250、单线500）。",
+      "manufacturer": "Arica Studio / XRing",
+      "stock": 9999,
+      "virtual": true,
+      "type": "game",
+      "platform": "Windows",
+      "gameVersion": "0.3.2v",
+      "download": "downloads/games/AricaKingdom.exe",
+      "image": "images/arica-kingdom.png"
+    },
+    {
+      "id": "arica-kingdom-dlc-lighting-bundle",
+      "name": "Arica Kingdom 光影同捆包",
+      "price": "200.00",
+      "originalPrice": "210.00",
+      "description": "同捆包：包含「Arica Kingdom 光追」与「Arica Kingdom 影子支持」，比单独购买省 10.00 VTX。",
+      "type": "dlc",
+      "bundle": true,
+      "bundleItems": [
+        "arica-kingdom-dlc-raytracing",
+        "arica-kingdom-dlc-shadows"
+      ],
+      "gameId": "arica-kingdom",
+      "manufacturer": "Arica Studio / XRing",
+      "stock": 9999,
+      "virtual": true,
+      "image": "images/arica-kingdom-dlc-lighting.png"
+    },
+    {
+      "id": "arica-kingdom-dlc-raytracing",
+      "name": "Arica Kingdom 光追",
+      "price": "200.00",
+      "description": "为 Arica Kingdom 启用实时反射与更高质量的光照。也可通过「Arica Kingdom 光影同捆包」获得。",
+      "type": "dlc",
+      "gameId": "arica-kingdom",
+      "manufacturer": "Arica Studio / XRing",
+      "stock": 9999,
+      "virtual": true,
+      "image": "images/arica-kingdom-dlc-raytracing.png"
+    },
+    {
+      "id": "arica-kingdom-dlc-shadows",
+      "name": "Arica Kingdom 影子支持",
+      "price": "10.00",
+      "description": "为 Arica Kingdom 启用动态阴影与接触阴影。也可通过「Arica Kingdom 光影同捆包」获得。",
+      "type": "dlc",
+      "gameId": "arica-kingdom",
+      "manufacturer": "Arica Studio / XRing",
+      "stock": 9999,
+      "virtual": true,
+      "image": "images/arica-kingdom-dlc-shadows.png"
+    },
+    {
+      "id": "arica-kingdom-dlc-metro-collection",
+      "name": "地铁号线集合",
+      "price": "2250.00",
+      "originalPrice": "2500.00",
+      "description": "一次解锁 Arica Kingdom 的 2–6 号线全部地铁线路（原价 2500.00 VTX，省 250.00 VTX）。",
+      "type": "dlc",
+      "gameId": "arica-kingdom",
+      "bundle": true,
+      "bundleItems": [
+        "arica-kingdom-dlc-metro-2",
+        "arica-kingdom-dlc-metro-3",
+        "arica-kingdom-dlc-metro-4",
+        "arica-kingdom-dlc-metro-5",
+        "arica-kingdom-dlc-metro-6"
+      ],
+      "manufacturer": "Arica Studio / XRing",
+      "stock": 9999,
+      "virtual": true,
+      "image": "images/arica-kingdom-dlc-metro-collection.png"
+    },
+    {
+      "id": "arica-kingdom-dlc-metro-2",
+      "name": "2号线地铁",
+      "price": "500.00",
+      "description": "解锁 Arica Kingdom 的 2 号线地铁及其全部车站；也可通过「地铁号线集合」一次解锁 2–6 号线。",
+      "type": "dlc",
+      "gameId": "arica-kingdom",
+      "manufacturer": "Arica Studio / XRing",
+      "stock": 9999,
+      "virtual": true,
+      "image": "images/arica-kingdom-dlc-metro-2.png"
+    },
+    {
+      "id": "arica-kingdom-dlc-metro-3",
+      "name": "3号线地铁",
+      "price": "500.00",
+      "description": "解锁 Arica Kingdom 的 3 号线地铁及其全部车站；也可通过「地铁号线集合」一次解锁 2–6 号线。",
+      "type": "dlc",
+      "gameId": "arica-kingdom",
+      "manufacturer": "Arica Studio / XRing",
+      "stock": 9999,
+      "virtual": true,
+      "image": "images/arica-kingdom-dlc-metro-3.png"
+    },
+    {
+      "id": "arica-kingdom-dlc-metro-4",
+      "name": "4号线地铁",
+      "price": "500.00",
+      "description": "解锁 Arica Kingdom 的 4 号线地铁及其全部车站；也可通过「地铁号线集合」一次解锁 2–6 号线。",
+      "type": "dlc",
+      "gameId": "arica-kingdom",
+      "manufacturer": "Arica Studio / XRing",
+      "stock": 9999,
+      "virtual": true,
+      "image": "images/arica-kingdom-dlc-metro-4.png"
+    },
+    {
+      "id": "arica-kingdom-dlc-metro-5",
+      "name": "5号线地铁",
+      "price": "500.00",
+      "description": "解锁 Arica Kingdom 的 5 号线地铁及其全部车站；也可通过「地铁号线集合」一次解锁 2–6 号线。",
+      "type": "dlc",
+      "gameId": "arica-kingdom",
+      "manufacturer": "Arica Studio / XRing",
+      "stock": 9999,
+      "virtual": true,
+      "image": "images/arica-kingdom-dlc-metro-5.png"
+    },
+    {
+      "id": "arica-kingdom-dlc-metro-6",
+      "name": "6号线地铁",
+      "price": "500.00",
+      "description": "解锁 Arica Kingdom 的 6 号线地铁及其全部车站；也可通过「地铁号线集合」一次解锁 2–6 号线。",
+      "type": "dlc",
+      "gameId": "arica-kingdom",
+      "manufacturer": "Arica Studio / XRing",
+      "stock": 9999,
+      "virtual": true,
+      "image": "images/arica-kingdom-dlc-metro-6.png"
+    }
+  ],
   "文具本 - 采用冷胶工艺": [
     {
       "id": "xring-backend-blankbook-pocketver",

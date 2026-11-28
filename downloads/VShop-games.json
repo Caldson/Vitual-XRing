@@ -2,6 +2,17 @@
   "version": "0.1.0",
   "items": [
     {
+      "id": "arica-kingdom",
+      "title": "Arica Kingdom",
+      "genre": "开放世界",
+      "price": "750.00",
+      "emoji": "🌴",
+      "color": "#ff5d8f",
+      "description": "自由3D第三人称城市生存游戏。154平方公里开放城市、可进入的地铁与商店、真实时间与真实天气。0.3.2v：物品栏、空瓶子、废品回收站、P 键小地图。启动需登录 Vitual XRing 账号，存档绑定账号。",
+      "url": "https://xsmmc.caldson.us.ci/arica-kingdom.html",
+      "download": "https://xsmmc.caldson.us.ci/downloads/games/AricaKingdom.exe"
+    },
+    {
       "id": "neon-drift",
       "title": "Neon Drift",
       "genre": "竞速",
